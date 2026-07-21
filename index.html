@@ -7532,7 +7532,7 @@ function tfmResetAll() {
 const SAPI_PROXY = 'https://script.google.com/macros/s/AKfycbzfKUiTCvknRbyeA8tqRQupP7ENi2t2mAFwkXBliZ0EPb5bv4eH-yNbLZRs7sPC92k0UQ/exec';
 const SAPI_PARTNER_ID = 2038513;
 const SAPI_PARTNER_KEY = 'shpk446647526b594253664f5575555275536a646e55524f7449635953466441';
-const SAPI_REDIRECT_URL = 'https://h-ads-dashboard.web.app';
+const SAPI_REDIRECT_URL = 'https://hhbooks.github.io/hh-ads-dashboard/';
 
 const SAPI_SHOPS = [
   { id: 1289235612, name: 'Nhà Sách 2HBooks',      username: 'nhasach2hbooks' },
@@ -7717,9 +7717,7 @@ async function sapiRenderShops() {
     const statusBadge = connected
       ? `<span style="background:#e8f8f0;color:#27ae60;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600">🟢 Đã kết nối</span>`
       : `<span style="background:#fdf0ef;color:#e74c3c;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600">⚫ Chưa kết nối</span>`;
-    const expireInfo = connected
-      ? `<div style="font-size:11px;color:${expireSoon?'#e67e22':'#777'};margin-top:4px">${expireSoon?'⚠ Token hết hạn sớm — ':''}Token đến ${expireDate}</div>`
-      : '';
+    const expireInfo = ''; // Ẩn — token tự refresh, không cần hiển thị
     const actionBtn = connected
       ? `<div style="display:flex;gap:8px;margin-top:10px">
            <button onclick="sapiDisconnect(${shop.id})" style="padding:5px 12px;border:1px solid #e74c3c;color:#e74c3c;background:white;border-radius:6px;font-size:11px;cursor:pointer">Ngắt kết nối</button>
