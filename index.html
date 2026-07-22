@@ -2303,6 +2303,8 @@
 
         <div id="th-sku-catalog-section" style="display:none">
           <div id="th-sku-catalog-kpis" class="sw-kpi-grid"></div>
+          <!-- Báo cáo theo ngành hàng — render bởi bcslSkuRenderNganhHang() sau khi load catalog -->
+          <div id="th-sku-nganh-section" style="margin-bottom:4px"></div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:14px 0 10px">
             <input type="text" id="th-sku-catalog-search" placeholder="🔍 Tìm theo mã SKU hoặc tên sản phẩm..." style="flex:1;min-width:220px;padding:8px 12px;border:1.5px solid var(--gray3);border-radius:6px;font-size:13px" oninput="bcslSkuSearchInput(this.value)">
             <select id="th-sku-catalog-filter" style="padding:8px 12px;border:1.5px solid var(--gray3);border-radius:6px;font-size:13px" onchange="bcslSkuFilterChange(this.value)">
@@ -11036,7 +11038,8 @@ async function tqDoCatalogSync() {
           ncc: r.findIndex(c => c.includes('nhà cung cấp')),
           giaBan: r.findIndex(c => c.includes('giá bán')),
           giaVon: giaVonC,
-          giaBia: r.findIndex(c => c.includes('giá bìa'))
+          giaBia: r.findIndex(c => c.includes('giá bìa')),
+          nganhHang: r.findIndex(c => c.includes('ngành hàng') || c.includes('nganh hang'))
         };
         break;
       }
@@ -11055,7 +11058,8 @@ async function tqDoCatalogSync() {
         ncc: idx.ncc !== -1 ? String(r[idx.ncc] || '').trim() : '',
         giaBan: idx.giaBan !== -1 ? parseVNNumber(r[idx.giaBan]) : 0,
         giaVon: idx.giaVon !== -1 ? parseVNNumber(r[idx.giaVon]) : 0,
-        giaBia: idx.giaBia !== -1 ? parseVNNumber(r[idx.giaBia]) : 0
+        giaBia: idx.giaBia !== -1 ? parseVNNumber(r[idx.giaBia]) : 0,
+        nganhHang: idx.nganhHang !== -1 ? String(r[idx.nganhHang] || '').trim() : ''
       };
       count++;
     }
@@ -16115,6 +16119,257 @@ function bcslSkuRenderCatalog() {
   });
   html += '</tbody></table>';
   document.getElementById('th-sku-catalog-table-wrap').innerHTML = html;
+
+  // Render phần Ngành Hàng (async — load catalog từ Firestore)
+  bcslSkuRenderNganhHang(list, totalRev);
+}
+
+// ══════════════════════════════════════════════════════════════
+// BÁO CÁO NGÀNH HÀNG — Tích hợp trong Báo Cáo Sản Lượng Mục 2
+// ══════════════════════════════════════════════════════════════
+let _bcslNganhChart = null;
+
+async function bcslSkuRenderNganhHang(list, totalRev) {
+  const wrap = document.getElementById('th-sku-nganh-section');
+  if (!wrap) return;
+  wrap.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text2);font-size:12px">⏳ Đang tải dữ liệu ngành hàng từ catalog...</div>';
+
+  // Load catalog (có cache trong GIA.catalog)
+  let catalog = {};
+  try { catalog = await giaLoadCatalogIfNeeded(); } catch(e) { catalog = {}; }
+
+  // Map SKU → nganhHang, group by category
+  const catMap = new Map();
+  let unmapped = 0;
+  list.forEach(item => {
+    const entry = catalog[item.ma_sku];
+    const nganh = (entry && entry.nganhHang) ? entry.nganhHang.trim() : '';
+    if (!nganh) { unmapped++; return; }
+    if (!catMap.has(nganh)) catMap.set(nganh, { dt: 0, sl: 0, cost: 0, skus: [] });
+    const g = catMap.get(nganh);
+    g.dt   += item.doanh_thu;
+    g.sl   += item.so_luong;
+    g.cost += item.gia_von;
+    g.skus.push(item);
+  });
+
+  // Build groups array, sort by revenue desc
+  const groups = Array.from(catMap.entries()).map(([nganh, g]) => ({
+    nganh, dt: g.dt, sl: g.sl, cost: g.cost,
+    ln: g.dt - g.cost,
+    margin: g.dt > 0 ? (g.dt - g.cost) / g.dt * 100 : 0,
+    pct: totalRev > 0 ? g.dt / totalRev * 100 : 0,
+    skus: g.skus.sort((a, b) => b.doanh_thu - a.doanh_thu)
+  })).sort((a, b) => b.dt - a.dt);
+
+  if (!groups.length) {
+    wrap.innerHTML = '<div style="padding:16px;background:#fffbf0;border:1px solid #f39c12;border-radius:8px;font-size:12px;color:#7D6608;margin-bottom:12px">⚠️ Chưa có dữ liệu ngành hàng trong catalog. Vui lòng bấm <b>Đồng Bộ Danh Mục SKU</b> (Google Sheet) để cập nhật cột Ngành hàng.</div>';
+    return;
+  }
+
+  // VPP group
+  const VPP_GROUPS = ['Deli VPP', 'Deli Tools', 'Bossee', 'Home'];
+  const vppDt = groups.filter(g => VPP_GROUPS.includes(g.nganh)).reduce((s, g) => s + g.dt, 0);
+  const vppPct = totalRev > 0 ? vppDt / totalRev * 100 : 0;
+  const topGroup = groups[0];
+  const activeGroups = groups.filter(g => g.dt > 0).length;
+
+  // Color palette per category
+  const CAT_COLORS = {
+    'Văn học': '#2980b9', 'Thiếu nhi': '#e74c3c', 'Phát triển bản thân': '#e67e22',
+    'Tham khảo': '#27ae60', 'Deli VPP': '#8e44ad', 'Bossee': '#1abc9c',
+    'Deli Tools': '#16a085', 'Home': '#2471a3', 'Âm nhạc': '#f39c12',
+    'Trinh thám - Kinh dị': '#2c3e50', 'Sức khỏe': '#1e8449',
+    'Văn hóa (Lịch sử)': '#c0392b', 'Khác': '#95a5a6'
+  };
+  const getColor = n => CAT_COLORS[n] || '#7f8c8d';
+  const fmtM = v => { if (v >= 1e9) return (v/1e9).toFixed(2)+'tỷ'; if (v >= 1e6) return (v/1e6).toFixed(1)+'tr'; return v.toLocaleString('vi-VN'); };
+
+  // ── KPI Cards ──────────────────────────────────────────────
+  let kpiHtml = `<div class="sw-kpi-grid" style="margin-bottom:16px">
+    <div class="sw-kpi-card" style="border-left-color:#2980b9">
+      <div class="sw-kpi-label">📂 Ngành Có Doanh Số</div>
+      <div class="sw-kpi-value">${activeGroups}<span style="font-size:14px;font-weight:400;color:var(--text2)"> / ${activeGroups + (unmapped > 0 ? 1 : 0)} nhóm</span></div>
+      <div class="sw-kpi-sub">${unmapped > 0 ? `<span style="color:#e67e22">${unmapped} SKU chưa khớp ngành</span>` : 'Tất cả SKU đã có ngành hàng'}</div>
+    </div>
+    <div class="sw-kpi-card" style="border-left-color:#e67e22">
+      <div class="sw-kpi-label">🏆 Ngành Bán Chạy Nhất</div>
+      <div class="sw-kpi-value" style="font-size:15px;line-height:1.2">${topGroup.nganh}</div>
+      <div class="sw-kpi-sub">${fmtMoney(topGroup.dt)} · ${topGroup.pct.toFixed(1)}% tổng DT</div>
+    </div>
+    <div class="sw-kpi-card" style="border-left-color:#8e44ad">
+      <div class="sw-kpi-label">🖊️ Nhóm VPP (Deli+Bossee+Home)</div>
+      <div class="sw-kpi-value">${fmtMoney(vppDt)}</div>
+      <div class="sw-kpi-sub">${vppPct.toFixed(1)}% tổng doanh thu · ${VPP_GROUPS.filter(n => catMap.has(n)).length} ngành đang bán</div>
+    </div>
+    <div class="sw-kpi-card" style="border-left-color:${unmapped > 0 ? 'var(--orange)' : 'var(--green)'}">
+      <div class="sw-kpi-label">🔍 SKU Chưa Khớp Ngành</div>
+      <div class="sw-kpi-value" style="color:${unmapped > 0 ? 'var(--orange)' : 'var(--green)'}">${unmapped}</div>
+      <div class="sw-kpi-sub">${unmapped > 0 ? 'Đồng bộ lại Catalog để bổ sung ngành hàng' : 'Catalog đã khớp đầy đủ'}</div>
+    </div>
+  </div>`;
+
+  // ── Bar chart (canvas) ────────────────────────────────────
+  const chartH = Math.max(groups.length * 30 + 24, 80);
+  const chartHtml = `
+  <div style="background:#fff;border:1px solid var(--gray3);border-radius:8px;padding:14px 16px;margin-bottom:12px">
+    <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.5px;margin-bottom:10px">DOANH THU THEO NGÀNH HÀNG</div>
+    <div style="position:relative;height:${chartH}px"><canvas id="bcsl-nganh-chart"></canvas></div>
+  </div>`;
+
+  // ── Accordion table ───────────────────────────────────────
+  let tableHtml = `
+  <div style="background:#fff;border:1px solid var(--gray3);border-radius:8px;overflow:hidden">
+    <div style="padding:12px 16px;font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.5px;border-bottom:1px solid var(--gray3)">CHI TIẾT TỪNG NGÀNH — click dòng để xem top SKU</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="background:var(--gray2)">
+          <th style="padding:8px 10px;text-align:left;font-weight:700;color:var(--text2)">Ngành Hàng</th>
+          <th style="padding:8px;text-align:right;font-weight:700;color:var(--text2)">SKU</th>
+          <th style="padding:8px;text-align:right;font-weight:700;color:var(--text2)">SL Bán</th>
+          <th style="padding:8px;text-align:right;font-weight:700;color:var(--text2)">Doanh Thu</th>
+          <th style="padding:8px;text-align:right;font-weight:700;color:var(--text2)">% Tổng</th>
+          <th style="padding:8px;text-align:right;font-weight:700;color:var(--text2)">Lợi Nhuận</th>
+          <th style="padding:8px;text-align:right;font-weight:700;color:var(--text2)">Margin</th>
+          <th style="padding:8px;text-align:center;font-weight:700;color:var(--text2)">▼</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+  groups.forEach((g, i) => {
+    const barW = groups[0].dt > 0 ? (g.dt / groups[0].dt * 100).toFixed(1) : 0;
+    const isVPP = VPP_GROUPS.includes(g.nganh);
+    const mColor = g.margin < 0 ? '#922B21' : g.margin < 20 ? '#7D6608' : '#196F3D';
+
+    tableHtml += `
+      <tr id="nh-row-${i}" style="cursor:pointer;border-bottom:1px solid var(--gray3);transition:background .1s" onclick="bcslToggleNganh(${i})"
+          onmouseover="this.style.background='var(--gray2)'" onmouseout="this.style.background='#fff'">
+        <td style="padding:9px 10px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${getColor(g.nganh)};flex-shrink:0"></span>
+            <span style="font-weight:600;color:var(--text)">${g.nganh}</span>
+            ${isVPP ? '<span style="font-size:9px;background:#8e44ad;color:#fff;padding:1px 5px;border-radius:5px;margin-left:2px">VPP</span>' : ''}
+          </div>
+          <div style="margin:5px 0 1px 16px;height:3px;background:var(--gray3);border-radius:2px;max-width:160px">
+            <div style="height:100%;width:${barW}%;background:${getColor(g.nganh)};border-radius:2px"></div>
+          </div>
+        </td>
+        <td style="padding:9px 8px;text-align:right;color:var(--text2);font-size:11px">${g.skus.length}</td>
+        <td style="padding:9px 8px;text-align:right">${g.sl.toLocaleString('vi-VN')}</td>
+        <td style="padding:9px 8px;text-align:right;font-weight:600">${fmtMoney(g.dt)}</td>
+        <td style="padding:9px 8px;text-align:right;color:var(--text2)">${g.pct.toFixed(1)}%</td>
+        <td style="padding:9px 8px;text-align:right;color:${g.ln >= 0 ? '#196F3D' : '#922B21'}">${fmtMoney(g.ln)}</td>
+        <td style="padding:9px 8px;text-align:right;font-weight:700;color:${mColor}">${g.dt > 0 ? g.margin.toFixed(1) + '%' : '–'}</td>
+        <td style="padding:9px 8px;text-align:center;color:var(--text2);font-size:10px" id="nh-arrow-${i}">▶</td>
+      </tr>
+      <tr id="nh-detail-${i}" style="display:none;background:#fafbfd">
+        <td colspan="8" style="padding:0">
+          <div style="padding:12px 16px 14px 28px">
+            <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px">TOP SKU — ${g.nganh} (${g.skus.length} SKU, hiển thị tối đa 10)</div>
+            <table style="width:100%;font-size:11px;border-collapse:collapse">
+              <thead><tr style="background:var(--gray2)">
+                <th style="padding:5px 6px;text-align:left;color:var(--text2)">Mã SKU</th>
+                <th style="padding:5px 6px;text-align:left;color:var(--text2)">Tên Sản Phẩm</th>
+                <th style="padding:5px 6px;text-align:right;color:var(--text2)">SL</th>
+                <th style="padding:5px 6px;text-align:right;color:var(--text2)">Doanh Thu</th>
+                <th style="padding:5px 6px;text-align:right;color:var(--text2)">Margin</th>
+              </tr></thead>
+              <tbody>`;
+
+    g.skus.slice(0, 10).forEach(s => {
+      const smC = s.doanh_thu === 0 ? 'var(--text2)' : s.margin < 0 ? '#922B21' : s.margin < 20 ? '#7D6608' : '#196F3D';
+      tableHtml += `<tr style="border-top:1px solid var(--gray3)">
+        <td style="padding:5px 6px;color:var(--text2);font-size:10px">${s.ma_sku}</td>
+        <td style="padding:5px 6px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${s.ten}">${s.ten}</td>
+        <td style="padding:5px 6px;text-align:right">${s.so_luong.toLocaleString('vi-VN')}</td>
+        <td style="padding:5px 6px;text-align:right">${fmtMoney(s.doanh_thu)}</td>
+        <td style="padding:5px 6px;text-align:right;font-weight:700;color:${smC}">${s.doanh_thu > 0 ? s.margin.toFixed(1) + '%' : '–'}</td>
+      </tr>`;
+    });
+
+    if (g.skus.length > 10) {
+      tableHtml += `<tr><td colspan="5" style="padding:6px;text-align:center;color:var(--text2);font-size:11px">... và ${g.skus.length - 10} SKU khác trong nhóm này</td></tr>`;
+    }
+
+    tableHtml += `</tbody></table></div></td></tr>`;
+  });
+
+  tableHtml += `</tbody></table></div>`;
+
+  // ── Assemble & inject ─────────────────────────────────────
+  wrap.innerHTML = `
+  <div style="background:#f8f9ff;border:1.5px solid #d0d8ee;border-radius:10px;padding:18px 16px;margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div style="font-weight:700;font-size:14px;color:var(--text)">📊 Báo Cáo Theo Ngành Hàng</div>
+      <span style="font-size:11px;color:var(--text2)">Nguồn: catalog SKU Tổng · ${groups.length} ngành · ${list.length - unmapped}/${list.length} SKU đã khớp</span>
+    </div>
+    ${kpiHtml}
+    ${chartHtml}
+    ${tableHtml}
+  </div>`;
+
+  // ── Render Chart.js ──────────────────────────────────────
+  const canvas = document.getElementById('bcsl-nganh-chart');
+  if (!canvas || !groups.length) return;
+  if (_bcslNganhChart) { try { _bcslNganhChart.destroy(); } catch(e) {} _bcslNganhChart = null; }
+  _bcslNganhChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: groups.map(g => g.nganh),
+      datasets: [{
+        data: groups.map(g => g.dt),
+        backgroundColor: groups.map(g => getColor(g.nganh) + 'dd'),
+        borderColor:     groups.map(g => getColor(g.nganh)),
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          anchor: 'end', align: 'end', clamp: true,
+          formatter: (v) => totalRev > 0 ? (v / totalRev * 100).toFixed(1) + '%' : '',
+          color: '#566573', font: { size: 10, weight: '600' }
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const g = groups[ctx.dataIndex];
+              return [
+                ` DT: ${fmtMoney(g.dt)} (${g.pct.toFixed(1)}%)`,
+                ` SL: ${g.sl.toLocaleString('vi-VN')} sản phẩm`,
+                ` Margin: ${g.margin.toFixed(1)}%`,
+                ` LN: ${fmtMoney(g.ln)}`
+              ];
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            callback: v => { if (v >= 1e9) return (v/1e9).toFixed(1)+'tỷ'; if (v >= 1e6) return (v/1e6).toFixed(0)+'tr'; return v; },
+            font: { size: 10 }
+          },
+          grid: { color: 'rgba(0,0,0,0.04)' }
+        },
+        y: { ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+function bcslToggleNganh(i) {
+  const detail = document.getElementById('nh-detail-' + i);
+  const arrow  = document.getElementById('nh-arrow-'  + i);
+  if (!detail) return;
+  const open = detail.style.display !== 'none';
+  detail.style.display = open ? 'none' : 'table-row';
+  if (arrow) arrow.textContent = open ? '▶' : '▼';
 }
 
 // ══════════════════════════════════════════════════════════════
