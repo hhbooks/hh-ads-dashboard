@@ -668,6 +668,9 @@
         <div class="nav-item" onclick="showPage('nghiep-vu-gop-file',this)">
           <span class="icon">📂</span> Gộp File Thống Kê
         </div>
+        <div class="nav-item" onclick="showPage('bckh',this)">
+          <span class="icon">📋</span> Báo Cáo Khách Hàng
+        </div>
       </div>
     </div>
 
@@ -2570,6 +2573,67 @@
             </tr>
           </thead>
           <tbody id="nv-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- BÁO CÁO BÁN HÀNG THEO KHÁCH HÀNG -->
+  <div class="page" id="page-bckh" style="display:none">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><span class="dot"></span> Báo Cáo Bán Hàng Theo Khách Hàng</div>
+      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
+        Upload nhiều file <b>"Chi tiết doanh thu theo hóa đơn và mặt hàng"</b> từ KiotViet (mỗi file = 1 đầu sách).
+        Hệ thống tổng hợp số lượng theo từng khách hàng × từng đầu sách, cho phép lọc khách trước khi xuất Excel.
+      </p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <input type="file" id="bckh-file-input" accept=".xlsx,.xls" multiple style="display:none"
+               onchange="bckhHandleFiles(this)">
+        <button class="sw-upload-btn" onclick="document.getElementById('bckh-file-input').click()">
+          📂 Upload File (chọn nhiều)
+        </button>
+        <button class="sw-upload-btn" style="background:var(--green);color:#fff;display:none"
+                id="bckh-export-btn" onclick="bckhExport()">
+          📤 Xuất Excel
+        </button>
+        <button id="bckh-reset-btn" onclick="bckhReset()"
+                style="padding:8px 16px;border:1px solid var(--red);color:var(--red);background:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:none">
+          🔄 Reset
+        </button>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div id="bckh-kpi-card" style="display:none;margin-bottom:16px" class="card">
+      <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center">
+        <div><div style="font-size:12px;color:var(--text2)">Số file đầu sách</div>
+          <div id="bckh-stat-files" style="font-size:24px;font-weight:700;color:var(--navy)">0</div></div>
+        <div><div style="font-size:12px;color:var(--text2)">Số khách hàng</div>
+          <div id="bckh-stat-kh" style="font-size:24px;font-weight:700;color:var(--navy)">0</div></div>
+        <div><div style="font-size:12px;color:var(--text2)">Tổng số lượng</div>
+          <div id="bckh-stat-sl" style="font-size:24px;font-weight:700;color:var(--green)">0</div></div>
+      </div>
+    </div>
+
+    <!-- Bộ lọc khách hàng -->
+    <div id="bckh-filter-card" style="display:none;margin-bottom:16px" class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <span style="font-size:13px;font-weight:700;color:var(--text)">🔍 Chọn khách hàng xuất báo cáo</span>
+        <div style="display:flex;gap:8px">
+          <button onclick="bckhSelectAll(true)"  style="padding:4px 12px;border:1px solid var(--navy);color:var(--navy);background:#fff;border-radius:6px;font-size:12px;cursor:pointer">Chọn tất cả</button>
+          <button onclick="bckhSelectAll(false)" style="padding:4px 12px;border:1px solid var(--gray3);color:var(--text2);background:#fff;border-radius:6px;font-size:12px;cursor:pointer">Bỏ chọn tất cả</button>
+        </div>
+      </div>
+      <div id="bckh-filter-list" style="display:flex;flex-wrap:wrap;gap:8px;max-height:200px;overflow-y:auto;padding:4px 0"></div>
+    </div>
+
+    <!-- Preview bảng tổng hợp -->
+    <div id="bckh-preview-card" style="display:none" class="card">
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">📊 Bảng tổng hợp (theo bộ lọc)</div>
+      <div style="overflow-x:auto;border:1px solid var(--gray3);border-radius:8px">
+        <table id="bckh-table" style="width:100%;border-collapse:collapse;font-size:12px;min-width:500px">
+          <thead id="bckh-thead"></thead>
+          <tbody id="bckh-tbody"></tbody>
         </table>
       </div>
     </div>
@@ -16913,6 +16977,262 @@ function nvReset() {
   document.getElementById('nv-reset-btn').style.display     = 'none';
   document.getElementById('nv-tbody').innerHTML              = '';
   document.getElementById('nv-warn-box').style.display      = 'none';
+}
+
+// ══════════════════════════════════════════════════════════════
+// BÁO CÁO BÁN HÀNG THEO KHÁCH HÀNG (BCKH)
+// Input: nhiều file KiotViet "Chi tiết doanh thu theo HĐ và mặt hàng"
+// Output: bảng Khách hàng × Đầu sách × Tổng SL, xuất 1 tab Excel
+// ══════════════════════════════════════════════════════════════
+const BCKH = {
+  // [{ bookName, colMap: {sl, kh}, rows: [{kh, sl}], rawHeaders: [], headerRowIdx }]
+  books: [],
+  // Map: khachHang → { bookName → totalSL }
+  matrix: new Map(),
+  customers: [],   // sorted unique customer list
+  selected: new Set()
+};
+
+// ── Parse 1 file ──────────────────────────────────────────────
+function bckhParseOneFile(file, callback) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+      // Tìm dòng header chứa "Số lượng" và "Khách hàng"
+      let hIdx = -1;
+      for (let i = 0; i < Math.min(raw.length, 12); i++) {
+        const r = raw[i] || [];
+        const hasKH = r.some(c => String(c || '').trim() === 'Khách hàng');
+        const hasSL = r.some(c => String(c || '').trim() === 'Số lượng');
+        if (hasKH && hasSL) { hIdx = i; break; }
+      }
+      if (hIdx === -1) { callback(null, 'Không tìm được header (Số lượng + Khách hàng)'); return; }
+
+      const header = (raw[hIdx] || []).map(c => String(c || '').trim());
+      const iSL = header.lastIndexOf('Số lượng');  // lastIndexOf tránh trùng
+      const iKH = header.lastIndexOf('Khách hàng');
+
+      // Lấy tên sách từ dòng dữ liệu đầu tiên (cột Tên hàng hóa)
+      const iTen = header.findIndex(h => h === 'Tên hàng hóa');
+      let bookName = file.name.replace(/\.xlsx?$/i, '');
+      for (let i = hIdx + 1; i < raw.length; i++) {
+        const r = raw[i] || [];
+        const tenVal = iTen >= 0 ? String(r[iTen] || '').trim() : '';
+        if (tenVal) { bookName = tenVal; break; }
+      }
+      // Rút gọn tên sách: bỏ phần giá/mã sau dấu ngoặc cuối nếu quá dài
+      if (bookName.length > 50) bookName = bookName.substring(0, 50).trim() + '…';
+
+      // Đọc data rows
+      const rows = [];
+      for (let i = hIdx + 1; i < raw.length; i++) {
+        const r = raw[i] || [];
+        const kh = String(r[iKH] || '').trim();
+        const sl = Number(r[iSL]) || 0;
+        if (!kh || sl === 0) continue;
+        rows.push({ kh, sl });
+      }
+
+      callback({ bookName, rows, filename: file.name }, null);
+    } catch(err) {
+      callback(null, err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── Handle upload nhiều file ──────────────────────────────────
+function bckhHandleFiles(input) {
+  const files = [...input.files];
+  if (!files.length) return;
+  BCKH.books = []; BCKH.matrix = new Map();
+  BCKH.customers = []; BCKH.selected = new Set();
+
+  let done = 0, errors = [];
+  files.forEach(file => {
+    bckhParseOneFile(file, (result, err) => {
+      if (err) { errors.push(file.name + ': ' + err); }
+      else { BCKH.books.push(result); }
+      done++;
+      if (done === files.length) {
+        bckhBuildMatrix();
+        bckhRender();
+      }
+    });
+  });
+  input.value = '';
+}
+
+// ── Build matrix Khách × Sách ─────────────────────────────────
+function bckhBuildMatrix() {
+  BCKH.matrix = new Map();
+  BCKH.books.forEach(book => {
+    book.rows.forEach(({ kh, sl }) => {
+      if (!BCKH.matrix.has(kh)) BCKH.matrix.set(kh, {});
+      const row = BCKH.matrix.get(kh);
+      row[book.bookName] = (row[book.bookName] || 0) + sl;
+    });
+  });
+  BCKH.customers = Array.from(BCKH.matrix.keys()).sort((a, b) => {
+    const ta = bckhTotalForCustomer(a), tb = bckhTotalForCustomer(b);
+    return tb - ta;
+  });
+  BCKH.selected = new Set(BCKH.customers);
+}
+
+function bckhTotalForCustomer(kh) {
+  const row = BCKH.matrix.get(kh) || {};
+  return Object.values(row).reduce((s, v) => s + v, 0);
+}
+
+// ── Render toàn bộ UI ─────────────────────────────────────────
+function bckhRender() {
+  if (!BCKH.books.length) return;
+
+  // KPI
+  const totalSL = BCKH.customers.reduce((s, kh) => s + bckhTotalForCustomer(kh), 0);
+  document.getElementById('bckh-stat-files').textContent = BCKH.books.length;
+  document.getElementById('bckh-stat-kh').textContent    = BCKH.customers.length;
+  document.getElementById('bckh-stat-sl').textContent    = totalSL.toLocaleString('vi-VN');
+  document.getElementById('bckh-kpi-card').style.display    = '';
+  document.getElementById('bckh-filter-card').style.display = '';
+  document.getElementById('bckh-preview-card').style.display = '';
+  document.getElementById('bckh-export-btn').style.display   = '';
+  document.getElementById('bckh-reset-btn').style.display    = '';
+
+  bckhRenderFilter();
+  bckhRenderTable();
+}
+
+// ── Render checkbox filter ────────────────────────────────────
+function bckhRenderFilter() {
+  const wrap = document.getElementById('bckh-filter-list');
+  if (!wrap) return;
+  wrap.innerHTML = BCKH.customers.map(kh => {
+    const checked = BCKH.selected.has(kh);
+    const total = bckhTotalForCustomer(kh);
+    const safe = kh.replace(/'/g, "\\'");
+    return `<label style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1.5px solid ${checked ? 'var(--navy)' : 'var(--gray3)'};border-radius:20px;cursor:pointer;background:${checked ? '#eef2ff' : '#fff'};font-size:12px;white-space:nowrap" id="bckh-lbl-${CSS.escape(kh)}">
+      <input type="checkbox" ${checked ? 'checked' : ''} onchange="bckhToggle('${safe}')" style="cursor:pointer">
+      <span style="font-weight:600">${kh}</span>
+      <span style="color:var(--text2)">${total.toLocaleString('vi-VN')}</span>
+    </label>`;
+  }).join('');
+}
+
+function bckhToggle(kh) {
+  if (BCKH.selected.has(kh)) BCKH.selected.delete(kh);
+  else BCKH.selected.add(kh);
+  bckhRenderFilter();
+  bckhRenderTable();
+}
+
+function bckhSelectAll(val) {
+  BCKH.selected = val ? new Set(BCKH.customers) : new Set();
+  bckhRenderFilter();
+  bckhRenderTable();
+}
+
+// ── Render preview table ──────────────────────────────────────
+function bckhRenderTable() {
+  const thead = document.getElementById('bckh-thead');
+  const tbody = document.getElementById('bckh-tbody');
+  if (!thead || !tbody) return;
+
+  const books = BCKH.books.map(b => b.bookName);
+  const active = BCKH.customers.filter(kh => BCKH.selected.has(kh));
+
+  // Header
+  thead.innerHTML = `<tr style="background:#1a2a4a">
+    <th style="padding:9px 12px;text-align:left;color:#fff;font-weight:700;font-size:12px;white-space:nowrap">Khách hàng</th>
+    ${books.map(b => `<th style="padding:9px 10px;text-align:right;color:#82b1ff;font-weight:700;font-size:12px;white-space:nowrap">${b}</th>`).join('')}
+    <th style="padding:9px 10px;text-align:right;color:#ffd740;font-weight:700;font-size:12px">Tổng SL</th>
+  </tr>`;
+
+  // Rows
+  let grandTotal = 0;
+  const bookTotals = {};
+  let rowsHtml = active.map((kh, idx) => {
+    const rowData = BCKH.matrix.get(kh) || {};
+    const total = bckhTotalForCustomer(kh);
+    grandTotal += total;
+    const bg = idx % 2 === 0 ? '#fff' : '#f8f9ff';
+    return `<tr style="background:${bg};border-bottom:1px solid var(--gray3)">
+      <td style="padding:8px 12px;font-weight:600;font-size:12px">${kh}</td>
+      ${books.map(b => {
+        const v = rowData[b] || 0;
+        bookTotals[b] = (bookTotals[b] || 0) + v;
+        return `<td style="padding:8px 10px;text-align:right;font-size:12px">${v > 0 ? v.toLocaleString('vi-VN') : '–'}</td>`;
+      }).join('')}
+      <td style="padding:8px 10px;text-align:right;font-weight:700;color:var(--navy);font-size:12px">${total.toLocaleString('vi-VN')}</td>
+    </tr>`;
+  }).join('');
+
+  // Total row
+  rowsHtml += `<tr style="background:#1a2a4a;font-weight:700;border-top:2px solid var(--navy)">
+    <td style="padding:9px 12px;color:#fff;font-size:12px">TỔNG CỘNG</td>
+    ${books.map(b => `<td style="padding:9px 10px;text-align:right;color:#82b1ff;font-size:12px">${(bookTotals[b]||0).toLocaleString('vi-VN')}</td>`).join('')}
+    <td style="padding:9px 10px;text-align:right;color:#ffd740;font-size:12px">${grandTotal.toLocaleString('vi-VN')}</td>
+  </tr>`;
+
+  tbody.innerHTML = rowsHtml;
+}
+
+// ── Xuất Excel ────────────────────────────────────────────────
+function bckhExport() {
+  const books = BCKH.books.map(b => b.bookName);
+  const active = BCKH.customers.filter(kh => BCKH.selected.has(kh));
+  if (!active.length) { alert('Chưa chọn khách hàng nào!'); return; }
+
+  const headers = ['Khách hàng', ...books, 'Tổng SL'];
+  const wsData = [headers];
+
+  const bookTotals = {};
+  let grandTotal = 0;
+
+  active.forEach(kh => {
+    const rowData = BCKH.matrix.get(kh) || {};
+    const total = bckhTotalForCustomer(kh);
+    grandTotal += total;
+    const row = [kh];
+    books.forEach(b => {
+      const v = rowData[b] || 0;
+      bookTotals[b] = (bookTotals[b] || 0) + v;
+      row.push(v > 0 ? v : 0);
+    });
+    row.push(total);
+    wsData.push(row);
+  });
+
+  // Dòng tổng cộng
+  const totalRow = ['TỔNG CỘNG', ...books.map(b => bookTotals[b] || 0), grandTotal];
+  wsData.push(totalRow);
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  // Độ rộng cột
+  ws['!cols'] = [{ wch: 45 }, ...books.map(() => ({ wch: 18 })), { wch: 12 }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Báo cáo KH');
+
+  const d = new Date();
+  const ds = d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+  XLSX.writeFile(wb, `BaoCao_KhachHang_${ds}.xlsx`);
+}
+
+// ── Reset ─────────────────────────────────────────────────────
+function bckhReset() {
+  BCKH.books = []; BCKH.matrix = new Map(); BCKH.customers = []; BCKH.selected = new Set();
+  ['bckh-kpi-card','bckh-filter-card','bckh-preview-card','bckh-export-btn','bckh-reset-btn']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  const fl = document.getElementById('bckh-filter-list'); if (fl) fl.innerHTML = '';
+  const th = document.getElementById('bckh-thead'); if (th) th.innerHTML = '';
+  const tb = document.getElementById('bckh-tbody'); if (tb) tb.innerHTML = '';
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
