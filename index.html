@@ -16418,11 +16418,31 @@ async function bcslSkuRenderNganhHang(list, totalRev) {
   if (!wrap) return;
   wrap.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text2);font-size:12px">⏳ Đang tải dữ liệu ngành hàng từ catalog...</div>';
 
-  // Load catalog (có cache trong GIA.catalog)
   let catalog = {};
   try { catalog = await giaLoadCatalogIfNeeded(); } catch(e) { catalog = {}; }
 
-  // Map SKU → nganhHang, group by category
+  // Helper: build nganhHang breakdown map from a products Map
+  function computeNganhMap(productsMap) {
+    const m = new Map();
+    productsMap.forEach((p, sku) => {
+      const entry = catalog[sku];
+      const nganh = (entry && entry.nganhHang) ? entry.nganhHang.trim() : '';
+      if (!nganh) return;
+      const rev = p.doanh_thu_thuc || 0;
+      if (!m.has(nganh)) m.set(nganh, { dt: 0, sl: 0 });
+      const g = m.get(nganh);
+      g.dt += rev; g.sl += p.so_luong || 0;
+    });
+    return m;
+  }
+
+  // Detect comparison mode: cả Shopee và TikTok đều có data, đang xem "Tất cả sàn"
+  const shopKeys = Object.keys(BCSL_SHOPS).filter(k => k !== 'L');
+  const hasShopee = shopKeys.length > 0 || !!BCSL_SHOPS['L'];
+  const hasTiktok = !!BCSL_TIKTOK;
+  const showComparison = hasShopee && hasTiktok && _bcslPlatformFilter === 'all';
+
+  // Map SKU → nganhHang, group by category (from merged list)
   const catMap = new Map();
   let unmapped = 0;
   list.forEach(item => {
@@ -16437,7 +16457,6 @@ async function bcslSkuRenderNganhHang(list, totalRev) {
     g.skus.push(item);
   });
 
-  // Build groups array, sort by revenue desc
   const groups = Array.from(catMap.entries()).map(([nganh, g]) => ({
     nganh, dt: g.dt, sl: g.sl, cost: g.cost,
     ln: g.dt - g.cost,
@@ -16451,14 +16470,12 @@ async function bcslSkuRenderNganhHang(list, totalRev) {
     return;
   }
 
-  // VPP group
   const VPP_GROUPS = ['Deli VPP', 'Deli Tools', 'Bossee', 'Home'];
   const vppDt = groups.filter(g => VPP_GROUPS.includes(g.nganh)).reduce((s, g) => s + g.dt, 0);
   const vppPct = totalRev > 0 ? vppDt / totalRev * 100 : 0;
   const topGroup = groups[0];
   const activeGroups = groups.filter(g => g.dt > 0).length;
 
-  // Color palette per category
   const CAT_COLORS = {
     'Văn học': '#2980b9', 'Thiếu nhi': '#e74c3c', 'Phát triển bản thân': '#e67e22',
     'Tham khảo': '#27ae60', 'Deli VPP': '#8e44ad', 'Bossee': '#1abc9c',
@@ -16467,7 +16484,7 @@ async function bcslSkuRenderNganhHang(list, totalRev) {
     'Văn hóa (Lịch sử)': '#c0392b', 'Khác': '#95a5a6'
   };
   const getColor = n => CAT_COLORS[n] || '#7f8c8d';
-  const fmtM = v => { if (v >= 1e9) return (v/1e9).toFixed(2)+'tỷ'; if (v >= 1e6) return (v/1e6).toFixed(1)+'tr'; return v.toLocaleString('vi-VN'); };
+  const fmtM = v => { if (v >= 1e9) return (v/1e9).toFixed(2)+'tỷ'; if (v >= 1e6) return (v/1e6).toFixed(1)+'tr'; if (!v) return '–'; return v.toLocaleString('vi-VN'); };
 
   // ── KPI Cards ──────────────────────────────────────────────
   let kpiHtml = `<div class="sw-kpi-grid" style="margin-bottom:16px">
@@ -16493,11 +16510,98 @@ async function bcslSkuRenderNganhHang(list, totalRev) {
     </div>
   </div>`;
 
+  // ── Bảng so sánh Shopee vs TikTok (chỉ hiện khi cả 2 platform đều có data) ──
+  let comparisonHtml = '';
+  if (showComparison) {
+    // Gộp tất cả Shopee products (tất cả shop)
+    const shopeeAllMap = new Map();
+    Object.keys(BCSL_SHOPS).forEach(k => {
+      BCSL_SHOPS[k].products.forEach((p, sku) => {
+        if (shopeeAllMap.has(sku)) {
+          const ex = shopeeAllMap.get(sku);
+          ex.doanh_thu_thuc = (ex.doanh_thu_thuc || 0) + (p.doanh_thu_thuc || 0);
+          ex.so_luong = (ex.so_luong || 0) + (p.so_luong || 0);
+        } else { shopeeAllMap.set(sku, { ...p }); }
+      });
+    });
+    const shopeeNganhMap = computeNganhMap(shopeeAllMap);
+    const tiktokNganhMap = computeNganhMap(BCSL_TIKTOK.products);
+    const shopeeTotalDt = Array.from(shopeeNganhMap.values()).reduce((s, g) => s + g.dt, 0);
+    const tiktokTotalDt = Array.from(tiktokNganhMap.values()).reduce((s, g) => s + g.dt, 0);
+    const grandTotal = shopeeTotalDt + tiktokTotalDt;
+    const allNganh = new Set([...shopeeNganhMap.keys(), ...tiktokNganhMap.keys()]);
+    const compRows = Array.from(allNganh).map(nganh => {
+      const sp = shopeeNganhMap.get(nganh) || { dt: 0 };
+      const tt = tiktokNganhMap.get(nganh) || { dt: 0 };
+      return {
+        nganh,
+        sp_dt: sp.dt, sp_pct: shopeeTotalDt > 0 ? sp.dt / shopeeTotalDt * 100 : 0,
+        tt_dt: tt.dt, tt_pct: tiktokTotalDt > 0 ? tt.dt / tiktokTotalDt * 100 : 0,
+        tot_dt: sp.dt + tt.dt,
+      };
+    }).sort((a, b) => b.tot_dt - a.tot_dt);
+
+    const tRows = compRows.map(r => {
+      const isVPP = VPP_GROUPS.includes(r.nganh);
+      const totPct = grandTotal > 0 ? r.tot_dt / grandTotal * 100 : 0;
+      return `<tr style="border-bottom:1px solid var(--gray3)">
+        <td style="padding:8px 10px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${getColor(r.nganh)};flex-shrink:0"></span>
+            <span style="font-weight:600">${r.nganh}</span>
+            ${isVPP ? '<span style="font-size:9px;background:#8e44ad;color:#fff;padding:1px 4px;border-radius:4px;margin-left:2px">VPP</span>' : ''}
+          </div>
+        </td>
+        <td style="padding:8px;text-align:right;font-weight:600">${fmtM(r.sp_dt)}</td>
+        <td style="padding:8px;text-align:right;color:var(--text2);font-size:11px">${r.sp_dt > 0 ? r.sp_pct.toFixed(0)+'%' : '–'}</td>
+        <td style="padding:8px;text-align:right;font-weight:600">${fmtM(r.tt_dt)}</td>
+        <td style="padding:8px;text-align:right;color:var(--text2);font-size:11px">${r.tt_dt > 0 ? r.tt_pct.toFixed(0)+'%' : '–'}</td>
+        <td style="padding:8px;text-align:right;font-weight:700">${fmtM(r.tot_dt)}</td>
+        <td style="padding:8px;text-align:right;color:var(--text2);font-size:11px">${totPct.toFixed(0)}%</td>
+      </tr>`;
+    }).join('');
+
+    comparisonHtml = `
+    <div style="background:#fff;border:1px solid var(--gray3);border-radius:8px;overflow:hidden;margin-bottom:12px">
+      <div style="padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--gray3);flex-wrap:wrap;gap:6px">
+        <span style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.5px">SO SÁNH DOANH THU SHOPEE vs TIKTOK THEO NGÀNH</span>
+        <span style="font-size:10px;color:var(--text2)">Tổng: ${fmtMoney(grandTotal)} · Shopee ${shopeeTotalDt > 0 ? (shopeeTotalDt/grandTotal*100).toFixed(0) : 0}% · TikTok ${tiktokTotalDt > 0 ? (tiktokTotalDt/grandTotal*100).toFixed(0) : 0}%</span>
+      </div>
+      <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:520px">
+        <thead>
+          <tr style="background:var(--gray2)">
+            <th style="padding:8px 10px;text-align:left;color:var(--text2);font-weight:700">Nhóm sách</th>
+            <th style="padding:8px;text-align:right;color:#c0392b;font-weight:700">🛒 Shopee</th>
+            <th style="padding:8px;text-align:right;color:#c0392b;font-weight:700">Tỉ trọng</th>
+            <th style="padding:8px;text-align:right;color:#2980b9;font-weight:700">🎵 TikTok</th>
+            <th style="padding:8px;text-align:right;color:#2980b9;font-weight:700">Tỉ trọng</th>
+            <th style="padding:8px;text-align:right;color:var(--text);font-weight:700">Tổng</th>
+            <th style="padding:8px;text-align:right;color:var(--text);font-weight:700">Tỉ trọng</th>
+          </tr>
+        </thead>
+        <tbody>${tRows}</tbody>
+        <tfoot>
+          <tr style="background:var(--gray2);font-weight:700;border-top:2px solid var(--gray3)">
+            <td style="padding:8px 10px">Total</td>
+            <td style="padding:8px;text-align:right">${fmtM(shopeeTotalDt)}</td>
+            <td style="padding:8px;text-align:right;color:var(--text2);font-size:11px">100%</td>
+            <td style="padding:8px;text-align:right">${fmtM(tiktokTotalDt)}</td>
+            <td style="padding:8px;text-align:right;color:var(--text2);font-size:11px">100%</td>
+            <td style="padding:8px;text-align:right">${fmtM(grandTotal)}</td>
+            <td style="padding:8px;text-align:right;color:var(--text2);font-size:11px">100%</td>
+          </tr>
+        </tfoot>
+      </table>
+      </div>
+    </div>`;
+  }
+
   // ── Bar chart (canvas) ────────────────────────────────────
   const chartH = Math.max(groups.length * 30 + 24, 80);
   const chartHtml = `
   <div style="background:#fff;border:1px solid var(--gray3);border-radius:8px;padding:14px 16px;margin-bottom:12px">
-    <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.5px;margin-bottom:10px">DOANH THU THEO NGÀNH HÀNG</div>
+    <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.5px;margin-bottom:10px">DOANH THU THEO NGÀNH HÀNG${showComparison ? ' (Tổng hợp)' : ''}</div>
     <div style="position:relative;height:${chartH}px"><canvas id="bcsl-nganh-chart"></canvas></div>
   </div>`;
 
@@ -16588,6 +16692,7 @@ async function bcslSkuRenderNganhHang(list, totalRev) {
       <span style="font-size:11px;color:var(--text2)">Nguồn: catalog SKU Tổng · ${groups.length} ngành · ${list.length - unmapped}/${list.length} SKU đã khớp</span>
     </div>
     ${kpiHtml}
+    ${comparisonHtml}
     ${chartHtml}
     ${tableHtml}
   </div>`;
