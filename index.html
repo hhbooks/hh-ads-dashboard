@@ -16129,7 +16129,10 @@ function bcslSkuAutoRestoreLatest() {
   if (Object.keys(BCSL_SHOPS).length) return;
   let idx = [];
   try { idx = JSON.parse(localStorage.getItem('bcsl_sku_period_index') || '[]'); } catch(e) {}
-  if (!idx.length) return;
+  if (!idx.length) {
+    bcslSkuRenderShopSection(); // không có dữ liệu lưu → vẫn hiển thị 6 shop cards trống
+    return;
+  }
   idx.sort((a, b) => (b.year - a.year) || (b.month - a.month));
   bcslSkuLoadPeriod(idx[0].key);
 }
