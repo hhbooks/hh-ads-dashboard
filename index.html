@@ -16993,9 +16993,9 @@ function bckhParseOneFile(file, callback) {
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
-      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false });
 
       // Tìm dòng header (có cả "Số lượng" và "Khách hàng")
       let hIdx = -1;
