@@ -16484,7 +16484,7 @@ async function bcslSkuRenderNganhHang(list, totalRev) {
     'Văn hóa (Lịch sử)': '#c0392b', 'Khác': '#95a5a6'
   };
   const getColor = n => CAT_COLORS[n] || '#7f8c8d';
-  const fmtM = v => { if (v >= 1e9) return (v/1e9).toFixed(2)+'tỷ'; if (v >= 1e6) return (v/1e6).toFixed(1)+'tr'; if (!v) return '–'; return v.toLocaleString('vi-VN'); };
+  const fmtM = v => (!v ? '–' : v.toLocaleString('vi-VN') + 'đ');
 
   // ── KPI Cards ──────────────────────────────────────────────
   let kpiHtml = `<div class="sw-kpi-grid" style="margin-bottom:16px">
@@ -16563,21 +16563,21 @@ async function bcslSkuRenderNganhHang(list, totalRev) {
 
     comparisonHtml = `
     <div style="background:#fff;border:1px solid var(--gray3);border-radius:8px;overflow:hidden;margin-bottom:12px">
-      <div style="padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--gray3);flex-wrap:wrap;gap:6px">
-        <span style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.5px">SO SÁNH DOANH THU SHOPEE vs TIKTOK THEO NGÀNH</span>
-        <span style="font-size:10px;color:var(--text2)">Tổng: ${fmtMoney(grandTotal)} · Shopee ${shopeeTotalDt > 0 ? (shopeeTotalDt/grandTotal*100).toFixed(0) : 0}% · TikTok ${tiktokTotalDt > 0 ? (tiktokTotalDt/grandTotal*100).toFixed(0) : 0}%</span>
+      <div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--navy);flex-wrap:wrap;gap:6px;background:#1a2a4a">
+        <span style="font-size:13px;font-weight:800;color:#fff;letter-spacing:.5px">📊 SO SÁNH DOANH THU SHOPEE vs TIKTOK THEO NGÀNH</span>
+        <span style="font-size:11px;color:#aec6e8;font-weight:600">Tổng: ${fmtMoney(grandTotal)} · Shopee ${shopeeTotalDt > 0 ? (shopeeTotalDt/grandTotal*100).toFixed(0) : 0}% · TikTok ${tiktokTotalDt > 0 ? (tiktokTotalDt/grandTotal*100).toFixed(0) : 0}%</span>
       </div>
       <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:520px">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:600px">
         <thead>
-          <tr style="background:var(--gray2)">
-            <th style="padding:8px 10px;text-align:left;color:var(--text2);font-weight:700">Nhóm sách</th>
-            <th style="padding:8px;text-align:right;color:#c0392b;font-weight:700">🛒 Shopee</th>
-            <th style="padding:8px;text-align:right;color:#c0392b;font-weight:700">Tỉ trọng</th>
-            <th style="padding:8px;text-align:right;color:#2980b9;font-weight:700">🎵 TikTok</th>
-            <th style="padding:8px;text-align:right;color:#2980b9;font-weight:700">Tỉ trọng</th>
-            <th style="padding:8px;text-align:right;color:var(--text);font-weight:700">Tổng</th>
-            <th style="padding:8px;text-align:right;color:var(--text);font-weight:700">Tỉ trọng</th>
+          <tr style="background:#2c3e6b">
+            <th style="padding:10px 12px;text-align:left;color:#fff;font-weight:800;font-size:13px">Nhóm sách</th>
+            <th style="padding:10px 12px;text-align:right;color:#ff8a80;font-weight:800;font-size:13px">🛒 Shopee</th>
+            <th style="padding:10px 8px;text-align:right;color:#ff8a80;font-weight:700;font-size:12px">Tỉ trọng</th>
+            <th style="padding:10px 12px;text-align:right;color:#82b1ff;font-weight:800;font-size:13px">🎵 TikTok</th>
+            <th style="padding:10px 8px;text-align:right;color:#82b1ff;font-weight:700;font-size:12px">Tỉ trọng</th>
+            <th style="padding:10px 12px;text-align:right;color:#fff;font-weight:800;font-size:13px">Tổng</th>
+            <th style="padding:10px 8px;text-align:right;color:#cfd8dc;font-weight:700;font-size:12px">Tỉ trọng</th>
           </tr>
         </thead>
         <tbody>${tRows}</tbody>
