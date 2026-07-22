@@ -2282,18 +2282,17 @@
 
       <!-- Mục 2: Thống Kê SKU (File 2 — mã SKU thật). Upload riêng, state riêng (BCSL_SKU), period riêng (bcsl_sku_period_*). Độc lập hoàn toàn với Mục 1 và G_salework. -->
       <div id="bcsl-tab-sku" style="display:none">
-        <div id="bcsl-sku-upload-area" style="text-align:center;padding:24px;border:1.5px dashed var(--gray3);border-radius:8px;margin-bottom:14px">
-          <p style="margin-bottom:14px;font-size:13px;color:var(--text2)">🏷️ Upload file "Thống kê sản phẩm" (mã SKU thật) tải từ Salework — hệ thống tự nhận kỳ theo tên file và lưu lại</p>
-          <input type="file" id="bcsl-sku-file-input" accept=".xlsx,.xls" style="display:none" onchange="bcslSkuParseFile(this)">
-          <button class="sw-upload-btn" onclick="document.getElementById('bcsl-sku-file-input').click()">📂 Chọn File Thống Kê SKU (.xlsx)</button>
-        </div>
-        <div id="bcsl-sku-loaded-bar" class="sw-loaded-bar" style="display:none">
-          <span class="sw-loaded-name">🏷️ <span id="bcsl-sku-loaded-name-text"></span></span>
-          <span class="sw-loaded-count" id="bcsl-sku-loaded-count-text"></span>
-          <input type="file" id="bcsl-sku-file-input2" accept=".xlsx,.xls" style="display:none" onchange="bcslSkuParseFile(this)">
-          <button class="sw-btn-sm neutral" onclick="document.getElementById('bcsl-sku-file-input2').click()">🔄 Tải File</button>
-          <button class="sw-btn-sm danger" onclick="bcslSkuClear()">✕ Xóa</button>
-        </div>
+        <!-- Shop cards — rendered dynamically by bcslSkuRenderShopSection() -->
+        <div id="bcsl-sku-shop-section" style="margin-bottom:14px"></div>
+        <!-- Hidden file inputs cho 6 shop (static để onchange hoạt động đúng) -->
+        <input type="file" id="bcsl-sku-finput-0" accept=".xlsx,.xls" style="display:none" onchange="bcslSkuParseFile(this,0)">
+        <input type="file" id="bcsl-sku-finput-1" accept=".xlsx,.xls" style="display:none" onchange="bcslSkuParseFile(this,1)">
+        <input type="file" id="bcsl-sku-finput-2" accept=".xlsx,.xls" style="display:none" onchange="bcslSkuParseFile(this,2)">
+        <input type="file" id="bcsl-sku-finput-3" accept=".xlsx,.xls" style="display:none" onchange="bcslSkuParseFile(this,3)">
+        <input type="file" id="bcsl-sku-finput-4" accept=".xlsx,.xls" style="display:none" onchange="bcslSkuParseFile(this,4)">
+        <input type="file" id="bcsl-sku-finput-5" accept=".xlsx,.xls" style="display:none" onchange="bcslSkuParseFile(this,5)">
+        <!-- Bộ lọc shop — hiện khi ≥2 shop có dữ liệu -->
+        <div id="bcsl-sku-shop-filter-row" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
 
         <div id="bcsl-sku-period-chips" style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>
 
@@ -15844,98 +15843,255 @@ function bcslRenderCatalog() {
 // ══════════════════════════════════════════════════════════════
 // BÁO CÁO SẢN LƯỢNG — Mục 2: Thống Kê SKU (File 2, mã SKU thật)
 // Hoàn toàn độc lập với Mục 1 (BCSL) và với G_salework / card Salework ở Tổng Hợp Hệ Thống.
-// State riêng (BCSL_SKU), upload riêng, period snapshot riêng (bcsl_sku_period_*).
 // ══════════════════════════════════════════════════════════════
-let BCSL_SKU = null; // { products: Map, filename, count }
+// MỤC 2 — THỐNG KÊ SKU (multi-shop, per-period)
+// Mỗi shop upload file riêng; dashboard gộp tất cả hoặc lọc theo shop.
+// Storage key: bcsl_sku_period_{year}_{month}_shop_{idx}
+// Backward compat: bcsl_sku_period_{year}_{month} (không có shop suffix) → "Tổng hợp"
+// ══════════════════════════════════════════════════════════════
+const BCSL_SHOPS_LIST = [
+  'Nhà Sách 2HBooks', '2H Books', 'Huy Hoàng Bookstore',
+  '2H Home Living', '2H Họa Cụ', '2H Store'
+];
+
+let BCSL_SKU   = null;  // computed: merged/filtered view { products: Map, filename, count }
+let BCSL_SHOPS = {};    // { shopIdx: { name, products: Map, filename } } — data per shop
 let _bcslSkuSearch     = '';
 let _bcslSkuFilterMode = 'all';
 let _bcslSkuSortKey    = 'doanh_thu';
 let _bcslSkuSortDir    = 'desc';
 let _bcslSkuCurrentPeriodKey = '';
+let _bcslSkuShopFilter = 'all'; // 'all' | '0'..'5' | 'L' (legacy)
 
-function bcslSkuParseFile(input) {
+// ── Tính BCSL_SKU từ BCSL_SHOPS + filter ──────────────────────
+function bcslSkuComputeActive() {
+  const keys = Object.keys(BCSL_SHOPS);
+  if (!keys.length) { BCSL_SKU = null; return; }
+  const srcs = _bcslSkuShopFilter === 'all'
+    ? keys.map(k => BCSL_SHOPS[k])
+    : [BCSL_SHOPS[_bcslSkuShopFilter]].filter(Boolean);
+  if (!srcs.length) { BCSL_SKU = null; return; }
+  const merged = new Map();
+  srcs.forEach(sh => sh.products.forEach((p, sku) => {
+    if (merged.has(sku)) {
+      const ex = merged.get(sku);
+      ex.so_luong       += p.so_luong;
+      ex.doanh_thu_thuc += p.doanh_thu_thuc;
+      ex.gia_von_tong   += p.gia_von_tong;
+    } else { merged.set(sku, { ...p }); }
+  }));
+  BCSL_SKU = { products: merged, filename: srcs.map(s => s.filename).join(' + '), count: merged.size };
+}
+
+// ── Parse file cho 1 shop slot ────────────────────────────────
+function bcslSkuParseFile(input, shopIdx) {
+  shopIdx = Number(shopIdx);
   const file = input.files[0];
   if (!file) return;
   input.value = '';
-
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
-      const wb = XLSX.read(e.target.result, { type: 'array' });
-      const sheetName = wb.SheetNames.find(s => s.includes('Th') && s.includes('ng k')) || wb.SheetNames[0];
-      const ws  = wb.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-
+      const wb   = XLSX.read(e.target.result, { type: 'array' });
+      const sn   = wb.SheetNames.find(s => s.includes('Th') && s.includes('ng k')) || wb.SheetNames[0];
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: null });
       const products = new Map();
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
-        if (row[0] == null || row[0] === '') continue; // dòng biến thể
-        const ma_sku         = String(row[0]).trim();
-        const ten            = String(row[1] || '').trim();
-        const so_luong       = Number(row[2]) || 0;
-        const doanh_thu_thuc = Number(row[4]) || 0; // "Giá trị bán"
-        const gia_von_tong   = Number(row[6]) || 0; // "Tổng giá vốn theo sản phẩm"
-        if (ma_sku) products.set(ma_sku, { ten, so_luong, gia_von_tong, doanh_thu_thuc });
+        if (row[0] == null || row[0] === '') continue;
+        const ma_sku = String(row[0]).trim();
+        if (!ma_sku) continue;
+        products.set(ma_sku, {
+          ten:            String(row[1] || '').trim(),
+          so_luong:       Number(row[2]) || 0,
+          doanh_thu_thuc: Number(row[4]) || 0,
+          gia_von_tong:   Number(row[6]) || 0
+        });
       }
-
-      BCSL_SKU = { products, filename: file.name, count: products.size };
-      document.getElementById('bcsl-sku-upload-area').style.display = 'none';
-      document.getElementById('bcsl-sku-loaded-bar').style.display  = 'flex';
-      document.getElementById('bcsl-sku-loaded-name-text').textContent = BCSL_SKU.filename;
-      document.getElementById('bcsl-sku-loaded-count-text').textContent = `${BCSL_SKU.count} SKU`;
-      // Tự nhận kỳ theo tên file và lưu — không cần chọn tay.
-      bcslSkuSavePeriodSnapshot();
+      BCSL_SHOPS[shopIdx] = { name: BCSL_SHOPS_LIST[shopIdx], products, filename: file.name };
+      bcslSkuSavePeriodSnapshot(shopIdx, file.name);
+      bcslSkuComputeActive();
+      bcslSkuRenderShopSection();
       bcslSkuRenderCatalog();
-    } catch(err) {
-      alert('Lỗi đọc file: ' + err.message);
-    }
+    } catch(err) { alert('Lỗi đọc file: ' + err.message); }
   };
   reader.readAsArrayBuffer(file);
 }
 
+// ── Xóa 1 shop ────────────────────────────────────────────────
+function bcslSkuClearShop(shopIdx) {
+  shopIdx = Number(shopIdx);
+  if (!confirm(`Xóa file shop "${BCSL_SHOPS_LIST[shopIdx]}"?`)) return;
+  delete BCSL_SHOPS[shopIdx];
+  if (_bcslSkuCurrentPeriodKey) {
+    try { localStorage.removeItem('bcsl_sku_period_' + _bcslSkuCurrentPeriodKey + '_shop_' + shopIdx); } catch(e) {}
+  }
+  if (_bcslSkuShopFilter === String(shopIdx)) _bcslSkuShopFilter = 'all';
+  bcslSkuComputeActive();
+  bcslSkuRenderShopSection();
+  bcslSkuRenderCatalog();
+}
+
+// ── Xóa toàn bộ kỳ hiện tại ───────────────────────────────────
 function bcslSkuClear() {
-  BCSL_SKU = null;
+  if (!confirm('Xóa toàn bộ dữ liệu kỳ hiện tại?')) return;
+  BCSL_SHOPS = {};
+  BCSL_SKU   = null;
+  _bcslSkuShopFilter       = 'all';
   _bcslSkuCurrentPeriodKey = '';
-  document.getElementById('bcsl-sku-upload-area').style.display = 'block';
-  document.getElementById('bcsl-sku-loaded-bar').style.display  = 'none';
+  bcslSkuRenderShopSection();
   bcslSkuRenderCatalog();
   bcslSkuRenderPeriodChips();
 }
 
+// ── Set bộ lọc shop ───────────────────────────────────────────
+function bcslSkuSetShopFilter(val) {
+  _bcslSkuShopFilter = val;
+  bcslSkuComputeActive();
+  bcslSkuRenderShopSection();
+  bcslSkuRenderCatalog();
+}
+
+// ── Detect kỳ từ tên file ─────────────────────────────────────
 function bcslSkuDetectPeriod(filename) {
   const m = String(filename || '').match(/(\d{2})_(\d{2})_(\d{4})-(\d{2})_(\d{2})_(\d{4})/);
-  if (m) return { year: parseInt(m[6], 10), month: parseInt(m[5], 10), matched: true };
+  if (m) return { year: parseInt(m[6], 10), month: parseInt(m[5], 10) };
   const now = new Date();
-  return { year: now.getFullYear(), month: now.getMonth() + 1, matched: false };
+  return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }
 
 function bcslSkuPeriodKey(year, month) { return year + '_' + month; }
 
-function bcslSkuSavePeriodSnapshot(overrideYear, overrideMonth) {
-  if (!BCSL_SKU) return;
-  let { year, month } = bcslSkuDetectPeriod(BCSL_SKU.filename);
-  if (overrideYear)  year  = overrideYear;
-  if (overrideMonth) month = overrideMonth;
+// ── Lưu snapshot 1 shop ───────────────────────────────────────
+function bcslSkuSavePeriodSnapshot(shopIdx, filename) {
+  const shop = BCSL_SHOPS[shopIdx];
+  if (!shop) return;
+  const { year, month } = bcslSkuDetectPeriod(filename || shop.filename);
   const key = bcslSkuPeriodKey(year, month);
+  _bcslSkuCurrentPeriodKey = key;
   try {
-    const payload = { year, month, filename: BCSL_SKU.filename, savedAt: Date.now(), products: Array.from(BCSL_SKU.products.entries()) };
-    localStorage.setItem('bcsl_sku_period_' + key, JSON.stringify(payload));
+    localStorage.setItem('bcsl_sku_period_' + key + '_shop_' + shopIdx, JSON.stringify({
+      year, month, shopIdx, shopName: BCSL_SHOPS_LIST[shopIdx],
+      filename: shop.filename, savedAt: Date.now(),
+      products: Array.from(shop.products.entries())
+    }));
     let idx = [];
-    try { idx = JSON.parse(localStorage.getItem('bcsl_sku_period_index') || '[]'); } catch(e) { idx = []; }
+    try { idx = JSON.parse(localStorage.getItem('bcsl_sku_period_index') || '[]'); } catch(e) {}
     idx = idx.filter(x => x.key !== key);
     idx.push({ key, year, month });
     localStorage.setItem('bcsl_sku_period_index', JSON.stringify(idx));
-  } catch(e) { /* localStorage đầy hoặc không khả dụng — bỏ qua */ }
-  _bcslSkuCurrentPeriodKey = key;
+  } catch(e) {}
   bcslSkuRenderPeriodChips();
 }
 
-// Hiển thị các kỳ đã lưu dạng thẻ — click thẻ để xem lại, bấm ✕ để xóa riêng kỳ đó. Độc lập hoàn toàn với bcslRenderPeriodChips của mục 1.
+// ── Load kỳ (tất cả shop) ─────────────────────────────────────
+function bcslSkuLoadPeriod(key) {
+  _bcslSkuCurrentPeriodKey = key || '';
+  BCSL_SHOPS = {};
+  _bcslSkuShopFilter = 'all';
+  if (key) {
+    // Thử load per-shop keys (new format)
+    for (let i = 0; i < 6; i++) {
+      let raw = null;
+      try { raw = localStorage.getItem('bcsl_sku_period_' + key + '_shop_' + i); } catch(e) {}
+      if (raw) {
+        try {
+          const p = JSON.parse(raw);
+          BCSL_SHOPS[i] = { name: BCSL_SHOPS_LIST[i], products: new Map(p.products), filename: p.filename };
+        } catch(e) {}
+      }
+    }
+    // Backward compat: old combined key (no shop suffix) — không có per-shop data
+    if (!Object.keys(BCSL_SHOPS).length) {
+      let raw = null;
+      try { raw = localStorage.getItem('bcsl_sku_period_' + key); } catch(e) {}
+      if (raw) {
+        try {
+          const p = JSON.parse(raw);
+          BCSL_SHOPS['L'] = { name: 'Tổng hợp (dữ liệu cũ)', products: new Map(p.products), filename: p.filename };
+        } catch(e) {}
+      }
+    }
+  }
+  bcslSkuComputeActive();
+  bcslSkuRenderShopSection();
+  bcslSkuRenderCatalog();
+  bcslSkuRenderPeriodChips();
+}
+
+// ── Render shop cards + filter row ────────────────────────────
+function bcslSkuRenderShopSection() {
+  const sec  = document.getElementById('bcsl-sku-shop-section');
+  const frow = document.getElementById('bcsl-sku-shop-filter-row');
+  if (!sec) return;
+
+  const hasLegacy  = !!BCSL_SHOPS['L'];
+  const shopIdxNums = Object.keys(BCSL_SHOPS).filter(k => k !== 'L').map(Number).sort((a,b)=>a-b);
+  const totalSKU   = Object.values(BCSL_SHOPS).reduce((s, sh) => s + sh.products.size, 0);
+
+  // --- Cards ---
+  let html = '';
+  if (hasLegacy) {
+    const s = BCSL_SHOPS['L'];
+    html = `<div style="padding:12px 16px;border:1.5px solid var(--navy);border-radius:8px;background:#f0f4ff;font-size:12px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <span>📦 <b>Dữ liệu tổng hợp (cũ):</b> ${s.filename} — ${s.products.size.toLocaleString('vi-VN')} SKU</span>
+      <button class="sw-btn-sm danger" style="white-space:nowrap" onclick="bcslSkuClear()">✕ Xóa</button>
+    </div>`;
+  } else {
+    // Summary bar nếu đã có ít nhất 1 shop
+    if (shopIdxNums.length) {
+      html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+        <span style="font-size:12px;color:var(--text2)">🏪 <b>${shopIdxNums.length}</b> / ${BCSL_SHOPS_LIST.length} shop đã upload · tổng <b>${totalSKU.toLocaleString('vi-VN')}</b> SKU</span>
+        <button class="sw-btn-sm danger" style="font-size:11px" onclick="bcslSkuClear()">✕ Xóa tất cả</button>
+      </div>`;
+    } else {
+      html += `<p style="font-size:12px;color:var(--text2);margin:0 0 10px">🏷️ Upload file "Thống kê sản phẩm" cho từng shop — hệ thống tự tổng hợp</p>`;
+    }
+    // 6 shop cards
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(188px,1fr));gap:8px">`;
+    BCSL_SHOPS_LIST.forEach((name, i) => {
+      const shop = BCSL_SHOPS[i];
+      const isActive = _bcslSkuShopFilter === String(i);
+      if (shop) {
+        html += `<div style="padding:10px 12px;border:1.5px solid ${isActive ? 'var(--navy)' : 'var(--green)'};border-radius:8px;background:${isActive ? '#eef2ff' : '#f4fff8'}">
+          <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${name}">${name}</div>
+          <div style="font-size:10px;color:var(--text2);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${shop.filename}">${shop.filename}</div>
+          <div style="font-size:10px;color:var(--green);font-weight:600;margin-bottom:7px">✓ ${shop.products.size.toLocaleString('vi-VN')} SKU</div>
+          <div style="display:flex;gap:5px">
+            <button class="sw-btn-sm neutral" style="font-size:10px;padding:3px 7px;flex:1" onclick="document.getElementById('bcsl-sku-finput-${i}').click()">🔄 Cập nhật</button>
+            <button class="sw-btn-sm danger"  style="font-size:10px;padding:3px 7px"        onclick="bcslSkuClearShop(${i})">✕</button>
+          </div>
+        </div>`;
+      } else {
+        html += `<div style="padding:10px 12px;border:1.5px dashed var(--gray3);border-radius:8px;background:#fafafa">
+          <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${name}">${name}</div>
+          <div style="font-size:10px;color:var(--text2);margin-bottom:7px">Chưa có dữ liệu</div>
+          <button class="sw-btn-sm neutral" style="font-size:10px;padding:3px 7px;width:100%" onclick="document.getElementById('bcsl-sku-finput-${i}').click()">📂 Upload</button>
+        </div>`;
+      }
+    });
+    html += `</div>`;
+  }
+  sec.innerHTML = html;
+
+  // --- Filter row ---
+  if (!frow) return;
+  if (shopIdxNums.length < 2 || hasLegacy) { frow.style.display = 'none'; return; }
+  frow.style.display = 'flex';
+  const filters = [{ val: 'all', label: '📊 Tất cả' }, ...shopIdxNums.map(i => ({ val: String(i), label: BCSL_SHOPS_LIST[i] }))];
+  frow.innerHTML = '<span style="font-size:12px;color:var(--text2);white-space:nowrap">🏪 Lọc theo shop:</span>'
+    + filters.map(f => {
+        const on = _bcslSkuShopFilter === f.val;
+        return `<span onclick="bcslSkuSetShopFilter('${f.val}')" style="cursor:pointer;padding:5px 12px;border-radius:14px;font-size:12px;white-space:nowrap;border:1.5px solid ${on ? 'var(--navy)' : 'var(--gray3)'};background:${on ? 'var(--navy)' : '#fff'};color:${on ? '#fff' : 'var(--text2)'}">${f.label}</span>`;
+      }).join('');
+}
+
+// ── Period chips ───────────────────────────────────────────────
 function bcslSkuRenderPeriodChips() {
   const wrap = document.getElementById('bcsl-sku-period-chips');
   if (!wrap) return;
   let idx = [];
-  try { idx = JSON.parse(localStorage.getItem('bcsl_sku_period_index') || '[]'); } catch(e) { idx = []; }
+  try { idx = JSON.parse(localStorage.getItem('bcsl_sku_period_index') || '[]'); } catch(e) {}
   idx.sort((a, b) => (b.year - a.year) || (b.month - a.month));
   if (!idx.length) { wrap.innerHTML = ''; return; }
   let html = '<span style="font-size:12px;color:var(--text2)">📅 Các kỳ đã lưu:</span>';
@@ -15948,49 +16104,31 @@ function bcslSkuRenderPeriodChips() {
 
 function bcslSkuDeletePeriod(key) {
   let idx = [];
-  try { idx = JSON.parse(localStorage.getItem('bcsl_sku_period_index') || '[]'); } catch(e) { idx = []; }
+  try { idx = JSON.parse(localStorage.getItem('bcsl_sku_period_index') || '[]'); } catch(e) {}
   const p = idx.find(x => x.key === key);
   const label = p ? `Tháng ${String(p.month).padStart(2,'0')}/${p.year}` : key;
   if (!confirm(`Xóa dữ liệu đã lưu của ${label}? Không thể hoàn tác.`)) return;
-  try { localStorage.removeItem('bcsl_sku_period_' + key); } catch(e) {}
+  for (let i = 0; i < 6; i++) {
+    try { localStorage.removeItem('bcsl_sku_period_' + key + '_shop_' + i); } catch(e) {}
+  }
+  try { localStorage.removeItem('bcsl_sku_period_' + key); } catch(e) {} // legacy
   idx = idx.filter(x => x.key !== key);
   try { localStorage.setItem('bcsl_sku_period_index', JSON.stringify(idx)); } catch(e) {}
   if (_bcslSkuCurrentPeriodKey === key) {
-    BCSL_SKU = null;
+    BCSL_SHOPS = {};
+    BCSL_SKU   = null;
     _bcslSkuCurrentPeriodKey = '';
-    document.getElementById('bcsl-sku-upload-area').style.display = 'block';
-    document.getElementById('bcsl-sku-loaded-bar').style.display  = 'none';
+    bcslSkuRenderShopSection();
     bcslSkuRenderCatalog();
   }
   bcslSkuRenderPeriodChips();
 }
 
-function bcslSkuLoadPeriod(key) {
-  if (!key) { _bcslSkuCurrentPeriodKey = ''; bcslSkuRenderCatalog(); return; }
-  let raw = null;
-  try { raw = localStorage.getItem('bcsl_sku_period_' + key); } catch(e) { raw = null; }
-  if (!raw) { alert('Không tìm thấy dữ liệu đã lưu cho kỳ này.'); return; }
-  try {
-    const payload = JSON.parse(raw);
-    const products = new Map(payload.products);
-    BCSL_SKU = { products, filename: payload.filename, count: products.size };
-    _bcslSkuCurrentPeriodKey = key;
-    document.getElementById('bcsl-sku-upload-area').style.display = 'none';
-    document.getElementById('bcsl-sku-loaded-bar').style.display  = 'flex';
-    document.getElementById('bcsl-sku-loaded-name-text').textContent = BCSL_SKU.filename + ' (đã lưu)';
-    document.getElementById('bcsl-sku-loaded-count-text').textContent = `${BCSL_SKU.count} SKU`;
-    bcslSkuRenderCatalog();
-    bcslSkuRenderPeriodChips();
-  } catch(err) {
-    alert('Lỗi đọc dữ liệu kỳ đã lưu: ' + err.message);
-  }
-}
-
-// Tự khôi phục kỳ gần nhất đã lưu khi vào lại trang (sau reload) — độc lập hoàn toàn với bcslAutoRestoreLatest của mục 1.
+// ── Tự khôi phục kỳ gần nhất khi vào lại trang ───────────────
 function bcslSkuAutoRestoreLatest() {
-  if (BCSL_SKU) return;
+  if (Object.keys(BCSL_SHOPS).length) return;
   let idx = [];
-  try { idx = JSON.parse(localStorage.getItem('bcsl_sku_period_index') || '[]'); } catch(e) { idx = []; }
+  try { idx = JSON.parse(localStorage.getItem('bcsl_sku_period_index') || '[]'); } catch(e) {}
   if (!idx.length) return;
   idx.sort((a, b) => (b.year - a.year) || (b.month - a.month));
   bcslSkuLoadPeriod(idx[0].key);
@@ -16013,6 +16151,7 @@ function bcslSkuApplyFilter(mode) {
 }
 
 function bcslSkuRenderCatalog() {
+  bcslSkuComputeActive(); // đảm bảo BCSL_SKU luôn phản ánh đúng shop filter hiện tại
   const sec = document.getElementById('th-sku-catalog-section');
   const skuEmpty = document.getElementById('bcsl-sku-empty-state');
   if (!sec) return;
