@@ -2291,7 +2291,8 @@
         <input type="file" id="bcsl-sku-finput-3" accept=".xlsx,.xls" style="display:none" onchange="bcslSkuParseFile(this,3)">
         <input type="file" id="bcsl-sku-finput-4" accept=".xlsx,.xls" style="display:none" onchange="bcslSkuParseFile(this,4)">
         <input type="file" id="bcsl-sku-finput-5" accept=".xlsx,.xls" style="display:none" onchange="bcslSkuParseFile(this,5)">
-        <!-- Bộ lọc shop — hiện khi ≥2 shop có dữ liệu -->
+        <input type="file" id="bcsl-sku-finput-tiktok" accept=".xlsx,.xls" style="display:none" onchange="bcslSkuParseTiktokFile(this)">
+        <!-- Bộ lọc shop — hiện khi ≥2 shop Shopee có dữ liệu và đang xem Shopee -->
         <div id="bcsl-sku-shop-filter-row" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
 
         <div id="bcsl-sku-period-chips" style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>
@@ -15861,16 +15862,35 @@ let _bcslSkuFilterMode = 'all';
 let _bcslSkuSortKey    = 'doanh_thu';
 let _bcslSkuSortDir    = 'desc';
 let _bcslSkuCurrentPeriodKey = '';
-let _bcslSkuShopFilter = 'all'; // 'all' | '0'..'5' | 'L' (legacy)
+let _bcslSkuShopFilter  = 'all'; // 'all' | '0'..'5' | 'L' (legacy)
+let BCSL_TIKTOK        = null;  // { products: Map, filename }
+let _bcslPlatformFilter = 'all'; // 'all' | 'shopee' | 'tiktok'
 
-// ── Tính BCSL_SKU từ BCSL_SHOPS + filter ──────────────────────
+// ── Tính BCSL_SKU từ BCSL_SHOPS + BCSL_TIKTOK theo platform/shop filter ──
 function bcslSkuComputeActive() {
-  const keys = Object.keys(BCSL_SHOPS);
-  if (!keys.length) { BCSL_SKU = null; return; }
-  const srcs = _bcslSkuShopFilter === 'all'
-    ? keys.map(k => BCSL_SHOPS[k])
-    : [BCSL_SHOPS[_bcslSkuShopFilter]].filter(Boolean);
+  const shopKeys  = Object.keys(BCSL_SHOPS);
+  const legacySh  = BCSL_SHOPS['L'];
+  const realKeys  = shopKeys.filter(k => k !== 'L');
+  const hasShopee = realKeys.length > 0 || !!legacySh;
+  const hasTiktok = !!BCSL_TIKTOK;
+  if (!hasShopee && !hasTiktok) { BCSL_SKU = null; return; }
+
+  let srcs = [];
+  if (_bcslPlatformFilter === 'all' || _bcslPlatformFilter === 'shopee') {
+    if (legacySh) {
+      srcs.push(legacySh);
+    } else if (realKeys.length) {
+      const sel = (_bcslPlatformFilter === 'shopee' && _bcslSkuShopFilter !== 'all')
+        ? [BCSL_SHOPS[_bcslSkuShopFilter]].filter(Boolean)
+        : realKeys.map(k => BCSL_SHOPS[k]);
+      srcs = srcs.concat(sel);
+    }
+  }
+  if (_bcslPlatformFilter === 'all' || _bcslPlatformFilter === 'tiktok') {
+    if (hasTiktok) srcs.push(BCSL_TIKTOK);
+  }
   if (!srcs.length) { BCSL_SKU = null; return; }
+
   const merged = new Map();
   srcs.forEach(sh => sh.products.forEach((p, sku) => {
     if (merged.has(sku)) {
@@ -15881,6 +15901,77 @@ function bcslSkuComputeActive() {
     } else { merged.set(sku, { ...p }); }
   }));
   BCSL_SKU = { products: merged, filename: srcs.map(s => s.filename).join(' + '), count: merged.size };
+}
+
+// ── Platform filter ───────────────────────────────────────────
+function bcslSkuSetPlatformFilter(val) {
+  _bcslPlatformFilter = val;
+  if (val !== 'shopee') _bcslSkuShopFilter = 'all';
+  bcslSkuComputeActive();
+  bcslSkuRenderShopSection();
+  bcslSkuRenderCatalog();
+}
+
+// ── TikTok: parse + lưu ──────────────────────────────────────
+function bcslSkuParseTiktokFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb   = XLSX.read(e.target.result, { type: 'array' });
+      const sn   = wb.SheetNames.find(s => s.includes('Th') && s.includes('ng k')) || wb.SheetNames[0];
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: null });
+      const products = new Map();
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (row[0] == null || row[0] === '') continue;
+        const ma_sku = String(row[0]).trim();
+        if (!ma_sku) continue;
+        products.set(ma_sku, {
+          ten:            String(row[1] || '').trim(),
+          so_luong:       Number(row[2]) || 0,
+          doanh_thu_thuc: Number(row[4]) || 0,
+          gia_von_tong:   Number(row[6]) || 0
+        });
+      }
+      BCSL_TIKTOK = { products, filename: file.name };
+      // Detect kỳ + lưu localStorage
+      const { year, month } = bcslSkuDetectPeriod(file.name);
+      const key = _bcslSkuCurrentPeriodKey || bcslSkuPeriodKey(year, month);
+      _bcslSkuCurrentPeriodKey = key;
+      try {
+        localStorage.setItem('bcsl_sku_period_' + key + '_tiktok', JSON.stringify({
+          filename: file.name, savedAt: Date.now(), products: Array.from(products.entries())
+        }));
+        let idx = [];
+        try { idx = JSON.parse(localStorage.getItem('bcsl_sku_period_index') || '[]'); } catch(e2) {}
+        if (!idx.find(x => x.key === key)) {
+          idx.push({ key, year, month });
+          localStorage.setItem('bcsl_sku_period_index', JSON.stringify(idx));
+        }
+      } catch(e) {}
+      bcslSkuComputeActive();
+      bcslSkuRenderShopSection();
+      bcslSkuRenderPeriodChips();
+      bcslSkuRenderCatalog();
+    } catch(err) { alert('Lỗi đọc file TikTok: ' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── TikTok: clear ─────────────────────────────────────────────
+function bcslSkuClearTiktok() {
+  if (!confirm('Xóa dữ liệu TikTok kỳ hiện tại?')) return;
+  BCSL_TIKTOK = null;
+  if (_bcslSkuCurrentPeriodKey) {
+    try { localStorage.removeItem('bcsl_sku_period_' + _bcslSkuCurrentPeriodKey + '_tiktok'); } catch(e) {}
+  }
+  if (_bcslPlatformFilter === 'tiktok') _bcslPlatformFilter = 'all';
+  bcslSkuComputeActive();
+  bcslSkuRenderShopSection();
+  bcslSkuRenderCatalog();
 }
 
 // ── Parse file cho 1 shop slot ────────────────────────────────
@@ -15932,13 +16023,15 @@ function bcslSkuClearShop(shopIdx) {
   bcslSkuRenderCatalog();
 }
 
-// ── Xóa toàn bộ kỳ hiện tại ───────────────────────────────────
+// ── Xóa toàn bộ kỳ hiện tại (Shopee + TikTok) ────────────────
 function bcslSkuClear() {
-  if (!confirm('Xóa toàn bộ dữ liệu kỳ hiện tại?')) return;
+  if (!confirm('Xóa toàn bộ dữ liệu Shopee kỳ hiện tại?')) return;
   BCSL_SHOPS = {};
   BCSL_SKU   = null;
   _bcslSkuShopFilter       = 'all';
   _bcslSkuCurrentPeriodKey = '';
+  // Không xóa TikTok khi clear Shopee
+  bcslSkuComputeActive();
   bcslSkuRenderShopSection();
   bcslSkuRenderCatalog();
   bcslSkuRenderPeriodChips();
@@ -15984,13 +16077,15 @@ function bcslSkuSavePeriodSnapshot(shopIdx, filename) {
   bcslSkuRenderPeriodChips();
 }
 
-// ── Load kỳ (tất cả shop) ─────────────────────────────────────
+// ── Load kỳ (tất cả shop + TikTok) ───────────────────────────
 function bcslSkuLoadPeriod(key) {
   _bcslSkuCurrentPeriodKey = key || '';
-  BCSL_SHOPS = {};
-  _bcslSkuShopFilter = 'all';
+  BCSL_SHOPS  = {};
+  BCSL_TIKTOK = null;
+  _bcslSkuShopFilter   = 'all';
+  _bcslPlatformFilter  = 'all';
   if (key) {
-    // Thử load per-shop keys (new format)
+    // Shopee per-shop
     for (let i = 0; i < 6; i++) {
       let raw = null;
       try { raw = localStorage.getItem('bcsl_sku_period_' + key + '_shop_' + i); } catch(e) {}
@@ -16001,7 +16096,7 @@ function bcslSkuLoadPeriod(key) {
         } catch(e) {}
       }
     }
-    // Backward compat: old combined key (no shop suffix) — không có per-shop data
+    // Backward compat: old combined key
     if (!Object.keys(BCSL_SHOPS).length) {
       let raw = null;
       try { raw = localStorage.getItem('bcsl_sku_period_' + key); } catch(e) {}
@@ -16012,6 +16107,15 @@ function bcslSkuLoadPeriod(key) {
         } catch(e) {}
       }
     }
+    // TikTok
+    let tktRaw = null;
+    try { tktRaw = localStorage.getItem('bcsl_sku_period_' + key + '_tiktok'); } catch(e) {}
+    if (tktRaw) {
+      try {
+        const p = JSON.parse(tktRaw);
+        BCSL_TIKTOK = { products: new Map(p.products), filename: p.filename };
+      } catch(e) {}
+    }
   }
   bcslSkuComputeActive();
   bcslSkuRenderShopSection();
@@ -16019,70 +16123,107 @@ function bcslSkuLoadPeriod(key) {
   bcslSkuRenderPeriodChips();
 }
 
-// ── Render shop cards + filter row ────────────────────────────
+// ── Render shop cards + TikTok card + platform/shop filters ───
 function bcslSkuRenderShopSection() {
   const sec  = document.getElementById('bcsl-sku-shop-section');
   const frow = document.getElementById('bcsl-sku-shop-filter-row');
   if (!sec) return;
 
-  const hasLegacy  = !!BCSL_SHOPS['L'];
-  const shopIdxNums = Object.keys(BCSL_SHOPS).filter(k => k !== 'L').map(Number).sort((a,b)=>a-b);
-  const totalSKU   = Object.values(BCSL_SHOPS).reduce((s, sh) => s + sh.products.size, 0);
+  const hasLegacy    = !!BCSL_SHOPS['L'];
+  const shopIdxNums  = Object.keys(BCSL_SHOPS).filter(k => k !== 'L').map(Number).sort((a,b)=>a-b);
+  const shopeeCount  = shopIdxNums.reduce((s, i) => s + (BCSL_SHOPS[i] ? BCSL_SHOPS[i].products.size : 0), 0);
+  const tiktokCount  = BCSL_TIKTOK ? BCSL_TIKTOK.products.size : 0;
+  const hasAnyData   = shopIdxNums.length > 0 || !!BCSL_TIKTOK || hasLegacy;
 
-  // --- Cards ---
-  let html = '';
+  // ── 1. Platform filter tabs ────────────────────────────────
+  const pfTabs = [
+    { val: 'all',    label: '📊 Tất cả sàn' },
+    { val: 'shopee', label: '🛒 Shopee' },
+    { val: 'tiktok', label: '🎵 TikTok' }
+  ];
+  let html = `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+    <span style="font-size:12px;color:var(--text2);white-space:nowrap">Sàn:</span>`
+    + pfTabs.map(t => {
+        const on = _bcslPlatformFilter === t.val;
+        return `<span onclick="bcslSkuSetPlatformFilter('${t.val}')" style="cursor:pointer;padding:5px 14px;border-radius:14px;font-size:12px;white-space:nowrap;font-weight:${on?'700':'400'};border:1.5px solid ${on?'var(--navy)':'var(--gray3)'};background:${on?'var(--navy)':'#fff'};color:${on?'#fff':'var(--text2)'}">${t.label}</span>`;
+      }).join('')
+    + `</div>`;
+
+  // ── 2. Shopee section ──────────────────────────────────────
   if (hasLegacy) {
     const s = BCSL_SHOPS['L'];
-    html = `<div style="padding:12px 16px;border:1.5px solid var(--navy);border-radius:8px;background:#f0f4ff;font-size:12px;display:flex;align-items:center;justify-content:space-between;gap:10px">
-      <span>📦 <b>Dữ liệu tổng hợp (cũ):</b> ${s.filename} — ${s.products.size.toLocaleString('vi-VN')} SKU</span>
+    html += `<div style="padding:12px 16px;border:1.5px solid var(--navy);border-radius:8px;background:#f0f4ff;font-size:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+      <span>🛒 <b>Shopee — Dữ liệu tổng hợp (cũ):</b> ${s.filename} — ${s.products.size.toLocaleString('vi-VN')} SKU</span>
       <button class="sw-btn-sm danger" style="white-space:nowrap" onclick="bcslSkuClear()">✕ Xóa</button>
     </div>`;
   } else {
-    // Summary bar nếu đã có ít nhất 1 shop
-    if (shopIdxNums.length) {
-      html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
-        <span style="font-size:12px;color:var(--text2)">🏪 <b>${shopIdxNums.length}</b> / ${BCSL_SHOPS_LIST.length} shop đã upload · tổng <b>${totalSKU.toLocaleString('vi-VN')}</b> SKU</span>
-        <button class="sw-btn-sm danger" style="font-size:11px" onclick="bcslSkuClear()">✕ Xóa tất cả</button>
-      </div>`;
-    } else {
-      html += `<p style="font-size:12px;color:var(--text2);margin:0 0 10px">🏷️ Upload file "Thống kê sản phẩm" cho từng shop — hệ thống tự tổng hợp</p>`;
-    }
-    // 6 shop cards
-    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(188px,1fr));gap:8px">`;
+    // Shopee header
+    const spLabel = shopIdxNums.length
+      ? `<b>${shopIdxNums.length}</b> / ${BCSL_SHOPS_LIST.length} shop · ${shopeeCount.toLocaleString('vi-VN')} SKU`
+      : 'Chưa có dữ liệu';
+    html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="font-size:12px;font-weight:700;color:var(--text)">🛒 Shopee</span>
+      <span style="font-size:11px;color:var(--text2)">${spLabel}</span>
+      ${shopIdxNums.length ? `<button class="sw-btn-sm danger" style="font-size:10px;margin-left:auto" onclick="bcslSkuClear()">✕ Xóa tất cả Shopee</button>` : ''}
+    </div>`;
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:8px;margin-bottom:12px">`;
     BCSL_SHOPS_LIST.forEach((name, i) => {
       const shop = BCSL_SHOPS[i];
-      const isActive = _bcslSkuShopFilter === String(i);
+      const isActive = _bcslSkuShopFilter === String(i) && _bcslPlatformFilter === 'shopee';
       if (shop) {
         html += `<div style="padding:10px 12px;border:1.5px solid ${isActive ? 'var(--navy)' : 'var(--green)'};border-radius:8px;background:${isActive ? '#eef2ff' : '#f4fff8'}">
-          <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${name}">${name}</div>
-          <div style="font-size:10px;color:var(--text2);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${shop.filename}">${shop.filename}</div>
-          <div style="font-size:10px;color:var(--green);font-weight:600;margin-bottom:7px">✓ ${shop.products.size.toLocaleString('vi-VN')} SKU</div>
+          <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${name}">${name}</div>
+          <div style="font-size:10px;color:var(--text2);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${shop.filename}">${shop.filename}</div>
+          <div style="font-size:10px;color:var(--green);font-weight:600;margin-bottom:6px">✓ ${shop.products.size.toLocaleString('vi-VN')} SKU</div>
           <div style="display:flex;gap:5px">
-            <button class="sw-btn-sm neutral" style="font-size:10px;padding:3px 7px;flex:1" onclick="document.getElementById('bcsl-sku-finput-${i}').click()">🔄 Cập nhật</button>
-            <button class="sw-btn-sm danger"  style="font-size:10px;padding:3px 7px"        onclick="bcslSkuClearShop(${i})">✕</button>
+            <button class="sw-btn-sm neutral" style="font-size:10px;padding:2px 6px;flex:1" onclick="document.getElementById('bcsl-sku-finput-${i}').click()">🔄 Cập nhật</button>
+            <button class="sw-btn-sm danger"  style="font-size:10px;padding:2px 6px"        onclick="bcslSkuClearShop(${i})">✕</button>
           </div>
         </div>`;
       } else {
         html += `<div style="padding:10px 12px;border:1.5px dashed var(--gray3);border-radius:8px;background:#fafafa">
-          <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${name}">${name}</div>
-          <div style="font-size:10px;color:var(--text2);margin-bottom:7px">Chưa có dữ liệu</div>
-          <button class="sw-btn-sm neutral" style="font-size:10px;padding:3px 7px;width:100%" onclick="document.getElementById('bcsl-sku-finput-${i}').click()">📂 Upload</button>
+          <div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${name}">${name}</div>
+          <div style="font-size:10px;color:var(--text2);margin-bottom:6px">Chưa có dữ liệu</div>
+          <button class="sw-btn-sm neutral" style="font-size:10px;padding:2px 6px;width:100%" onclick="document.getElementById('bcsl-sku-finput-${i}').click()">📂 Upload</button>
         </div>`;
       }
     });
     html += `</div>`;
   }
+
+  // ── 3. TikTok section ─────────────────────────────────────
+  html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+    <span style="font-size:12px;font-weight:700;color:var(--text)">🎵 TikTok</span>
+    <span style="font-size:11px;color:var(--text2)">${BCSL_TIKTOK ? `${tiktokCount.toLocaleString('vi-VN')} SKU` : 'Chưa có dữ liệu'}</span>
+  </div>`;
+  if (BCSL_TIKTOK) {
+    html += `<div style="padding:10px 14px;border:1.5px solid var(--green);border-radius:8px;background:#f4fff8;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${BCSL_TIKTOK.filename}">${BCSL_TIKTOK.filename}</div>
+        <div style="font-size:10px;color:var(--green);font-weight:600;margin-top:2px">✓ ${tiktokCount.toLocaleString('vi-VN')} SKU (tổng hợp 4 shop TikTok)</div>
+      </div>
+      <button class="sw-btn-sm neutral" style="font-size:10px;padding:3px 8px" onclick="document.getElementById('bcsl-sku-finput-tiktok').click()">🔄 Cập nhật</button>
+      <button class="sw-btn-sm danger"  style="font-size:10px;padding:3px 8px" onclick="bcslSkuClearTiktok()">✕</button>
+    </div>`;
+  } else {
+    html += `<div style="padding:10px 14px;border:1.5px dashed var(--gray3);border-radius:8px;background:#fafafa;display:flex;align-items:center;gap:10px">
+      <span style="font-size:11px;color:var(--text2);flex:1">File thống kê tổng hợp 4 shop TikTok</span>
+      <button class="sw-btn-sm neutral" style="font-size:10px;padding:3px 10px" onclick="document.getElementById('bcsl-sku-finput-tiktok').click()">📂 Upload</button>
+    </div>`;
+  }
+
   sec.innerHTML = html;
 
-  // --- Filter row ---
+  // ── 4. Shop filter (chỉ hiện khi Shopee + ≥2 shops) ───────
   if (!frow) return;
-  if (shopIdxNums.length < 2 || hasLegacy) { frow.style.display = 'none'; return; }
+  const showShopFilter = !hasLegacy && shopIdxNums.length >= 2 && _bcslPlatformFilter !== 'tiktok';
+  if (!showShopFilter) { frow.style.display = 'none'; return; }
   frow.style.display = 'flex';
-  const filters = [{ val: 'all', label: '📊 Tất cả' }, ...shopIdxNums.map(i => ({ val: String(i), label: BCSL_SHOPS_LIST[i] }))];
-  frow.innerHTML = '<span style="font-size:12px;color:var(--text2);white-space:nowrap">🏪 Lọc theo shop:</span>'
-    + filters.map(f => {
+  const sfFilters = [{ val: 'all', label: '📊 Tất cả' }, ...shopIdxNums.map(i => ({ val: String(i), label: BCSL_SHOPS_LIST[i] }))];
+  frow.innerHTML = '<span style="font-size:12px;color:var(--text2);white-space:nowrap">🏪 Lọc shop:</span>'
+    + sfFilters.map(f => {
         const on = _bcslSkuShopFilter === f.val;
-        return `<span onclick="bcslSkuSetShopFilter('${f.val}')" style="cursor:pointer;padding:5px 12px;border-radius:14px;font-size:12px;white-space:nowrap;border:1.5px solid ${on ? 'var(--navy)' : 'var(--gray3)'};background:${on ? 'var(--navy)' : '#fff'};color:${on ? '#fff' : 'var(--text2)'}">${f.label}</span>`;
+        return `<span onclick="bcslSkuSetShopFilter('${f.val}')" style="cursor:pointer;padding:5px 12px;border-radius:14px;font-size:12px;white-space:nowrap;border:1.5px solid ${on?'var(--navy)':'var(--gray3)'};background:${on?'var(--navy)':'#fff'};color:${on?'#fff':'var(--text2)'}">${f.label}</span>`;
       }).join('');
 }
 
@@ -16111,7 +16252,8 @@ function bcslSkuDeletePeriod(key) {
   for (let i = 0; i < 6; i++) {
     try { localStorage.removeItem('bcsl_sku_period_' + key + '_shop_' + i); } catch(e) {}
   }
-  try { localStorage.removeItem('bcsl_sku_period_' + key); } catch(e) {} // legacy
+  try { localStorage.removeItem('bcsl_sku_period_' + key); } catch(e) {}          // legacy
+  try { localStorage.removeItem('bcsl_sku_period_' + key + '_tiktok'); } catch(e) {} // tiktok
   idx = idx.filter(x => x.key !== key);
   try { localStorage.setItem('bcsl_sku_period_index', JSON.stringify(idx)); } catch(e) {}
   if (_bcslSkuCurrentPeriodKey === key) {
