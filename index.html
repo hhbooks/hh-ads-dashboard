@@ -16401,11 +16401,6 @@ function bcslSkuRenderCatalog() {
         <div class="sw-kpi-value" style="color:${marginPct>=40?'#196F3D':marginPct>=20?'#7D6608':'#922B21'}">${marginPct.toFixed(2)}%</div>
         <div class="sw-kpi-sub">LN gộp: ${fmtMoney(totalProfit)}</div>
       </div>
-      <div class="sw-kpi-card" style="border-left-color:#F1C40F;cursor:pointer" onclick="bcslSkuApplyFilter('top20')" title="Click để xem 20 SKU đóng góp doanh thu cao nhất">
-        <div class="sw-kpi-label">🎯 Mức Độ Tập Trung</div>
-        <div class="sw-kpi-value">${top20Pct.toFixed(1)}%</div>
-        <div class="sw-kpi-sub">Top 20 SKU / tổng doanh thu — click để xem</div>
-      </div>
       <div class="sw-kpi-card" style="border-left-color:var(--red);cursor:pointer" onclick="bcslSkuApplyFilter('neg')" title="Click để xem các SKU margin âm">
         <div class="sw-kpi-label">⛔ Cảnh Báo Margin</div>
         <div class="sw-kpi-value" style="color:var(--red)">${negCount}</div>
@@ -16473,6 +16468,11 @@ function bcslSkuRenderCatalog() {
 // ══════════════════════════════════════════════════════════════
 let _bcslNganhChart = null;
 
+function bcslToggleUnmapped() {
+  const el = document.getElementById('bcsl-unmapped-panel');
+  if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
 async function bcslSkuRenderNganhHang(list, totalRev) {
   const wrap = document.getElementById('th-sku-nganh-section');
   if (!wrap) return;
@@ -16505,10 +16505,11 @@ async function bcslSkuRenderNganhHang(list, totalRev) {
   // Map SKU → nganhHang, group by category (from merged list)
   const catMap = new Map();
   let unmapped = 0;
+  const unmappedList = [];
   list.forEach(item => {
     const entry = catalog[item.ma_sku];
     const nganh = (entry && entry.nganhHang) ? entry.nganhHang.trim() : '';
-    if (!nganh) { unmapped++; return; }
+    if (!nganh) { unmapped++; unmappedList.push(item); return; }
     if (!catMap.has(nganh)) catMap.set(nganh, { dt: 0, sl: 0, cost: 0, skus: [] });
     const g = catMap.get(nganh);
     g.dt   += item.doanh_thu;
@@ -16547,26 +16548,39 @@ async function bcslSkuRenderNganhHang(list, totalRev) {
   const fmtM = v => (!v ? '–' : v.toLocaleString('vi-VN') + 'đ');
 
   // ── KPI Cards ──────────────────────────────────────────────
+  window._bcslUnmappedList = unmappedList;
   let kpiHtml = `<div class="sw-kpi-grid" style="margin-bottom:16px">
-    <div class="sw-kpi-card" style="border-left-color:#2980b9">
-      <div class="sw-kpi-label">📂 Ngành Có Doanh Số</div>
-      <div class="sw-kpi-value">${activeGroups}<span style="font-size:14px;font-weight:400;color:var(--text2)"> / ${activeGroups + (unmapped > 0 ? 1 : 0)} nhóm</span></div>
-      <div class="sw-kpi-sub">${unmapped > 0 ? `<span style="color:#e67e22">${unmapped} SKU chưa khớp ngành</span>` : 'Tất cả SKU đã có ngành hàng'}</div>
-    </div>
-    <div class="sw-kpi-card" style="border-left-color:#e67e22">
-      <div class="sw-kpi-label">🏆 Ngành Bán Chạy Nhất</div>
-      <div class="sw-kpi-value" style="font-size:15px;line-height:1.2">${topGroup.nganh}</div>
-      <div class="sw-kpi-sub">${fmtMoney(topGroup.dt)} · ${topGroup.pct.toFixed(1)}% tổng DT</div>
-    </div>
-    <div class="sw-kpi-card" style="border-left-color:#8e44ad">
-      <div class="sw-kpi-label">🖊️ Nhóm VPP (Deli+Bossee+Home)</div>
-      <div class="sw-kpi-value">${fmtMoney(vppDt)}</div>
-      <div class="sw-kpi-sub">${vppPct.toFixed(1)}% tổng doanh thu · ${VPP_GROUPS.filter(n => catMap.has(n)).length} ngành đang bán</div>
-    </div>
-    <div class="sw-kpi-card" style="border-left-color:${unmapped > 0 ? 'var(--orange)' : 'var(--green)'}">
+    <div class="sw-kpi-card" style="border-left-color:${unmapped > 0 ? 'var(--orange)' : 'var(--green)'};${unmapped > 0 ? 'cursor:pointer' : ''}" ${unmapped > 0 ? 'onclick="bcslToggleUnmapped()" title="Click để xem danh sách SKU chưa khớp ngành"' : ''}>
       <div class="sw-kpi-label">🔍 SKU Chưa Khớp Ngành</div>
       <div class="sw-kpi-value" style="color:${unmapped > 0 ? 'var(--orange)' : 'var(--green)'}">${unmapped}</div>
-      <div class="sw-kpi-sub">${unmapped > 0 ? 'Đồng bộ lại Catalog để bổ sung ngành hàng' : 'Catalog đã khớp đầy đủ'}</div>
+      <div class="sw-kpi-sub">${unmapped > 0 ? 'Click để xem danh sách và bổ sung ngành hàng' : 'Catalog đã khớp đầy đủ'}</div>
+    </div>
+  </div>
+  <div id="bcsl-unmapped-panel" style="display:none;background:#fff;border:1px solid var(--orange);border-radius:8px;overflow:hidden;margin-bottom:12px">
+    <div style="padding:10px 16px;background:#fff8f0;border-bottom:1px solid var(--gray3);display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;font-weight:700;color:#B9770E">⚠️ ${unmapped} SKU chưa có ngành hàng trong catalog — bổ sung cột Ngành hàng trong Google Sheet rồi Đồng Bộ lại</span>
+      <span onclick="bcslToggleUnmapped()" style="cursor:pointer;font-size:16px;color:var(--text2);padding:0 4px">✕</span>
+    </div>
+    <div style="max-height:400px;overflow-y:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="background:var(--gray2)">
+          <th style="padding:8px 12px;text-align:left;font-weight:700;color:var(--text2);position:sticky;top:0;background:var(--gray2)">Mã SKU</th>
+          <th style="padding:8px 12px;text-align:left;font-weight:700;color:var(--text2);position:sticky;top:0;background:var(--gray2)">Tên sản phẩm</th>
+          <th style="padding:8px 12px;text-align:right;font-weight:700;color:var(--text2);position:sticky;top:0;background:var(--gray2)">Doanh thu</th>
+          <th style="padding:8px 12px;text-align:right;font-weight:700;color:var(--text2);position:sticky;top:0;background:var(--gray2)">SL bán</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${unmappedList.sort((a,b) => b.doanh_thu - a.doanh_thu).map((item, i) => `
+        <tr style="border-bottom:1px solid var(--gray3);background:${i % 2 === 0 ? '#fff' : '#fffdf8'}">
+          <td style="padding:7px 12px;font-family:monospace;font-weight:600">${item.ma_sku}</td>
+          <td style="padding:7px 12px">${item.ten || '–'}</td>
+          <td style="padding:7px 12px;text-align:right;font-weight:600">${fmtM(item.doanh_thu)}</td>
+          <td style="padding:7px 12px;text-align:right">${(item.so_luong || 0).toLocaleString('vi-VN')}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
     </div>
   </div>`;
 
