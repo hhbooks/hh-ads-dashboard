@@ -16976,28 +16976,24 @@ function nvReset() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// BÁO CÁO BÁN HÀNG THEO KHÁCH HÀNG (BCKH) — v2
-// Output: giữ nguyên cấu trúc file gốc, lọc theo KH, tổng SL cuối
+// BÁO CÁO BÁN HÀNG THEO KHÁCH HÀNG (BCKH) — v3
+// Output: thống kê Mã SKU × KH — Tổng SL + Tổng tiền
 // ══════════════════════════════════════════════════════════════
 const BCKH = {
-  allHeaders: [],   // merged column list từ tất cả files
-  allRows: [],      // [{ kh, sl, cells: {colName: value} }]
+  allRows: [],      // [{ kh, sl, dg, sku, ten, dvt }]
   customers: [],    // unique KH sorted by total SL desc
   selected: new Set()
 };
-
-// Thứ tự cột chuẩn khi merge nhiều file
-const BCKH_COL_ORDER = ['Ngày','Giờ','Số HĐ','Mã SKU','Tên hàng hóa','Nhóm hàng hóa','Đơn vị tính','Số lượng','Đơn giá','Khách hàng'];
 
 function bckhParseOneFile(file, callback) {
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
-      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false });
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
 
-      // Tìm dòng header (có cả "Số lượng" và "Khách hàng")
+      // Tìm dòng header
       let hIdx = -1;
       for (let i = 0; i < Math.min(raw.length, 12); i++) {
         const r = (raw[i] || []).map(c => String(c || '').trim());
@@ -17006,21 +17002,26 @@ function bckhParseOneFile(file, callback) {
       if (hIdx === -1) { callback(null, 'Không tìm được dòng tiêu đề'); return; }
 
       const header = (raw[hIdx] || []).map(c => String(c || '').trim());
-      const iSL = header.lastIndexOf('Số lượng');
-      const iKH = header.lastIndexOf('Khách hàng');
+      const iSL  = header.lastIndexOf('Số lượng');
+      const iKH  = header.lastIndexOf('Khách hàng');
+      const iDG  = header.lastIndexOf('Đơn giá');
+      const iSKU = header.lastIndexOf('Mã SKU');
+      const iTen = header.lastIndexOf('Tên hàng hóa');
+      const iDVT = header.lastIndexOf('Đơn vị tính');
 
       const rows = [];
       for (let i = hIdx + 1; i < raw.length; i++) {
         const r = raw[i] || [];
         const kh = String(r[iKH] || '').trim();
         if (!kh) continue;
-        const sl = Number(r[iSL]) || 0;
-        // Map mỗi cột theo tên header
-        const cells = {};
-        header.forEach((h, ci) => { if (h) cells[h] = r[ci] != null ? r[ci] : ''; });
-        rows.push({ kh, sl, cells });
+        const sl  = Number(r[iSL]) || 0;
+        const dg  = Number(r[iDG]) || 0;
+        const sku = String(r[iSKU] || '').trim();
+        const ten = String(r[iTen] || '').trim();
+        const dvt = String(r[iDVT] || '').trim();
+        rows.push({ kh, sl, dg, sku, ten, dvt });
       }
-      callback({ header, rows, filename: file.name }, null);
+      callback({ rows, filename: file.name }, null);
     } catch(err) { callback(null, err.message); }
   };
   reader.readAsArrayBuffer(file);
@@ -17029,31 +17030,16 @@ function bckhParseOneFile(file, callback) {
 function bckhHandleFiles(input) {
   const files = [...input.files];
   if (!files.length) return;
-  BCKH.allHeaders = []; BCKH.allRows = []; BCKH.customers = []; BCKH.selected = new Set();
+  BCKH.allRows = []; BCKH.customers = []; BCKH.selected = new Set();
 
   let done = 0;
   files.forEach(file => {
     bckhParseOneFile(file, (result, err) => {
-      if (!err && result) {
-        // Merge headers (giữ thứ tự chuẩn, thêm cột mới vào cuối nếu có)
-        result.header.forEach(h => { if (h && !BCKH.allHeaders.includes(h)) BCKH.allHeaders.push(h); });
-        BCKH.allRows = BCKH.allRows.concat(result.rows);
-      }
+      if (!err && result) BCKH.allRows = BCKH.allRows.concat(result.rows);
       done++;
       if (done === files.length) {
-        // Sắp xếp headers theo thứ tự chuẩn
-        BCKH.allHeaders.sort((a, b) => {
-          const ia = BCKH_COL_ORDER.indexOf(a), ib = BCKH_COL_ORDER.indexOf(b);
-          if (ia === -1 && ib === -1) return 0;
-          if (ia === -1) return 1;
-          if (ib === -1) return -1;
-          return ia - ib;
-        });
-        // Build customer list
         const khMap = new Map();
-        BCKH.allRows.forEach(r => {
-          khMap.set(r.kh, (khMap.get(r.kh) || 0) + r.sl);
-        });
+        BCKH.allRows.forEach(r => { khMap.set(r.kh, (khMap.get(r.kh) || 0) + r.sl); });
         BCKH.customers = Array.from(khMap.entries()).sort((a, b) => b[1] - a[1]).map(e => e[0]);
         BCKH.selected = new Set(BCKH.customers);
         bckhRender();
@@ -17063,9 +17049,24 @@ function bckhHandleFiles(input) {
   input.value = '';
 }
 
+// Gộp rows thành summary: KH + SKU → { totalSL, totalTien }
+function bckhBuildSummary() {
+  const map = new Map();
+  BCKH.allRows.forEach(r => {
+    if (!BCKH.selected.has(r.kh)) return;
+    const key = r.kh + '|||' + r.sku;
+    if (!map.has(key)) map.set(key, { kh: r.kh, sku: r.sku, ten: r.ten, dvt: r.dvt, totalSL: 0, totalTien: 0 });
+    const e = map.get(key);
+    e.totalSL  += r.sl;
+    e.totalTien += r.sl * r.dg;
+  });
+  return Array.from(map.values());
+}
+
 function bckhRender() {
   const totalSL = BCKH.allRows.filter(r => BCKH.selected.has(r.kh)).reduce((s, r) => s + r.sl, 0);
-  document.getElementById('bckh-stat-files').textContent = new Set(BCKH.allRows.map(r => r.cells['Tên hàng hóa'] || '')).size || '–';
+  const skuSet  = new Set(BCKH.allRows.map(r => r.sku).filter(Boolean));
+  document.getElementById('bckh-stat-files').textContent = skuSet.size || '–';
   document.getElementById('bckh-stat-kh').textContent    = BCKH.customers.length;
   document.getElementById('bckh-stat-sl').textContent    = totalSL.toLocaleString('vi-VN');
   ['bckh-kpi-card','bckh-filter-card','bckh-preview-card','bckh-export-btn','bckh-reset-btn']
@@ -17102,39 +17103,40 @@ function bckhRenderTable() {
   const thead = document.getElementById('bckh-thead');
   const tbody = document.getElementById('bckh-tbody');
   if (!thead || !tbody) return;
-  const active = BCKH.allRows.filter(r => BCKH.selected.has(r.kh));
-  const cols = BCKH.allHeaders;
+
+  const summary = bckhBuildSummary();
+  const cols = ['Mã SKU','Tên hàng hóa','Đơn vị tính','Tổng số lượng','Tổng tiền','Khách hàng'];
 
   thead.innerHTML = `<tr style="background:#1a2a4a">
-    ${cols.map(c => `<th style="padding:8px 10px;text-align:${c==='Số lượng'||c==='Đơn giá'?'right':'left'};color:#fff;font-weight:700;font-size:11px;white-space:nowrap">${c}</th>`).join('')}
+    ${cols.map(c => `<th style="padding:8px 10px;text-align:${c.startsWith('Tổng')?'right':'left'};color:#fff;font-weight:700;font-size:11px;white-space:nowrap">${c}</th>`).join('')}
   </tr>`;
 
-  const iSL = cols.indexOf('Số lượng');
-  let totalSL = 0;
-  let rowsHtml = active.slice(0, 100).map((r, idx) => {
-    totalSL += r.sl;
+  let grandSL = 0, grandTien = 0;
+  let rowsHtml = summary.slice(0, 200).map((s, idx) => {
+    grandSL += s.totalSL; grandTien += s.totalTien;
     const bg = idx % 2 === 0 ? '#fff' : '#f8f9ff';
     return `<tr style="background:${bg};border-bottom:1px solid var(--gray3)">
-      ${cols.map(c => {
-        const v = r.cells[c] != null ? r.cells[c] : '';
-        const isNum = c === 'Số lượng' || c === 'Đơn giá';
-        return `<td style="padding:7px 10px;font-size:11px;text-align:${isNum?'right':'left'};white-space:nowrap">${v}</td>`;
-      }).join('')}
+      <td style="padding:7px 10px;font-size:11px">${s.sku}</td>
+      <td style="padding:7px 10px;font-size:11px">${s.ten}</td>
+      <td style="padding:7px 10px;font-size:11px">${s.dvt}</td>
+      <td style="padding:7px 10px;font-size:11px;text-align:right;font-weight:600">${s.totalSL.toLocaleString('vi-VN')}</td>
+      <td style="padding:7px 10px;font-size:11px;text-align:right">${s.totalTien.toLocaleString('vi-VN')}</td>
+      <td style="padding:7px 10px;font-size:11px">${s.kh}</td>
     </tr>`;
   }).join('');
 
-  if (active.length > 100) {
-    rowsHtml += `<tr><td colspan="${cols.length}" style="padding:8px;text-align:center;color:var(--text2);font-size:11px">... và ${active.length - 100} dòng nữa (không hiển thị hết để tránh chậm)</td></tr>`;
+  if (summary.length > 200) {
+    rowsHtml += `<tr><td colspan="6" style="padding:8px;text-align:center;color:var(--text2);font-size:11px">... và ${summary.length - 200} dòng nữa</td></tr>`;
   }
 
-  // Tổng row
-  const totalSLAll = active.reduce((s, r) => s + r.sl, 0);
+  // Tổng cuối
+  const totalSLAll  = summary.reduce((s, r) => s + r.totalSL, 0);
+  const totalTienAll = summary.reduce((s, r) => s + r.totalTien, 0);
   rowsHtml += `<tr style="background:#1a2a4a;font-weight:700">
-    ${cols.map((c, ci) => {
-      if (c === 'Ngày') return `<td style="padding:8px 10px;color:#fff;font-size:11px">TỔNG CỘNG</td>`;
-      if (c === 'Số lượng') return `<td style="padding:8px 10px;text-align:right;color:#ffd740;font-size:12px;font-weight:800">${totalSLAll.toLocaleString('vi-VN')}</td>`;
-      return `<td style="padding:8px 10px"></td>`;
-    }).join('')}
+    <td style="padding:8px 10px;color:#fff;font-size:11px" colspan="3">TỔNG CỘNG</td>
+    <td style="padding:8px 10px;text-align:right;color:#ffd740;font-size:12px;font-weight:800">${totalSLAll.toLocaleString('vi-VN')}</td>
+    <td style="padding:8px 10px;text-align:right;color:#82b1ff;font-size:12px;font-weight:800">${totalTienAll.toLocaleString('vi-VN')}</td>
+    <td></td>
   </tr>`;
 
   tbody.innerHTML = rowsHtml;
@@ -17142,32 +17144,23 @@ function bckhRenderTable() {
 
 function bckhExport() {
   if (!BCKH.selected.size) { alert('Chưa chọn khách hàng nào!'); return; }
-  const active = BCKH.allRows.filter(r => BCKH.selected.has(r.kh));
-  if (!active.length) { alert('Không có dữ liệu để xuất!'); return; }
+  const summary = bckhBuildSummary();
+  if (!summary.length) { alert('Không có dữ liệu để xuất!'); return; }
 
-  const cols = BCKH.allHeaders;
-  const wsData = [cols];  // header row
+  const headers = ['Mã SKU','Tên hàng hóa','Đơn vị tính','Tổng số lượng','Tổng tiền','Khách hàng'];
+  const wsData = [headers];
 
-  active.forEach(r => {
-    wsData.push(cols.map(c => r.cells[c] != null ? r.cells[c] : ''));
+  summary.forEach(s => {
+    wsData.push([s.sku, s.ten, s.dvt, s.totalSL, s.totalTien, s.kh]);
   });
 
-  // Dòng tổng cộng cuối
-  const totalSL = active.reduce((s, r) => s + r.sl, 0);
-  const totalRow = cols.map(c => {
-    if (c === 'Ngày') return 'TỔNG CỘNG';
-    if (c === 'Số lượng') return totalSL;
-    return '';
-  });
-  wsData.push(totalRow);
+  // Dòng tổng cộng
+  const totalSL   = summary.reduce((s, r) => s + r.totalSL, 0);
+  const totalTien = summary.reduce((s, r) => s + r.totalTien, 0);
+  wsData.push(['TỔNG CỘNG', '', '', totalSL, totalTien, '']);
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols'] = cols.map(c => {
-    if (c === 'Tên hàng hóa') return { wch: 55 };
-    if (c === 'Khách hàng')   return { wch: 45 };
-    if (c === 'Ngày' || c === 'Giờ') return { wch: 20 };
-    return { wch: 16 };
-  });
+  ws['!cols'] = [{ wch: 18 }, { wch: 55 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 45 }];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Báo cáo KH');
@@ -17177,7 +17170,7 @@ function bckhExport() {
 }
 
 function bckhReset() {
-  BCKH.allHeaders = []; BCKH.allRows = []; BCKH.customers = []; BCKH.selected = new Set();
+  BCKH.allRows = []; BCKH.customers = []; BCKH.selected = new Set();
   ['bckh-kpi-card','bckh-filter-card','bckh-preview-card','bckh-export-btn','bckh-reset-btn']
     .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
   const fl = document.getElementById('bckh-filter-list'); if (fl) fl.innerHTML = '';
