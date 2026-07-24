@@ -2284,7 +2284,7 @@
       <!-- Mục 2: Thống Kê SKU (File 2 — mã SKU thật). Upload riêng, state riêng (BCSL_SKU), period riêng (bcsl_sku_period_*). Độc lập hoàn toàn với Mục 1 và G_salework. -->
       <div id="bcsl-tab-sku" style="display:none">
         <!-- ── Filter Bar ── -->
-        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 16px;background:white;border:1px solid var(--gray3);border-radius:var(--radius);margin-bottom:14px;box-shadow:var(--shadow)">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 16px;background:white;border:1px solid var(--gray3);border-radius:var(--radius);margin-bottom:14px;box-shadow:var(--shadow);position:sticky;top:0;z-index:10">
           <span style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.6px">KỲ</span>
           <select id="bcsl-period-select" onchange="bcslSkuLoadPeriod(this.value)" style="padding:6px 10px;border:1.5px solid var(--gray3);border-radius:8px;font-size:13px;font-weight:600;background:white;cursor:pointer">
             <option value="">-- Chọn kỳ --</option>
@@ -16400,21 +16400,7 @@ function bcslSkuRenderShopSection() {
   const tiktokCount  = BCSL_TIKTOK ? BCSL_TIKTOK.products.size : 0;
   const hasAnyData   = shopIdxNums.length > 0 || !!BCSL_TIKTOK || hasLegacy;
 
-  // ── 1. Platform filter tabs ────────────────────────────────
-  const pfTabs = [
-    { val: 'all',    label: '📊 Tất cả sàn' },
-    { val: 'shopee', label: '🛒 Shopee' },
-    { val: 'tiktok', label: '🎵 TikTok' }
-  ];
-  let html = `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-    <span style="font-size:12px;color:var(--text2);white-space:nowrap">Sàn:</span>`
-    + pfTabs.map(t => {
-        const on = _bcslPlatformFilter === t.val;
-        return `<span onclick="bcslSkuSetPlatformFilter('${t.val}')" style="cursor:pointer;padding:5px 14px;border-radius:14px;font-size:12px;white-space:nowrap;font-weight:${on?'700':'400'};border:1.5px solid ${on?'var(--navy)':'var(--gray3)'};background:${on?'var(--navy)':'#fff'};color:${on?'#fff':'var(--text2)'}">${t.label}</span>`;
-      }).join('')
-    + `</div>`;
-
-  // ── 2. Shopee section ──────────────────────────────────────
+  // ── 1. Shopee section ─────────────────────────────────────
   if (hasLegacy) {
     const s = BCSL_SHOPS['L'];
     html += `<div style="padding:12px 16px;border:1.5px solid var(--navy);border-radius:8px;background:#f0f4ff;font-size:12px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
@@ -16479,17 +16465,8 @@ function bcslSkuRenderShopSection() {
 
   sec.innerHTML = html;
 
-  // ── 4. Shop filter (chỉ hiện khi Shopee + ≥2 shops) ───────
-  if (!frow) return;
-  const showShopFilter = !hasLegacy && shopIdxNums.length >= 2 && _bcslPlatformFilter !== 'tiktok';
-  if (!showShopFilter) { frow.style.display = 'none'; return; }
-  frow.style.display = 'flex';
-  const sfFilters = [{ val: 'all', label: '📊 Tất cả' }, ...shopIdxNums.map(i => ({ val: String(i), label: BCSL_SHOPS_LIST[i] }))];
-  frow.innerHTML = '<span style="font-size:12px;color:var(--text2);white-space:nowrap">🏪 Lọc shop:</span>'
-    + sfFilters.map(f => {
-        const on = _bcslSkuShopFilter === f.val;
-        return `<span onclick="bcslSkuSetShopFilter('${f.val}')" style="cursor:pointer;padding:5px 12px;border-radius:14px;font-size:12px;white-space:nowrap;border:1.5px solid ${on?'var(--navy)':'var(--gray3)'};background:${on?'var(--navy)':'#fff'};color:${on?'#fff':'var(--text2)'}">${f.label}</span>`;
-      }).join('');
+  // Shop filter row ẩn hoàn toàn — thay bằng SHOP dropdown trong filter bar phía trên
+  if (frow) frow.style.display = 'none';
 }
 
 // ── Period chips ───────────────────────────────────────────────
