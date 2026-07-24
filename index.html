@@ -16400,6 +16400,8 @@ function bcslSkuRenderShopSection() {
   const tiktokCount  = BCSL_TIKTOK ? BCSL_TIKTOK.products.size : 0;
   const hasAnyData   = shopIdxNums.length > 0 || !!BCSL_TIKTOK || hasLegacy;
 
+  let html = '';
+
   // ── 1. Shopee section ─────────────────────────────────────
   if (hasLegacy) {
     const s = BCSL_SHOPS['L'];
