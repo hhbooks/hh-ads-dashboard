@@ -2283,11 +2283,35 @@
 
       <!-- Mục 2: Thống Kê SKU (File 2 — mã SKU thật). Upload riêng, state riêng (BCSL_SKU), period riêng (bcsl_sku_period_*). Độc lập hoàn toàn với Mục 1 và G_salework. -->
       <div id="bcsl-tab-sku" style="display:none">
-        <!-- Drive Sync Bar -->
-        <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;padding:10px 14px;background:var(--bg2);border-radius:8px;flex-wrap:wrap">
-          <button class="sw-btn-sm" onclick="bcslSyncFromDrive()" id="bcsl-drive-sync-btn" style="background:var(--navy);color:#fff;border-color:var(--navy)">☁️ Đồng bộ từ Drive</button>
-          <span id="bcsl-drive-sync-status" style="font-size:12px;color:var(--text2)"></span>
+        <!-- ── Filter Bar ── -->
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 16px;background:white;border:1px solid var(--gray3);border-radius:var(--radius);margin-bottom:14px;box-shadow:var(--shadow)">
+          <span style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.6px">KỲ</span>
+          <select id="bcsl-period-select" onchange="bcslSkuLoadPeriod(this.value)" style="padding:6px 10px;border:1.5px solid var(--gray3);border-radius:8px;font-size:13px;font-weight:600;background:white;cursor:pointer">
+            <option value="">-- Chọn kỳ --</option>
+          </select>
+          <span style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.6px">KÊNH</span>
+          <select id="bcsl-chan-select" onchange="bcslSkuSetPlatformFilter(this.value)" style="padding:6px 10px;border:1.5px solid var(--gray3);border-radius:8px;font-size:13px;font-weight:600;background:white;cursor:pointer">
+            <option value="all">Tất cả</option>
+            <option value="shopee">Shopee</option>
+            <option value="tiktok">TikTok</option>
+          </select>
+          <span id="bcsl-shop-dd-label" style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.6px">SHOP</span>
+          <select id="bcsl-shop-dd-select" onchange="bcslSkuSetShopFilter(this.value)" style="padding:6px 10px;border:1.5px solid var(--gray3);border-radius:8px;font-size:13px;font-weight:600;background:white;cursor:pointer">
+            <option value="all">Tất cả shop</option>
+            <option value="0">Nhà Sách 2HBooks</option>
+            <option value="1">2H Books</option>
+            <option value="2">Huy Hoàng Bookstore</option>
+            <option value="3">2H Home Living</option>
+            <option value="4">2H Họa Cụ</option>
+            <option value="5">2H Store</option>
+          </select>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+            <button class="sw-btn-sm" onclick="bcslSyncFromDrive()" id="bcsl-drive-sync-btn" style="background:var(--navy);color:#fff;border-color:var(--navy)">☁️ Đồng bộ từ Drive</button>
+            <span id="bcsl-drive-sync-status" style="font-size:12px;color:var(--text2)"></span>
+          </div>
         </div>
+        <!-- Overview: KPI + Charts (rendered by bcslSkuRenderOverview) -->
+        <div id="bcsl-sku-overview-section" style="display:none;margin-bottom:14px"></div>
         <!-- Shop cards — rendered dynamically by bcslSkuRenderShopSection() -->
         <div id="bcsl-sku-shop-section" style="margin-bottom:14px"></div>
         <!-- Hidden file inputs cho 6 shop (static để onchange hoạt động đúng) -->
@@ -2301,7 +2325,7 @@
         <!-- Bộ lọc shop — hiện khi ≥2 shop Shopee có dữ liệu và đang xem Shopee -->
         <div id="bcsl-sku-shop-filter-row" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
 
-        <div id="bcsl-sku-period-chips" style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>
+        <div id="bcsl-sku-period-chips" style="display:none;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>
 
         <div id="bcsl-sku-empty-state" style="text-align:center;padding:30px 24px;color:var(--text2);font-size:13px">
           Chưa có dữ liệu — upload file mã SKU ở trên để xem tổng quan.
@@ -15976,6 +16000,8 @@ function bcslSkuSetPlatformFilter(val) {
   bcslSkuComputeActive();
   bcslSkuRenderShopSection();
   bcslSkuRenderCatalog();
+  bcslSkuRenderFilterBar();
+  bcslSkuRenderOverview();
 }
 
 // ── TikTok: parse + lưu ──────────────────────────────────────
@@ -16278,6 +16304,8 @@ function bcslSkuSetShopFilter(val) {
   bcslSkuComputeActive();
   bcslSkuRenderShopSection();
   bcslSkuRenderCatalog();
+  bcslSkuRenderFilterBar();
+  bcslSkuRenderOverview();
 }
 
 // ── Detect kỳ từ tên file ─────────────────────────────────────
@@ -16356,6 +16384,8 @@ function bcslSkuLoadPeriod(key) {
   bcslSkuRenderShopSection();
   bcslSkuRenderCatalog();
   bcslSkuRenderPeriodChips();
+  bcslSkuRenderFilterBar();
+  bcslSkuRenderOverview();
 }
 
 // ── Render shop cards + TikTok card + platform/shop filters ───
@@ -16463,6 +16493,168 @@ function bcslSkuRenderShopSection() {
 }
 
 // ── Period chips ───────────────────────────────────────────────
+// ── Filter Bar + Overview (KPI + Charts) ─────────────────────
+let _bcslOverviewCharts = {};
+
+function bcslSkuRenderFilterBar() {
+  // Kỳ dropdown
+  const pSel = document.getElementById('bcsl-period-select');
+  if (pSel) {
+    let idx = [];
+    try { idx = JSON.parse(localStorage.getItem('bcsl_sku_period_index') || '[]'); } catch(e) {}
+    idx.sort((a, b) => (b.year - a.year) || (b.month - a.month));
+    pSel.innerHTML = '<option value="">-- Chọn kỳ --</option>';
+    idx.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.key;
+      opt.textContent = `Tháng ${String(p.month).padStart(2,'0')}/${p.year}`;
+      if (p.key === _bcslSkuCurrentPeriodKey) opt.selected = true;
+      pSel.appendChild(opt);
+    });
+  }
+  // Kênh dropdown
+  const cSel = document.getElementById('bcsl-chan-select');
+  if (cSel) cSel.value = _bcslPlatformFilter;
+  // Shop dropdown
+  const sSel = document.getElementById('bcsl-shop-dd-select');
+  const sLabel = document.getElementById('bcsl-shop-dd-label');
+  if (sSel) {
+    sSel.value = _bcslSkuShopFilter;
+    const showShop = _bcslPlatformFilter !== 'tiktok';
+    sSel.style.display = showShop ? '' : 'none';
+    if (sLabel) sLabel.style.display = showShop ? '' : 'none';
+  }
+}
+
+function bcslSkuRenderOverview() {
+  const sec = document.getElementById('bcsl-sku-overview-section');
+  if (!sec) return;
+
+  const shopReals = Object.keys(BCSL_SHOPS).filter(k => k !== 'L').map(Number).sort((a,b)=>a-b);
+  const hasLegacy = !!BCSL_SHOPS['L'];
+  const hasTiktok = !!BCSL_TIKTOK;
+  if (!shopReals.length && !hasLegacy && !hasTiktok) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+
+  // Tính metrics từng shop + channel
+  let shopeeRev = 0, shopeeGV = 0, tiktokRev = 0, tiktokGV = 0;
+  const shopM = {};
+  shopReals.forEach(i => {
+    const sh = BCSL_SHOPS[i]; if (!sh) return;
+    let rev = 0, gv = 0;
+    sh.products.forEach(p => { rev += p.doanh_thu_thuc||0; gv += p.gia_von_tong||0; });
+    shopM[i] = { name: sh.name, rev, gv };
+    shopeeRev += rev; shopeeGV += gv;
+  });
+  if (hasLegacy) BCSL_SHOPS['L'].products.forEach(p => { shopeeRev += p.doanh_thu_thuc||0; shopeeGV += p.gia_von_tong||0; });
+  if (hasTiktok) BCSL_TIKTOK.products.forEach(p => { tiktokRev += p.doanh_thu_thuc||0; tiktokGV += p.gia_von_tong||0; });
+
+  const totalRev   = shopeeRev + tiktokRev;
+  const totalGV    = shopeeGV  + tiktokGV;
+  const gvPct      = totalRev > 0 ? totalGV/totalRev*100 : 0;
+  const gvColor    = gvPct < 45 ? 'var(--green)' : gvPct < 60 ? 'var(--orange)' : 'var(--red)';
+  const lnGop      = totalRev - totalGV;
+  const lnColor    = lnGop >= 0 ? 'var(--green)' : 'var(--red)';
+  const fmtN       = v => v.toLocaleString('vi-VN');
+  const fmtPct     = (n, d) => d > 0 ? (n/d*100).toFixed(1)+'%' : '--';
+
+  // KPI row (5 cards)
+  const kpis = [
+    { label:'TỔNG DOANH THU',   val:fmtN(totalRev),   sub:`GV/DT: ${gvPct.toFixed(1)}%`,                                            subC:gvColor,   topC:'var(--navy)' },
+    { label:'SHOPEE',            val:fmtN(shopeeRev),  sub:`GV/DT: ${fmtPct(shopeeGV,shopeeRev)} · ${fmtPct(shopeeRev,totalRev)} tổng`, subC:'var(--text2)', topC:'#ee4d2d' },
+    { label:'TIKTOK',            val:fmtN(tiktokRev),  sub:`GV/DT: ${fmtPct(tiktokGV,tiktokRev)} · ${fmtPct(tiktokRev,totalRev)} tổng`, subC:'var(--text2)', topC:'#444' },
+    { label:'TỔNG GIÁ VỐN',     val:fmtN(totalGV),    sub:`GV/DT: ${gvPct.toFixed(1)}%`,                                            subC:gvColor,   topC:'var(--navy)' },
+    { label:'LỢI NHUẬN GỘP',    val:fmtN(lnGop),      sub:`Margin: ${totalRev > 0 ? (lnGop/totalRev*100).toFixed(1)+'%' : '--'}`,   subC:lnColor,   topC:lnColor       },
+  ];
+  let html = `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px">`;
+  kpis.forEach(k => {
+    html += `<div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border:1px solid var(--gray3);border-top:3px solid ${k.topC};position:relative;overflow:hidden">
+      <div class="kpi-label">${k.label}</div>
+      <div style="font-size:18px;font-weight:800;color:var(--text);line-height:1;margin:4px 0">${k.val}</div>
+      <div class="kpi-sub" style="color:${k.subC}">${k.sub}</div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // Charts row
+  const showShopChart = shopReals.length >= 1 || hasLegacy;
+  const showChanChart = shopeeRev > 0 && hasTiktok;
+  if (showShopChart || showChanChart) {
+    const cols = showShopChart && showChanChart ? '2fr 1fr' : '1fr';
+    html += `<div style="display:grid;grid-template-columns:${cols};gap:16px">`;
+    if (showShopChart) html += `<div class="card"><div class="card-title"><span class="dot"></span>Tỷ Trọng Doanh Thu Theo Shop</div><canvas id="bcsl-chart-shop" height="200"></canvas></div>`;
+    if (showChanChart) html += `<div class="card"><div class="card-title"><span class="dot" style="background:#ee4d2d"></span>Shopee vs TikTok</div><canvas id="bcsl-chart-channel" height="200"></canvas></div>`;
+    html += `</div>`;
+  }
+
+  sec.innerHTML = html;
+
+  // Hủy chart cũ
+  Object.values(_bcslOverviewCharts).forEach(ch => { try { ch.destroy(); } catch(e) {} });
+  _bcslOverviewCharts = {};
+
+  // Vẽ Shop donut
+  if (showShopChart) {
+    const ctx = document.getElementById('bcsl-chart-shop');
+    if (ctx) {
+      const COLORS = ['#1a56db','#ee4d2d','#059669','#f59e0b','#8b5cf6','#06b6d4','#374151'];
+      const labels=[], data=[], bg=[];
+      if (hasLegacy) {
+        labels.push('Tổng hợp'); data.push(shopeeRev); bg.push(COLORS[0]);
+      } else {
+        shopReals.forEach((i,ci) => {
+          if (shopM[i] && shopM[i].rev > 0) {
+            const n = shopM[i].name.replace('Nhà Sách ','').replace('Huy Hoàng Bookstore','HH Bookstore').replace('2H Home Living','2H Home');
+            labels.push(n); data.push(shopM[i].rev); bg.push(COLORS[ci % COLORS.length]);
+          }
+        });
+      }
+      if (hasTiktok && tiktokRev > 0) { labels.push('TikTok'); data.push(tiktokRev); bg.push('#2c2c2c'); }
+      if (labels.length) {
+        _bcslOverviewCharts['shop'] = new Chart(ctx, {
+          type: 'doughnut',
+          data: { labels, datasets: [{ data, backgroundColor: bg, borderWidth: 2, borderColor: '#fff' }] },
+          options: {
+            responsive:true, cutout:'58%',
+            plugins: {
+              datalabels: {
+                formatter: (val,c) => { const tot=c.dataset.data.reduce((s,v)=>s+v,0); const pct=tot>0?val/tot*100:0; return pct>=5?c.chart.data.labels[c.dataIndex]+'\n'+pct.toFixed(1)+'%':''; },
+                color:'#fff', font:{weight:'bold',size:10}, textAlign:'center'
+              },
+              legend:{position:'bottom',labels:{font:{size:11},padding:10}},
+              tooltip:{callbacks:{label:c=>{const tot=c.dataset.data.reduce((s,v)=>s+v,0);const pct=tot>0?(c.raw/tot*100).toFixed(1):0;return ` ${c.raw.toLocaleString('vi-VN')} đ (${pct}%)`;}}}
+            }
+          },
+          plugins:[ChartDataLabels]
+        });
+      }
+    }
+  }
+
+  // Vẽ Shopee vs TikTok donut
+  if (showChanChart) {
+    const ctx = document.getElementById('bcsl-chart-channel');
+    if (ctx) {
+      _bcslOverviewCharts['chan'] = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels:['Shopee','TikTok'], datasets:[{ data:[shopeeRev,tiktokRev], backgroundColor:['#ee4d2d','#2c2c2c'], borderWidth:2, borderColor:'#fff' }] },
+        options: {
+          responsive:true, cutout:'58%',
+          plugins: {
+            datalabels: {
+              formatter:(val,c)=>{ const tot=c.dataset.data.reduce((s,v)=>s+v,0); const pct=tot>0?val/tot*100:0; return pct>=5?c.chart.data.labels[c.dataIndex]+'\n'+pct.toFixed(1)+'%':''; },
+              color:'#fff', font:{weight:'bold',size:12}, textAlign:'center'
+            },
+            legend:{position:'bottom',labels:{font:{size:11},padding:10}},
+            tooltip:{callbacks:{label:c=>{const tot=c.dataset.data.reduce((s,v)=>s+v,0);const pct=tot>0?(c.raw/tot*100).toFixed(1):0;return ` ${c.raw.toLocaleString('vi-VN')} đ (${pct}%)`;}}}
+          }
+        },
+        plugins:[ChartDataLabels]
+      });
+    }
+  }
+}
+
 function bcslSkuRenderPeriodChips() {
   const wrap = document.getElementById('bcsl-sku-period-chips');
   if (!wrap) return;
@@ -16476,6 +16668,7 @@ function bcslSkuRenderPeriodChips() {
     html += `<span style="display:inline-flex;align-items:center;gap:6px;padding:5px 6px 5px 12px;border-radius:14px;font-size:12px;cursor:pointer;border:1.5px solid ${active ? 'var(--navy)' : 'var(--gray3)'};background:${active ? 'var(--navy)' : '#fff'};color:${active ? '#fff' : 'var(--text2)'}" onclick="bcslSkuLoadPeriod('${p.key}')">Tháng ${String(p.month).padStart(2,'0')}/${p.year}<span onclick="event.stopPropagation();bcslSkuDeletePeriod('${p.key}')" style="cursor:pointer;font-weight:700;padding:2px 6px;border-radius:50%" title="Xóa kỳ này">✕</span></span>`;
   });
   wrap.innerHTML = html;
+  bcslSkuRenderFilterBar();
 }
 
 function bcslSkuDeletePeriod(key) {
