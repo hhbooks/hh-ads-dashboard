@@ -2282,6 +2282,11 @@
 
       <!-- Mục 2: Thống Kê SKU (File 2 — mã SKU thật). Upload riêng, state riêng (BCSL_SKU), period riêng (bcsl_sku_period_*). Độc lập hoàn toàn với Mục 1 và G_salework. -->
       <div id="bcsl-tab-sku" style="display:none">
+        <!-- Drive Sync Bar -->
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;padding:10px 14px;background:var(--bg2);border-radius:8px;flex-wrap:wrap">
+          <button class="sw-btn-sm" onclick="bcslSyncFromDrive()" id="bcsl-drive-sync-btn" style="background:var(--navy);color:#fff;border-color:var(--navy)">☁️ Đồng bộ từ Drive</button>
+          <span id="bcsl-drive-sync-status" style="font-size:12px;color:var(--text2)"></span>
+        </div>
         <!-- Shop cards — rendered dynamically by bcslSkuRenderShopSection() -->
         <div id="bcsl-sku-shop-section" style="margin-bottom:14px"></div>
         <!-- Hidden file inputs cho 6 shop (static để onchange hoạt động đúng) -->
@@ -16069,6 +16074,175 @@ function bcslSkuParseFile(input, shopIdx) {
   reader.readAsArrayBuffer(file);
 }
 
+// ══════════════════════════════════════════════════════════════
+// BCSL — Đồng bộ dữ liệu từ Google Drive
+// Folder gốc: https://drive.google.com/drive/folders/11g6PkN6HG0M1vh7lLdKW1v-tzPYP6gC-
+// Cấu trúc: Báo cáo sản lượng/ → [Nhà Sách 2HBooks | 2H Books | ... | Tiktok]/ → *.xlsx
+// ══════════════════════════════════════════════════════════════
+const BCSL_DRIVE_FOLDER_ID = '11g6PkN6HG0M1vh7lLdKW1v-tzPYP6gC-';
+let _bcslDriveTokenClient = null;
+
+const BCSL_DRIVE_SHOP_MAP = {
+  'Nhà Sách 2HBooks':    0,
+  '2H Books':            1,
+  'Huy Hoàng Bookstore': 2,
+  '2H Home Living':      3,
+  '2H Họa Cụ':          4,
+  '2H Store':            5,
+};
+
+function _bcslSetSyncStatus(msg, color) {
+  const el = document.getElementById('bcsl-drive-sync-status');
+  if (el) { el.textContent = msg; el.style.color = color || 'var(--text2)'; }
+}
+
+// Parse ArrayBuffer → Map<sku, {ten, so_luong, doanh_thu_thuc, gia_von_tong}>
+// Dùng chung cho cả Shopee và TikTok (cấu trúc cột giống nhau)
+function _bcslSkuParseAB(arrayBuffer) {
+  const wb   = XLSX.read(arrayBuffer, { type: 'array' });
+  const sn   = wb.SheetNames.find(s => s.includes('Th') && s.includes('ng k')) || wb.SheetNames[0];
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: null });
+  const products = new Map();
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (row[0] == null || row[0] === '') continue;
+    const ma_sku = String(row[0]).trim();
+    if (!ma_sku) continue;
+    products.set(ma_sku, {
+      ten:            String(row[1] || '').trim(),
+      so_luong:       Number(row[2]) || 0,
+      doanh_thu_thuc: Number(row[4]) || 0,
+      gia_von_tong:   Number(row[6]) || 0
+    });
+  }
+  return products;
+}
+
+function _bcslDriveAddPeriodIndex(key, year, month) {
+  let idx = [];
+  try { idx = JSON.parse(localStorage.getItem('bcsl_sku_period_index') || '[]'); } catch(e) {}
+  if (!idx.find(x => x.key === key)) {
+    idx.push({ key, year, month });
+    try { localStorage.setItem('bcsl_sku_period_index', JSON.stringify(idx)); } catch(e) {}
+  }
+}
+
+function _bcslDriveSaveShop(shopIdx, filename, products) {
+  const { year, month } = bcslSkuDetectPeriod(filename);
+  const key = bcslSkuPeriodKey(year, month);
+  try {
+    localStorage.setItem('bcsl_sku_period_' + key + '_shop_' + shopIdx, JSON.stringify({
+      year, month, shopIdx, shopName: BCSL_SHOPS_LIST[shopIdx],
+      filename, savedAt: Date.now(),
+      products: Array.from(products.entries())
+    }));
+    _bcslDriveAddPeriodIndex(key, year, month);
+  } catch(e) { console.warn('bcslDriveSaveShop', shopIdx, e); }
+  return key;
+}
+
+function _bcslDriveSaveTiktok(filename, products) {
+  const { year, month } = bcslSkuDetectPeriod(filename);
+  const key = bcslSkuPeriodKey(year, month);
+  try {
+    localStorage.setItem('bcsl_sku_period_' + key + '_tiktok', JSON.stringify({
+      filename, savedAt: Date.now(), products: Array.from(products.entries())
+    }));
+    _bcslDriveAddPeriodIndex(key, year, month);
+  } catch(e) { console.warn('bcslDriveSaveTiktok', e); }
+  return key;
+}
+
+async function _bcslDriveListItems(token, folderId) {
+  const q = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
+  const r = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType)&pageSize=100`,
+    { headers: { Authorization: 'Bearer ' + token } }
+  );
+  if (!r.ok) throw new Error('Drive API lỗi ' + r.status);
+  return (await r.json()).files || [];
+}
+
+async function _bcslDriveDownload(token, fileId) {
+  const r = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+    { headers: { Authorization: 'Bearer ' + token } }
+  );
+  if (!r.ok) throw new Error('Tải file lỗi ' + r.status);
+  return r.arrayBuffer();
+}
+
+async function _bcslDriveDoSync(token) {
+  const btn = document.getElementById('bcsl-drive-sync-btn');
+  if (btn) btn.disabled = true;
+  let ok = 0, fail = 0;
+  try {
+    _bcslSetSyncStatus('⏳ Đang đọc folder Drive...');
+    const items   = await _bcslDriveListItems(token, BCSL_DRIVE_FOLDER_ID);
+    const folders = items.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
+
+    for (const folder of folders) {
+      const shopIdx  = BCSL_DRIVE_SHOP_MAP[folder.name];
+      const isTiktok = folder.name === 'Tiktok';
+      if (shopIdx === undefined && !isTiktok) continue;
+
+      const files     = await _bcslDriveListItems(token, folder.id);
+      const xlsxFiles = files.filter(f => /\.(xlsx|xls)$/i.test(f.name));
+
+      for (const file of xlsxFiles) {
+        _bcslSetSyncStatus(`⏳ ${folder.name} — ${file.name}`);
+        try {
+          const ab  = await _bcslDriveDownload(token, file.id);
+          const map = _bcslSkuParseAB(ab);
+          if (isTiktok) _bcslDriveSaveTiktok(file.name, map);
+          else          _bcslDriveSaveShop(shopIdx, file.name, map);
+          ok++;
+        } catch(e) { fail++; console.warn('Lỗi file', file.name, e); }
+      }
+    }
+
+    localStorage.setItem('bcsl_drive_last_sync', new Date().toLocaleString('vi-VN'));
+
+    // Reset state rồi load lại kỳ gần nhất từ localStorage
+    BCSL_SHOPS = {};
+    BCSL_TIKTOK = null;
+    _bcslSkuCurrentPeriodKey = '';
+    bcslSkuAutoRestoreLatest();
+    bcslSkuRenderPeriodChips();
+
+    const failMsg = fail ? ` (${fail} file lỗi — xem console)` : '';
+    _bcslSetSyncStatus(`✅ Xong — ${ok} file đồng bộ${failMsg}`, 'var(--green)');
+  } catch(e) {
+    _bcslSetSyncStatus('❌ ' + e.message, 'var(--red)');
+    console.error('BCSL Drive sync error', e);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function bcslSyncFromDrive() {
+  const clientId = getDriveClientId();
+  if (!clientId) {
+    alert('Vui lòng nhập và lưu OAuth2 Client ID trước (ở trang Cập Nhật Dữ Liệu)!');
+    return;
+  }
+  if (typeof google === 'undefined' || !google.accounts) {
+    _bcslSetSyncStatus('⚠️ Thư viện Google chưa tải — tải lại trang và thử lại.', 'orange');
+    return;
+  }
+  if (!_bcslDriveTokenClient) {
+    _bcslDriveTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'https://www.googleapis.com/auth/drive.readonly',
+      callback: async (resp) => {
+        if (resp.error) { _bcslSetSyncStatus('❌ OAuth: ' + resp.error, 'var(--red)'); return; }
+        await _bcslDriveDoSync(resp.access_token);
+      }
+    });
+  }
+  _bcslDriveTokenClient.requestAccessToken();
+}
+
 // ── Xóa 1 shop ────────────────────────────────────────────────
 function bcslSkuClearShop(shopIdx) {
   shopIdx = Number(shopIdx);
@@ -16680,13 +16854,8 @@ async function bcslSkuRenderNganhHang(list, totalRev) {
     </div>`;
   }
 
-  // ── Bar chart (canvas) ────────────────────────────────────
-  const chartH = Math.max(groups.length * 30 + 24, 80);
-  const chartHtml = `
-  <div style="background:#fff;border:1px solid var(--gray3);border-radius:8px;padding:14px 16px;margin-bottom:12px">
-    <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.5px;margin-bottom:10px">DOANH THU THEO NGÀNH HÀNG${showComparison ? ' (Tổng hợp)' : ''}</div>
-    <div style="position:relative;height:${chartH}px"><canvas id="bcsl-nganh-chart"></canvas></div>
-  </div>`;
+  // ── Bar chart: đã ẩn theo yêu cầu (23/07/2026) ────────────
+  const chartHtml = '';
 
   // ── Accordion table ───────────────────────────────────────
   let tableHtml = `
