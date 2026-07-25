@@ -2248,7 +2248,7 @@
         <!-- ══ BÁO CÁO DOANH SỐ (mới) — dữ liệu từ Drive folder "Báo cáo doanh số", logic hiển thị sẽ bổ sung theo yêu cầu ══ -->
         <!-- ── Filter Bar (giống Thống kê SKU) ── -->
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 16px;background:white;border:1px solid var(--gray3);border-radius:var(--radius);margin-bottom:14px;box-shadow:var(--shadow);position:sticky;top:0;z-index:10">
-          <span style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.6px">KỲ</span>
+          <span style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.6px">THÁNG</span>
           <select id="bcds-period-select" onchange="bcdsLoadPeriod(this.value)" style="padding:6px 10px;border:1.5px solid var(--gray3);border-radius:8px;font-size:13px;font-weight:600;background:white;cursor:pointer">
             <option value="">-- Chọn kỳ --</option>
           </select>
@@ -16349,6 +16349,7 @@ async function _bcdsDriveDoSync(token) {
     }
     localStorage.setItem('bcds_drive_last_sync', new Date().toLocaleString('vi-VN'));
     BCDS_SHOPS = {}; BCDS_TIKTOK = null; _bcdsCurrentPeriodKey = '';
+    _bcdsCache = {};
     bcdsAutoRestoreLatest();
     const failMsg = fail ? ` (${fail} file lỗi — xem console)` : '';
     _bcdsSetSyncStatus(`✅ Xong — ${ok} file đồng bộ${failMsg}`, 'var(--green)');
@@ -16383,32 +16384,67 @@ function bcdsSyncFromDrive() {
   _bcdsDriveTokenClient.requestAccessToken();
 }
 
-// ── Load kỳ từ localStorage ───────────────────────────────────
+// ── Chỉ số kỳ (sắp tăng dần) ──────────────────────────────────
+function _bcdsPeriodIndex() {
+  let idx = [];
+  try { idx = JSON.parse(localStorage.getItem('bcds_period_index') || '[]'); } catch(e) {}
+  idx.sort((a, b) => (a.year - b.year) || (a.month - b.month));
+  return idx;
+}
+
+// ── Parse raw rows (file "Thống kê sản phẩm" Salework) → Map<ma, {ten, so_luong, gia_von, doanh_thu}> ──
+// Cột: 0:Mã SP 1:Tên 2:SL bán 7:Tổng giá vốn theo SP 9:Giá trị bán — dòng biến thể (cột 0 trống) bỏ qua
+function _bcdsRowsToProducts(rows) {
+  const m = new Map();
+  for (let i = 1; i < (rows || []).length; i++) {
+    const r = rows[i];
+    if (!r || r[0] == null || r[0] === '') continue;
+    const ma = String(r[0]).trim();
+    if (!ma) continue;
+    const sl = Number(r[2]) || 0, gv = Number(r[7]) || 0, dt = Number(r[9]) || 0;
+    const ex = m.get(ma);
+    if (ex) { ex.so_luong += sl; ex.gia_von += gv; ex.doanh_thu += dt; }
+    else m.set(ma, { ten: String(r[1] || '').trim(), so_luong: sl, gia_von: gv, doanh_thu: dt });
+  }
+  return m;
+}
+
+let _bcdsCache = {}; // periodKey → { shops: {i:{name,products}}, tiktok:{products}|null }
+function bcdsGetPeriodData(key) {
+  if (_bcdsCache[key]) return _bcdsCache[key];
+  const out = { shops: {}, tiktok: null };
+  BCSL_SHOPS_LIST.forEach((name, i) => {
+    try {
+      const raw = localStorage.getItem('bcds_period_' + key + '_shop_' + i);
+      if (raw) { const d = JSON.parse(raw); out.shops[i] = { name, products: _bcdsRowsToProducts(d.rows) }; }
+    } catch(e) {}
+  });
+  try {
+    const raw = localStorage.getItem('bcds_period_' + key + '_tiktok');
+    if (raw) { const d = JSON.parse(raw); out.tiktok = { products: _bcdsRowsToProducts(d.rows) }; }
+  } catch(e) {}
+  _bcdsCache[key] = out;
+  return out;
+}
+
+function _bcdsMergeInto(target, src) {
+  src.forEach((p, ma) => {
+    const ex = target.get(ma);
+    if (ex) { ex.so_luong += p.so_luong; ex.gia_von += p.gia_von; ex.doanh_thu += p.doanh_thu; }
+    else target.set(ma, { ten: p.ten, so_luong: p.so_luong, gia_von: p.gia_von, doanh_thu: p.doanh_thu });
+  });
+}
+
 function bcdsLoadPeriod(key) {
   _bcdsCurrentPeriodKey = key || '';
-  BCDS_SHOPS = {}; BCDS_TIKTOK = null;
-  if (key) {
-    BCSL_SHOPS_LIST.forEach((name, i) => {
-      try {
-        const raw = localStorage.getItem('bcds_period_' + key + '_shop_' + i);
-        if (raw) { const d = JSON.parse(raw); BCDS_SHOPS[i] = { name, filename: d.filename, rows: d.rows }; }
-      } catch(e) {}
-    });
-    try {
-      const raw = localStorage.getItem('bcds_period_' + key + '_tiktok');
-      if (raw) { const d = JSON.parse(raw); BCDS_TIKTOK = { filename: d.filename, rows: d.rows }; }
-    } catch(e) {}
-  }
   bcdsRenderFilterBar();
   bcdsRenderContent();
 }
 
 function bcdsAutoRestoreLatest() {
-  let idx = [];
-  try { idx = JSON.parse(localStorage.getItem('bcds_period_index') || '[]'); } catch(e) {}
+  const idx = _bcdsPeriodIndex();
   if (!idx.length) { bcdsRenderFilterBar(); bcdsRenderContent(); return; }
-  idx.sort((a, b) => (b.year - a.year) || (b.month - a.month));
-  bcdsLoadPeriod(idx[0].key);
+  bcdsLoadPeriod(idx[idx.length - 1].key); // kỳ mới nhất
 }
 
 function bcdsSetPlatformFilter(val) {
@@ -16427,11 +16463,19 @@ function bcdsSetShopFilter(val) {
 function bcdsRenderFilterBar() {
   const pSel = document.getElementById('bcds-period-select');
   if (pSel) {
-    let idx = [];
-    try { idx = JSON.parse(localStorage.getItem('bcds_period_index') || '[]'); } catch(e) {}
-    idx.sort((a, b) => (b.year - a.year) || (b.month - a.month));
-    pSel.innerHTML = '<option value="">-- Chọn kỳ --</option>';
-    idx.forEach(p => {
+    const idx = _bcdsPeriodIndex();
+    pSel.innerHTML = '<option value="">-- Chọn tháng --</option>';
+    if (idx.length > 1) {
+      const first = idx[0], last = idx[idx.length - 1];
+      const opt = document.createElement('option');
+      opt.value = 'cum';
+      opt.textContent = first.year === last.year
+        ? `T${first.month} – T${last.month} (Lũy kế)`
+        : `Lũy kế tất cả (${idx.length} kỳ)`;
+      if (_bcdsCurrentPeriodKey === 'cum') opt.selected = true;
+      pSel.appendChild(opt);
+    }
+    [...idx].reverse().forEach(p => { // mới nhất trước
       const opt = document.createElement('option');
       opt.value = p.key;
       opt.textContent = `Tháng ${String(p.month).padStart(2,'0')}/${p.year}`;
@@ -16451,54 +16495,394 @@ function bcdsRenderFilterBar() {
   }
 }
 
-// ── Placeholder: xác nhận dữ liệu đã đồng bộ — logic báo cáo chi tiết sẽ thay thế sau ──
-function bcdsRenderContent() {
+// ══ RENDER BÁO CÁO DOANH SỐ ═══════════════════════════════════
+let _bcdsCharts = {};
+let _bcdsRenderReqId = 0;
+let _bcdsRankRows = [];
+let _bcdsRankNganh = 'all', _bcdsRankNcc = '', _bcdsRankSearch = '';
+
+const BCDS_PALETTE = ['#1a56db','#ee4d2d','#059669','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#10b981','#f97316','#6366f1','#14b8a6','#84cc16','#a855f7','#0ea5e9','#d946ef'];
+const BCDS_SHOP_COLORS = ['#1a56db','#ee4d2d','#059669','#f59e0b','#8b5cf6','#ec4899'];
+
+async function bcdsRenderContent() {
   const wrap  = document.getElementById('bcds-content');
   const empty = document.getElementById('bcds-empty-state');
   if (!wrap) return;
-  const shopIdxs = Object.keys(BCDS_SHOPS);
-  const hasData  = shopIdxs.length > 0 || !!BCDS_TIKTOK;
-  if (empty) empty.style.display = hasData ? 'none' : 'block';
-  if (!hasData) { wrap.innerHTML = ''; return; }
+  const myId = ++_bcdsRenderReqId;
 
-  let kyLabel = '';
-  if (_bcdsCurrentPeriodKey) {
-    const parts = _bcdsCurrentPeriodKey.split('_');
-    kyLabel = ` — Tháng ${String(parts[1]).padStart(2,'0')}/${parts[0]}`;
+  const idx   = _bcdsPeriodIndex();
+  const isCum = _bcdsCurrentPeriodKey === 'cum';
+  const selKeys = isCum ? idx.map(p => p.key)
+                        : (idx.find(p => p.key === _bcdsCurrentPeriodKey) ? [_bcdsCurrentPeriodKey] : []);
+  if (!idx.length || !selKeys.length) {
+    if (empty) empty.style.display = 'block';
+    wrap.innerHTML = '';
+    return;
   }
-  let rowsHtml = '';
-  shopIdxs.forEach(i => {
-    if (_bcdsPlatformFilter === 'tiktok') return;
-    if (_bcdsShopFilter !== 'all' && String(i) !== _bcdsShopFilter) return;
-    const s = BCDS_SHOPS[i];
-    rowsHtml += `<tr style="border-bottom:1px solid var(--gray3)">
-      <td style="padding:7px 10px;font-weight:600">🛒 ${s.name}</td>
-      <td style="padding:7px 10px;color:var(--text2)">${s.filename}</td>
-      <td style="padding:7px 10px;text-align:right">${Math.max(0, s.rows.length - 1).toLocaleString('vi-VN')} dòng</td>
+  if (empty) empty.style.display = 'none';
+
+  // ── Gộp dữ liệu các kỳ được chọn ──────────────────────────
+  const shopeeAllP = new Map(), shopeeSelP = new Map(), tiktokP = new Map();
+  const shopStats = {}; let ttStat = null;
+  selKeys.forEach(k => {
+    const d = bcdsGetPeriodData(k);
+    Object.keys(d.shops).forEach(i => {
+      const sh = d.shops[i];
+      _bcdsMergeInto(shopeeAllP, sh.products);
+      if (_bcdsShopFilter === 'all' || String(i) === _bcdsShopFilter) _bcdsMergeInto(shopeeSelP, sh.products);
+      if (!shopStats[i]) shopStats[i] = { name: sh.name, dt: 0, gv: 0 };
+      sh.products.forEach(p => { shopStats[i].dt += p.doanh_thu; shopStats[i].gv += p.gia_von; });
+    });
+    if (d.tiktok) {
+      _bcdsMergeInto(tiktokP, d.tiktok.products);
+      if (!ttStat) ttStat = { dt: 0, gv: 0 };
+      d.tiktok.products.forEach(p => { ttStat.dt += p.doanh_thu; ttStat.gv += p.gia_von; });
+    }
+  });
+
+  const sumM = m => { let dt=0, gv=0; m.forEach(p => { dt+=p.doanh_thu; gv+=p.gia_von; }); return { dt, gv }; };
+  const sAll = sumM(shopeeAllP), sSel = sumM(shopeeSelP), sTT = sumM(tiktokP);
+  const totalDT = sAll.dt + sTT.dt, totalGV = sAll.gv + sTT.gv;
+
+  const fmtN = v => Math.round(v).toLocaleString('vi-VN');
+  const fPct = (n, d) => d > 0 ? (n/d*100).toFixed(1) + '%' : '--';
+  const gvC  = p => p < 45 ? 'var(--green)' : p < 60 ? 'var(--orange)' : 'var(--red)';
+  const selShopName = (_bcdsShopFilter !== 'all' && BCSL_SHOPS_LIST[_bcdsShopFilter]) ? ' · ' + BCSL_SHOPS_LIST[_bcdsShopFilter] : '';
+
+  // ── 4 KPI cards ───────────────────────────────────────────
+  const gvdtT = totalDT > 0 ? totalGV/totalDT*100 : 0;
+  const kpis = [
+    { label:'TỔNG DOANH THU',       val:fmtN(totalDT), sub:`GV/DT: ${gvdtT.toFixed(1)}%`,                                    subC:gvC(gvdtT),     topC:'var(--navy)' },
+    { label:'SHOPEE' + selShopName,  val:fmtN(sSel.dt), sub:`GV/DT: ${fPct(sSel.gv, sSel.dt)} · ${fPct(sSel.dt, totalDT)} tổng`, subC:'var(--text2)', topC:'#ee4d2d'     },
+    { label:'TIKTOK',                val:fmtN(sTT.dt),  sub:`GV/DT: ${fPct(sTT.gv, sTT.dt)} · ${fPct(sTT.dt, totalDT)} tổng`,   subC:'var(--text2)', topC:'#444'        },
+    { label:'TỔNG GIÁ VỐN',         val:fmtN(totalGV), sub:`GV/DT: ${gvdtT.toFixed(1)}%`,                                    subC:gvC(gvdtT),     topC:'var(--navy)' },
+  ];
+  let html = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">`;
+  kpis.forEach(k => {
+    html += `<div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border:1px solid var(--gray3);border-top:3px solid ${k.topC}">
+      <div class="kpi-label">${k.label}</div>
+      <div style="font-size:22px;font-weight:800;color:var(--text);line-height:1.1;margin:6px 0">${k.val}</div>
+      <div style="font-size:13px;color:${k.subC}">${k.sub}</div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // ── Khung các khối ────────────────────────────────────────
+  html += `
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title"><span class="dot" style="background:var(--orange)"></span>TỶ TRỌNG DOANH THU THEO NHÓM SẢN PHẨM</div>
+    <div id="bcds-donut-loading" style="text-align:center;padding:24px;color:var(--text2);font-size:12px">⏳ Đang tải catalog ngành hàng...</div>
+    <div id="bcds-donut-row" style="display:none;gap:16px"></div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title"><span class="dot" style="background:#f59e0b"></span>🏆 XẾP HẠNG SẢN PHẨM</div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <span style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.5px">NGÀNH HÀNG</span>
+      <select id="bcds-rank-nganh" onchange="bcdsRankSetNganh(this.value)" style="padding:6px 10px;border:1.5px solid var(--gray3);border-radius:8px;font-size:12px;background:white;cursor:pointer"><option value="all">Tất cả ngành</option></select>
+      <span style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.5px">NHÀ CUNG CẤP</span>
+      <input id="bcds-rank-ncc" oninput="bcdsRankSetNcc(this.value)" placeholder="Tất cả NCC..." style="padding:6px 10px;border:1.5px solid var(--gray3);border-radius:8px;font-size:12px;width:150px">
+      <input id="bcds-rank-search" oninput="bcdsRankSetSearch(this.value)" placeholder="Tìm tên sản phẩm..." style="padding:6px 10px;border:1.5px solid var(--gray3);border-radius:8px;font-size:12px;width:180px">
+      <span id="bcds-rank-count" style="margin-left:auto;font-size:12px;color:var(--text2)"></span>
+    </div>
+    <div id="bcds-rank-table" style="overflow-x:auto"></div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title"><span class="dot" style="background:var(--red)"></span>TỶ LỆ GIÁ VỐN / DOANH THU THEO NHÀ CUNG CẤP</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:8px">GV/DT Top 10 NCC theo Doanh thu</div>
+    <div style="height:300px;position:relative"><canvas id="bcds-ncc-bar"></canvas></div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title"><span class="dot" style="background:#ee4d2d"></span>DOANH THU THEO SHOP</div>
+    <div id="bcds-shop-table" style="overflow-x:auto"></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:#1a56db"></span>XU HƯỚNG DOANH THU THEO THÁNG</div>
+    <div style="height:320px;position:relative"><canvas id="bcds-trend"></canvas></div>
+  </div>`;
+
+  wrap.innerHTML = html;
+
+  Object.values(_bcdsCharts).forEach(c => { try { c.destroy(); } catch(e) {} });
+  _bcdsCharts = {};
+
+  // ── Bảng DOANH THU THEO SHOP (không cần catalog) ──────────
+  (function renderShopTable() {
+    const el = document.getElementById('bcds-shop-table');
+    if (!el) return;
+    const rows = Object.keys(shopStats).map(i => ({ name: shopStats[i].name, kenh: 'Shopee', dt: shopStats[i].dt, gv: shopStats[i].gv }));
+    if (ttStat) rows.push({ name: 'TikTok 2H Books', kenh: 'TikTok', dt: ttStat.dt, gv: ttStat.gv });
+    rows.sort((a, b) => b.dt - a.dt);
+    const maxPct = rows.length ? Math.max(...rows.map(r => totalDT > 0 ? r.dt/totalDT*100 : 0)) : 0;
+    let t = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr>
+        <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3)">Shop</th>
+        <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3)">Kênh</th>
+        <th style="padding:8px 10px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3)">Doanh thu</th>
+        <th style="padding:8px 10px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3)">Giá vốn</th>
+        <th style="padding:8px 10px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3)">GV/DT</th>
+        <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3);width:160px">Tỷ trọng DT</th>
+      </tr></thead><tbody>`;
+    rows.forEach(r => {
+      const gvdt = r.dt > 0 ? r.gv/r.dt*100 : 0;
+      const p    = totalDT > 0 ? r.dt/totalDT*100 : 0;
+      const barW = maxPct > 0 ? p/maxPct*100 : 0;
+      const barC = r.kenh === 'TikTok' ? '#2c2c2c' : '#ee4d2d';
+      t += `<tr style="border-bottom:1px solid var(--gray3)">
+        <td style="padding:8px 10px;font-weight:600">${r.name}</td>
+        <td style="padding:8px 10px">${r.kenh === 'TikTok'
+          ? '<span style="font-weight:700;font-size:11px">TikTok</span>'
+          : '<span style="background:#ee4d2d;color:#fff;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700">Shopee</span>'}</td>
+        <td style="padding:8px 10px;text-align:right;font-weight:700">${fmtN(r.dt)}</td>
+        <td style="padding:8px 10px;text-align:right">${fmtN(r.gv)}</td>
+        <td style="padding:8px 10px;text-align:right;font-weight:700;color:${gvC(gvdt)}">${r.dt > 0 ? gvdt.toFixed(1)+'%' : '–'}</td>
+        <td style="padding:8px 10px">
+          <div style="height:6px;background:var(--gray3);border-radius:3px;overflow:hidden"><div style="height:100%;width:${barW}%;background:${barC};border-radius:3px"></div></div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">${p.toFixed(1)}%</div>
+        </td>
+      </tr>`;
+    });
+    t += `</tbody></table>`;
+    el.innerHTML = t;
+  })();
+
+  // ── Line chart XU HƯỚNG THEO THÁNG (toàn bộ kỳ, mọi shop) ──
+  (function renderTrend() {
+    const ctx = document.getElementById('bcds-trend');
+    if (!ctx || idx.length < 2) { if (ctx) ctx.parentElement.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2);font-size:12px">Cần ≥ 2 kỳ dữ liệu để vẽ xu hướng</div>'; return; }
+    const years  = new Set(idx.map(p => p.year));
+    const labels = idx.map(p => 'T' + p.month + (years.size > 1 ? '/' + String(p.year).slice(2) : ''));
+    const perKey = {};
+    idx.forEach(p => { perKey[p.key] = bcdsGetPeriodData(p.key); });
+    const datasets = [];
+    BCSL_SHOPS_LIST.forEach((name, i) => {
+      const data = idx.map(p => {
+        const sh = perKey[p.key].shops[i];
+        if (!sh) return 0;
+        let dt = 0; sh.products.forEach(x => dt += x.doanh_thu);
+        return Math.round(dt);
+      });
+      if (data.some(v => v > 0)) datasets.push({ label: name, data, borderColor: BCDS_SHOP_COLORS[i], backgroundColor: BCDS_SHOP_COLORS[i], tension: .35, pointRadius: 3, borderWidth: 2 });
+    });
+    const ttData = idx.map(p => {
+      const tt = perKey[p.key].tiktok;
+      if (!tt) return 0;
+      let dt = 0; tt.products.forEach(x => dt += x.doanh_thu);
+      return Math.round(dt);
+    });
+    if (ttData.some(v => v > 0)) datasets.push({ label: 'TikTok', data: ttData, borderColor: '#2c2c2c', backgroundColor: '#2c2c2c', tension: .35, pointRadius: 3, borderWidth: 2 });
+    _bcdsCharts['trend'] = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12, padding: 12 } },
+          tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.raw.toLocaleString('vi-VN')} đ` } }
+        },
+        scales: { y: { ticks: { callback: v => (v/1e6).toFixed(0) + 'M' } } }
+      }
+    });
+  })();
+
+  // ── Catalog (async) → donut ngành + xếp hạng + NCC ────────
+  let catalog = {};
+  try { catalog = await giaLoadCatalogIfNeeded(); } catch(e) { catalog = {}; }
+  if (myId !== _bcdsRenderReqId) return;
+
+  const getNganh = ma => { const e = catalog[ma]; return (e && e.nganhHang) ? e.nganhHang.trim() : 'Chưa phân loại'; };
+  const getNcc   = ma => { const e = catalog[ma]; return (e && e.ncc) ? e.ncc.trim() : 'Chưa rõ'; };
+
+  // ── Donut ngành hàng ──────────────────────────────────────
+  (function renderDonuts() {
+    const loading = document.getElementById('bcds-donut-loading');
+    const row     = document.getElementById('bcds-donut-row');
+    if (!row) return;
+
+    const totalP = new Map();
+    _bcdsMergeInto(totalP, shopeeAllP);
+    _bcdsMergeInto(totalP, tiktokP);
+
+    const nganhDT = m => {
+      const out = new Map();
+      m.forEach((p, ma) => { if (p.doanh_thu > 0) { const n = getNganh(ma); out.set(n, (out.get(n) || 0) + p.doanh_thu); } });
+      return out;
+    };
+    const pf = _bcdsPlatformFilter;
+    const cards = [
+      { title: 'Tổng TMDT', dot: '#1a56db', map: nganhDT(totalP),  tot: totalDT },
+      (pf === 'all' || pf === 'shopee') && sSel.dt > 0 ? { title: 'Shopee' + selShopName, dot: '#ee4d2d', map: nganhDT(shopeeSelP), tot: sSel.dt } : null,
+      (pf === 'all' || pf === 'tiktok') && sTT.dt  > 0 ? { title: 'TikTok', dot: '#444', map: nganhDT(tiktokP), tot: sTT.dt } : null,
+    ].filter(Boolean);
+
+    const allN = new Set();
+    cards.forEach(c => c.map.forEach((_, n) => allN.add(n)));
+    const totMap = cards[0].map;
+    const order = [...allN].filter(n => n !== 'Chưa phân loại').sort((a, b) => (totMap.get(b)||0) - (totMap.get(a)||0));
+    if (allN.has('Chưa phân loại')) order.push('Chưa phân loại');
+    const colorOf = {};
+    order.forEach((n, i) => { colorOf[n] = n === 'Chưa phân loại' ? '#9ca3af' : BCDS_PALETTE[i % BCDS_PALETTE.length]; });
+
+    row.style.display = 'grid';
+    row.style.gridTemplateColumns = `repeat(${cards.length},1fr)`;
+    row.innerHTML = cards.map((c, ci) => {
+      const items = order.filter(n => (c.map.get(n)||0) > 0);
+      let legend = items.map(n => {
+        const v = c.map.get(n) || 0;
+        return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--gray3);font-size:12px">
+          <span style="width:9px;height:9px;border-radius:50%;background:${colorOf[n]};flex-shrink:0"></span>
+          <span style="flex:1;font-weight:600">${n}</span>
+          <span style="font-weight:700">${c.tot > 0 ? (v/c.tot*100).toFixed(1) : 0}%</span>
+          <span style="color:var(--text2);min-width:90px;text-align:right">${fmtN(v)}</span>
+        </div>`;
+      }).join('');
+      legend += `<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-size:12px;font-weight:800">
+        <span>Tổng doanh thu</span><span>${fmtN(c.tot)}</span></div>`;
+      return `<div style="border:1px solid var(--gray3);border-radius:10px;padding:14px">
+        <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;margin-bottom:10px">
+          <span style="width:10px;height:10px;border-radius:50%;background:${c.dot};display:inline-block"></span>${c.title}
+        </div>
+        <canvas id="bcds-donut-${ci}" style="max-height:230px;width:100%"></canvas>
+        <div style="margin-top:12px">${legend}</div>
+      </div>`;
+    }).join('');
+    if (loading) loading.style.display = 'none';
+
+    cards.forEach((c, ci) => {
+      const ctx = document.getElementById(`bcds-donut-${ci}`);
+      if (!ctx) return;
+      const items = order.filter(n => (c.map.get(n)||0) > 0);
+      const data  = items.map(n => c.map.get(n));
+      const tot   = data.reduce((s, v) => s + v, 0);
+      _bcdsCharts[`donut${ci}`] = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels: items, datasets: [{ data, backgroundColor: items.map(n => colorOf[n]), borderWidth: 2, borderColor: '#fff' }] },
+        options: {
+          responsive: true, cutout: '55%',
+          plugins: {
+            datalabels: {
+              formatter: (v, x) => {
+                const p = tot > 0 ? v/tot*100 : 0;
+                if (p < 4) return '';
+                const l = x.chart.data.labels[x.dataIndex];
+                return (l.length > 10 ? l.slice(0, 9) + '…' : l) + '\n' + p.toFixed(1) + '%';
+              },
+              color: '#fff', font: { weight: 'bold', size: 9 }, textAlign: 'center'
+            },
+            legend: { display: false },
+            tooltip: { callbacks: { label: x => ` ${x.label}: ${x.raw.toLocaleString('vi-VN')} đ (${tot > 0 ? (x.raw/tot*100).toFixed(1) : 0}%)` } }
+          }
+        },
+        plugins: [ChartDataLabels]
+      });
+    });
+  })();
+
+  // ── Xếp hạng sản phẩm + NCC bar ───────────────────────────
+  const pf = _bcdsPlatformFilter;
+  const scopeP = new Map();
+  if (pf === 'shopee') _bcdsMergeInto(scopeP, shopeeSelP);
+  else if (pf === 'tiktok') _bcdsMergeInto(scopeP, tiktokP);
+  else { _bcdsMergeInto(scopeP, shopeeSelP); _bcdsMergeInto(scopeP, tiktokP); }
+
+  _bcdsRankRows = [];
+  scopeP.forEach((p, ma) => {
+    if (p.doanh_thu <= 0 && p.so_luong <= 0) return;
+    _bcdsRankRows.push({
+      ma, ten: p.ten, dt: p.doanh_thu, sl: p.so_luong,
+      gvdt: p.doanh_thu > 0 ? p.gia_von/p.doanh_thu*100 : 0,
+      gv: p.gia_von, nganh: getNganh(ma), ncc: getNcc(ma)
+    });
+  });
+  _bcdsRankRows.sort((a, b) => b.dt - a.dt);
+
+  // Dropdown ngành
+  const nSel = document.getElementById('bcds-rank-nganh');
+  if (nSel) {
+    const set = [...new Set(_bcdsRankRows.map(r => r.nganh))].sort();
+    set.forEach(n => {
+      const o = document.createElement('option');
+      o.value = n; o.textContent = n;
+      if (n === _bcdsRankNganh) o.selected = true;
+      nSel.appendChild(o);
+    });
+  }
+  bcdsRenderRankTable();
+
+  // NCC bar — top 10 theo doanh thu
+  (function renderNccBar() {
+    const ctx = document.getElementById('bcds-ncc-bar');
+    if (!ctx) return;
+    const agg = new Map();
+    _bcdsRankRows.forEach(r => {
+      const e = agg.get(r.ncc) || { dt: 0, gv: 0 };
+      e.dt += r.dt; e.gv += r.gv;
+      agg.set(r.ncc, e);
+    });
+    const top = [...agg.entries()].sort((a, b) => b[1].dt - a[1].dt).slice(0, 10);
+    const labels = top.map(x => x[0].length > 16 ? x[0].slice(0, 15) + '…' : x[0]);
+    const vals   = top.map(x => x[1].dt > 0 ? +(x[1].gv/x[1].dt*100).toFixed(1) : 0);
+    const colors = vals.map(v => v < 45 ? '#059669' : v < 60 ? '#f59e0b' : '#dc2626');
+    _bcdsCharts['ncc'] = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets: [{ data: vals, backgroundColor: colors, borderRadius: 5, maxBarThickness: 46 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          datalabels: { anchor: 'end', align: 'end', formatter: v => v + '%', color: '#374151', font: { weight: '700', size: 11 } },
+          tooltip: { callbacks: { label: x => {
+            const e = top[x.dataIndex][1];
+            return [` GV/DT: ${x.raw}%`, ` DT: ${Math.round(e.dt).toLocaleString('vi-VN')} đ`, ` GV: ${Math.round(e.gv).toLocaleString('vi-VN')} đ`];
+          }}}
+        },
+        scales: { y: { min: 0, max: 100, ticks: { callback: v => v + '%' } } }
+      },
+      plugins: [ChartDataLabels]
+    });
+  })();
+}
+
+// ── Bảng xếp hạng (render riêng để lọc không phải tính lại) ──
+function bcdsRenderRankTable() {
+  const el = document.getElementById('bcds-rank-table');
+  if (!el) return;
+  let rows = _bcdsRankRows;
+  if (_bcdsRankNganh !== 'all') rows = rows.filter(r => r.nganh === _bcdsRankNganh);
+  if (_bcdsRankNcc)    { const q = _bcdsRankNcc.toLowerCase();    rows = rows.filter(r => r.ncc.toLowerCase().includes(q)); }
+  if (_bcdsRankSearch) { const q = _bcdsRankSearch.toLowerCase(); rows = rows.filter(r => r.ten.toLowerCase().includes(q)); }
+  const shown = rows.slice(0, 30);
+  const cnt = document.getElementById('bcds-rank-count');
+  if (cnt) cnt.textContent = `${shown.length} / ${rows.length} sản phẩm`;
+  const medal = i => i === 0 ? 'background:#f59e0b;color:#fff' : i === 1 ? 'background:#9ca3af;color:#fff' : i === 2 ? 'background:#b45309;color:#fff' : 'background:var(--gray2);color:var(--text2)';
+  let t = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead><tr>
+      <th style="padding:8px 6px;text-align:center;font-size:10px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3)">#</th>
+      <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3)">Tên sản phẩm</th>
+      <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3)">Nhà cung cấp</th>
+      <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3)">Ngành hàng</th>
+      <th style="padding:8px 10px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3)">Doanh thu ↓</th>
+      <th style="padding:8px 10px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3)">Sản lượng</th>
+      <th style="padding:8px 10px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3)">GV/DT</th>
+    </tr></thead><tbody>`;
+  shown.forEach((r, i) => {
+    const c = r.gvdt < 45 ? '#059669' : r.gvdt < 60 ? '#f59e0b' : '#dc2626';
+    t += `<tr style="border-bottom:1px solid var(--gray3)">
+      <td style="padding:7px 6px;text-align:center"><span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;${medal(i)}">${i+1}</span></td>
+      <td style="padding:7px 10px;font-weight:600;max-width:320px" title="${r.ten}">${r.ten.length > 60 ? r.ten.slice(0, 59) + '…' : r.ten}</td>
+      <td style="padding:7px 10px;color:var(--text2)">${r.ncc}</td>
+      <td style="padding:7px 10px"><span style="background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:600">${r.nganh}</span></td>
+      <td style="padding:7px 10px;text-align:right;font-weight:700">${Math.round(r.dt).toLocaleString('vi-VN')}</td>
+      <td style="padding:7px 10px;text-align:right">${Math.round(r.sl).toLocaleString('vi-VN')}</td>
+      <td style="padding:7px 10px;text-align:right;font-weight:700;color:${c}">${r.dt > 0 ? r.gvdt.toFixed(1) + '%' : '–'}</td>
     </tr>`;
   });
-  if (BCDS_TIKTOK && _bcdsPlatformFilter !== 'shopee') {
-    rowsHtml += `<tr style="border-bottom:1px solid var(--gray3)">
-      <td style="padding:7px 10px;font-weight:600">🎵 TikTok</td>
-      <td style="padding:7px 10px;color:var(--text2)">${BCDS_TIKTOK.filename}</td>
-      <td style="padding:7px 10px;text-align:right">${Math.max(0, BCDS_TIKTOK.rows.length - 1).toLocaleString('vi-VN')} dòng</td>
-    </tr>`;
-  }
-  wrap.innerHTML = `<div class="card">
-    <div class="card-title"><span class="dot" style="background:var(--green)"></span>DỮ LIỆU ĐÃ ĐỒNG BỘ${kyLabel}</div>
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead><tr>
-        <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3)">Nguồn</th>
-        <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3)">File</th>
-        <th style="padding:8px 10px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3)">Số dòng</th>
-      </tr></thead>
-      <tbody>${rowsHtml}</tbody>
-    </table>
-    <div style="margin-top:12px;padding:10px 14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;font-size:12px;color:#0369a1">
-      ℹ️ Dữ liệu đã sẵn sàng — phần báo cáo chi tiết sẽ xây theo yêu cầu tiếp theo.
-    </div>
-  </div>`;
+  t += `</tbody></table>`;
+  el.innerHTML = t;
 }
+
+function bcdsRankSetNganh(v)  { _bcdsRankNganh  = v; bcdsRenderRankTable(); }
+function bcdsRankSetNcc(v)    { _bcdsRankNcc    = (v || '').trim(); bcdsRenderRankTable(); }
+function bcdsRankSetSearch(v) { _bcdsRankSearch = (v || '').trim(); bcdsRenderRankTable(); }
 
 // ── Xóa 1 shop ────────────────────────────────────────────────
 function bcslSkuClearShop(shopIdx) {
