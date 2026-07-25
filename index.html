@@ -2245,40 +2245,41 @@
       </div>
 
       <div id="bcsl-tab-product">
-        <!-- Upload riêng cho Báo Cáo Sản Lượng — độc lập với card Salework ở Tổng Hợp Hệ Thống. Hệ thống tự nhận kỳ theo tên file và tự lưu. -->
-        <div id="bcsl-upload-area" style="text-align:center;padding:24px;border:1.5px dashed var(--gray3);border-radius:8px;margin-bottom:14px">
-          <p style="margin-bottom:14px;font-size:13px;color:var(--text2)">📊 Upload file "Thống kê sản phẩm" tải từ Salework — hệ thống tự nhận kỳ theo tên file và lưu lại</p>
-          <input type="file" id="bcsl-file-input" accept=".xlsx,.xls" style="display:none" onchange="bcslParseFile(this)">
-          <button class="sw-upload-btn" onclick="document.getElementById('bcsl-file-input').click()">📂 Chọn File Thống Kê (.xlsx)</button>
-        </div>
-        <div id="bcsl-loaded-bar" class="sw-loaded-bar" style="display:none">
-          <span class="sw-loaded-name">📊 <span id="bcsl-loaded-name-text"></span></span>
-          <span class="sw-loaded-count" id="bcsl-loaded-count-text"></span>
-          <input type="file" id="bcsl-file-input2" accept=".xlsx,.xls" style="display:none" onchange="bcslParseFile(this)">
-          <button class="sw-btn-sm neutral" onclick="document.getElementById('bcsl-file-input2').click()">🔄 Tải File</button>
-          <button class="sw-btn-sm danger" onclick="bcslClear()">✕ Xóa</button>
-        </div>
-
-        <div id="bcsl-period-chips" style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>
-
-        <div id="bcsl-empty-state" style="text-align:center;padding:30px 24px;color:var(--text2);font-size:13px">
-          Chưa có dữ liệu — upload file ở trên để xem tổng quan.
-        </div>
-
-        <div id="th-sw-catalog-section" style="display:none">
-          <div id="th-sw-catalog-kpis" class="sw-kpi-grid"></div>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:14px 0 10px">
-            <input type="text" id="th-sw-catalog-search" placeholder="🔍 Tìm theo mã hoặc tên sản phẩm..." style="flex:1;min-width:220px;padding:8px 12px;border:1.5px solid var(--gray3);border-radius:6px;font-size:13px" oninput="bcslSearchInput(this.value)">
-            <select id="th-sw-catalog-filter" style="padding:8px 12px;border:1.5px solid var(--gray3);border-radius:6px;font-size:13px" onchange="bcslFilterChange(this.value)">
-              <option value="all">Tất cả SKU</option>
-              <option value="top20">🎯 Top 20 SKU (tập trung)</option>
-              <option value="neg">⛔ Margin âm</option>
-              <option value="low">⚠️ Margin &lt; 20%</option>
-              <option value="longtail">📉 Đuôi dài (DT &lt; 1tr)</option>
-            </select>
+        <!-- ══ BÁO CÁO DOANH SỐ (mới) — dữ liệu từ Drive folder "Báo cáo doanh số", logic hiển thị sẽ bổ sung theo yêu cầu ══ -->
+        <!-- ── Filter Bar (giống Thống kê SKU) ── -->
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 16px;background:white;border:1px solid var(--gray3);border-radius:var(--radius);margin-bottom:14px;box-shadow:var(--shadow);position:sticky;top:0;z-index:10">
+          <span style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.6px">KỲ</span>
+          <select id="bcds-period-select" onchange="bcdsLoadPeriod(this.value)" style="padding:6px 10px;border:1.5px solid var(--gray3);border-radius:8px;font-size:13px;font-weight:600;background:white;cursor:pointer">
+            <option value="">-- Chọn kỳ --</option>
+          </select>
+          <span style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.6px">KÊNH</span>
+          <select id="bcds-chan-select" onchange="bcdsSetPlatformFilter(this.value)" style="padding:6px 10px;border:1.5px solid var(--gray3);border-radius:8px;font-size:13px;font-weight:600;background:white;cursor:pointer">
+            <option value="all">Tất cả</option>
+            <option value="shopee">Shopee</option>
+            <option value="tiktok">TikTok</option>
+          </select>
+          <span id="bcds-shop-dd-label" style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.6px">SHOP</span>
+          <select id="bcds-shop-dd-select" onchange="bcdsSetShopFilter(this.value)" style="padding:6px 10px;border:1.5px solid var(--gray3);border-radius:8px;font-size:13px;font-weight:600;background:white;cursor:pointer">
+            <option value="all">Tất cả shop</option>
+            <option value="0">Nhà Sách 2HBooks</option>
+            <option value="1">2H Books</option>
+            <option value="2">Huy Hoàng Bookstore</option>
+            <option value="3">2H Home Living</option>
+            <option value="4">2H Họa Cụ</option>
+            <option value="5">2H Store</option>
+          </select>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+            <button class="sw-btn-sm" onclick="bcdsSyncFromDrive()" id="bcds-drive-sync-btn" style="background:var(--navy);color:#fff;border-color:var(--navy)">☁️ Đồng bộ từ Drive</button>
+            <span id="bcds-drive-sync-status" style="font-size:12px;color:var(--text2)"></span>
           </div>
-          <div id="th-sw-catalog-table-wrap" style="overflow-x:auto;max-height:520px;overflow-y:auto"></div>
         </div>
+
+        <div id="bcds-empty-state" style="text-align:center;padding:30px 24px;color:var(--text2);font-size:13px">
+          Chưa có dữ liệu — bấm <b>☁️ Đồng bộ từ Drive</b> để nạp dữ liệu từ folder "Báo cáo doanh số".
+        </div>
+
+        <!-- Nội dung báo cáo — render bởi bcdsRenderContent(), logic chi tiết sẽ xây theo yêu cầu tiếp theo -->
+        <div id="bcds-content"></div>
       </div>
 
       <!-- Mục 2: Thống Kê SKU (File 2 — mã SKU thật). Upload riêng, state riêng (BCSL_SKU), period riêng (bcsl_sku_period_*). Độc lập hoàn toàn với Mục 1 và G_salework. -->
@@ -15779,9 +15780,9 @@ function bcslAutoRestoreLatest() {
 }
 
 function bcslInitPage() {
-  bcslRenderPeriodChips();
+  // Mục 1 (Thống kê sản phẩm cũ) đã thay bằng BÁO CÁO DOANH SỐ (bcds*) — 25/07/2026
+  bcdsAutoRestoreLatest();
   bcslSkuRenderPeriodChips();
-  bcslAutoRestoreLatest();
   bcslSkuAutoRestoreLatest();
 }
 
@@ -16261,6 +16262,241 @@ function bcslSyncFromDrive() {
     });
   }
   _bcslDriveTokenClient.requestAccessToken();
+}
+
+// ══════════════════════════════════════════════════════════════
+// BÁO CÁO DOANH SỐ (bcds*) — Mục 1 mới, thay "Thống kê sản phẩm" cũ
+// Drive: Báo cáo doanh số/ → [6 shop | Tiktok]/ → *.xlsx (Salework, kỳ theo tên file)
+// Hiện có: đồng bộ Drive + bộ lọc KỲ/KÊNH/SHOP. Logic hiển thị chi tiết chờ yêu cầu.
+// ══════════════════════════════════════════════════════════════
+const BCDS_DRIVE_FOLDER_ID = '1m67d2oSkgCS7dpxTL_EyIw0qt6HzudFr';
+let BCDS_SHOPS  = {};   // shopIdx → { name, filename, rows }
+let BCDS_TIKTOK = null; // { filename, rows }
+let _bcdsPlatformFilter   = 'all';
+let _bcdsShopFilter       = 'all';
+let _bcdsCurrentPeriodKey = '';
+let _bcdsDriveTokenClient = null;
+
+function _bcdsSetSyncStatus(msg, color) {
+  const el = document.getElementById('bcds-drive-sync-status');
+  if (el) { el.textContent = msg; el.style.color = color || 'var(--text2)'; }
+}
+
+// Parse file → raw rows (giữ nguyên dữ liệu gốc, bỏ dòng trống — chờ logic hiển thị mới)
+function _bcdsParseAB(arrayBuffer) {
+  const wb   = XLSX.read(arrayBuffer, { type: 'array' });
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: null });
+  return rows.filter(r => r && r.some(c => c !== null && c !== ''));
+}
+
+function _bcdsAddPeriodIndex(key, year, month) {
+  let idx = [];
+  try { idx = JSON.parse(localStorage.getItem('bcds_period_index') || '[]'); } catch(e) {}
+  if (!idx.find(x => x.key === key)) {
+    idx.push({ key, year, month });
+    try { localStorage.setItem('bcds_period_index', JSON.stringify(idx)); } catch(e) {}
+  }
+}
+
+function _bcdsDriveSaveShop(shopIdx, filename, rows) {
+  const { year, month } = bcslSkuDetectPeriod(filename);
+  const key = bcslSkuPeriodKey(year, month);
+  try {
+    localStorage.setItem('bcds_period_' + key + '_shop_' + shopIdx, JSON.stringify({
+      year, month, shopIdx, shopName: BCSL_SHOPS_LIST[shopIdx],
+      filename, savedAt: Date.now(), rows
+    }));
+    _bcdsAddPeriodIndex(key, year, month);
+  } catch(e) { console.warn('bcdsDriveSaveShop', shopIdx, e); }
+}
+
+function _bcdsDriveSaveTiktok(filename, rows) {
+  const { year, month } = bcslSkuDetectPeriod(filename);
+  const key = bcslSkuPeriodKey(year, month);
+  try {
+    localStorage.setItem('bcds_period_' + key + '_tiktok', JSON.stringify({
+      filename, savedAt: Date.now(), rows
+    }));
+    _bcdsAddPeriodIndex(key, year, month);
+  } catch(e) { console.warn('bcdsDriveSaveTiktok', e); }
+}
+
+async function _bcdsDriveDoSync(token) {
+  const btn = document.getElementById('bcds-drive-sync-btn');
+  if (btn) btn.disabled = true;
+  let ok = 0, fail = 0;
+  try {
+    _bcdsSetSyncStatus('⏳ Đang đọc folder Drive...');
+    const items   = await _bcslDriveListItems(token, BCDS_DRIVE_FOLDER_ID);
+    const folders = items.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
+    for (const folder of folders) {
+      const shopIdx  = BCSL_DRIVE_SHOP_MAP[folder.name];
+      const isTiktok = folder.name === 'Tiktok';
+      if (shopIdx === undefined && !isTiktok) continue;
+      const files     = await _bcslDriveListItems(token, folder.id);
+      const xlsxFiles = files.filter(f => /\.(xlsx|xls)$/i.test(f.name));
+      for (const file of xlsxFiles) {
+        _bcdsSetSyncStatus(`⏳ ${folder.name} — ${file.name}`);
+        try {
+          const ab   = await _bcslDriveDownload(token, file.id);
+          const rows = _bcdsParseAB(ab);
+          if (isTiktok) _bcdsDriveSaveTiktok(file.name, rows);
+          else          _bcdsDriveSaveShop(shopIdx, file.name, rows);
+          ok++;
+        } catch(e) { fail++; console.warn('BCDS lỗi file', file.name, e); }
+      }
+    }
+    localStorage.setItem('bcds_drive_last_sync', new Date().toLocaleString('vi-VN'));
+    BCDS_SHOPS = {}; BCDS_TIKTOK = null; _bcdsCurrentPeriodKey = '';
+    bcdsAutoRestoreLatest();
+    const failMsg = fail ? ` (${fail} file lỗi — xem console)` : '';
+    _bcdsSetSyncStatus(`✅ Xong — ${ok} file đồng bộ${failMsg}`, 'var(--green)');
+  } catch(e) {
+    _bcdsSetSyncStatus('❌ ' + e.message, 'var(--red)');
+    console.error('BCDS Drive sync error', e);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function bcdsSyncFromDrive() {
+  const clientId = getDriveClientId();
+  if (!clientId) {
+    alert('Vui lòng nhập và lưu OAuth2 Client ID trước (ở trang Cập Nhật Dữ Liệu)!');
+    return;
+  }
+  if (typeof google === 'undefined' || !google.accounts) {
+    _bcdsSetSyncStatus('⚠️ Thư viện Google chưa tải — tải lại trang và thử lại.', 'orange');
+    return;
+  }
+  if (!_bcdsDriveTokenClient) {
+    _bcdsDriveTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'https://www.googleapis.com/auth/drive.readonly',
+      callback: async (resp) => {
+        if (resp.error) { _bcdsSetSyncStatus('❌ OAuth: ' + resp.error, 'var(--red)'); return; }
+        await _bcdsDriveDoSync(resp.access_token);
+      }
+    });
+  }
+  _bcdsDriveTokenClient.requestAccessToken();
+}
+
+// ── Load kỳ từ localStorage ───────────────────────────────────
+function bcdsLoadPeriod(key) {
+  _bcdsCurrentPeriodKey = key || '';
+  BCDS_SHOPS = {}; BCDS_TIKTOK = null;
+  if (key) {
+    BCSL_SHOPS_LIST.forEach((name, i) => {
+      try {
+        const raw = localStorage.getItem('bcds_period_' + key + '_shop_' + i);
+        if (raw) { const d = JSON.parse(raw); BCDS_SHOPS[i] = { name, filename: d.filename, rows: d.rows }; }
+      } catch(e) {}
+    });
+    try {
+      const raw = localStorage.getItem('bcds_period_' + key + '_tiktok');
+      if (raw) { const d = JSON.parse(raw); BCDS_TIKTOK = { filename: d.filename, rows: d.rows }; }
+    } catch(e) {}
+  }
+  bcdsRenderFilterBar();
+  bcdsRenderContent();
+}
+
+function bcdsAutoRestoreLatest() {
+  let idx = [];
+  try { idx = JSON.parse(localStorage.getItem('bcds_period_index') || '[]'); } catch(e) {}
+  if (!idx.length) { bcdsRenderFilterBar(); bcdsRenderContent(); return; }
+  idx.sort((a, b) => (b.year - a.year) || (b.month - a.month));
+  bcdsLoadPeriod(idx[0].key);
+}
+
+function bcdsSetPlatformFilter(val) {
+  _bcdsPlatformFilter = val;
+  if (val === 'tiktok') _bcdsShopFilter = 'all';
+  bcdsRenderFilterBar();
+  bcdsRenderContent();
+}
+
+function bcdsSetShopFilter(val) {
+  _bcdsShopFilter = val;
+  bcdsRenderFilterBar();
+  bcdsRenderContent();
+}
+
+function bcdsRenderFilterBar() {
+  const pSel = document.getElementById('bcds-period-select');
+  if (pSel) {
+    let idx = [];
+    try { idx = JSON.parse(localStorage.getItem('bcds_period_index') || '[]'); } catch(e) {}
+    idx.sort((a, b) => (b.year - a.year) || (b.month - a.month));
+    pSel.innerHTML = '<option value="">-- Chọn kỳ --</option>';
+    idx.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.key;
+      opt.textContent = `Tháng ${String(p.month).padStart(2,'0')}/${p.year}`;
+      if (p.key === _bcdsCurrentPeriodKey) opt.selected = true;
+      pSel.appendChild(opt);
+    });
+  }
+  const cSel = document.getElementById('bcds-chan-select');
+  if (cSel) cSel.value = _bcdsPlatformFilter;
+  const sSel   = document.getElementById('bcds-shop-dd-select');
+  const sLabel = document.getElementById('bcds-shop-dd-label');
+  if (sSel) {
+    sSel.value = _bcdsShopFilter;
+    const showShop = _bcdsPlatformFilter !== 'tiktok';
+    sSel.style.display = showShop ? '' : 'none';
+    if (sLabel) sLabel.style.display = showShop ? '' : 'none';
+  }
+}
+
+// ── Placeholder: xác nhận dữ liệu đã đồng bộ — logic báo cáo chi tiết sẽ thay thế sau ──
+function bcdsRenderContent() {
+  const wrap  = document.getElementById('bcds-content');
+  const empty = document.getElementById('bcds-empty-state');
+  if (!wrap) return;
+  const shopIdxs = Object.keys(BCDS_SHOPS);
+  const hasData  = shopIdxs.length > 0 || !!BCDS_TIKTOK;
+  if (empty) empty.style.display = hasData ? 'none' : 'block';
+  if (!hasData) { wrap.innerHTML = ''; return; }
+
+  let kyLabel = '';
+  if (_bcdsCurrentPeriodKey) {
+    const parts = _bcdsCurrentPeriodKey.split('_');
+    kyLabel = ` — Tháng ${String(parts[1]).padStart(2,'0')}/${parts[0]}`;
+  }
+  let rowsHtml = '';
+  shopIdxs.forEach(i => {
+    if (_bcdsPlatformFilter === 'tiktok') return;
+    if (_bcdsShopFilter !== 'all' && String(i) !== _bcdsShopFilter) return;
+    const s = BCDS_SHOPS[i];
+    rowsHtml += `<tr style="border-bottom:1px solid var(--gray3)">
+      <td style="padding:7px 10px;font-weight:600">🛒 ${s.name}</td>
+      <td style="padding:7px 10px;color:var(--text2)">${s.filename}</td>
+      <td style="padding:7px 10px;text-align:right">${Math.max(0, s.rows.length - 1).toLocaleString('vi-VN')} dòng</td>
+    </tr>`;
+  });
+  if (BCDS_TIKTOK && _bcdsPlatformFilter !== 'shopee') {
+    rowsHtml += `<tr style="border-bottom:1px solid var(--gray3)">
+      <td style="padding:7px 10px;font-weight:600">🎵 TikTok</td>
+      <td style="padding:7px 10px;color:var(--text2)">${BCDS_TIKTOK.filename}</td>
+      <td style="padding:7px 10px;text-align:right">${Math.max(0, BCDS_TIKTOK.rows.length - 1).toLocaleString('vi-VN')} dòng</td>
+    </tr>`;
+  }
+  wrap.innerHTML = `<div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--green)"></span>DỮ LIỆU ĐÃ ĐỒNG BỘ${kyLabel}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr>
+        <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3)">Nguồn</th>
+        <th style="padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3)">File</th>
+        <th style="padding:8px 10px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3)">Số dòng</th>
+      </tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <div style="margin-top:12px;padding:10px 14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;font-size:12px;color:#0369a1">
+      ℹ️ Dữ liệu đã sẵn sàng — phần báo cáo chi tiết sẽ xây theo yêu cầu tiếp theo.
+    </div>
+  </div>`;
 }
 
 // ── Xóa 1 shop ────────────────────────────────────────────────
