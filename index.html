@@ -16527,52 +16527,61 @@ async function bcslSkuRenderOverview() {
   sec.style.display = 'block';
 
   // ── Tính KPI metrics — SẢN LƯỢNG (số lượng bán ra) ───────
-  let shopeeQty = 0, tiktokQty = 0, shopeeSku = 0, tiktokSku = 0;
-  const shopeeProducts = new Map(); // gộp Shopee shops (theo SHOP filter)
+  // 2 bộ dữ liệu:
+  // - shopeeAllProducts: TẤT CẢ shop (bất kể SHOP filter) → Tổng TMDT (hằng số theo kỳ)
+  // - shopeeProducts   : theo SHOP filter → card/donut Shopee
+  let shopeeAllQty = 0, shopeeQty = 0, tiktokQty = 0, shopeeSku = 0, tiktokSku = 0;
+  const shopeeAllProducts = new Map();
+  const shopeeProducts    = new Map();
+  const addTo = (map, p, sku) => {
+    if (map.has(sku)) {
+      const ex = map.get(sku);
+      ex.so_luong += p.so_luong||0; ex.doanh_thu_thuc += p.doanh_thu_thuc||0; ex.gia_von_tong += p.gia_von_tong||0;
+    } else map.set(sku, {...p});
+  };
   if (hasLegacy) {
     BCSL_SHOPS['L'].products.forEach((p, sku) => {
-      const q = p.so_luong||0;
-      shopeeQty += q; if (q > 0) shopeeSku++;
-      shopeeProducts.set(sku, {...p});
+      shopeeAllQty += p.so_luong||0;
+      addTo(shopeeAllProducts, p, sku); addTo(shopeeProducts, p, sku);
     });
+    shopeeQty = shopeeAllQty;
   } else {
     shopReals.forEach(i => {
-      // Áp dụng SHOP filter: nếu không phải 'all' thì chỉ lấy shop được chọn
-      if (_bcslSkuShopFilter !== 'all' && String(i) !== _bcslSkuShopFilter) return;
       const sh = BCSL_SHOPS[i]; if (!sh) return;
+      const inSel = _bcslSkuShopFilter === 'all' || String(i) === _bcslSkuShopFilter;
       sh.products.forEach((p, sku) => {
-        shopeeQty += p.so_luong||0;
-        if (shopeeProducts.has(sku)) {
-          const ex = shopeeProducts.get(sku);
-          ex.so_luong += p.so_luong||0; ex.doanh_thu_thuc += p.doanh_thu_thuc||0; ex.gia_von_tong += p.gia_von_tong||0;
-        } else shopeeProducts.set(sku, {...p});
+        shopeeAllQty += p.so_luong||0;
+        addTo(shopeeAllProducts, p, sku);
+        if (inSel) { shopeeQty += p.so_luong||0; addTo(shopeeProducts, p, sku); }
       });
     });
-    shopeeProducts.forEach(p => { if ((p.so_luong||0) > 0) shopeeSku++; });
   }
+  shopeeProducts.forEach(p => { if ((p.so_luong||0) > 0) shopeeSku++; });
   if (hasTiktok) BCSL_TIKTOK.products.forEach(p => { const q = p.so_luong||0; tiktokQty += q; if (q > 0) tiktokSku++; });
 
-  const totalQty = shopeeQty + tiktokQty;
+  // Tổng TMDT = toàn bộ Shopee + TikTok — KHÔNG đổi theo SHOP/KÊNH filter
+  const totalQty = shopeeAllQty + tiktokQty;
   const fmtN     = v => v.toLocaleString('vi-VN');
   const fmtPct   = (n, d) => d > 0 ? (n/d*100).toFixed(1)+'%' : '--';
 
-  // Đếm số SKU tổng (union Shopee + TikTok)
+  // Đếm số SKU tổng (union toàn bộ Shopee + TikTok)
   const skuSet = new Set();
-  shopeeProducts.forEach((p, sku) => { if ((p.so_luong||0) > 0) skuSet.add(sku); });
+  shopeeAllProducts.forEach((p, sku) => { if ((p.so_luong||0) > 0) skuSet.add(sku); });
   if (hasTiktok) BCSL_TIKTOK.products.forEach((p, sku) => { if ((p.so_luong||0) > 0) skuSet.add(sku); });
 
   // ── KPI row (3 cards sản lượng) ────────────────────────────
+  const selShopName = (_bcslSkuShopFilter !== 'all' && BCSL_SHOPS_LIST[_bcslSkuShopFilter]) ? ' · ' + BCSL_SHOPS_LIST[_bcslSkuShopFilter] : '';
   const kpis = [
-    { label:'TỔNG SẢN LƯỢNG TMDT', val:fmtN(totalQty),  sub:`${fmtN(skuSet.size)} SKU có bán trong kỳ`,                     topC:'var(--navy)' },
-    { label:'SHOPEE',               val:fmtN(shopeeQty), sub:`${fmtPct(shopeeQty,totalQty)} tổng · ${fmtN(shopeeSku)} SKU`,  topC:'#ee4d2d'     },
-    { label:'TIKTOK',               val:fmtN(tiktokQty), sub:`${fmtPct(tiktokQty,totalQty)} tổng · ${fmtN(tiktokSku)} SKU`,  topC:'#444'        },
+    { label:'TỔNG SẢN LƯỢNG TMDT',    val:fmtN(totalQty),  sub:`${fmtN(skuSet.size)} SKU có bán trong kỳ`,                     topC:'var(--navy)' },
+    { label:'SHOPEE' + selShopName,    val:fmtN(shopeeQty), sub:`${fmtPct(shopeeQty,totalQty)} tổng · ${fmtN(shopeeSku)} SKU`,  topC:'#ee4d2d'     },
+    { label:'TIKTOK',                  val:fmtN(tiktokQty), sub:`${fmtPct(tiktokQty,totalQty)} tổng · ${fmtN(tiktokSku)} SKU`,  topC:'#444'        },
   ];
   let html = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">`;
   kpis.forEach(k => {
     html += `<div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border:1px solid var(--gray3);border-top:3px solid ${k.topC}">
       <div class="kpi-label">${k.label}</div>
-      <div style="font-size:20px;font-weight:800;color:var(--text);line-height:1;margin:4px 0">${k.val}</div>
-      <div class="kpi-sub" style="color:var(--text2)">${k.sub}</div>
+      <div style="font-size:24px;font-weight:800;color:var(--text);line-height:1.1;margin:6px 0">${k.val}</div>
+      <div style="font-size:13px;color:var(--text2)">${k.sub}</div>
     </div>`;
   });
   html += `</div>`;
@@ -16613,9 +16622,9 @@ async function bcslSkuRenderOverview() {
     return m;
   }
 
-  // Build totalProducts map (Shopee + TikTok) — cộng dồn số lượng
+  // Build totalProducts map (TOÀN BỘ Shopee + TikTok) — cộng dồn số lượng
   const totalProducts = new Map();
-  shopeeProducts.forEach((p, sku) => totalProducts.set(sku, {...p}));
+  shopeeAllProducts.forEach((p, sku) => totalProducts.set(sku, {...p}));
   if (hasTiktok) {
     BCSL_TIKTOK.products.forEach((p, sku) => {
       if (totalProducts.has(sku)) {
