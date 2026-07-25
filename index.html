@@ -16832,30 +16832,10 @@ function bcslSkuRenderCatalog() {
   const lowCount   = list.filter(x => x.doanh_thu > 0 && x.margin >= 0 && x.margin < 20).length;
   const longtailCount = list.filter(x => x.doanh_thu > 0 && x.doanh_thu < 1000000).length;
 
+  // 3 card doanh thu/LN/margin đã xóa theo yêu cầu (25/07/2026) — giữ element
+  // rỗng để card "SKU Chưa Khớp Ngành" (render bởi bcslSkuRenderNganhHang) vẫn hiện
   const kEl = document.getElementById('th-sku-catalog-kpis');
-  if (kEl) {
-    kEl.innerHTML = `
-      <div class="sw-kpi-card" style="border-left-color:var(--navy)">
-        <div class="sw-kpi-label">🏷️ Tổng Doanh Thu Theo SKU</div>
-        <div class="sw-kpi-value">${fmtMoney(totalRev)}</div>
-        <div class="sw-kpi-sub">${list.length} SKU · ${totalQty.toLocaleString('vi-VN')} sản phẩm đã bán</div>
-      </div>
-      <div class="sw-kpi-card" style="border-left-color:#8e44ad">
-        <div class="sw-kpi-label">💹 Tỷ Suất Lợi Nhuận Gộp</div>
-        <div class="sw-kpi-value" style="color:${marginPct>=40?'#196F3D':marginPct>=20?'#7D6608':'#922B21'}">${marginPct.toFixed(2)}%</div>
-        <div class="sw-kpi-sub">LN gộp: ${fmtMoney(totalProfit)}</div>
-      </div>
-      <div class="sw-kpi-card" style="border-left-color:var(--red);cursor:pointer" onclick="bcslSkuApplyFilter('neg')" title="Click để xem các SKU margin âm">
-        <div class="sw-kpi-label">⛔ Cảnh Báo Margin</div>
-        <div class="sw-kpi-value" style="color:var(--red)">${negCount}</div>
-        <div class="sw-kpi-sub">
-          <span onclick="event.stopPropagation();bcslSkuApplyFilter('neg')" style="cursor:pointer;text-decoration:underline">${negCount} SP margin âm</span> ·
-          <span onclick="event.stopPropagation();bcslSkuApplyFilter('low')" style="cursor:pointer;text-decoration:underline">${lowCount} SP margin &lt;20%</span> ·
-          <span onclick="event.stopPropagation();bcslSkuApplyFilter('longtail')" style="cursor:pointer;text-decoration:underline">${longtailCount} SP đuôi dài</span>
-        </div>
-      </div>
-    `;
-  }
+  if (kEl) kEl.innerHTML = '';
 
   const base = list.filter(x => x.doanh_thu > 0 || x.so_luong > 0);
   let filtered;
@@ -17204,11 +17184,11 @@ async function bcslSkuRenderNganhHang(list, totalRev) {
   tableHtml += `</tbody></table></div>`;
 
   // ── Assemble & inject ─────────────────────────────────────
+  // Bảng "CHI TIẾT TỪNG NGÀNH" (tableHtml) đã ẩn theo yêu cầu (25/07/2026)
   wrap.innerHTML = `
     ${kpiHtml}
     ${comparisonHtml}
-    ${chartHtml}
-    ${tableHtml}`;
+    ${chartHtml}`;
 
   // ── Render Chart.js ──────────────────────────────────────
   const canvas = document.getElementById('bcsl-nganh-chart');
