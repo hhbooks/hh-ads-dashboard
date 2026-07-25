@@ -2328,7 +2328,7 @@
         <div id="bcsl-sku-period-chips" style="display:none;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap"></div>
 
         <div id="bcsl-sku-empty-state" style="text-align:center;padding:30px 24px;color:var(--text2);font-size:13px">
-          Chưa có dữ liệu — upload file mã SKU ở trên để xem tổng quan.
+          Chưa có dữ liệu — bấm <b>☁️ Đồng bộ từ Drive</b> ở thanh lọc phía trên để nạp dữ liệu.
         </div>
 
         <div id="th-sku-catalog-section" style="display:none">
@@ -16389,7 +16389,16 @@ function bcslSkuLoadPeriod(key) {
 }
 
 // ── Render shop cards + TikTok card + platform/shop filters ───
+// Khối shop cards đã XÓA theo yêu cầu (25/07/2026) — dữ liệu nạp qua
+// "Đồng bộ từ Drive". Giữ function rỗng vì nhiều nơi vẫn gọi nó.
 function bcslSkuRenderShopSection() {
+  const sec  = document.getElementById('bcsl-sku-shop-section');
+  const frow = document.getElementById('bcsl-sku-shop-filter-row');
+  if (sec)  sec.innerHTML = '';
+  if (frow) frow.style.display = 'none';
+  return;
+}
+function _bcslSkuRenderShopSection_DISABLED() {
   const sec  = document.getElementById('bcsl-sku-shop-section');
   const frow = document.getElementById('bcsl-sku-shop-filter-row');
   if (!sec) return;
@@ -16924,7 +16933,7 @@ async function bcslSkuRenderNganhHang(list, totalRev) {
   const shopKeys = Object.keys(BCSL_SHOPS).filter(k => k !== 'L');
   const hasShopee = shopKeys.length > 0 || !!BCSL_SHOPS['L'];
   const hasTiktok = !!BCSL_TIKTOK;
-  const showComparison = hasShopee && hasTiktok && _bcslPlatformFilter === 'all';
+  const showComparison = false; // Bảng "SO SÁNH DOANH THU SHOPEE vs TIKTOK" đã xóa theo yêu cầu (25/07/2026)
 
   // Map SKU → nganhHang, group by category (from merged list)
   const catMap = new Map();
