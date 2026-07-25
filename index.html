@@ -3834,6 +3834,7 @@ async function misaExportFile(kho) {
 // ══════════════════════════════════════════════════════════════
 let SHARED = {
   saleworkMap: null, saleworkByIdSp: null, saleworkFileName: '', saleworkUpdatedAt: null,
+  tiktokByIdSp: null,
   tonLookup: null, tonUpdatedAt: null
 };
 
@@ -3849,6 +3850,17 @@ async function sharedLoadSaleworkMap(force) {
   SHARED.saleworkFileName = d.fileName || '';
   SHARED.saleworkUpdatedAt = d.updatedAt || null;
   return SHARED.saleworkMap;
+}
+
+// MAP TikTok (ID SP TikTok → Mã Salework) — lưu Firestore khi nạp file ở Cập Nhật Tồn
+async function sharedLoadTiktokMap(force) {
+  if (SHARED.tiktokByIdSp && !force) return SHARED.tiktokByIdSp;
+  const snap = await db.collection('map_tiktok_ton').doc('all').get();
+  if (!snap.exists) return null;
+  const d = snap.data();
+  const byIdSpJson = await giaLoadChunkedField('map_tiktok_ton_chunks', 'idsp', d.idSpChunkCount || 0);
+  SHARED.tiktokByIdSp = new Map(JSON.parse(byIdSpJson || '[]'));
+  return SHARED.tiktokByIdSp;
 }
 
 async function sharedLoadTonLookup(force) {
@@ -4151,11 +4163,12 @@ function mapTkHandleFile(input) {
   const logEl = document.getElementById('maptk-log');
   if (logEl) { logEl.innerHTML = ''; logEl.classList.remove('visible'); }
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try {
       const wb = XLSX.read(e.target.result, { type: 'array' });
       const header = ['STT','Sàn','Tên shop','Tên sản phẩm','ID SP','Mã phân loại','Phân loại / Combo','SKU TikTok','Mã Salework liên kết','Số lượng combo'];
       const rawRows = [header];
+      const byIdSp = new Map(); // ID SP TikTok → [{maSalework, comboQty}] — dùng cho Báo cáo doanh số
       let sttCounter = 1;
       let totalRows = 0;
       wb.SheetNames.forEach(sheetName => {
@@ -4194,13 +4207,37 @@ function mapTkHandleFile(input) {
             idx.comboQty !== -1 ? (r[idx.comboQty] ?? 1)  : 1,
           ]);
           totalRows++;
+          // Build map ID SP → Mã Salework
+          const idSpVal = (idx.idSp !== -1 && r[idx.idSp] != null) ? String(r[idx.idSp]).trim() : '';
+          const maSWVal = (idx.maSW !== -1 && r[idx.maSW] != null) ? String(r[idx.maSW]).trim() : '';
+          if (idSpVal && maSWVal) {
+            if (!byIdSp.has(idSpVal)) byIdSp.set(idSpVal, []);
+            byIdSp.get(idSpVal).push({ maSalework: maSWVal, comboQty: Number(r[idx.comboQty]) || 1 });
+          }
         }
       });
       if (totalRows === 0) throw new Error('Không tìm thấy dữ liệu hợp lệ. File cần có cột "Mã phân loại".');
       SHARED.mapTkRawRows = rawRows;
+
+      // Lưu Firestore để Báo cáo doanh số (và cả team) dùng chung — như MAP Salework Shopee
+      try {
+        const byIdSpJson = JSON.stringify(Array.from(byIdSp.entries()));
+        const oldSnap = await db.collection('map_tiktok_ton').doc('all').get();
+        const oldData = oldSnap.exists ? oldSnap.data() : {};
+        const idSpChunkCount = await giaSaveChunkedField('map_tiktok_ton_chunks', 'idsp', byIdSpJson);
+        const cleanupDeletes = [];
+        for (let i = idSpChunkCount; i < (oldData.idSpChunkCount || 0); i++) cleanupDeletes.push(db.collection('map_tiktok_ton_chunks').doc(`idsp_${i}`).delete());
+        if (cleanupDeletes.length) await Promise.all(cleanupDeletes);
+        await db.collection('map_tiktok_ton').doc('all').set({
+          fileName: file.name, rowCount: totalRows, sheetCount: wb.SheetNames.length,
+          idSpChunkCount, updatedAt: new Date().toISOString()
+        });
+        SHARED.tiktokByIdSp = byIdSp;
+      } catch(fsErr) { console.warn('MAP TikTok: lỗi lưu Firestore', fsErr); }
+
       const pushBtn = document.getElementById('maptk-push-btn');
       if (pushBtn) pushBtn.style.display = 'inline-flex';
-      if (statusEl) statusEl.textContent = `✅ ${file.name} (${totalRows} dòng, ${wb.SheetNames.length} sheet)`;
+      if (statusEl) statusEl.textContent = `✅ ${file.name} (${totalRows} dòng, ${wb.SheetNames.length} sheet, ${byIdSp.size} ID SP) — đã lưu hệ thống`;
     } catch (err) {
       if (statusEl) statusEl.textContent = '❌ Lỗi: ' + err.message;
     }
@@ -16689,17 +16726,22 @@ async function bcdsRenderContent() {
   try { catalog = await giaLoadCatalogIfNeeded(); } catch(e) { catalog = {}; }
   if (myId !== _bcdsRenderReqId) return;
 
-  // MAP Salework dùng chung (đã nạp ở trang Cập Nhật Tồn, lưu Firestore):
-  // SHARED.saleworkByIdSp = Map<ID SP Shopee, [{maSalework, comboQty, ...}]>
-  // Combo/nhiều biến thể: lấy Mã Salework đầu tiên — đủ để xác định ngành + NCC
+  // MAP dùng chung (đã nạp ở trang Cập Nhật Tồn, lưu Firestore):
+  // - Shopee : SHARED.saleworkByIdSp = Map<ID SP Shopee, [{maSalework, ...}]>
+  // - TikTok : SHARED.tiktokByIdSp  = Map<ID SP TikTok, [{maSalework, ...}]>
+  // Combo/nhiều biến thể: lấy Mã Salework đầu tiên khớp catalog — đủ để xác định ngành + NCC
   try { await sharedLoadSaleworkMap(); } catch(e) { console.warn('BCDS: không tải được MAP Salework', e); }
+  try { await sharedLoadTiktokMap(); }  catch(e) { console.warn('BCDS: không tải được MAP TikTok', e); }
   if (myId !== _bcdsRenderReqId) return;
-  const byIdSp = SHARED.saleworkByIdSp;
+  const byIdSp   = SHARED.saleworkByIdSp;
+  const byIdSpTk = SHARED.tiktokByIdSp;
   const findEntry = ma => {
     if (catalog[ma]) return catalog[ma]; // phòng khi mã đã là SKU thật
-    if (byIdSp && byIdSp.has(ma)) {
-      const comps = byIdSp.get(ma);
-      for (const c of comps) { if (c.maSalework && catalog[c.maSalework]) return catalog[c.maSalework]; }
+    for (const m of [byIdSp, byIdSpTk]) {
+      if (m && m.has(ma)) {
+        const comps = m.get(ma);
+        for (const c of comps) { if (c.maSalework && catalog[c.maSalework]) return catalog[c.maSalework]; }
+      }
     }
     return undefined;
   };
