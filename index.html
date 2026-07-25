@@ -16645,7 +16645,7 @@ async function bcslSkuRenderOverview() {
   const pf = _bcslPlatformFilter;
   const charts = [
     { title:'Tổng TMDT', dotColor:'#1a56db', nganhMap:nganhTotal,  chanQty:totalQty  },
-    (pf==='all'||pf==='shopee') && nganhShopee ? { title:'Shopee', dotColor:'#ee4d2d', nganhMap:nganhShopee, chanQty:shopeeQty } : null,
+    (pf==='all'||pf==='shopee') && nganhShopee ? { title:'Shopee' + selShopName, dotColor:'#ee4d2d', nganhMap:nganhShopee, chanQty:shopeeQty } : null,
     (pf==='all'||pf==='tiktok') && nganhTiktok ? { title:'TikTok', dotColor:'#444',    nganhMap:nganhTiktok, chanQty:tiktokQty } : null,
   ].filter(Boolean);
 
