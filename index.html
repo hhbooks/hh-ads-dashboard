@@ -4212,7 +4212,11 @@ function mapTkHandleFile(input) {
           const maSWVal = (idx.maSW !== -1 && r[idx.maSW] != null) ? String(r[idx.maSW]).trim() : '';
           if (idSpVal && maSWVal) {
             if (!byIdSp.has(idSpVal)) byIdSp.set(idSpVal, []);
-            byIdSp.get(idSpVal).push({ maSalework: maSWVal, comboQty: Number(r[idx.comboQty]) || 1 });
+            byIdSp.get(idSpVal).push({
+              maSalework: maSWVal,
+              comboQty: Number(r[idx.comboQty]) || 1,
+              tenSp: (idx.tenSp !== -1 && r[idx.tenSp] != null) ? String(r[idx.tenSp]).trim() : ''
+            });
           }
         }
       });
@@ -16745,8 +16749,60 @@ async function bcdsRenderContent() {
     }
     return undefined;
   };
-  const getNganh = ma => { const e = findEntry(ma); return (e && e.nganhHang) ? e.nganhHang.trim() : 'Chưa phân loại'; };
-  const getNcc   = ma => { const e = findEntry(ma); return (e && e.ncc) ? e.ncc.trim() : 'Chưa rõ'; };
+
+  // ── Map DỰ PHÒNG theo tên — cho listing đã xóa/ẩn không còn trong MAP ──
+  // So khớp tên sản phẩm với tên listing trong MAP (Dice trên bộ từ, ngưỡng 0.72).
+  // Kết quả gần đúng → đánh dấu ≈ trong bảng xếp hạng.
+  const _tokenize = s => {
+    s = String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
+    s = s.replace(/[^a-z0-9\s]/g, ' ');
+    const stop = new Set(['sach','deal','combo','tai','ban','2h','books','book','2hbooks','hot','chinh','hang','cua','va','cho','moi','nhat']);
+    const toks = new Set();
+    s.split(/\s+/).forEach(t => { if (t.length >= 2 && !stop.has(t) && !/^\d{4}$/.test(t)) toks.add(t); });
+    return toks;
+  };
+  const nameIdx = [];
+  {
+    const seen = new Set();
+    [byIdSp, byIdSpTk].forEach(m => {
+      if (!m) return;
+      m.forEach(comps => {
+        for (const c of comps) {
+          if (!c.maSalework || !c.tenSp || !catalog[c.maSalework]) continue;
+          const key = c.tenSp + '|' + c.maSalework;
+          if (!seen.has(key)) {
+            seen.add(key);
+            const toks = _tokenize(c.tenSp);
+            if (toks.size >= 2) nameIdx.push({ toks, ma: c.maSalework });
+          }
+          break; // mỗi listing lấy dòng đầu có mã
+        }
+      });
+    });
+  }
+  const _fuzzyCache = new Map();
+  const fuzzyEntry = (ma, ten) => {
+    if (_fuzzyCache.has(ma)) return _fuzzyCache.get(ma);
+    let out;
+    const toks = _tokenize(ten);
+    if (toks.size < 2 || !nameIdx.length) out = undefined;
+    else {
+      let best = null, bs = 0;
+      for (const e of nameIdx) {
+        let inter = 0;
+        for (const t of toks) if (e.toks.has(t)) inter++;
+        const dice = 2 * inter / (toks.size + e.toks.size);
+        if (dice > bs) { bs = dice; best = e; }
+      }
+      out = (bs >= 0.72 && best) ? catalog[best.ma] : undefined;
+    }
+    _fuzzyCache.set(ma, out);
+    return out;
+  };
+  const findEntry2 = (ma, ten) => findEntry(ma) || fuzzyEntry(ma, ten);
+  const isFuzzy    = (ma, ten) => !findEntry(ma) && !!fuzzyEntry(ma, ten);
+  const getNganh = (ma, ten) => { const e = findEntry2(ma, ten); return (e && e.nganhHang) ? e.nganhHang.trim() : 'Chưa phân loại'; };
+  const getNcc   = (ma, ten) => { const e = findEntry2(ma, ten); return (e && e.ncc) ? e.ncc.trim() : 'Chưa rõ'; };
 
   // ── Donut ngành hàng ──────────────────────────────────────
   (function renderDonuts() {
@@ -16760,7 +16816,7 @@ async function bcdsRenderContent() {
 
     const nganhDT = m => {
       const out = new Map();
-      m.forEach((p, ma) => { if (p.doanh_thu > 0) { const n = getNganh(ma); out.set(n, (out.get(n) || 0) + p.doanh_thu); } });
+      m.forEach((p, ma) => { if (p.doanh_thu > 0) { const n = getNganh(ma, p.ten); out.set(n, (out.get(n) || 0) + p.doanh_thu); } });
       return out;
     };
     const pf = _bcdsPlatformFilter;
@@ -16846,7 +16902,8 @@ async function bcdsRenderContent() {
     _bcdsRankRows.push({
       ma, ten: p.ten, dt: p.doanh_thu, sl: p.so_luong,
       gvdt: p.doanh_thu > 0 ? p.gia_von/p.doanh_thu*100 : 0,
-      gv: p.gia_von, nganh: getNganh(ma), ncc: getNcc(ma)
+      gv: p.gia_von, nganh: getNganh(ma, p.ten), ncc: getNcc(ma, p.ten),
+      fz: isFuzzy(ma, p.ten)
     });
   });
   _bcdsRankRows.sort((a, b) => b.dt - a.dt);
@@ -16925,8 +16982,8 @@ function bcdsRenderRankTable() {
     t += `<tr style="border-bottom:1px solid var(--gray3)">
       <td style="padding:7px 6px;text-align:center"><span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;${medal(i)}">${i+1}</span></td>
       <td style="padding:7px 10px;font-weight:600;max-width:320px" title="${r.ten}">${r.ten.length > 60 ? r.ten.slice(0, 59) + '…' : r.ten}</td>
-      <td style="padding:7px 10px;color:var(--text2)">${r.ncc}</td>
-      <td style="padding:7px 10px"><span style="background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:600">${r.nganh}</span></td>
+      <td style="padding:7px 10px;color:var(--text2)">${r.ncc}${r.fz ? ' <span title="Map gần đúng theo tên (listing đã xóa/ẩn khỏi MAP)" style="color:var(--orange);font-weight:700;cursor:help">≈</span>' : ''}</td>
+      <td style="padding:7px 10px"><span style="background:${r.fz ? '#fff7ed' : '#eff6ff'};color:${r.fz ? '#c2410c' : '#1d4ed8'};padding:2px 8px;border-radius:8px;font-size:11px;font-weight:600" ${r.fz ? 'title="Map gần đúng theo tên (listing đã xóa/ẩn khỏi MAP)"' : ''}>${r.fz ? '≈ ' : ''}${r.nganh}</span></td>
       <td style="padding:7px 10px;text-align:right;font-weight:700">${Math.round(r.dt).toLocaleString('vi-VN')}</td>
       <td style="padding:7px 10px;text-align:right">${Math.round(r.sl).toLocaleString('vi-VN')}</td>
       <td style="padding:7px 10px;text-align:right;font-weight:700;color:${c}">${r.dt > 0 ? r.gvdt.toFixed(1) + '%' : '–'}</td>
