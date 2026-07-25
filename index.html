@@ -16517,12 +16517,13 @@ async function bcslSkuRenderOverview() {
   if (!shopReals.length && !hasLegacy && !hasTiktok) { sec.style.display = 'none'; return; }
   sec.style.display = 'block';
 
-  // ── Tính KPI metrics ──────────────────────────────────────
-  let shopeeRev = 0, shopeeGV = 0, tiktokRev = 0, tiktokGV = 0;
-  const shopeeProducts = new Map(); // gộp tất cả Shopee shops
+  // ── Tính KPI metrics — SẢN LƯỢNG (số lượng bán ra) ───────
+  let shopeeQty = 0, tiktokQty = 0, shopeeSku = 0, tiktokSku = 0;
+  const shopeeProducts = new Map(); // gộp Shopee shops (theo SHOP filter)
   if (hasLegacy) {
     BCSL_SHOPS['L'].products.forEach((p, sku) => {
-      shopeeRev += p.doanh_thu_thuc||0; shopeeGV += p.gia_von_tong||0;
+      const q = p.so_luong||0;
+      shopeeQty += q; if (q > 0) shopeeSku++;
       shopeeProducts.set(sku, {...p});
     });
   } else {
@@ -16531,45 +16532,44 @@ async function bcslSkuRenderOverview() {
       if (_bcslSkuShopFilter !== 'all' && String(i) !== _bcslSkuShopFilter) return;
       const sh = BCSL_SHOPS[i]; if (!sh) return;
       sh.products.forEach((p, sku) => {
-        shopeeRev += p.doanh_thu_thuc||0; shopeeGV += p.gia_von_tong||0;
+        shopeeQty += p.so_luong||0;
         if (shopeeProducts.has(sku)) {
           const ex = shopeeProducts.get(sku);
-          ex.doanh_thu_thuc += p.doanh_thu_thuc||0; ex.gia_von_tong += p.gia_von_tong||0; ex.so_luong += p.so_luong||0;
+          ex.so_luong += p.so_luong||0; ex.doanh_thu_thuc += p.doanh_thu_thuc||0; ex.gia_von_tong += p.gia_von_tong||0;
         } else shopeeProducts.set(sku, {...p});
       });
     });
+    shopeeProducts.forEach(p => { if ((p.so_luong||0) > 0) shopeeSku++; });
   }
-  if (hasTiktok) BCSL_TIKTOK.products.forEach(p => { tiktokRev += p.doanh_thu_thuc||0; tiktokGV += p.gia_von_tong||0; });
+  if (hasTiktok) BCSL_TIKTOK.products.forEach(p => { const q = p.so_luong||0; tiktokQty += q; if (q > 0) tiktokSku++; });
 
-  const totalRev = shopeeRev + tiktokRev;
-  const totalGV  = shopeeGV  + tiktokGV;
-  const gvPct    = totalRev > 0 ? totalGV/totalRev*100 : 0;
-  const gvColor  = gvPct < 45 ? 'var(--green)' : gvPct < 60 ? 'var(--orange)' : 'var(--red)';
-  const lnGop    = totalRev - totalGV;
-  const lnColor  = lnGop >= 0 ? 'var(--green)' : 'var(--red)';
+  const totalQty = shopeeQty + tiktokQty;
   const fmtN     = v => v.toLocaleString('vi-VN');
   const fmtPct   = (n, d) => d > 0 ? (n/d*100).toFixed(1)+'%' : '--';
 
-  // ── KPI row (5 cards) ──────────────────────────────────────
+  // Đếm số SKU tổng (union Shopee + TikTok)
+  const skuSet = new Set();
+  shopeeProducts.forEach((p, sku) => { if ((p.so_luong||0) > 0) skuSet.add(sku); });
+  if (hasTiktok) BCSL_TIKTOK.products.forEach((p, sku) => { if ((p.so_luong||0) > 0) skuSet.add(sku); });
+
+  // ── KPI row (3 cards sản lượng) ────────────────────────────
   const kpis = [
-    { label:'TỔNG DOANH THU',  val:fmtN(totalRev),  sub:`GV/DT: ${gvPct.toFixed(1)}%`,                                              subC:gvColor,        topC:'var(--navy)' },
-    { label:'SHOPEE',           val:fmtN(shopeeRev), sub:`GV/DT: ${fmtPct(shopeeGV,shopeeRev)} · ${fmtPct(shopeeRev,totalRev)} tổng`, subC:'var(--text2)', topC:'#ee4d2d'     },
-    { label:'TIKTOK',           val:fmtN(tiktokRev), sub:`GV/DT: ${fmtPct(tiktokGV,tiktokRev)} · ${fmtPct(tiktokRev,totalRev)} tổng`, subC:'var(--text2)', topC:'#444'        },
-    { label:'TỔNG GIÁ VỐN',    val:fmtN(totalGV),   sub:`GV/DT: ${gvPct.toFixed(1)}%`,                                              subC:gvColor,        topC:'var(--navy)' },
-    { label:'LỢI NHUẬN GỘP',   val:fmtN(lnGop),     sub:`Margin: ${totalRev>0?(lnGop/totalRev*100).toFixed(1)+'%':'--'}`,           subC:lnColor,        topC:lnColor       },
+    { label:'TỔNG SẢN LƯỢNG TMDT', val:fmtN(totalQty),  sub:`${fmtN(skuSet.size)} SKU có bán trong kỳ`,                     topC:'var(--navy)' },
+    { label:'SHOPEE',               val:fmtN(shopeeQty), sub:`${fmtPct(shopeeQty,totalQty)} tổng · ${fmtN(shopeeSku)} SKU`,  topC:'#ee4d2d'     },
+    { label:'TIKTOK',               val:fmtN(tiktokQty), sub:`${fmtPct(tiktokQty,totalQty)} tổng · ${fmtN(tiktokSku)} SKU`,  topC:'#444'        },
   ];
-  let html = `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px">`;
+  let html = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">`;
   kpis.forEach(k => {
     html += `<div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border:1px solid var(--gray3);border-top:3px solid ${k.topC}">
       <div class="kpi-label">${k.label}</div>
-      <div style="font-size:18px;font-weight:800;color:var(--text);line-height:1;margin:4px 0">${k.val}</div>
-      <div class="kpi-sub" style="color:${k.subC}">${k.sub}</div>
+      <div style="font-size:20px;font-weight:800;color:var(--text);line-height:1;margin:4px 0">${k.val}</div>
+      <div class="kpi-sub" style="color:var(--text2)">${k.sub}</div>
     </div>`;
   });
   html += `</div>`;
 
   // ── Chart section (placeholder, chờ catalog) ───────────────
-  html += `<div class="card"><div class="card-title"><span class="dot" style="background:var(--orange)"></span>TỶ TRỌNG DOANH THU THEO NHÓM SẢN PHẨM</div>
+  html += `<div class="card"><div class="card-title"><span class="dot" style="background:var(--orange)"></span>TỶ TRỌNG SẢN LƯỢNG THEO NHÓM SẢN PHẨM</div>
     <div id="bcsl-nganh-loading" style="text-align:center;padding:24px;color:var(--text2);font-size:12px">⏳ Đang tải dữ liệu ngành hàng...</div>
     <div id="bcsl-nganh-charts-row" style="display:none"></div>
     <div id="bcsl-nganh-table-wrap" style="display:none;margin-top:20px"></div>
@@ -16591,33 +16591,34 @@ async function bcslSkuRenderOverview() {
   const tableWrap = document.getElementById('bcsl-nganh-table-wrap');
   if (!chartsRow) return;
 
-  // ── Helper: tính ngành từ products Map ────────────────────
+  // ── Helper: tính SẢN LƯỢNG theo ngành từ products Map ─────
   function computeNganhMap(productsMap) {
     const m = new Map();
     productsMap.forEach((p, sku) => {
-      const rev = p.doanh_thu_thuc || 0;
-      if (rev <= 0) return;
+      const qty = p.so_luong || 0;
+      if (qty <= 0) return;
       const entry = catalog[sku];
       const nganh = (entry && entry.nganhHang) ? entry.nganhHang.trim() : 'Chưa phân loại';
-      m.set(nganh, (m.get(nganh) || 0) + rev);
+      m.set(nganh, (m.get(nganh) || 0) + qty);
     });
     return m;
   }
 
-  // Build totalProducts map (Shopee + TikTok)
-  const totalProducts = new Map(shopeeProducts);
+  // Build totalProducts map (Shopee + TikTok) — cộng dồn số lượng
+  const totalProducts = new Map();
+  shopeeProducts.forEach((p, sku) => totalProducts.set(sku, {...p}));
   if (hasTiktok) {
     BCSL_TIKTOK.products.forEach((p, sku) => {
       if (totalProducts.has(sku)) {
         const ex = totalProducts.get(sku);
-        ex.doanh_thu_thuc += p.doanh_thu_thuc||0;
+        ex.so_luong += p.so_luong||0;
       } else totalProducts.set(sku, {...p});
     });
   }
 
   const nganhTotal  = computeNganhMap(totalProducts);
-  const nganhShopee = shopeeRev > 0 ? computeNganhMap(shopeeProducts) : null;
-  const nganhTiktok = hasTiktok && tiktokRev > 0 ? computeNganhMap(BCSL_TIKTOK.products) : null;
+  const nganhShopee = shopeeQty > 0 ? computeNganhMap(shopeeProducts) : null;
+  const nganhTiktok = hasTiktok && tiktokQty > 0 ? computeNganhMap(BCSL_TIKTOK.products) : null;
 
   // ── Chọn charts theo KÊNH filter ──────────────────────────
   // - Tất cả : 3 donuts (Tổng TMDT | Shopee | TikTok)
@@ -16625,9 +16626,9 @@ async function bcslSkuRenderOverview() {
   // - TikTok  : 2 donuts (Tổng TMDT | TikTok)
   const pf = _bcslPlatformFilter;
   const charts = [
-    { title:'Tổng TMDT', dotColor:'#1a56db', nganhMap:nganhTotal,  chanRev:totalRev  },
-    (pf==='all'||pf==='shopee') && nganhShopee ? { title:'Shopee', dotColor:'#ee4d2d', nganhMap:nganhShopee, chanRev:shopeeRev } : null,
-    (pf==='all'||pf==='tiktok') && nganhTiktok ? { title:'TikTok', dotColor:'#444',    nganhMap:nganhTiktok, chanRev:tiktokRev } : null,
+    { title:'Tổng TMDT', dotColor:'#1a56db', nganhMap:nganhTotal,  chanQty:totalQty  },
+    (pf==='all'||pf==='shopee') && nganhShopee ? { title:'Shopee', dotColor:'#ee4d2d', nganhMap:nganhShopee, chanQty:shopeeQty } : null,
+    (pf==='all'||pf==='tiktok') && nganhTiktok ? { title:'TikTok', dotColor:'#444',    nganhMap:nganhTiktok, chanQty:tiktokQty } : null,
   ].filter(Boolean);
 
   // ── Color palette nhất quán cho ngành ─────────────────────
@@ -16684,7 +16685,7 @@ async function bcslSkuRenderOverview() {
           legend: { display: false },
           tooltip: { callbacks: { label: c => {
             const pct = tot > 0 ? (c.raw/tot*100).toFixed(1) : 0;
-            return ` ${c.label}: ${c.raw.toLocaleString('vi-VN')} đ (${pct}%)`;
+            return ` ${c.label}: ${c.raw.toLocaleString('vi-VN')} sp (${pct}%)`;
           }}}
         }
       },
@@ -16713,17 +16714,17 @@ async function bcslSkuRenderOverview() {
         </td>`;
       charts.forEach(ch => {
         const val = ch.nganhMap ? (ch.nganhMap.get(nganh)||0) : 0;
-        const pct = ch.chanRev > 0 ? (val/ch.chanRev*100).toFixed(1) : '0.0';
+        const pct = ch.chanQty > 0 ? (val/ch.chanQty*100).toFixed(1) : '0.0';
         tbl += `<td style="padding:7px 10px;text-align:right">
           <span style="font-weight:700;color:var(--text)">${pct}%</span>
-          <span style="color:var(--text2);margin-left:8px;font-size:11px">${val.toLocaleString('vi-VN')}</span>
+          <span style="color:var(--text2);margin-left:8px;font-size:11px">${val.toLocaleString('vi-VN')} sp</span>
         </td>`;
       });
       tbl += `</tr>`;
     });
     tbl += `<tr style="background:#fffbeb;font-weight:700;border-top:2px solid var(--gray3)">
-      <td style="padding:8px 10px">Tổng doanh thu</td>`;
-    charts.forEach(ch => { tbl += `<td style="padding:8px 10px;text-align:right">${ch.chanRev.toLocaleString('vi-VN')}</td>`; });
+      <td style="padding:8px 10px">Tổng sản lượng</td>`;
+    charts.forEach(ch => { tbl += `<td style="padding:8px 10px;text-align:right">${ch.chanQty.toLocaleString('vi-VN')} sp</td>`; });
     tbl += `</tr></tbody></table>`;
     tableWrap.innerHTML = tbl;
     tableWrap.style.display = 'block';
