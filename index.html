@@ -16330,9 +16330,10 @@ async function _bcdsDriveDoSync(token) {
     const items   = await _bcslDriveListItems(token, BCDS_DRIVE_FOLDER_ID);
     const folders = items.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
     for (const folder of folders) {
-      const shopIdx  = BCSL_DRIVE_SHOP_MAP[folder.name];
-      const isTiktok = folder.name === 'Tiktok';
-      if (shopIdx === undefined && !isTiktok) continue;
+      const fname    = String(folder.name || '').trim();
+      const shopIdx  = BCSL_DRIVE_SHOP_MAP[fname];
+      const isTiktok = fname.toLowerCase().replace(/\s+/g, '') === 'tiktok';
+      if (shopIdx === undefined && !isTiktok) { console.warn('BCDS: bỏ qua folder không nhận diện được:', folder.name); continue; }
       const files     = await _bcslDriveListItems(token, folder.id);
       const xlsxFiles = files.filter(f => /\.(xlsx|xls)$/i.test(f.name));
       for (const file of xlsxFiles) {
