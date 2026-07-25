@@ -16898,16 +16898,6 @@ function bcslToggleUnmapped() {
   const el = document.getElementById('bcsl-unmapped-panel');
   if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
 }
-
-// Copy danh sách SKU chưa khớp ngành (Mã SKU + Tên, tab-separated) → dán thẳng vào GG Sheet
-function bcslCopyUnmapped(btn) {
-  const rows = (window._bcslUnmappedList || []).map(x => `${x.ma_sku}\t${x.ten || ''}`).join('\n');
-  if (!rows) { alert('Không có SKU nào trong danh sách.'); return; }
-  navigator.clipboard.writeText(rows).then(() => {
-    if (btn) { const t = btn.textContent; btn.textContent = '✅ Đã copy'; setTimeout(() => { btn.textContent = t; }, 1500); }
-  }).catch(() => alert('Trình duyệt chặn clipboard — hãy copy thủ công từ bảng.'));
-}
-
 async function bcslSkuRenderNganhHang(list, totalRev) {
   const wrap = document.getElementById('th-sku-nganh-section');
   if (!wrap) return;
@@ -17019,17 +17009,14 @@ async function bcslSkuRenderNganhHang(list, totalRev) {
     cardEl.innerHTML = `
       <div class="sw-kpi-label">🔍 SKU Chưa Khớp Ngành (toàn kỳ)</div>
       <div class="sw-kpi-value" style="color:${unmappedN > 0 ? 'var(--orange)' : 'var(--green)'}">${unmappedN}</div>
-      <div class="sw-kpi-sub">${unmappedN > 0 ? 'Click xem danh sách · copy để đối chiếu GG Sheet SKU Tổng' : 'Catalog đã khớp đầy đủ'}</div>`;
+      <div class="sw-kpi-sub">${unmappedN > 0 ? 'Click để xem danh sách và bổ sung ngành hàng' : 'Catalog đã khớp đầy đủ'}</div>`;
     kpiGrid.appendChild(cardEl);
   }
   let kpiHtml = `
   <div id="bcsl-unmapped-panel" style="display:none;background:#fff;border:1px solid var(--orange);border-radius:8px;overflow:hidden;margin-bottom:12px">
     <div style="padding:10px 16px;background:#fff8f0;border-bottom:1px solid var(--gray3);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
       <span style="font-size:12px;font-weight:700;color:#B9770E">⚠️ ${unmappedN} SKU chưa có ngành hàng (toàn kỳ) — bổ sung cột Ngành hàng trong Google Sheet SKU Tổng rồi Đồng Bộ lại</span>
-      <span style="display:flex;align-items:center;gap:8px">
-        <button onclick="bcslCopyUnmapped(this)" style="padding:5px 12px;border:1px solid var(--navy);color:var(--navy);background:#fff;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">📋 Copy danh sách</button>
-        <span onclick="bcslToggleUnmapped()" style="cursor:pointer;font-size:16px;color:var(--text2);padding:0 4px">✕</span>
-      </span>
+      <span onclick="bcslToggleUnmapped()" style="cursor:pointer;font-size:16px;color:var(--text2);padding:0 4px">✕</span>
     </div>
     <div style="max-height:400px;overflow-y:auto">
     <table style="width:100%;border-collapse:collapse;font-size:12px">
