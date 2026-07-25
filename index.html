@@ -16620,22 +16620,15 @@ async function bcslSkuRenderOverview() {
   const nganhTiktok = hasTiktok && tiktokRev > 0 ? computeNganhMap(BCSL_TIKTOK.products) : null;
 
   // ── Chọn charts theo KÊNH filter ──────────────────────────
-  // - Tất cả: 3 donuts (Tổng TMDT | Shopee | TikTok)
-  // - Shopee : 1 donut  (Shopee only)
-  // - TikTok : 1 donut  (TikTok only)
+  // - Tất cả : 3 donuts (Tổng TMDT | Shopee | TikTok)
+  // - Shopee  : 2 donuts (Tổng TMDT | Shopee)
+  // - TikTok  : 2 donuts (Tổng TMDT | TikTok)
   const pf = _bcslPlatformFilter;
-  let charts;
-  if (pf === 'shopee') {
-    charts = nganhShopee ? [{ title:'Shopee', dotColor:'#ee4d2d', nganhMap:nganhShopee, chanRev:shopeeRev }] : [];
-  } else if (pf === 'tiktok') {
-    charts = nganhTiktok ? [{ title:'TikTok', dotColor:'#444', nganhMap:nganhTiktok, chanRev:tiktokRev }] : [];
-  } else {
-    charts = [
-      { title:'Tổng TMDT', dotColor:'#1a56db', nganhMap:nganhTotal,  chanRev:totalRev  },
-      nganhShopee ? { title:'Shopee', dotColor:'#ee4d2d', nganhMap:nganhShopee, chanRev:shopeeRev } : null,
-      nganhTiktok ? { title:'TikTok', dotColor:'#444',    nganhMap:nganhTiktok, chanRev:tiktokRev } : null,
-    ].filter(Boolean);
-  }
+  const charts = [
+    { title:'Tổng TMDT', dotColor:'#1a56db', nganhMap:nganhTotal,  chanRev:totalRev  },
+    (pf==='all'||pf==='shopee') && nganhShopee ? { title:'Shopee', dotColor:'#ee4d2d', nganhMap:nganhShopee, chanRev:shopeeRev } : null,
+    (pf==='all'||pf==='tiktok') && nganhTiktok ? { title:'TikTok', dotColor:'#444',    nganhMap:nganhTiktok, chanRev:tiktokRev } : null,
+  ].filter(Boolean);
 
   // ── Color palette nhất quán cho ngành ─────────────────────
   const PALETTE = ['#1a56db','#ee4d2d','#059669','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#10b981','#f97316','#6366f1','#14b8a6','#84cc16','#a855f7','#0ea5e9','#d946ef'];
