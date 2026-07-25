@@ -16689,8 +16689,22 @@ async function bcdsRenderContent() {
   try { catalog = await giaLoadCatalogIfNeeded(); } catch(e) { catalog = {}; }
   if (myId !== _bcdsRenderReqId) return;
 
-  const getNganh = ma => { const e = catalog[ma]; return (e && e.nganhHang) ? e.nganhHang.trim() : 'Chưa phân loại'; };
-  const getNcc   = ma => { const e = catalog[ma]; return (e && e.ncc) ? e.ncc.trim() : 'Chưa rõ'; };
+  // MAP Salework dùng chung (đã nạp ở trang Cập Nhật Tồn, lưu Firestore):
+  // SHARED.saleworkByIdSp = Map<ID SP Shopee, [{maSalework, comboQty, ...}]>
+  // Combo/nhiều biến thể: lấy Mã Salework đầu tiên — đủ để xác định ngành + NCC
+  try { await sharedLoadSaleworkMap(); } catch(e) { console.warn('BCDS: không tải được MAP Salework', e); }
+  if (myId !== _bcdsRenderReqId) return;
+  const byIdSp = SHARED.saleworkByIdSp;
+  const findEntry = ma => {
+    if (catalog[ma]) return catalog[ma]; // phòng khi mã đã là SKU thật
+    if (byIdSp && byIdSp.has(ma)) {
+      const comps = byIdSp.get(ma);
+      for (const c of comps) { if (c.maSalework && catalog[c.maSalework]) return catalog[c.maSalework]; }
+    }
+    return undefined;
+  };
+  const getNganh = ma => { const e = findEntry(ma); return (e && e.nganhHang) ? e.nganhHang.trim() : 'Chưa phân loại'; };
+  const getNcc   = ma => { const e = findEntry(ma); return (e && e.ncc) ? e.ncc.trim() : 'Chưa rõ'; };
 
   // ── Donut ngành hàng ──────────────────────────────────────
   (function renderDonuts() {
