@@ -15949,7 +15949,7 @@ let BCSL_SKU   = null;  // computed: merged/filtered view { products: Map, filen
 let BCSL_SHOPS = {};    // { shopIdx: { name, products: Map, filename } } — data per shop
 let _bcslSkuSearch     = '';
 let _bcslSkuFilterMode = 'all';
-let _bcslSkuSortKey    = 'doanh_thu';
+let _bcslSkuSortKey    = 'so_luong';
 let _bcslSkuSortDir    = 'desc';
 let _bcslSkuCurrentPeriodKey = '';
 let _bcslSkuShopFilter  = 'all'; // 'all' | '0'..'5' | 'L' (legacy)
@@ -15970,7 +15970,7 @@ function bcslSkuComputeActive() {
     if (legacySh) {
       srcs.push(legacySh);
     } else if (realKeys.length) {
-      const sel = (_bcslPlatformFilter === 'shopee' && _bcslSkuShopFilter !== 'all')
+      const sel = (_bcslSkuShopFilter !== 'all')
         ? [BCSL_SHOPS[_bcslSkuShopFilter]].filter(Boolean)
         : realKeys.map(k => BCSL_SHOPS[k]);
       srcs = srcs.concat(sel);
@@ -15996,7 +15996,7 @@ function bcslSkuComputeActive() {
 // ── Platform filter ───────────────────────────────────────────
 function bcslSkuSetPlatformFilter(val) {
   _bcslPlatformFilter = val;
-  if (val !== 'shopee') _bcslSkuShopFilter = 'all';
+  if (val === 'tiktok') _bcslSkuShopFilter = 'all';
   bcslSkuComputeActive();
   bcslSkuRenderShopSection();
   bcslSkuRenderCatalog();
@@ -16871,22 +16871,13 @@ function bcslSkuRenderCatalog() {
       <th style="text-align:left">Mã SKU</th>
       <th style="text-align:left">Tên Sản Phẩm</th>
       <th style="cursor:pointer" onclick="bcslSkuSortBy('so_luong')">SL Bán${sortArrow('so_luong')}</th>
-      <th style="cursor:pointer" onclick="bcslSkuSortBy('doanh_thu')">Doanh Thu${sortArrow('doanh_thu')}</th>
-      <th style="cursor:pointer" onclick="bcslSkuSortBy('gia_von')">Giá Vốn${sortArrow('gia_von')}</th>
-      <th style="cursor:pointer" onclick="bcslSkuSortBy('loi_nhuan')">Lợi Nhuận${sortArrow('loi_nhuan')}</th>
-      <th style="cursor:pointer" onclick="bcslSkuSortBy('margin')">Margin %${sortArrow('margin')}</th>
     </tr></thead><tbody>`;
 
   filtered.forEach(x => {
-    const marginColor = x.doanh_thu === 0 ? 'var(--text2)' : x.margin < 0 ? '#922B21' : x.margin < 20 ? '#7D6608' : '#196F3D';
     html += `<tr>
       <td style="text-align:left;color:var(--text2);font-size:11px">${x.ma_sku}</td>
       <td title="${x.ten}" style="text-align:left">${x.ten}</td>
-      <td>${x.so_luong.toLocaleString('vi-VN')}</td>
-      <td>${fmtMoney(x.doanh_thu)}</td>
-      <td>${fmtMoney(x.gia_von)}</td>
-      <td style="color:${x.loi_nhuan>=0?'#196F3D':'#922B21'}">${fmtMoney(x.loi_nhuan)}</td>
-      <td style="color:${marginColor};font-weight:700">${x.doanh_thu>0 ? x.margin.toFixed(1)+'%' : '–'}</td>
+      <td style="font-weight:600">${x.so_luong.toLocaleString('vi-VN')}</td>
     </tr>`;
   });
   html += '</tbody></table>';
