@@ -16906,6 +16906,15 @@ function bcslToggleUnmapped() {
   if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
 }
 
+// Copy danh sách SKU chưa khớp ngành (Mã SKU + Tên, tab-separated) → dán thẳng vào GG Sheet
+function bcslCopyUnmapped(btn) {
+  const rows = (window._bcslUnmappedList || []).map(x => `${x.ma_sku}\t${x.ten || ''}`).join('\n');
+  if (!rows) { alert('Không có SKU nào trong danh sách.'); return; }
+  navigator.clipboard.writeText(rows).then(() => {
+    if (btn) { const t = btn.textContent; btn.textContent = '✅ Đã copy'; setTimeout(() => { btn.textContent = t; }, 1500); }
+  }).catch(() => alert('Trình duyệt chặn clipboard — hãy copy thủ công từ bảng.'));
+}
+
 async function bcslSkuRenderNganhHang(list, totalRev) {
   const wrap = document.getElementById('th-sku-nganh-section');
   if (!wrap) return;
@@ -16980,8 +16989,31 @@ async function bcslSkuRenderNganhHang(list, totalRev) {
   const getColor = n => CAT_COLORS[n] || '#7f8c8d';
   const fmtM = v => (!v ? '–' : v.toLocaleString('vi-VN') + 'đ');
 
-  // ── KPI card "SKU Chưa Khớp Ngành" → chèn vào hàng KPI trên cùng ──
-  window._bcslUnmappedList = unmappedList;
+  // ── SKU Chưa Khớp Ngành — tính TOÀN KỲ (mọi shop + TikTok), KHÔNG theo bộ lọc ──
+  // để con số luôn khớp với dòng "Chưa phân loại" của cột Tổng TMDT
+  const fullMap = new Map();
+  Object.keys(BCSL_SHOPS).forEach(k => {
+    BCSL_SHOPS[k].products.forEach((p, sku) => {
+      const ex = fullMap.get(sku);
+      if (ex) { ex.sl_sp += p.so_luong||0; if (!ex.ten) ex.ten = p.ten||''; }
+      else fullMap.set(sku, { ma_sku: sku, ten: p.ten||'', sl_sp: p.so_luong||0, sl_tt: 0 });
+    });
+  });
+  if (BCSL_TIKTOK) BCSL_TIKTOK.products.forEach((p, sku) => {
+    const ex = fullMap.get(sku);
+    if (ex) { ex.sl_tt += p.so_luong||0; if (!ex.ten) ex.ten = p.ten||''; }
+    else fullMap.set(sku, { ma_sku: sku, ten: p.ten||'', sl_sp: 0, sl_tt: p.so_luong||0 });
+  });
+  const unmappedFull = [];
+  fullMap.forEach(item => {
+    const entry = catalog[item.ma_sku];
+    const nganh = (entry && entry.nganhHang) ? entry.nganhHang.trim() : '';
+    if (!nganh) unmappedFull.push(item);
+  });
+  unmappedFull.sort((a,b) => (b.sl_sp + b.sl_tt) - (a.sl_sp + a.sl_tt));
+  const unmappedN = unmappedFull.length;
+
+  window._bcslUnmappedList = unmappedFull;
   const kpiGrid = document.getElementById('th-sku-catalog-kpis');
   if (kpiGrid) {
     const oldCard = document.getElementById('bcsl-unmapped-kpi-card');
@@ -16989,19 +17021,22 @@ async function bcslSkuRenderNganhHang(list, totalRev) {
     const cardEl = document.createElement('div');
     cardEl.id = 'bcsl-unmapped-kpi-card';
     cardEl.className = 'sw-kpi-card';
-    cardEl.style.borderLeftColor = unmapped > 0 ? 'var(--orange)' : 'var(--green)';
-    if (unmapped > 0) { cardEl.style.cursor = 'pointer'; cardEl.onclick = bcslToggleUnmapped; cardEl.title = 'Click để xem danh sách SKU chưa khớp ngành'; }
+    cardEl.style.borderLeftColor = unmappedN > 0 ? 'var(--orange)' : 'var(--green)';
+    if (unmappedN > 0) { cardEl.style.cursor = 'pointer'; cardEl.onclick = bcslToggleUnmapped; cardEl.title = 'Click để xem danh sách SKU chưa khớp ngành'; }
     cardEl.innerHTML = `
-      <div class="sw-kpi-label">🔍 SKU Chưa Khớp Ngành</div>
-      <div class="sw-kpi-value" style="color:${unmapped > 0 ? 'var(--orange)' : 'var(--green)'}">${unmapped}</div>
-      <div class="sw-kpi-sub">${unmapped > 0 ? 'Click để xem danh sách và bổ sung ngành hàng' : 'Catalog đã khớp đầy đủ'}</div>`;
+      <div class="sw-kpi-label">🔍 SKU Chưa Khớp Ngành (toàn kỳ)</div>
+      <div class="sw-kpi-value" style="color:${unmappedN > 0 ? 'var(--orange)' : 'var(--green)'}">${unmappedN}</div>
+      <div class="sw-kpi-sub">${unmappedN > 0 ? 'Click xem danh sách · copy để đối chiếu GG Sheet SKU Tổng' : 'Catalog đã khớp đầy đủ'}</div>`;
     kpiGrid.appendChild(cardEl);
   }
   let kpiHtml = `
   <div id="bcsl-unmapped-panel" style="display:none;background:#fff;border:1px solid var(--orange);border-radius:8px;overflow:hidden;margin-bottom:12px">
-    <div style="padding:10px 16px;background:#fff8f0;border-bottom:1px solid var(--gray3);display:flex;justify-content:space-between;align-items:center">
-      <span style="font-size:12px;font-weight:700;color:#B9770E">⚠️ ${unmapped} SKU chưa có ngành hàng trong catalog — bổ sung cột Ngành hàng trong Google Sheet rồi Đồng Bộ lại</span>
-      <span onclick="bcslToggleUnmapped()" style="cursor:pointer;font-size:16px;color:var(--text2);padding:0 4px">✕</span>
+    <div style="padding:10px 16px;background:#fff8f0;border-bottom:1px solid var(--gray3);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:12px;font-weight:700;color:#B9770E">⚠️ ${unmappedN} SKU chưa có ngành hàng (toàn kỳ) — bổ sung cột Ngành hàng trong Google Sheet SKU Tổng rồi Đồng Bộ lại</span>
+      <span style="display:flex;align-items:center;gap:8px">
+        <button onclick="bcslCopyUnmapped(this)" style="padding:5px 12px;border:1px solid var(--navy);color:var(--navy);background:#fff;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">📋 Copy danh sách</button>
+        <span onclick="bcslToggleUnmapped()" style="cursor:pointer;font-size:16px;color:var(--text2);padding:0 4px">✕</span>
+      </span>
     </div>
     <div style="max-height:400px;overflow-y:auto">
     <table style="width:100%;border-collapse:collapse;font-size:12px">
@@ -17009,17 +17044,19 @@ async function bcslSkuRenderNganhHang(list, totalRev) {
         <tr style="background:var(--gray2)">
           <th style="padding:8px 12px;text-align:left;font-weight:700;color:var(--text2);position:sticky;top:0;background:var(--gray2)">Mã SKU</th>
           <th style="padding:8px 12px;text-align:left;font-weight:700;color:var(--text2);position:sticky;top:0;background:var(--gray2)">Tên sản phẩm</th>
-          <th style="padding:8px 12px;text-align:right;font-weight:700;color:var(--text2);position:sticky;top:0;background:var(--gray2)">Doanh thu</th>
-          <th style="padding:8px 12px;text-align:right;font-weight:700;color:var(--text2);position:sticky;top:0;background:var(--gray2)">SL bán</th>
+          <th style="padding:8px 12px;text-align:right;font-weight:700;color:var(--text2);position:sticky;top:0;background:var(--gray2)">SL Shopee</th>
+          <th style="padding:8px 12px;text-align:right;font-weight:700;color:var(--text2);position:sticky;top:0;background:var(--gray2)">SL TikTok</th>
+          <th style="padding:8px 12px;text-align:right;font-weight:700;color:var(--text2);position:sticky;top:0;background:var(--gray2)">Tổng SL</th>
         </tr>
       </thead>
       <tbody>
-        ${unmappedList.sort((a,b) => b.doanh_thu - a.doanh_thu).map((item, i) => `
+        ${unmappedFull.map((item, i) => `
         <tr style="border-bottom:1px solid var(--gray3);background:${i % 2 === 0 ? '#fff' : '#fffdf8'}">
           <td style="padding:7px 12px;font-family:monospace;font-weight:600">${item.ma_sku}</td>
           <td style="padding:7px 12px">${item.ten || '–'}</td>
-          <td style="padding:7px 12px;text-align:right;font-weight:600">${fmtM(item.doanh_thu)}</td>
-          <td style="padding:7px 12px;text-align:right">${(item.so_luong || 0).toLocaleString('vi-VN')}</td>
+          <td style="padding:7px 12px;text-align:right">${item.sl_sp.toLocaleString('vi-VN')}</td>
+          <td style="padding:7px 12px;text-align:right">${item.sl_tt.toLocaleString('vi-VN')}</td>
+          <td style="padding:7px 12px;text-align:right;font-weight:700">${(item.sl_sp + item.sl_tt).toLocaleString('vi-VN')}</td>
         </tr>`).join('')}
       </tbody>
     </table>
