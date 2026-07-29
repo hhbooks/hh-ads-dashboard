@@ -4760,6 +4760,16 @@ function tkxParseTonkhoThatSheet(ws) {
     const subRow = rows[headerRow + 1];
     if (subRow) qtyColIdx = subRow.findIndex(c => String(c||'').trim() === 'Số lượng');
   }
+  if (qtyColIdx === -1) {
+    // Một số file (KiotViet) đặt nhãn kho ("Tồn HN"/"Tồn HCM"...) ở dòng ngay dưới header,
+    // không phải cột cuối — ví dụ có thêm cột ghi chú (như "Giá cũ") sau cột số lượng thật.
+    // Ưu tiên tìm đúng cột khớp tên kho đã nhận diện, tránh lấy nhầm cột cuối cùng.
+    const subRow = rows[headerRow + 1] || [];
+    for (const cand of [header, subRow]) {
+      const i2 = cand.findIndex(c => classifyKho(String(c || '')) === kho);
+      if (i2 !== -1) { qtyColIdx = i2; break; }
+    }
+  }
   if (qtyColIdx === -1) qtyColIdx = header.length - 1;
   const tenHangColIdx  = header.findIndex(h => h === 'Tên hàng hóa' || h === 'Tên hàng');
   const dvtColIdx      = header.findIndex(h => h === 'Đơn vị tính');
