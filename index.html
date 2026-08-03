@@ -2657,6 +2657,56 @@
       </div>
     </div>
     </div><!-- end bckh wrapper -->
+
+    <!-- ── BÁO CÁO SẢN LƯỢNG THEO MÃ SKU ── -->
+    <div style="margin-top:24px;border-top:2px solid var(--gray3);padding-top:20px">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><span class="dot"></span> Báo Cáo Sản Lượng Theo Mã SKU</div>
+      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
+        Upload nhiều file <b>Báo Cáo Khách Hàng</b> (xuất từ mục "Báo Cáo Bán Hàng Theo Khách Hàng" ở trên, hoặc file bất kỳ có cột <b>Mã SKU / Tên hàng hóa / Tổng số lượng</b>).
+        Hệ thống gộp các dòng trùng Mã SKU (dù ở nhiều khách hàng hay nhiều file khác nhau) thành 1 dòng duy nhất, cộng dồn Tổng số lượng.
+      </p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <input type="file" id="bcsku-file-input" accept=".xlsx,.xls" multiple style="display:none"
+               onchange="bcskuHandleFiles(this)">
+        <button class="sw-upload-btn" onclick="document.getElementById('bcsku-file-input').click()">
+          📂 Up File (chọn nhiều)
+        </button>
+        <button class="sw-upload-btn" style="background:var(--green);color:#fff;display:none"
+                id="bcsku-export-btn" onclick="bcskuExport()">
+          📤 Xuất Excel
+        </button>
+        <button id="bcsku-reset-btn" onclick="bcskuReset()"
+                style="padding:8px 16px;border:1px solid var(--red);color:var(--red);background:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:none">
+          🔄 Reset
+        </button>
+      </div>
+      <div id="bcsku-warn-box" style="display:none;margin-top:10px;background:#fff8e1;border:1px solid #f39c12;border-radius:8px;padding:8px 14px;font-size:12px;color:#7d5b00"></div>
+    </div>
+
+    <!-- KPI -->
+    <div id="bcsku-kpi-card" style="display:none;margin-bottom:16px" class="card">
+      <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center">
+        <div><div style="font-size:12px;color:var(--text2)">Số file đã nạp</div>
+          <div id="bcsku-stat-files" style="font-size:24px;font-weight:700;color:var(--navy)">0</div></div>
+        <div><div style="font-size:12px;color:var(--text2)">Số mã SKU</div>
+          <div id="bcsku-stat-sku" style="font-size:24px;font-weight:700;color:var(--navy)">0</div></div>
+        <div><div style="font-size:12px;color:var(--text2)">Tổng số lượng</div>
+          <div id="bcsku-stat-sl" style="font-size:24px;font-weight:700;color:var(--green)">0</div></div>
+      </div>
+    </div>
+
+    <!-- Preview bảng tổng hợp -->
+    <div id="bcsku-preview-card" style="display:none" class="card">
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">📊 Bảng tổng hợp theo Mã SKU</div>
+      <div style="overflow-x:auto;border:1px solid var(--gray3);border-radius:8px">
+        <table id="bcsku-table" style="width:100%;border-collapse:collapse;font-size:12px;min-width:400px">
+          <thead id="bcsku-thead"></thead>
+          <tbody id="bcsku-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    </div><!-- end bcsku wrapper -->
   </div><!-- end page-nghiep-vu-gop-file -->
 
 </main>
@@ -18379,6 +18429,165 @@ function bckhReset() {
   const fl = document.getElementById('bckh-filter-list'); if (fl) fl.innerHTML = '';
   const th = document.getElementById('bckh-thead'); if (th) th.innerHTML = '';
   const tb = document.getElementById('bckh-tbody'); if (tb) tb.innerHTML = '';
+}
+
+// ══════════════════════════════════════════════════════════════
+// BÁO CÁO SẢN LƯỢNG THEO MÃ SKU (BCSKU)
+// Input: nhiều file có cột Mã SKU / Tên hàng hóa / Tổng số lượng (vd: file
+// xuất từ "Báo Cáo Bán Hàng Theo Khách Hàng" ở trên). Gộp trùng Mã SKU → cộng dồn SL.
+// Output: Mã SKU, Tên Hàng, Tổng số lượng.
+// ══════════════════════════════════════════════════════════════
+const BCSKU = {
+  allRows: [],     // [{ sku, ten, sl }]
+  fileCount: 0,
+  warnFiles: []
+};
+
+function bcskuParseOneFile(file, callback) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+      // Tìm dòng header — chấp nhận "Tổng số lượng" hoặc "Số lượng"
+      let hIdx = -1;
+      for (let i = 0; i < Math.min(raw.length, 12); i++) {
+        const r = (raw[i] || []).map(c => String(c || '').trim());
+        if (r.includes('Mã SKU') && (r.includes('Tổng số lượng') || r.includes('Số lượng'))) { hIdx = i; break; }
+      }
+      if (hIdx === -1) { callback(null, 'Không tìm được dòng tiêu đề (cần cột "Mã SKU" và "Tổng số lượng")'); return; }
+
+      const header = (raw[hIdx] || []).map(c => String(c || '').trim());
+      const iSKU = header.indexOf('Mã SKU');
+      const iTen = header.indexOf('Tên hàng hóa') !== -1 ? header.indexOf('Tên hàng hóa') : header.indexOf('Tên Hàng');
+      const iSL  = header.indexOf('Tổng số lượng') !== -1 ? header.indexOf('Tổng số lượng') : header.indexOf('Số lượng');
+
+      const rows = [];
+      for (let i = hIdx + 1; i < raw.length; i++) {
+        const r = raw[i] || [];
+        const sku = String(r[iSKU] || '').trim();
+        // Bỏ dòng rỗng và dòng "TỔNG CỘNG" (footer của file BCKH xuất ra trước đó)
+        if (!sku || sku.toUpperCase() === 'TỔNG CỘNG') continue;
+        const ten = iTen !== -1 ? String(r[iTen] || '').trim() : '';
+        const sl  = iSL  !== -1 ? (Number(r[iSL]) || 0) : 0;
+        rows.push({ sku, ten, sl });
+      }
+      callback({ rows, filename: file.name }, null);
+    } catch(err) { callback(null, err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function bcskuHandleFiles(input) {
+  const files = [...input.files];
+  if (!files.length) return;
+  BCSKU.allRows = []; BCSKU.fileCount = 0; BCSKU.warnFiles = [];
+
+  let done = 0;
+  files.forEach(file => {
+    bcskuParseOneFile(file, (result, err) => {
+      if (err) { BCSKU.warnFiles.push(`${file.name}: ${err}`); }
+      else if (result) { BCSKU.allRows = BCSKU.allRows.concat(result.rows); BCSKU.fileCount++; }
+      done++;
+      if (done === files.length) bcskuRender();
+    });
+  });
+  input.value = '';
+}
+
+// Gộp rows theo Mã SKU: cộng dồn Tổng số lượng, giữ Tên hàng hóa đầu tiên gặp được
+function bcskuBuildSummary() {
+  const map = new Map();
+  BCSKU.allRows.forEach(r => {
+    if (!map.has(r.sku)) map.set(r.sku, { sku: r.sku, ten: r.ten, totalSL: 0 });
+    const e = map.get(r.sku);
+    e.totalSL += r.sl;
+    if (!e.ten && r.ten) e.ten = r.ten;
+  });
+  return Array.from(map.values()).sort((a, b) => b.totalSL - a.totalSL);
+}
+
+function bcskuRender() {
+  const summary = bcskuBuildSummary();
+  document.getElementById('bcsku-stat-files').textContent = BCSKU.fileCount;
+  document.getElementById('bcsku-stat-sku').textContent   = summary.length;
+  document.getElementById('bcsku-stat-sl').textContent    = summary.reduce((s, r) => s + r.totalSL, 0).toLocaleString('vi-VN');
+  ['bcsku-kpi-card','bcsku-preview-card','bcsku-export-btn','bcsku-reset-btn']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
+
+  const warnBox = document.getElementById('bcsku-warn-box');
+  if (warnBox) {
+    if (BCSKU.warnFiles.length) {
+      warnBox.style.display = 'block';
+      warnBox.innerHTML = `⚠️ ${BCSKU.warnFiles.length} file lỗi/bỏ qua: ` + BCSKU.warnFiles.join(' · ');
+    } else warnBox.style.display = 'none';
+  }
+  bcskuRenderTable(summary);
+}
+
+function bcskuRenderTable(summary) {
+  summary = summary || bcskuBuildSummary();
+  const thead = document.getElementById('bcsku-thead');
+  const tbody = document.getElementById('bcsku-tbody');
+  if (!thead || !tbody) return;
+  const cols = ['Mã SKU', 'Tên Hàng', 'Tổng số lượng'];
+
+  thead.innerHTML = `<tr style="background:#1a2a4a">
+    ${cols.map(c => `<th style="padding:8px 10px;text-align:${c==='Tổng số lượng'?'right':'left'};color:#fff;font-weight:700;font-size:11px;white-space:nowrap">${c}</th>`).join('')}
+  </tr>`;
+
+  let rowsHtml = summary.slice(0, 200).map((s, idx) => {
+    const bg = idx % 2 === 0 ? '#fff' : '#f8f9ff';
+    return `<tr style="background:${bg};border-bottom:1px solid var(--gray3)">
+      <td style="padding:7px 10px;font-size:11px">${s.sku}</td>
+      <td style="padding:7px 10px;font-size:11px">${s.ten}</td>
+      <td style="padding:7px 10px;font-size:11px;text-align:right;font-weight:600">${s.totalSL.toLocaleString('vi-VN')}</td>
+    </tr>`;
+  }).join('');
+
+  if (summary.length > 200) {
+    rowsHtml += `<tr><td colspan="3" style="padding:8px;text-align:center;color:var(--text2);font-size:11px">... và ${summary.length - 200} dòng nữa</td></tr>`;
+  }
+
+  const grandSL = summary.reduce((s, r) => s + r.totalSL, 0);
+  rowsHtml += `<tr style="background:#1a2a4a;font-weight:700">
+    <td style="padding:8px 10px;color:#fff;font-size:11px" colspan="2">TỔNG CỘNG</td>
+    <td style="padding:8px 10px;text-align:right;color:#ffd740;font-size:12px;font-weight:800">${grandSL.toLocaleString('vi-VN')}</td>
+  </tr>`;
+
+  tbody.innerHTML = rowsHtml;
+}
+
+function bcskuExport() {
+  const summary = bcskuBuildSummary();
+  if (!summary.length) { alert('Không có dữ liệu để xuất!'); return; }
+
+  const headers = ['Mã SKU', 'Tên Hàng', 'Tổng số lượng'];
+  const wsData = [headers];
+  summary.forEach(s => wsData.push([s.sku, s.ten, s.totalSL]));
+
+  const totalSL = summary.reduce((s, r) => s + r.totalSL, 0);
+  wsData.push(['TỔNG CỘNG', '', totalSL]);
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{ wch: 18 }, { wch: 55 }, { wch: 16 }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'SL theo SKU');
+  const d = new Date();
+  const ds = d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+  XLSX.writeFile(wb, `BaoCao_SanLuong_SKU_${ds}.xlsx`);
+}
+
+function bcskuReset() {
+  BCSKU.allRows = []; BCSKU.fileCount = 0; BCSKU.warnFiles = [];
+  ['bcsku-kpi-card','bcsku-preview-card','bcsku-export-btn','bcsku-reset-btn']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  const th = document.getElementById('bcsku-thead'); if (th) th.innerHTML = '';
+  const tb = document.getElementById('bcsku-tbody'); if (tb) tb.innerHTML = '';
+  const wb = document.getElementById('bcsku-warn-box'); if (wb) wb.style.display = 'none';
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
