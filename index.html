@@ -1672,6 +1672,12 @@
         <div class="kpi-value" id="tq-kpi-missing">0</div>
         <div class="kpi-sub">Cần đồng bộ lại danh mục SKU</div>
       </div>
+      <div class="kpi-card" style="border-top-color:#8e44ad">
+        <div class="kpi-icon">🆕</div>
+        <div class="kpi-label">SKU Mới — Chưa Có Tồn Kho</div>
+        <div class="kpi-value" id="tq-kpi-newsku" style="color:#8e44ad">0</div>
+        <div class="kpi-sub">Có trong danh mục nhưng chưa từng lưu tồn kho thật</div>
+      </div>
     </div>
 
     <div class="card">
@@ -1682,6 +1688,7 @@
         </select>
         <button class="filter-btn active" data-filter="all" onclick="tqSetFilter('all',this)">Tất cả</button>
         <button class="filter-btn" data-filter="missing-catalog" onclick="tqSetFilter('missing-catalog',this)">⚠️ Chưa có trong danh mục</button>
+        <button class="filter-btn" style="color:#8e44ad" data-filter="new-no-stock" onclick="tqSetFilter('new-no-stock',this)">🆕 SKU mới — chưa có tồn</button>
       </div>
       <div class="table-wrap" style="max-height:520px;overflow-y:auto;border:1px solid var(--gray3);border-radius:8px">
         <table>
@@ -11063,6 +11070,24 @@ function tqBuildRows() {
   if (blLastEl && blOverrideCount) {
     blLastEl.textContent += ` — đang áp dụng cho ${blOverrideCount} SKU trong bảng dưới đây`;
   }
+
+  // SKU mới — có trong Danh Mục SKU (đồng bộ từ Google Sheet) nhưng CHƯA từng có bản ghi
+  // tồn kho thật (tonkho_thuc) — tức là chưa được nạp qua bước "Lưu Tồn Kho Thật Vào Hệ Thống"
+  // ở trang Cập Nhật Tồn Kho. Giúp phát hiện SKU/sách mới thêm vào danh mục nhưng quên cập nhật tồn.
+  const stockKeys = new Set(Object.keys(TQ.stock));
+  const newSkuRows = [];
+  Object.keys(TQ.catalog || {}).forEach(sku => {
+    if (stockKeys.has(sku)) return;
+    const cat = TQ.catalog[sku] || {};
+    newSkuRows.push({
+      sku, ten: cat.ten || '', ncc: cat.ncc || '',
+      giaVon: Number(cat.giaVon) || 0,
+      hn: 0, hcm: 0, hangar: 0, total: 0,
+      inCatalog: true, isNew: true
+    });
+  });
+  TQ.newSkuRows = newSkuRows;
+
   tqPopulateNccOptions();
 }
 
@@ -11070,7 +11095,8 @@ function tqPopulateNccOptions() {
   const sel = document.getElementById('tq-ncc-filter');
   if (!sel) return;
   const current = TQ.nccFilter || 'all';
-  const list = Array.from(new Set(TQ.rows.map(r => r.ncc).filter(v => v && String(v).trim()))).sort((a, b) => a.localeCompare(b, 'vi'));
+  const allNcc = TQ.rows.map(r => r.ncc).concat((TQ.newSkuRows || []).map(r => r.ncc));
+  const list = Array.from(new Set(allNcc.filter(v => v && String(v).trim()))).sort((a, b) => a.localeCompare(b, 'vi'));
   const escAttr = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   sel.innerHTML = '<option value="all">🏢 Tất cả nhà cung cấp</option>' + list.map(ncc => `<option value="${escAttr(ncc)}">${escAttr(ncc)}</option>`).join('');
   sel.value = list.includes(current) ? current : 'all';
@@ -11087,6 +11113,11 @@ function tqGetNccFilteredRows() {
   return TQ.nccFilter === 'all' ? TQ.rows : TQ.rows.filter(r => r.ncc === TQ.nccFilter);
 }
 
+function tqGetNccFilteredNewRows() {
+  const rows = TQ.newSkuRows || [];
+  return TQ.nccFilter === 'all' ? rows : rows.filter(r => r.ncc === TQ.nccFilter);
+}
+
 function tqRenderKpis() {
   const rows = tqGetNccFilteredRows();
   const skuEl = document.getElementById('tq-kpi-sku'); if (skuEl) skuEl.textContent = rows.length;
@@ -11098,6 +11129,7 @@ function tqRenderKpis() {
   const hcmEl = document.getElementById('tq-kpi-hcm'); if (hcmEl) hcmEl.textContent = sumHcm.toLocaleString('vi-VN');
   const valEl = document.getElementById('tq-kpi-value'); if (valEl) valEl.textContent = sumValue.toLocaleString('vi-VN') + 'đ';
   const missEl = document.getElementById('tq-kpi-missing'); if (missEl) missEl.textContent = missing;
+  const newEl = document.getElementById('tq-kpi-newsku'); if (newEl) newEl.textContent = tqGetNccFilteredNewRows().length;
 }
 
 function tqSetFilter(filter, btn) {
@@ -11112,7 +11144,9 @@ function tqRenderTable() {
   if (!tbody) return;
   const searchEl = document.getElementById('tq-search');
   const search = searchEl ? (searchEl.value || '').trim().toLowerCase() : '';
-  let filtered = tqGetNccFilteredRows().filter(r => TQ.filter === 'all' || (TQ.filter === 'missing-catalog' && !r.inCatalog));
+  let filtered = TQ.filter === 'new-no-stock'
+    ? tqGetNccFilteredNewRows().slice()
+    : tqGetNccFilteredRows().filter(r => TQ.filter === 'all' || (TQ.filter === 'missing-catalog' && !r.inCatalog));
   if (search) {
     filtered = filtered.filter(r => String(r.ten).toLowerCase().includes(search) || String(r.sku).toLowerCase().includes(search));
   }
@@ -11125,7 +11159,7 @@ function tqRenderTable() {
     <tr>
       <td>${i + 1}</td>
       <td style="text-align:left;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escAttr(r.ten || 'Chưa có trong danh mục')}">${r.ten || '<span style="color:var(--red)">⚠ Chưa có trong danh mục</span>'}</td>
-      <td>${r.sku}${r.blOverride ? ' <span title="Số lượng đang lấy từ Black List (ghi đè file tồn nguồn)" style="color:#c0392b">🚫</span>' : ''}</td>
+      <td>${r.sku}${r.blOverride ? ' <span title="Số lượng đang lấy từ Black List (ghi đè file tồn nguồn)" style="color:#c0392b">🚫</span>' : ''}${r.isNew ? ' <span title="SKU mới trong danh mục — chưa lưu tồn kho thật" style="color:#8e44ad">🆕</span>' : ''}</td>
       <td style="text-align:left">${r.ncc || '–'}</td>
       <td class="num">${r.hn.toLocaleString('vi-VN')}</td>
       <td class="num">${r.hcm.toLocaleString('vi-VN')}</td>
@@ -11261,6 +11295,16 @@ async function tqDoCatalogSync() {
 
     tqCatalogLog(`✅ Đã đồng bộ ${count} SKU vào danh mục.`, 'ok');
     await tqLoadData();
+
+    // Báo ngay các SKU mới trong danh mục nhưng chưa có bản ghi tồn kho thật — để dễ kiểm soát
+    // (xem thêm đầy đủ tại bộ lọc "🆕 SKU mới — chưa có tồn" ở bảng Tổng Quan Tồn Kho bên dưới).
+    const newCount = (TQ.newSkuRows || []).length;
+    if (newCount > 0) {
+      const sample = TQ.newSkuRows.slice(0, 5).map(r => `${r.sku}${r.ten ? ' - ' + r.ten : ''}`).join(' | ');
+      tqCatalogLog(`🆕 Phát hiện ${newCount} SKU mới trong danh mục — CHƯA có tồn kho thật (chưa qua bước "Lưu Tồn Kho Thật" ở Cập Nhật Tồn Kho): ${sample}${newCount > 5 ? ` … và ${newCount - 5} mã khác` : ''}.`, 'warn');
+    } else {
+      tqCatalogLog('✅ Không có SKU mới nào đang thiếu tồn kho thật.', 'ok');
+    }
   } catch (err) {
     tqCatalogLog('❌ Lỗi đồng bộ: ' + err.message, 'err');
   } finally {
