@@ -79,6 +79,37 @@
   .shop-chip.active .shop-chip-status { background: rgba(255,255,255,.22); color: #fff; }
   .shop-chip.active .shop-chip-status.loaded { background: rgba(255,255,255,.32); color: #fff; }
 
+  /* Dropdown chọn Shop — chỉ dùng ở thanh lọc Tổng Quan, thay 6 chip xoè ra cho gọn (Tân 2026-08-05) */
+  .shop-dd-wrap { position: relative; display: inline-block; }
+  .shop-dd-btn {
+    display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+    border: 1px solid var(--gray3); border-radius: 8px; cursor: pointer;
+    font-size: 12.5px; font-weight: 600; background: white; color: var(--text); min-width: 210px;
+    user-select: none; transition: all .15s;
+  }
+  .shop-dd-btn:hover { border-color: var(--orange2); }
+  .shop-dd-btn svg { margin-left: auto; flex-shrink: 0; transition: transform .15s; }
+  .shop-dd-btn.open svg { transform: rotate(180deg); }
+  .shop-dd-menu {
+    position: absolute; top: calc(100% + 4px); left: 0; z-index: 999;
+    background: white; border: 1px solid var(--gray3); border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.15); overflow: hidden; min-width: 240px;
+  }
+  .shop-dd-menu.hidden { display: none; }
+  .shop-dd-item {
+    display: flex; align-items: center; gap: 8px; padding: 9px 14px;
+    font-size: 12.5px; font-weight: 600; cursor: pointer; transition: background .12s;
+  }
+  .shop-dd-item:hover { background: var(--gray1); }
+  .shop-dd-item.active { background: var(--orange); color: white; }
+  .shop-dd-item .shop-dd-status {
+    margin-left: auto; font-size: 9.5px; padding: 2px 7px; border-radius: 8px; font-weight: 700;
+    background: var(--gray2); color: var(--text2); white-space: nowrap;
+  }
+  .shop-dd-item .shop-dd-status.loaded { background: var(--green2); color: var(--green); }
+  .shop-dd-item.active .shop-dd-status { background: rgba(255,255,255,.22); color: #fff; }
+  .shop-dd-item.active .shop-dd-status.loaded { background: rgba(255,255,255,.32); color: #fff; }
+
   .nav-badge.green { background: var(--green); }
 
   /* ── ACCORDION BLOCKS ── */
@@ -562,15 +593,15 @@
           <span class="nav-badge green" id="badge-csv" style="display:none">Mới</span>
         </div>
         <div class="nav-mini-sep"></div>
-        <div class="nav-item" onclick="showPage('tonghop',this)" id="nav-tonghop">
-          <span class="icon">🌐</span> Tổng Hợp Hệ Thống
-        </div>
         <div class="nav-item" onclick="showPage('overview',this)">
           <span class="icon">🏠</span> Tổng Quan
         </div>
         <div class="nav-item" onclick="showPage('auto-camp',this)" id="nav-auto-camp">
           <span class="icon">⚡</span> Chiến Dịch Tự Động GMS
           <span class="nav-badge warn" id="badge-auto-camp" style="display:none">–</span>
+        </div>
+        <div class="nav-item" onclick="showPage('tonghop',this)" id="nav-tonghop">
+          <span class="icon">🌐</span> Tổng Hợp Hệ Thống
         </div>
       </div>
     </div>
@@ -13014,12 +13045,20 @@ loadFromStorage().then(hasStoredData => {
 // ══════════════════════════════════════════════════════════════
 // SHOP SWITCHER
 // ══════════════════════════════════════════════════════════════
-// Sinh lại 2 thanh chip chọn shop (đầu trang Cập Nhật CSV + Tổng Quan — thay cho shop-selector
-// cũ ở sidebar, xác nhận với Tân 2026-08-05). 2 trang có DOM riêng nên phải render lại cả 2 mỗi
-// lần G.current hoặc trạng thái "đã tải" của 1 shop thay đổi, để luôn đồng bộ với nhau.
+// Sinh lại thanh chọn shop ở đầu trang Cập Nhật CSV (dạng chip) + Tổng Quan (dạng sổ xuống,
+// xác nhận với Tân 2026-08-05 — gọn hơn vì trang Tổng Quan có thêm bộ lọc ngày trên cùng hàng).
+// 2 trang có DOM riêng nên phải render lại cả 2 mỗi lần G.current hoặc trạng thái "đã tải" của
+// 1 shop thay đổi, để luôn đồng bộ với nhau.
 function renderAllShopFilterBars() {
-  const containers = ['shop-filter-bar-update', 'shop-filter-bar-overview'];
-  const chipsHtml = '<span class="shop-filter-label">🏪 Shop:</span>' + Object.keys(SHOPS).map(id => {
+  renderShopFilterChips();
+  renderShopFilterDropdown();
+}
+
+// Trang Cập Nhật CSV — giữ dạng chip xoè như cũ.
+function renderShopFilterChips() {
+  const el = document.getElementById('shop-filter-bar-update');
+  if (!el) return;
+  el.innerHTML = '<span class="shop-filter-label">🏪 Shop:</span>' + Object.keys(SHOPS).map(id => {
     const shop = SHOPS[id];
     const loaded = !!(G.shops[id] && G.shops[id].loaded);
     const active = id === G.current;
@@ -13028,11 +13067,55 @@ function renderAllShopFilterBars() {
       <span class="shop-chip-status${loaded ? ' loaded' : ''}">${loaded ? '✓ Đã tải' : 'Chưa tải'}</span>
     </span>`;
   }).join('');
-  containers.forEach(cid => {
-    const el = document.getElementById(cid);
-    if (el) el.innerHTML = chipsHtml;
-  });
 }
+
+// Trang Tổng Quan — dạng sổ xuống (click mở/đóng), gọn hơn 6 chip xoè ra.
+function renderShopFilterDropdown() {
+  const el = document.getElementById('shop-filter-bar-overview');
+  if (!el) return;
+  const cur = SHOPS[G.current];
+  const curLoaded = !!(G.shops[G.current] && G.shops[G.current].loaded);
+  const itemsHtml = Object.keys(SHOPS).map(id => {
+    const shop = SHOPS[id];
+    const loaded = !!(G.shops[id] && G.shops[id].loaded);
+    const active = id === G.current;
+    return `<div class="shop-dd-item${active ? ' active' : ''}" onclick="shopDdSelect('${id}')">
+      <span>${shop.icon}</span><span>${shop.name}</span>
+      <span class="shop-dd-status${loaded ? ' loaded' : ''}">${loaded ? '✓ Đã tải' : 'Chưa tải'}</span>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<span class="shop-filter-label">🏪 Shop:</span>
+    <div class="shop-dd-wrap" id="shop-dd-wrap">
+      <div class="shop-dd-btn" id="shop-dd-btn" onclick="shopDdToggle()">
+        <span>${cur.icon}</span><span>${cur.name}</span>
+        <span class="shop-dd-status${curLoaded ? ' loaded' : ''}" style="margin-left:4px">${curLoaded ? '✓ Đã tải' : 'Chưa tải'}</span>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </div>
+      <div class="shop-dd-menu hidden" id="shop-dd-menu">${itemsHtml}</div>
+    </div>`;
+}
+
+function shopDdToggle() {
+  const menu = document.getElementById('shop-dd-menu');
+  const btn  = document.getElementById('shop-dd-btn');
+  if (!menu) return;
+  const isOpen = !menu.classList.contains('hidden');
+  if (isOpen) { menu.classList.add('hidden'); if (btn) btn.classList.remove('open'); }
+  else        { menu.classList.remove('hidden'); if (btn) btn.classList.add('open'); }
+}
+function shopDdSelect(id) {
+  const menu = document.getElementById('shop-dd-menu'); if (menu) menu.classList.add('hidden');
+  const btn  = document.getElementById('shop-dd-btn');  if (btn)  btn.classList.remove('open');
+  switchShop(id);
+}
+// Đóng dropdown shop khi click ra ngoài
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('shop-dd-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    const menu = document.getElementById('shop-dd-menu'); if (menu) menu.classList.add('hidden');
+    const btn  = document.getElementById('shop-dd-btn');  if (btn)  btn.classList.remove('open');
+  }
+});
 
 function switchShop(shopId, btn) {
   G.current = shopId;
