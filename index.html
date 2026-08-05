@@ -11931,9 +11931,12 @@ async function giaSubmitOrdersImport() {
 }
 
 // ── Đồng bộ đơn hàng từ Google Sheet "Cập Nhật Đơn Hằng Ngày" —
-//    Dùng lại đúng scope "drive.readonly" đã được duyệt/hoạt động ổn (giống Trung Tâm Dữ Liệu),
-//    tải file dưới dạng .xlsx (giữ đủ mọi tab) rồi đọc tab cần bằng XLSX — KHÔNG dùng scope mới
-//    (spreadsheets.readonly) vì OAuth consent screen của project chưa khai báo, sẽ bị Google chặn.
+//    Đọc TRỰC TIẾP đúng 1 tab cần bằng Google Sheets API (spreadsheets.values.get), giống hệt
+//    cách phần Black List (blDoBlacklistSync) đang chạy ổn. KHÔNG dùng Drive API files.export
+//    nữa — export nguyên workbook (đủ mọi tab) từng bị lỗi 403 "exportSizeLimitExceeded" vì
+//    sheet đơn hàng cả năm vượt giới hạn cứng 10MB của Drive API. Đọc theo tab qua Sheets API
+//    không bị giới hạn này, lại chỉ tải đúng dữ liệu cần — nhanh hơn nhiều.
+//    Xác nhận với Tân 2026-08-05 sau khi tái hiện đúng lỗi exportSizeLimitExceeded.
 //    Token vẫn TÁCH RIÊNG (_giaDriveToken/_giaTokenClient) để không đụng vào token của sku_catalog.
 let _giaDriveToken = null;
 let _giaTokenClient = null;
@@ -11955,7 +11958,7 @@ function giaSyncOrders() {
     try {
       _giaTokenClient = google.accounts.oauth2.initTokenClient({
         client_id: clientId,
-        scope: 'https://www.googleapis.com/auth/drive.readonly',
+        scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
         callback: async (resp) => {
           if (resp.error) {
             let errMsg = resp.error;
@@ -11982,8 +11985,9 @@ function giaSyncOrders() {
 async function giaDoSyncOrders(tab) {
   const btn = document.getElementById('gia-sync-orders-btn');
   try {
-    giaLog(`📥 Đang tải file đơn hàng (toàn bộ các tab) từ Google Drive...`);
-    const url = `https://www.googleapis.com/drive/v3/files/${GIA_ORDERS_SHEET_ID}/export?mimeType=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`;
+    giaLog(`📥 Đang tải tab "${tab}" từ Google Sheet...`);
+    const range = encodeURIComponent(tab) + '!A:Z';
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${GIA_ORDERS_SHEET_ID}/values/${range}?majorDimension=ROWS`;
     const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + _giaDriveToken } });
 
     if (resp.status === 401) {
@@ -11992,9 +11996,19 @@ async function giaDoSyncOrders(tab) {
       if (btn) btn.disabled = false; return;
     }
     if (resp.status === 403) {
-      const errBody = await resp.text().catch(() => '');
-      giaLog('❌ Lỗi 403 khi tải file: ' + (errBody ? errBody.slice(0, 400) : '(không có nội dung lỗi chi tiết)'), 'err');
-      giaLog('👉 Nếu lý do là "exportSizeLimitExceeded"/"file too large" → không phải lỗi quyền, mà do file này export nguyên workbook (tất cả các tab) vượt giới hạn 10MB của Google Drive API. Báo lại nội dung lỗi chính xác ở trên để xử lý đúng hướng.', 'info');
+      const errBody403 = await resp.text().catch(() => '');
+      let reason403 = '';
+      try { reason403 = JSON.parse(errBody403).error.message; } catch (e) { reason403 = errBody403.slice(0, 300); }
+      giaLog('❌ Lỗi 403: ' + (reason403 || 'Không có quyền truy cập Google Sheet này.'), 'err');
+      if (/has not been used|disabled|API.*project/i.test(reason403)) {
+        giaLog('👉 Nguyên nhân: Google Sheets API CHƯA được bật cho project Google Cloud gắn với Client ID OAuth này. Vào Google Cloud Console → APIs & Services → Library → tìm "Google Sheets API" → Enable, rồi thử đồng bộ lại.', 'info');
+      } else {
+        giaLog('👉 Tài khoản Google bạn vừa chọn lúc đăng nhập có thể không phải tài khoản có quyền xem Sheet "Cập Nhật Đơn Hằng Ngày" — kiểm tra lại đã chọn đúng tài khoản chưa, hoặc nhờ admin share Sheet vào tài khoản đó.', 'info');
+      }
+      if (btn) btn.disabled = false; return;
+    }
+    if (resp.status === 400 || resp.status === 404) {
+      giaLog(`❌ Không tìm thấy tab "${tab}" trong Google Sheet (kiểm tra lại tên tab).`, 'err');
       if (btn) btn.disabled = false; return;
     }
     if (!resp.ok) {
@@ -12002,14 +12016,8 @@ async function giaDoSyncOrders(tab) {
       throw new Error('HTTP ' + resp.status + (errBody ? ' — ' + errBody.slice(0, 200) : ''));
     }
 
-    giaLog(`📄 Đang đọc tab "${tab}"...`);
-    const buf = await resp.arrayBuffer();
-    const wb = XLSX.read(buf, { type: 'array' });
-    if (!wb.SheetNames.includes(tab)) {
-      throw new Error(`Không tìm thấy tab "${tab}" trong file (các tab có sẵn: ${wb.SheetNames.join(', ')})`);
-    }
-    const ws = wb.Sheets[tab];
-    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+    const data = await resp.json();
+    const rows = data.values || [];
     if (!rows.length) throw new Error(`Tab "${tab}" trống hoặc không đọc được dữ liệu`);
 
     const norm = s => String(s || '').trim().toLowerCase();
