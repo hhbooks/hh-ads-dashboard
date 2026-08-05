@@ -59,25 +59,25 @@
   }
   .nav-badge.warn  { background: var(--orange2); }
 
-  /* ── SHOP SELECTOR ── */
-  .shop-selector { padding: 10px 12px 6px; }
-  .shop-btn {
-    display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 12px;
-    border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; margin-bottom: 5px;
-    background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.75);
-    font-size: 12px; cursor: pointer; transition: all .2s; text-align: left;
+  /* ── SHOP FILTER BAR (trong nội dung trang — thay cho shop-selector cũ ở sidebar) ──
+     Dùng ở đầu 2 trang Cập Nhật CSV + Tổng Quan (2 trang duy nhất phụ thuộc G.current).
+     Xác nhận với Tân 2026-08-05: bỏ 6 nút shop khỏi sidebar cho gọn, chuyển vào trong trang. */
+  .shop-filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+  .shop-filter-label { font-size: 12px; color: var(--text2); font-weight: 700; margin-right: 2px; white-space: nowrap; }
+  .shop-chip {
+    display: flex; align-items: center; gap: 7px; padding: 7px 14px;
+    border: 1px solid var(--gray3); border-radius: 20px; background: #fff; color: var(--text);
+    font-size: 12.5px; font-weight: 600; cursor: pointer; transition: all .15s; user-select: none;
   }
-  .shop-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.3); color: white; }
-  .shop-btn.active { border-color: var(--orange); background: rgba(230,126,34,0.2); color: white; font-weight: 600; }
-  .shop-btn .shop-icon { font-size: 15px; }
-  .shop-btn .shop-name { flex: 1; line-height: 1.2; }
-  .shop-btn .shop-status {
-    font-size: 9px; padding: 2px 6px; border-radius: 8px; font-weight: 700;
-    background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5);
-    white-space: nowrap;
+  .shop-chip:hover:not(.active) { border-color: var(--orange2); color: var(--orange); }
+  .shop-chip.active { border-color: var(--orange); background: var(--orange); color: #fff; }
+  .shop-chip .shop-chip-status {
+    font-size: 9.5px; padding: 2px 7px; border-radius: 8px; font-weight: 700;
+    background: var(--gray2); color: var(--text2); white-space: nowrap;
   }
-  .shop-btn .shop-status.loaded { background: rgba(39,174,96,0.3); color: #A8E6CF; }
-  .shop-sep { height: 1px; background: rgba(255,255,255,0.1); margin: 8px 12px; }
+  .shop-chip .shop-chip-status.loaded { background: var(--green2); color: var(--green); }
+  .shop-chip.active .shop-chip-status { background: rgba(255,255,255,.22); color: #fff; }
+  .shop-chip.active .shop-chip-status.loaded { background: rgba(255,255,255,.32); color: #fff; }
 
   .nav-badge.green { background: var(--green); }
 
@@ -556,40 +556,6 @@
         <span class="block-arrow">▶</span>
       </div>
       <div class="block-body" id="block-body-ads" style="display:none">
-        <!-- Shop selector bên trong khối ADS -->
-        <div class="shop-selector" style="padding:8px 8px 2px">
-          <div class="shop-btn active" id="shop-btn-2hbooks" onclick="switchShop('2hbooks',this)">
-            <span class="shop-icon">📚</span>
-            <span class="shop-name">Nhà Sách 2HBooks</span>
-            <span class="shop-status" id="shop-status-2hbooks">Chưa tải</span>
-          </div>
-          <div class="shop-btn" id="shop-btn-huyhoanh" onclick="switchShop('huyhoanh',this)">
-            <span class="shop-icon">📖</span>
-            <span class="shop-name">Huy Hoàng Bookstore</span>
-            <span class="shop-status" id="shop-status-huyhoanh">Chưa tải</span>
-          </div>
-          <div class="shop-btn" id="shop-btn-2hhome" onclick="switchShop('2hhome',this)">
-            <span class="shop-icon">🏠</span>
-            <span class="shop-name">2H Home Living</span>
-            <span class="shop-status" id="shop-status-2hhome">Chưa tải</span>
-          </div>
-          <div class="shop-btn" id="shop-btn-2hbooks2" onclick="switchShop('2hbooks2',this)">
-            <span class="shop-icon">📗</span>
-            <span class="shop-name">2H Books</span>
-            <span class="shop-status" id="shop-status-2hbooks2">Chưa tải</span>
-          </div>
-          <div class="shop-btn" id="shop-btn-hoacu" onclick="switchShop('hoacu',this)">
-            <span class="shop-icon">🎨</span>
-            <span class="shop-name">2H Họa Cụ</span>
-            <span class="shop-status" id="shop-status-hoacu">Chưa tải</span>
-          </div>
-          <div class="shop-btn" id="shop-btn-2hhcm" onclick="switchShop('2hhcm',this)">
-            <span class="shop-icon">🏙️</span>
-            <span class="shop-name">2H HCM</span>
-            <span class="shop-status" id="shop-status-2hhcm">Chưa tải</span>
-          </div>
-        </div>
-        <div class="shop-sep" style="margin:4px 8px 2px"></div>
         <div class="nav-item" onclick="showPage('tonghop',this)" id="nav-tonghop">
           <span class="icon">🌐</span> Tổng Hợp Hệ Thống
         </div>
@@ -691,6 +657,9 @@
 
   <!-- OVERVIEW PAGE -->
   <div class="page" id="page-overview">
+    <!-- Bộ lọc Shop — chuyển từ sidebar vào đây (xác nhận với Tân 2026-08-05) -->
+    <div class="shop-filter-bar" id="shop-filter-bar-overview"></div>
+
     <!-- OVERVIEW TIME FILTER -->
     <div class="trend-filter" id="overview-filter-bar">
       <span style="font-size:12px;color:var(--text2);font-weight:700">📅 Kỳ xem:</span>
@@ -1118,6 +1087,9 @@
 
   <!-- CSV UPDATE PAGE -->
   <div class="page" id="page-update">
+
+    <!-- Bộ lọc Shop — chuyển từ sidebar vào đây (xác nhận với Tân 2026-08-05) -->
+    <div class="shop-filter-bar" id="shop-filter-bar-update"></div>
 
     <!-- GOOGLE DRIVE SYNC CARD -->
     <div class="card drive-sync-card">
@@ -3369,6 +3341,7 @@ const db = firebase.firestore();
 // có dữ liệu Black List sẵn sàng càng sớm càng tốt. blLoadIfNeeded() được định nghĩa phía dưới,
 // nhưng vì đây chỉ là 1 lệnh gọi async (không thực thi ngay khi parse), JS vẫn chạy đúng.
 window.addEventListener('DOMContentLoaded', () => {
+  if (typeof renderAllShopFilterBars === 'function') renderAllShopFilterBars();
   if (typeof blLoadIfNeeded === 'function') blLoadIfNeeded();
   // Xử lý OAuth callback từ Shopee (nếu URL có ?code=xxx&shop_id=yyy)
   if (typeof sapiHandleCallback === 'function') sapiHandleCallback();
@@ -12930,11 +12903,29 @@ loadFromStorage().then(hasStoredData => {
 // ══════════════════════════════════════════════════════════════
 // SHOP SWITCHER
 // ══════════════════════════════════════════════════════════════
+// Sinh lại 2 thanh chip chọn shop (đầu trang Cập Nhật CSV + Tổng Quan — thay cho shop-selector
+// cũ ở sidebar, xác nhận với Tân 2026-08-05). 2 trang có DOM riêng nên phải render lại cả 2 mỗi
+// lần G.current hoặc trạng thái "đã tải" của 1 shop thay đổi, để luôn đồng bộ với nhau.
+function renderAllShopFilterBars() {
+  const containers = ['shop-filter-bar-update', 'shop-filter-bar-overview'];
+  const chipsHtml = '<span class="shop-filter-label">🏪 Shop:</span>' + Object.keys(SHOPS).map(id => {
+    const shop = SHOPS[id];
+    const loaded = !!(G.shops[id] && G.shops[id].loaded);
+    const active = id === G.current;
+    return `<span class="shop-chip${active ? ' active' : ''}" onclick="switchShop('${id}')">
+      <span>${shop.icon}</span><span>${shop.name}</span>
+      <span class="shop-chip-status${loaded ? ' loaded' : ''}">${loaded ? '✓ Đã tải' : 'Chưa tải'}</span>
+    </span>`;
+  }).join('');
+  containers.forEach(cid => {
+    const el = document.getElementById(cid);
+    if (el) el.innerHTML = chipsHtml;
+  });
+}
+
 function switchShop(shopId, btn) {
   G.current = shopId;
-  // Update sidebar buttons
-  document.querySelectorAll('.shop-btn').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
+  renderAllShopFilterBars();
   // Update title & section label
   const shop = SHOPS[shopId];
   const ptsWrap = document.getElementById('page-title-shop-wrap');
@@ -12982,8 +12973,9 @@ function switchShop(shopId, btn) {
 }
 
 function updateShopStatus(shopId, fname) {
-  const el = document.getElementById(`shop-status-${shopId}`);
-  if (el) { el.textContent = '✓ Đã tải'; el.classList.add('loaded'); }
+  // fname không dùng trực tiếp — trạng thái "Đã tải" lấy từ G.shops[shopId].loaded (caller luôn
+  // set cờ này trước khi gọi hàm này). Render lại 2 thanh chip để badge cập nhật đồng bộ.
+  renderAllShopFilterBars();
 }
 
 // ══════════════════════════════════════════════════════════════
