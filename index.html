@@ -11992,7 +11992,9 @@ async function giaDoSyncOrders(tab) {
       if (btn) btn.disabled = false; return;
     }
     if (resp.status === 403) {
-      giaLog('❌ Lỗi 403: Tài khoản chưa được cấp quyền đọc Sheet này — liên hệ admin (tannguyencf710@gmail.com).', 'err');
+      const errBody = await resp.text().catch(() => '');
+      giaLog('❌ Lỗi 403 khi tải file: ' + (errBody ? errBody.slice(0, 400) : '(không có nội dung lỗi chi tiết)'), 'err');
+      giaLog('👉 Nếu lý do là "exportSizeLimitExceeded"/"file too large" → không phải lỗi quyền, mà do file này export nguyên workbook (tất cả các tab) vượt giới hạn 10MB của Google Drive API. Báo lại nội dung lỗi chính xác ở trên để xử lý đúng hướng.', 'info');
       if (btn) btn.disabled = false; return;
     }
     if (!resp.ok) {
