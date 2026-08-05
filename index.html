@@ -1070,7 +1070,11 @@
         Bước 2: Mỗi ngày bấm <b>Đồng Bộ ADS</b> để kéo data về Dashboard — không cần vào Shopee nữa.
       </p>
       <div style="font-size:12px;color:#7d5b00;background:#fff8e1;border:1px solid #f39c12;border-radius:8px;padding:10px 14px;margin:0 0 16px;line-height:1.7">
-        ⚠️ <b>Đang xác minh nguyên nhân lỗi "bấm Kết Nối shop nào cũng ra 2hbookshcm":</b> đã loại trừ khả năng do đăng nhập/phiên trình duyệt (đã test không đăng nhập shop 2hbookshcm mà vẫn bị đẩy về đó). Nghi vấn hiện tại là cấu hình app "2H Books ADS" trên Shopee Open Platform Console. Nếu hệ thống báo "lệch shop" sau khi kết nối, token vẫn được lưu đúng theo shop Shopee thực trả về (không lưu nhầm) — chỉ là chưa chắc đúng shop bạn định kết nối.
+        ⚠️ <b>Quan trọng — Shopee chọn shop theo phiên đăng nhập trên open.shopee.com, KHÔNG theo nút bạn bấm:</b>
+        trang xác thực nằm trên open.shopee.com (dùng chung phiên với Open Platform Console, khác hoàn toàn với Seller Centre banhang.shopee.vn).
+        Nếu trình duyệt đang đăng nhập sẵn Console/open.shopee.com bằng tài khoản shop nào, mọi lần Kết Nối đều bị tự xác nhận cho shop đó mà không hỏi lại.<br>
+        👉 <b>Cách kết nối đúng shop:</b> mở <b>cửa sổ ẩn danh</b> → vào Dashboard này → bấm Kết Nối shop cần kết nối → Shopee sẽ hiện màn đăng nhập ("Login to Authorize Shopee Openplatform APP") → đăng nhập bằng tài khoản của <b>đúng shop đó</b> → xác nhận. Lặp lại từng shop (mỗi shop 1 cửa sổ ẩn danh mới, hoặc đăng xuất open.shopee.com giữa các lần).
+        Nếu lỡ kết nối lệch, hệ thống sẽ báo ngay và token vẫn lưu đúng theo shop Shopee thực trả về (không lưu nhầm).
       </div>
 
       <!-- Shop cards -->
@@ -7947,16 +7951,16 @@ async function sapiGetToken(shopId) {
 }
 
 // ── Kết nối 1 shop: mở OAuth URL ────────────────────────────
-// VẤN ĐỀ ĐANG ĐIỀU TRA (2026-08-05): bấm Kết Nối cho shop nào cũng bị Shopee đẩy về đúng 1 shop
-// cố định (2hbookshcm). Endpoint /api/v2/shop/auth_partner không nhận tham số shop_id để chỉ định
-// trước shop cần cấp quyền, nên Dashboard không có cách nào ép Shopee chọn đúng shop qua URL.
-// ĐÃ LOẠI TRỪ: không phải do tài khoản/phiên đăng nhập trình duyệt (Tân đã test: không đăng nhập
-// shop 2hbookshcm mà vẫn bị đẩy về đó). Nghi vấn hiện tại: cấu hình app "2H Books ADS" trên Shopee
-// Open Platform Console (có thể app đang gắn mặc định với chính shop 2hbookshcm) — cần Tân kiểm
-// tra trực tiếp trên Open Platform Console, Dashboard không có quyền truy cập để tự xác minh.
-// Phần code dưới đây chỉ làm 1 việc chắc chắn đúng dù nguyên nhân là gì: lưu lại shop bạn ĐỊNH kết
-// nối, để sau khi Shopee trả về có thể đối chiếu và CẢNH BÁO RÕ nếu bị lệch — tránh lưu nhầm token
-// vào sai shop trong im lặng. Token luôn lưu theo đúng shop_id Shopee thực trả về.
+// NGUYÊN NHÂN "bấm Kết Nối shop nào cũng ra 2hbookshcm" — ĐÃ CHỐT (xác minh cùng Tân 2026-08-05):
+// endpoint /api/v2/shop/auth_partner không nhận shop_id, và trang xác thực nằm trên open.shopee.com
+// — dùng chung PHIÊN ĐĂNG NHẬP với Open Platform Console (KHÁC session với Seller Centre
+// banhang.shopee.vn). Trình duyệt của Tân đăng nhập sẵn Console bằng tài khoản gắn shop 2hbookshcm
+// → trang xác thực bỏ qua màn đăng nhập, tự xác nhận cho shop đó mọi lần. Trước đây "tự đúng" vì
+// khi chưa đăng nhập Console, Shopee bắt đăng nhập ngay trên trang xác thực từng lần → đăng nhập
+// tài khoản shop nào ra đúng shop đó. Cách kết nối đúng: cửa sổ ẩn danh (hoặc đăng xuất
+// open.shopee.com) → bấm Kết Nối → đăng nhập đúng tài khoản shop cần kết nối.
+// Code dưới đây lưu lại shop ĐỊNH kết nối để đối chiếu với shop Shopee thực trả về sau callback —
+// nếu lệch thì cảnh báo rõ. Token luôn lưu theo đúng shop_id Shopee thực trả về (không lưu nhầm).
 async function sapiConnect(shopId) {
   localStorage.setItem('sapi_intended_shop', String(shopId));
   const url = await sapiAuthUrl(shopId);
@@ -7994,10 +7998,11 @@ async function sapiHandleCallback() {
       const intendedShop = SAPI_SHOPS.find(s => String(s.id) === intendedId);
       const actualShop    = SAPI_SHOPS.find(s => String(s.id) === String(shopId));
       alert(
-        `⚠️ Kết nối bị LỆCH SHOP — Shopee đã cấp quyền cho 1 shop khác với shop bạn bấm Kết Nối. Nguyên nhân đang được điều tra (không phải do đăng nhập/phiên trình duyệt — đã loại trừ).\n\n` +
+        `⚠️ Kết nối bị LỆCH SHOP — trình duyệt đang có sẵn phiên đăng nhập open.shopee.com của shop khác, nên Shopee tự xác nhận cho shop đó thay vì hỏi đăng nhập.\n\n` +
         `Bạn bấm "Kết Nối" cho: ${intendedShop ? intendedShop.name + ' (@' + intendedShop.username + ')' : intendedId}\n` +
         `Nhưng Shopee lại cấp quyền cho: ${actualShop ? actualShop.name + ' (@' + actualShop.username + ')' : shopId}\n\n` +
-        `Token vừa lưu là ĐÚNG cho "${actualShop ? actualShop.name : shopId}" (không bị lưu nhầm sang shop khác).`
+        `Token vừa lưu là ĐÚNG cho "${actualShop ? actualShop.name : shopId}" (không bị lưu nhầm sang shop khác).\n\n` +
+        `Để kết nối đúng "${intendedShop ? intendedShop.name : intendedId}": mở CỬA SỔ ẨN DANH → vào Dashboard → bấm Kết Nối → đăng nhập bằng tài khoản của đúng shop đó khi Shopee hỏi.`
       );
     }
   } catch(e) {
