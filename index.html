@@ -1069,6 +1069,9 @@
         Bước 1: Bấm <b>Kết Nối</b> từng shop — Shopee sẽ yêu cầu đăng nhập, sau đó tự động lưu token về hệ thống. Chỉ làm <b>1 lần</b>, token tự refresh về sau.<br>
         Bước 2: Mỗi ngày bấm <b>Đồng Bộ ADS</b> để kéo data về Dashboard — không cần vào Shopee nữa.
       </p>
+      <div style="font-size:12px;color:#7d5b00;background:#fff8e1;border:1px solid #f39c12;border-radius:8px;padding:10px 14px;margin:0 0 16px;line-height:1.7">
+        ⚠️ <b>Đang xác minh nguyên nhân lỗi "bấm Kết Nối shop nào cũng ra 2hbookshcm":</b> đã loại trừ khả năng do đăng nhập/phiên trình duyệt (đã test không đăng nhập shop 2hbookshcm mà vẫn bị đẩy về đó). Nghi vấn hiện tại là cấu hình app "2H Books ADS" trên Shopee Open Platform Console. Nếu hệ thống báo "lệch shop" sau khi kết nối, token vẫn được lưu đúng theo shop Shopee thực trả về (không lưu nhầm) — chỉ là chưa chắc đúng shop bạn định kết nối.
+      </div>
 
       <!-- Shop cards -->
       <div id="sapi-shop-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:20px">
@@ -7944,7 +7947,18 @@ async function sapiGetToken(shopId) {
 }
 
 // ── Kết nối 1 shop: mở OAuth URL ────────────────────────────
+// VẤN ĐỀ ĐANG ĐIỀU TRA (2026-08-05): bấm Kết Nối cho shop nào cũng bị Shopee đẩy về đúng 1 shop
+// cố định (2hbookshcm). Endpoint /api/v2/shop/auth_partner không nhận tham số shop_id để chỉ định
+// trước shop cần cấp quyền, nên Dashboard không có cách nào ép Shopee chọn đúng shop qua URL.
+// ĐÃ LOẠI TRỪ: không phải do tài khoản/phiên đăng nhập trình duyệt (Tân đã test: không đăng nhập
+// shop 2hbookshcm mà vẫn bị đẩy về đó). Nghi vấn hiện tại: cấu hình app "2H Books ADS" trên Shopee
+// Open Platform Console (có thể app đang gắn mặc định với chính shop 2hbookshcm) — cần Tân kiểm
+// tra trực tiếp trên Open Platform Console, Dashboard không có quyền truy cập để tự xác minh.
+// Phần code dưới đây chỉ làm 1 việc chắc chắn đúng dù nguyên nhân là gì: lưu lại shop bạn ĐỊNH kết
+// nối, để sau khi Shopee trả về có thể đối chiếu và CẢNH BÁO RÕ nếu bị lệch — tránh lưu nhầm token
+// vào sai shop trong im lặng. Token luôn lưu theo đúng shop_id Shopee thực trả về.
 async function sapiConnect(shopId) {
+  localStorage.setItem('sapi_intended_shop', String(shopId));
   const url = await sapiAuthUrl(shopId);
   window.location.href = url; // Chuyển sang trang auth Shopee
 }
@@ -7966,11 +7980,26 @@ async function sapiHandleCallback() {
   if (!code || !shopId) return false;
   // Xoá query params khỏi URL (không reload trang)
   window.history.replaceState({}, '', window.location.pathname);
+  const intendedId = localStorage.getItem('sapi_intended_shop');
+  localStorage.removeItem('sapi_intended_shop');
   try {
     await sapiExchangeToken(code, Number(shopId));
     // Chuyển sang trang Kết Nối API để xem kết quả
     showPage('ads-api', document.getElementById('nav-ads-api'));
     await sapiRenderShops();
+    // Đối chiếu shop ĐỊNH kết nối (lúc bấm nút) với shop Shopee THỰC SỰ trả về — nếu lệch, báo rõ
+    // ngay (nguyên nhân đang được điều tra, xem ghi chú ở sapiConnect()). Token vẫn được lưu ĐÚNG
+    // cho shop thật Shopee trả về (an toàn, không lưu nhầm) — chỉ cảnh báo để bạn biết mà xử lý.
+    if (intendedId && intendedId !== String(shopId)) {
+      const intendedShop = SAPI_SHOPS.find(s => String(s.id) === intendedId);
+      const actualShop    = SAPI_SHOPS.find(s => String(s.id) === String(shopId));
+      alert(
+        `⚠️ Kết nối bị LỆCH SHOP — Shopee đã cấp quyền cho 1 shop khác với shop bạn bấm Kết Nối. Nguyên nhân đang được điều tra (không phải do đăng nhập/phiên trình duyệt — đã loại trừ).\n\n` +
+        `Bạn bấm "Kết Nối" cho: ${intendedShop ? intendedShop.name + ' (@' + intendedShop.username + ')' : intendedId}\n` +
+        `Nhưng Shopee lại cấp quyền cho: ${actualShop ? actualShop.name + ' (@' + actualShop.username + ')' : shopId}\n\n` +
+        `Token vừa lưu là ĐÚNG cho "${actualShop ? actualShop.name : shopId}" (không bị lưu nhầm sang shop khác).`
+      );
+    }
   } catch(e) {
     console.error('[SAPI] callback error:', e);
     alert(`Lỗi kết nối Shopee API: ${e.message}`);
