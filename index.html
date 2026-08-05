@@ -700,30 +700,69 @@
       <span id="overview-filter-label" style="margin-left:auto;font-size:11px;color:var(--orange);font-weight:700"></span>
     </div>
 
-    <div class="kpi-grid">
-      <div class="kpi-card green">
+    <!-- 8 card KPI — 4 card có gạch màu (nối biểu đồ xu hướng bên dưới, màu khớp legend đường)
+         + 4 card phẳng (không có trên biểu đồ). Bố cục tham khảo Shopee "Hiệu suất chiến dịch DVHT
+         Sản Phẩm" — xác nhận với Tân 2026-08-05, thay "Sản phẩm đã bán" (không có dữ liệu theo
+         ngày) bằng "ACOS Trung Bình" (đã có sẵn). -->
+    <div class="kpi-grid" id="ov-kpi-grid">
+      <div class="kpi-card" style="border-top-color:#2563eb">
+        <div class="kpi-icon">👁️</div>
+        <div class="kpi-label">Số Lượt Xem</div>
+        <div class="kpi-value" id="kpi-views" style="color:#2563eb">–</div>
+        <div class="kpi-sub" id="kpi-views-sub"></div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-icon">🛒</div>
+        <div class="kpi-label">Số Đơn Hàng</div>
+        <div class="kpi-value" id="kpi-orders">–</div>
+        <div class="kpi-sub" id="kpi-orders-sub"></div>
+      </div>
+      <div class="kpi-card navy">
         <div class="kpi-icon">💰</div>
         <div class="kpi-label">Tổng Doanh Thu</div>
         <div class="kpi-value" id="kpi-revenue">–</div>
         <div class="kpi-sub" id="kpi-revenue-sub"></div>
       </div>
-      <div class="kpi-card orange">
-        <div class="kpi-icon">💸</div>
-        <div class="kpi-label">Tổng Chi Phí ADS</div>
-        <div class="kpi-value" id="kpi-cost">–</div>
-        <div class="kpi-sub" id="kpi-cost-sub"></div>
-      </div>
-      <div class="kpi-card navy">
+      <div class="kpi-card green">
         <div class="kpi-icon">📈</div>
         <div class="kpi-label">ROAS Trung Bình</div>
         <div class="kpi-value" id="kpi-roas">–</div>
         <div class="kpi-sub" id="kpi-roas-sub"></div>
       </div>
-      <div class="kpi-card red">
+      <div class="kpi-card">
+        <div class="kpi-icon">🖱️</div>
+        <div class="kpi-label">Số Lượt Click</div>
+        <div class="kpi-value" id="kpi-clicks">–</div>
+        <div class="kpi-sub" id="kpi-clicks-sub"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon">🎯</div>
+        <div class="kpi-label">Tỉ Lệ Click (CTR)</div>
+        <div class="kpi-value" id="kpi-ctr">–</div>
+        <div class="kpi-sub" id="kpi-ctr-sub"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-icon">💸</div>
+        <div class="kpi-label">Tổng Chi Phí ADS</div>
+        <div class="kpi-value" id="kpi-cost">–</div>
+        <div class="kpi-sub" id="kpi-cost-sub"></div>
+      </div>
+      <div class="kpi-card">
         <div class="kpi-icon">🎯</div>
         <div class="kpi-label">ACOS Trung Bình</div>
-        <div class="kpi-value" id="kpi-acos">–</div>
+        <div class="kpi-value" id="kpi-acos" style="color:var(--red)">–</div>
         <div class="kpi-sub" id="kpi-acos-sub"></div>
+      </div>
+    </div>
+
+    <!-- Biểu đồ xu hướng theo ngày — 4 đường khớp màu 4 card có gạch màu ở trên -->
+    <div class="card" style="margin-top:16px" id="ov-trend-chart-card">
+      <div class="card-title"><span class="dot"></span> Xu Hướng Theo Ngày (Lượt Xem · Đơn Hàng · Doanh Thu · ROAS)</div>
+      <div id="ov-trend-chart-empty" style="display:none;font-size:12px;color:var(--text2);padding:20px;text-align:center">
+        Không có dữ liệu theo ngày để vẽ biểu đồ trong kỳ đang lọc.
+      </div>
+      <div style="position:relative;height:280px">
+        <canvas id="ov-trend-chart"></canvas>
       </div>
     </div>
 
@@ -771,6 +810,7 @@
         <button class="filter-btn" onclick="setFilter('yellow',this)">🟡 Trung bình (10–19)</button>
         <button class="filter-btn" onclick="setFilter('red',this)">🔴 Cần tối ưu (&lt;10)</button>
       </div>
+      <div id="ov-table-delta-hint" style="display:none;font-size:11px;color:var(--text2);margin-bottom:8px"></div>
       <div class="table-wrap" style="max-height:600px;overflow-y:auto">
         <table id="table-all">
           <thead><tr>
@@ -2717,7 +2757,7 @@ function cData() {
 Chart.register(ChartDataLabels);
 let sortState = { col: 8, dir: 'desc' };
 let filterState = 'all';
-let chartTopRoas, chartCostPie, chartTrend, chartRevCost;
+let chartTopRoas, chartCostPie, chartTrend, chartRevCost, chartOvTrend;
 
 // ── OVERVIEW FILTER STATE ──
 let ovFilterYear  = null;  // '2026'
@@ -3280,7 +3320,7 @@ function ovProducts() {
   }
 
   return cData().products.map(p => {
-    let views=0, conv=0, doanh_so=0, chi_phi=0;
+    let views=0, conv=0, doanh_so=0, chi_phi=0, clicks=0;
     labels.forEach(lbl => {
       const d = p.dailyData?.[lbl];
       if (!d) return;
@@ -3288,11 +3328,92 @@ function ovProducts() {
       conv     += Number(d['Conv.'])       || 0;
       doanh_so += Number(d['Doanh thu'])   || 0;
       chi_phi  += Number(d['Chi phí(đ)']) || 0;
+      clicks   += Number(d['Lượt Click'])  || 0;
     });
     const roas = chi_phi>0 ? doanh_so/chi_phi : 0;
     const acos = doanh_so>0 ? chi_phi/doanh_so*100 : 0;
-    return { ...p, views, conv, doanh_so, chi_phi, roas, acos };
+    return { ...p, views, conv, doanh_so, chi_phi, roas, acos, clicks };
   }).filter(p => p.doanh_so>0 || p.chi_phi>0);
+}
+
+// Gộp TẤT CẢ sản phẩm shop hiện tại theo TỪNG NGÀY (không gộp theo sản phẩm như ovProducts()) —
+// dùng cho 8 KPI card mới + biểu đồ xu hướng theo ngày ở Tổng Quan. Doanh thu/Chi phí ưu tiên lấy
+// từ dailyTotals (đã dedup) giống hệt renderKPIs(), tránh lệch số giữa card và biểu đồ.
+// Xác nhận với Tân 2026-08-05.
+function ovDailySeries() {
+  const labels = getOvLabels();
+  const sorted = [...labels].sort((a, b) => parseDateLabel(a) - parseDateLabel(b));
+  const products = cData().products;
+  const shopRef = G.shops[G.current];
+  const hasDailyData = products.some(p => p.dailyData && Object.keys(p.dailyData).length > 0);
+  if (!hasDailyData) return [];
+  return sorted.map(lbl => {
+    let views = 0, clicks = 0, conv = 0, doanh_so = 0, chi_phi = 0;
+    products.forEach(p => {
+      const d = p.dailyData?.[lbl];
+      if (!d) return;
+      views    += Number(d['Lượt Xem'])   || 0;
+      clicks   += Number(d['Lượt Click'])  || 0;
+      conv     += Number(d['Conv.'])       || 0;
+      doanh_so += Number(d['Doanh thu'])   || 0;
+      chi_phi  += Number(d['Chi phí(đ)']) || 0;
+    });
+    if (shopRef?.dailyTotals?.[lbl]) {
+      doanh_so = shopRef.dailyTotals[lbl].doanh_so || 0;
+      chi_phi  = shopRef.dailyTotals[lbl].chi_phi  || 0;
+    }
+    const roas = chi_phi > 0 ? doanh_so / chi_phi : 0;
+    return { label: lbl, views, clicks, conv, doanh_so, chi_phi, roas };
+  });
+}
+
+// ── %Thay đổi so kỳ trước (bảng "Tất Cả Sản Phẩm ADS") ─────────────────────────
+// "Kỳ trước" = N ngày liền kề TRƯỚC ngày đầu tiên của kỳ đang lọc, N = số ngày kỳ hiện tại.
+// "Tất cả" (không lọc gì) không có kỳ trước xác định → trả về [] và ẩn hẳn cột %.
+// Xác nhận với Tân 2026-08-05.
+function getOvPrevPeriodLabels() {
+  if (!ovFilterYear && !ovFilterMonth && !ovFilterDays.size) return [];
+  const curLabels = getOvLabels();
+  if (!curLabels.length) return [];
+  const allBlocks = [...cData().dateBlocks].sort((a,b)=>parseDateLabel(a.label)-parseDateLabel(b.label));
+  const allLabels = allBlocks.map(b=>b.label);
+  const curSorted = [...curLabels].sort((a,b)=>parseDateLabel(a)-parseDateLabel(b));
+  const firstIdx = allLabels.indexOf(curSorted[0]);
+  if (firstIdx <= 0) return []; // không có ngày nào trong dữ liệu trước ngày đầu kỳ hiện tại
+  const n = curSorted.length;
+  return allLabels.slice(Math.max(0, firstIdx - n), firstIdx);
+}
+
+// Map Mã SP (hoặc Tên nếu thiếu mã — giống quy tắc dedup ở applyOneCSV) → {doanh_so, chi_phi, roas}
+// tổng hợp trong kỳ trước — nền để so sánh %thay đổi từng sản phẩm.
+function ovProductsPrevMap(prevLabels) {
+  const map = {};
+  if (!prevLabels || !prevLabels.length) return map;
+  cData().products.forEach(p => {
+    let doanh_so = 0, chi_phi = 0;
+    prevLabels.forEach(lbl => {
+      const d = p.dailyData?.[lbl];
+      if (!d) return;
+      doanh_so += Number(d['Doanh thu'])   || 0;
+      chi_phi  += Number(d['Chi phí(đ)']) || 0;
+    });
+    const roas = chi_phi > 0 ? doanh_so / chi_phi : 0;
+    map[p.ma_sp || p.ten] = { doanh_so, chi_phi, roas };
+  });
+  return map;
+}
+
+// Badge %thay đổi — quy ước ĐÚNG THEO ẢNH GỐC SHOPEE: tăng luôn xanh, giảm luôn đỏ (thuần theo
+// chiều số liệu, không phải theo nghĩa tốt/xấu — vd Chi phí tăng vẫn hiện xanh).
+function ovFmtDelta(cur, prev) {
+  cur = cur || 0; prev = prev || 0;
+  if (cur === 0 && prev === 0) return '';
+  if (prev === 0) return '<span style="color:var(--text2);font-size:10px;font-weight:700">🆕 Mới</span>';
+  const pct = (cur - prev) / prev * 100;
+  if (Math.abs(pct) < 0.05) return '<span style="color:var(--text2);font-size:10px">0,0%</span>';
+  const arrow = pct > 0 ? '▲' : '▼';
+  const color = pct > 0 ? 'var(--green)' : 'var(--red)';
+  return `<span style="color:${color};font-size:10px;font-weight:700">${arrow} ${Math.abs(pct).toFixed(1)}%</span>`;
 }
 
 function renderOverviewAll() {
@@ -3303,7 +3424,7 @@ function renderOverviewAll() {
   trendFilterYear  = ovFilterYear;
   trendFilterMonth = ovFilterMonth;
   trendFilterDay   = null;
-  renderKPIs(); renderTopTable(); renderAllTable();
+  renderKPIs(); renderOverviewTrendChart(); renderTopTable(); renderAllTable();
   renderAlerts(); renderChartTopRoas(); renderChartCostPie(); updateBadges();
   renderTrendChips(); renderChartTrend(); renderChartRevenueCost();
   initDoSuatPage();
@@ -13126,6 +13247,7 @@ function parseWorkbook(wb, fname) {
 function renderAll() {
   renderOverviewChips();
   renderKPIs();
+  renderOverviewTrendChart();
   renderTopTable();
   renderAllTable();
   renderAlerts();
@@ -13173,6 +13295,100 @@ function renderKPIs() {
   document.getElementById('kpi-roas-sub').textContent = `${goodCount} SP đạt ROAS ≥ 20 🟢`;
   document.getElementById('kpi-acos').textContent = avgAcos.toFixed(2) + '%';
   document.getElementById('kpi-acos-sub').textContent = `${badCount} SP cần tối ưu 🔴`;
+
+  // 4 KPI mới: Lượt Xem / Đơn Hàng / Lượt Click / CTR — lấy từ p (ovProducts()), đã tự fallback
+  // về tổng all-time khi thiếu dailyData (giống cách p.doanh_so/p.chi_phi đang fallback ở trên).
+  const totalViews  = p.reduce((s,x)=>s+(x.views  || 0), 0);
+  const totalClicks = p.reduce((s,x)=>s+(x.clicks || 0), 0);
+  const totalOrders = p.reduce((s,x)=>s+(x.conv   || 0), 0);
+  const ctr = totalViews > 0 ? totalClicks / totalViews * 100 : 0;
+
+  document.getElementById('kpi-views').textContent = totalViews.toLocaleString('vi-VN');
+  document.getElementById('kpi-views-sub').textContent = `${totalClicks.toLocaleString('vi-VN')} lượt click`;
+  document.getElementById('kpi-orders').textContent = totalOrders.toLocaleString('vi-VN');
+  document.getElementById('kpi-orders-sub').textContent = totalOrders>0 ? `TB ${fmtMoney(totalRev/totalOrders)}/đơn` : '';
+  document.getElementById('kpi-clicks').textContent = totalClicks.toLocaleString('vi-VN');
+  document.getElementById('kpi-clicks-sub').textContent = `Trên ${totalViews.toLocaleString('vi-VN')} lượt xem`;
+  document.getElementById('kpi-ctr').textContent = ctr.toFixed(2) + '%';
+  document.getElementById('kpi-ctr-sub').textContent = 'Lượt click / Lượt xem';
+}
+
+// Biểu đồ xu hướng theo ngày (Lượt Xem / Đơn Hàng / Doanh Thu / ROAS) ở đầu trang Tổng Quan.
+// Mỗi đường dùng 1 trục Y riêng ẩn (không hiện số) vì đơn vị chênh lệch quá lớn (lượt xem hàng
+// nghìn, đơn hàng hàng chục, doanh thu hàng triệu, ROAS 1 chữ số) — nếu dùng chung 1 trục thì các
+// đường nhỏ sẽ bẹp dí sát đáy. Giá trị thật xem qua tooltip khi rê chuột. Xác nhận với Tân 2026-08-05.
+function renderOverviewTrendChart() {
+  const canvas = document.getElementById('ov-trend-chart');
+  const emptyEl = document.getElementById('ov-trend-chart-empty');
+  if (!canvas) return;
+  const series = ovDailySeries();
+  if (chartOvTrend) { chartOvTrend.destroy(); chartOvTrend = null; }
+  if (!series.length) {
+    canvas.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = 'block';
+    return;
+  }
+  canvas.style.display = '';
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  const labels = series.map(s => s.label);
+  chartOvTrend = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Số Lượt Xem', data: series.map(s => s.views),
+          borderColor: '#2563eb', backgroundColor: 'transparent',
+          borderWidth: 2, pointRadius: 2, tension: 0.35, yAxisID: 'yViews',
+          datalabels: { display: false }
+        },
+        {
+          label: 'Số Đơn Hàng', data: series.map(s => s.conv),
+          borderColor: '#E67E22', backgroundColor: 'transparent',
+          borderWidth: 2, pointRadius: 2, tension: 0.35, yAxisID: 'yOrders',
+          datalabels: { display: false }
+        },
+        {
+          label: 'Doanh Thu', data: series.map(s => s.doanh_so),
+          borderColor: '#1F3864', backgroundColor: 'transparent',
+          borderWidth: 2, pointRadius: 2, tension: 0.35, yAxisID: 'yRevenue',
+          datalabels: { display: false }
+        },
+        {
+          label: 'ROAS', data: series.map(s => s.roas),
+          borderColor: '#059669', backgroundColor: 'transparent',
+          borderWidth: 2, pointRadius: 2, tension: 0.35, yAxisID: 'yRoas',
+          datalabels: { display: false }
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top', labels: { font: { size: 10 }, boxWidth: 12 } },
+        datalabels: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const v = ctx.parsed.y;
+              if (ctx.dataset.label === 'Doanh Thu') return ` Doanh Thu: ${fmtMoney(v)}`;
+              if (ctx.dataset.label === 'ROAS') return ` ROAS: ${v.toFixed(2)}`;
+              return ` ${ctx.dataset.label}: ${v.toLocaleString('vi-VN')}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { font: { size: 10 } }, grid: { color: '#ECF0F1' } },
+        yViews:   { display: false, suggestedMin: 0 },
+        yOrders:  { display: false, suggestedMin: 0 },
+        yRevenue: { display: false, suggestedMin: 0 },
+        yRoas:    { display: false, suggestedMin: 0 }
+      }
+    }
+  });
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -13198,8 +13414,23 @@ function renderTopTable() {
 // ALL PRODUCTS TABLE
 // ══════════════════════════════════════════════════════════════
 let allRows = [];
+let ovPrevMap = {};
+let ovHasPrevPeriod = false;
 function renderAllTable() {
   allRows = [...spProducts()];
+  const prevLabels = getOvPrevPeriodLabels();
+  ovHasPrevPeriod = prevLabels.length > 0;
+  ovPrevMap = ovHasPrevPeriod ? ovProductsPrevMap(prevLabels) : {};
+  const hintEl = document.getElementById('ov-table-delta-hint');
+  if (hintEl) {
+    if (ovHasPrevPeriod) {
+      const sorted = [...prevLabels].sort((a,b)=>parseDateLabel(a)-parseDateLabel(b));
+      hintEl.style.display = '';
+      hintEl.textContent = `📊 %thay đổi so kỳ trước: ${sorted[0]} – ${sorted[sorted.length-1]} (${prevLabels.length} ngày)`;
+    } else {
+      hintEl.style.display = 'none';
+    }
+  }
   renderSpDateChips();
   sortRows();
   displayAllTable();
@@ -13229,7 +13460,13 @@ function displayAllTable() {
     return matchName && matchFilter;
   });
 
-  tbody.innerHTML = rows.map((p,i) => `
+  tbody.innerHTML = rows.map((p,i) => {
+    // %thay đổi so kỳ trước — chỉ tính khi có kỳ trước xác định (ovHasPrevPeriod).
+    const prev = ovHasPrevPeriod ? ovPrevMap[p.ma_sp || p.ten] : null;
+    const dtDelta   = ovHasPrevPeriod ? ovFmtDelta(p.doanh_so, prev?.doanh_so) : '';
+    const cpDelta   = ovHasPrevPeriod ? ovFmtDelta(p.chi_phi,  prev?.chi_phi)  : '';
+    const roasDelta = ovHasPrevPeriod ? ovFmtDelta(p.roas,     prev?.roas)    : '';
+    return `
     <tr>
       <td>${p.stt}</td>
       <td class="name" title="${p.ten}">${p.ten}</td>
@@ -13237,13 +13474,14 @@ function displayAllTable() {
       <td class="num">${fmtNum(p.views)}</td>
       <td class="num">${p.ctr.toFixed(2)}%</td>
       <td class="num">${p.conv}</td>
-      <td class="num">${fmtMoneyFull(p.doanh_so)}</td>
-      <td class="num">${fmtMoneyFull(p.chi_phi)}</td>
-      <td class="num"><span class="roas-badge ${roasClass(p.roas)}">${p.roas.toFixed(2)}</span></td>
+      <td class="num">${fmtMoneyFull(p.doanh_so)}${dtDelta ? '<br>'+dtDelta : ''}</td>
+      <td class="num">${fmtMoneyFull(p.chi_phi)}${cpDelta ? '<br>'+cpDelta : ''}</td>
+      <td class="num"><span class="roas-badge ${roasClass(p.roas)}">${p.roas.toFixed(2)}</span>${roasDelta ? '<br>'+roasDelta : ''}</td>
       <td class="num"><span class="acos-badge ${acosClass(p.acos)}">${p.acos.toFixed(2)}%</span></td>
       <td class="num">${fmtNum(p.atc||0)}</td>
       <td class="num">${(p.atc_rate||0).toFixed(2)}%</td>
-    </tr>`).join('') || '<tr><td colspan="12" class="empty">Không có sản phẩm phù hợp</td></tr>';
+    </tr>`;
+  }).join('') || '<tr><td colspan="12" class="empty">Không có sản phẩm phù hợp</td></tr>';
 }
 
 document.querySelectorAll('thead th.sortable').forEach(th => {
