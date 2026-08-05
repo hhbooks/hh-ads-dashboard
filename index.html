@@ -653,9 +653,6 @@
 
   <!-- OVERVIEW PAGE -->
   <div class="page" id="page-overview">
-    <!-- Bộ lọc Shop — chuyển từ sidebar vào đây (xác nhận với Tân 2026-08-05) -->
-    <div class="shop-filter-bar" id="shop-filter-bar-overview"></div>
-
     <!-- KẾT NỐI API — chuyển từ trang riêng vào đầu Tổng Quan, dạng card đóng/mở.
          Mặc định thu gọn chỉ hiện dòng trạng thái; bấm tiêu đề để xòe. Xác nhận với Tân 2026-08-05. -->
     <div class="card" style="margin-bottom:16px" id="ov-api-card">
@@ -732,13 +729,11 @@
       </div><!-- end ov-api-body -->
     </div><!-- end ov-api-card -->
 
-    <!-- OVERVIEW TIME FILTER -->
+    <!-- OVERVIEW FILTER — gộp bộ chọn khoảng ngày + chip shop vào 1 thanh (Tân 2026-08-05).
+         Bỏ chip "Tất cả"/"7 ngày gần nhất". Nội dung bên dưới CHỈ hiện khi đã chọn đủ
+         cả shop lẫn khoảng ngày (xem #ov-gate-notice + #ov-content + ovUpdateGate()). -->
     <div class="trend-filter" id="overview-filter-bar">
       <span style="font-size:12px;color:var(--text2);font-weight:700">📅 Kỳ xem:</span>
-      <span class="tchip active" id="ochip-all" onclick="setOverviewAll();ovPickerReset()">Tất cả</span>
-      <span style="width:1px;height:20px;background:var(--gray3);margin:0 2px"></span>
-      <span class="tchip" id="ochip-lastweek" onclick="setLastNDays(7);ovPickerReset()">7 ngày gần nhất</span>
-      <span style="width:1px;height:20px;background:var(--gray3);margin:0 2px"></span>
       <!-- Calendar date picker cho Tổng Quan -->
       <div style="position:relative" id="ovpicker-wrap">
         <div id="ovpicker-input" onclick="ovPickerToggle()" style="display:flex;align-items:center;gap:8px;padding:7px 12px;border:1px solid var(--gray3);border-radius:8px;cursor:pointer;font-size:12px;background:white;min-width:200px;user-select:none">
@@ -769,9 +764,21 @@
       </div>
       <!-- hidden: giữ lại để renderOverviewChips() vẫn mirror sang Cần Tối Ưu -->
       <div id="overview-chips" style="display:none"></div>
+      <span style="width:1px;height:20px;background:var(--gray3);margin:0 4px"></span>
+      <!-- Chip shop — gộp vào cùng thanh lọc ngày (dùng riêng cho Tổng Quan, có gate) -->
+      <div class="shop-filter-bar" id="shop-filter-bar-overview" style="margin-bottom:0;display:inline-flex"></div>
       <span id="overview-filter-label" style="margin-left:auto;font-size:11px;color:var(--orange);font-weight:700"></span>
     </div>
 
+    <!-- Thông báo khi chưa chọn đủ bộ lọc — mặc định hiện, ẩn khi đã chọn đủ shop + khoảng ngày -->
+    <div class="card" id="ov-gate-notice" style="text-align:center;padding:40px 20px;margin-bottom:16px">
+      <div style="font-size:34px;margin-bottom:10px">🔍</div>
+      <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:6px">Chọn Shop và khoảng ngày để xem dữ liệu</div>
+      <div id="ov-gate-hint" style="font-size:12px;color:var(--text2)">Bấm chọn 1 shop và 1 khoảng ngày ở thanh lọc phía trên — dữ liệu toàn trang sẽ hiển thị theo đúng bộ lọc đó.</div>
+    </div>
+
+    <!-- Toàn bộ nội dung Tổng Quan — chỉ hiện khi gate mở (đã chọn đủ shop + khoảng ngày) -->
+    <div id="ov-content" style="display:none">
     <!-- 8 card KPI — 4 card có gạch màu (nối biểu đồ xu hướng bên dưới, màu khớp legend đường)
          + 4 card phẳng (không có trên biểu đồ). Bố cục tham khảo Shopee "Hiệu suất chiến dịch DVHT
          Sản Phẩm" — xác nhận với Tân 2026-08-05, thay "Sản phẩm đã bán" (không có dữ liệu theo
@@ -879,16 +886,14 @@
       <div class="card-title"><span class="dot" style="background:var(--red)"></span> Sản Phẩm Cần Dừng / Tối Ưu Gấp (ROAS &lt; 10)</div>
       <div class="alert-grid" id="alert-red"></div>
     </div>
-    <!-- (Các card "Sản Phẩm Cần Theo Dõi", 4 card "Camp ADS Tăng/Giảm Đột Biến" và biểu đồ
-         "ROAS Trung Bình Theo Ngày/Giai Đoạn" đã xóa theo yêu cầu Tân 2026-08-05.
-         Card đỏ "Cần Dừng/Tối Ưu Gấp" và biểu đồ "Doanh Thu & Chi Phí" giữ nguyên.) -->
-    <div class="card" style="margin-top:24px">
-      <div class="card-title"><span class="dot"></span> Doanh Thu & Chi Phí Theo Ngày / Giai Đoạn</div>
-      <canvas id="chart-revenue-cost" height="120"></canvas>
-    </div>
+    <!-- (Các card "Sản Phẩm Cần Theo Dõi", 4 card "Camp ADS Tăng/Giảm Đột Biến", biểu đồ
+         "ROAS Trung Bình Theo Ngày/Giai Đoạn" và card "Doanh Thu & Chi Phí Theo Ngày / Giai Đoạn"
+         đã xóa theo yêu cầu Tân 2026-08-05. Card đỏ "Cần Dừng/Tối Ưu Gấp" giữ nguyên. -->
 
     <!-- (Card "Đối Soát – Doanh Thu Thực vs ADS" đã xóa theo yêu cầu Tân 2026-08-05.
          Các hàm dosuat/sw JS vẫn giữ, initDoSuatPage đã guard null nên không lỗi.) -->
+
+    </div><!-- end ov-content -->
 
   </div>
 
@@ -2660,6 +2665,27 @@ let ovFilterMonth = null;  // '06'
 let ovFilterDays  = new Set(); // Set of selected day labels (multi-select)
 let _ovQuickMode  = null;  // 'lastweek' | 'thismonth' | 'lastmonth' | null
 
+// ── GATE: chỉ hiện dữ liệu Tổng Quan khi đã chọn ĐỦ Shop + khoảng ngày (xác nhận Tân 2026-08-05) ──
+let ovShopSelected = false; // true khi user bấm 1 chip shop (switchShop)
+let ovDateSelected = false; // true khi user chốt 1 khoảng ngày qua lịch (ovPickerSetRange)
+function ovUpdateGate() {
+  const notice  = document.getElementById('ov-gate-notice');
+  const content = document.getElementById('ov-content');
+  if (!notice || !content) return true; // DOM chưa sẵn sàng — không chặn gọi hàm render phía sau
+  const ready = ovShopSelected && ovDateSelected;
+  notice.style.display  = ready ? 'none' : '';
+  content.style.display = ready ? '' : 'none';
+  const hint = document.getElementById('ov-gate-hint');
+  if (hint && !ready) {
+    hint.textContent = !ovShopSelected && !ovDateSelected
+      ? 'Bấm chọn 1 Shop và 1 khoảng ngày ở thanh lọc phía trên — dữ liệu toàn trang sẽ hiển thị theo đúng bộ lọc đó.'
+      : !ovShopSelected
+        ? 'Đã chọn khoảng ngày — bấm chọn thêm 1 Shop ở thanh lọc phía trên để xem dữ liệu.'
+        : 'Đã chọn Shop — bấm chọn thêm khoảng ngày ở thanh lọc phía trên để xem dữ liệu.';
+  }
+  return ready;
+}
+
 function _clearOvQuick() {
   _ovQuickMode = null;
   // Mirror id "-alerts" để xoá active đồng thời ở thanh lọc trang Cần Tối Ưu.
@@ -2986,7 +3012,9 @@ function ovPickerSetRange(start, end) {
   });
   ovFilterDays = new Set(matching.map(b => b.label));
   ovPickerClose();
+  ovDateSelected = true;
   renderOverviewChips(); // giữ nguyên để mirror vẫn cập nhật Cần Tối Ưu
+  ovUpdateGate();
   renderOverviewAll();
 }
 
@@ -3312,6 +3340,7 @@ function ovFmtDelta(cur, prev) {
 }
 
 function renderOverviewAll() {
+  if (!ovUpdateGate()) return; // chưa chọn đủ Shop + khoảng ngày — không render, giữ màn chờ
   // Sync GMV-ROAS và Trend filter với bộ lọc Tổng Quan
   spFilterYear  = ovFilterYear;
   spFilterMonth = ovFilterMonth;
@@ -13007,6 +13036,10 @@ function renderAllShopFilterBars() {
 
 function switchShop(shopId, btn) {
   G.current = shopId;
+  ovShopSelected = true;
+  // Đổi shop → bắt chọn lại khoảng ngày cho đúng data shop mới (xác nhận Tân 2026-08-05).
+  ovDateSelected = false;
+  ovPickerReset();
   renderAllShopFilterBars();
   // Update title & section label
   const shop = SHOPS[shopId];
@@ -13034,6 +13067,7 @@ function switchShop(shopId, btn) {
   document.querySelectorAll('.tperiod-btn').forEach(b => b.classList.remove('active'));
   const dayBtn = document.getElementById('tbtn-day'); if(dayBtn) dayBtn.classList.add('active');
   refreshCSVPreview && refreshCSVPreview();
+  ovUpdateGate(); // chưa chọn lại ngày → đóng gate, hiện lại màn chờ chọn bộ lọc
   const shopData = G.shops[shopId];
   if (!shopData || !shopData.loaded) {
     // No data yet → show CSV update page
@@ -13103,7 +13137,7 @@ function showPage(name, el) {
   if (name === 'tonkho-canh-bao') cbInitPage();
   if (name === 'tonkho-bao-cao-san-luong') bcslInitPage();
   if (name === 'gia-canh-bao') giaInitPage();
-  if (name === 'overview')  sapiRenderShops(); // cập nhật card Kết Nối API (đóng/mở) ở đầu Tổng Quan
+  if (name === 'overview')  { sapiRenderShops(); ovUpdateGate(); } // cập nhật card Kết Nối API + gate chọn Shop/ngày ở đầu Tổng Quan
   if (name === 'auto-camp') renderAutoCampPage();
 }
 
@@ -13206,6 +13240,7 @@ function parseWorkbook(wb, fname) {
 // RENDER ALL
 // ══════════════════════════════════════════════════════════════
 function renderAll() {
+  if (!ovUpdateGate()) return; // chưa chọn đủ Shop + khoảng ngày — không render, giữ màn chờ
   renderOverviewChips();
   renderKPIs();
   renderOverviewTrendChart();
@@ -13889,6 +13924,8 @@ function renderChartTrend() {
 }
 
 function renderChartRevenueCost() {
+  // Card "Doanh Thu & Chi Phí Theo Ngày / Giai Đoạn" đã xóa khỏi Tổng Quan (Tân 2026-08-05) — canvas không còn tồn tại.
+  if (!document.getElementById('chart-revenue-cost')) return;
   if (!cData().dateBlocks.length) return;
   const groups = getFilteredGroups();
   if (!groups.length) { if(chartRevCost){chartRevCost.destroy();chartRevCost=null;} return; }
