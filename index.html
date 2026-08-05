@@ -13037,9 +13037,6 @@ function renderAllShopFilterBars() {
 function switchShop(shopId, btn) {
   G.current = shopId;
   ovShopSelected = true;
-  // Đổi shop → bắt chọn lại khoảng ngày cho đúng data shop mới (xác nhận Tân 2026-08-05).
-  ovDateSelected = false;
-  ovPickerReset();
   renderAllShopFilterBars();
   // Update title & section label
   const shop = SHOPS[shopId];
@@ -13051,15 +13048,23 @@ function switchShop(shopId, btn) {
   // Reset csvQueue + filters (belongs to one shop context)
   csvQueue = [];
   trendPeriod = 'day'; trendFilterYear = null; trendFilterMonth = null; trendFilterDay = null;
-  ovFilterYear = null; ovFilterMonth = null; ovFilterDays = new Set(); _ovQuickMode = null;
-  // Auto-chọn tháng mới nhất có dữ liệu khi đổi shop
-  const _sd = G.shops[shopId];
-  if (_sd?.dateBlocks?.length) {
-    const _infos = _sd.dateBlocks.map(b => parseDateLabelInfo(b.label)).filter(Boolean);
-    if (_infos.length) {
-      const _latest = _infos.sort((a,b) => (b.year+b.month).localeCompare(a.year+a.month))[0];
-      ovFilterYear = _latest.year; ovFilterMonth = _latest.month;
-    }
+  // Giữ nguyên khoảng ngày đã chọn khi đổi shop (xác nhận Tân 2026-08-05) — tính lại ovFilterDays
+  // theo dữ liệu của shop mới trong đúng khoảng OVPICKER.startDate..endDate đã chốt trước đó.
+  // Nếu chưa từng chọn ngày lần nào thì vẫn giữ gate đóng, chờ user chọn.
+  _ovQuickMode = null;
+  if (OVPICKER.startDate && OVPICKER.endDate) {
+    ovFilterYear = null; ovFilterMonth = null;
+    const matching = cData().dateBlocks.filter(b => {
+      const p = b.label.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (!p) return false;
+      const ds = `${p[3]}-${p[2]}-${p[1]}`;
+      return ds >= OVPICKER.startDate && ds <= OVPICKER.endDate;
+    });
+    ovFilterDays = new Set(matching.map(b => b.label));
+    ovDateSelected = true;
+  } else {
+    ovFilterYear = null; ovFilterMonth = null; ovFilterDays = new Set();
+    ovDateSelected = false;
   }
   swTKData = null; swOrderData = null; swSelectedDates = new Set();
   hideDriveUndo();
@@ -13067,7 +13072,7 @@ function switchShop(shopId, btn) {
   document.querySelectorAll('.tperiod-btn').forEach(b => b.classList.remove('active'));
   const dayBtn = document.getElementById('tbtn-day'); if(dayBtn) dayBtn.classList.add('active');
   refreshCSVPreview && refreshCSVPreview();
-  ovUpdateGate(); // chưa chọn lại ngày → đóng gate, hiện lại màn chờ chọn bộ lọc
+  ovUpdateGate(); // cập nhật lại notice/content: mở nếu đã có sẵn ngày, đóng nếu chưa từng chọn
   const shopData = G.shops[shopId];
   if (!shopData || !shopData.loaded) {
     // No data yet → show CSV update page
