@@ -838,37 +838,7 @@
       </div>
     </div>
 
-    <!-- ACOS Tổng Shop (per shop) -->
-    <div class="card" style="margin-top:16px" id="ov-acos-shop-card">
-      <div class="card-title"><span class="dot"></span> ACOS Tổng Shop — Chi Phí ADS / Tổng Doanh Thu (Organic + ADS)</div>
-      <div class="acos-shop-grid">
-        <div class="acos-shop-input-wrap">
-          <label>📊 Tổng Doanh Thu Shop kỳ này (lấy từ Salework — bao gồm cả organic)</label>
-          <div class="acos-shop-input-row">
-            <input type="text" id="ov-acos-shop-rev-input" class="acos-shop-input"
-              placeholder="Nhập tổng doanh thu (VD: 500000000)"
-              oninput="onOvAcosShopInput()" />
-            <button class="acos-shop-save-btn" onclick="saveOvAcosShopRev()">💾 Lưu</button>
-          </div>
-          <div class="acos-shop-hint">⚠️ Lưu riêng theo từng shop và kỳ (năm/tháng). Đổi shop hoặc kỳ xem sẽ load giá trị tương ứng.</div>
-        </div>
-        <div class="acos-shop-kpi">
-          <div class="acos-shop-kpi-label">💸 Chi Phí ADS (kỳ hiện tại)</div>
-          <div class="acos-shop-kpi-value" id="ov-acos-shop-cost">–</div>
-          <div class="acos-shop-kpi-sub">Lấy từ dữ liệu ADS đã đồng bộ</div>
-        </div>
-        <div class="acos-shop-kpi" id="ov-acos-shop-result-card" style="border-left-color:var(--gray3)">
-          <div class="acos-shop-kpi-label">🎯 ACOS Tổng Shop</div>
-          <div class="acos-shop-kpi-value" id="ov-acos-shop-result">–</div>
-          <div class="acos-shop-kpi-sub" id="ov-acos-shop-sub">Nhập tổng DT để tính</div>
-        </div>
-        <div class="acos-shop-kpi" id="ov-acos-shop-vat-card" style="border-left-color:var(--gray3)">
-          <div class="acos-shop-kpi-label">🎯 ACOS + VAT (Thực)</div>
-          <div class="acos-shop-kpi-value" id="ov-acos-shop-vat-result">–</div>
-          <div class="acos-shop-kpi-sub" id="ov-acos-shop-vat-sub">Nhập tổng DT để tính</div>
-        </div>
-      </div>
-    </div>
+    <!-- (Card "ACOS Tổng Shop" đã xóa theo yêu cầu Tân 2026-08-05 — các hàm JS ov-acos vẫn giữ, đều có guard null) -->
 
     <!-- ══════════════════════════════════════════════════════════════ -->
     <!-- GMV-ROAS – nhúng vào Tổng Quan, dùng chung bộ lọc ovFilter   -->
@@ -909,100 +879,16 @@
       <div class="card-title"><span class="dot" style="background:var(--red)"></span> Sản Phẩm Cần Dừng / Tối Ưu Gấp (ROAS &lt; 10)</div>
       <div class="alert-grid" id="alert-red"></div>
     </div>
-    <div class="card">
-      <div class="card-title"><span class="dot" style="background:var(--orange2)"></span> Sản Phẩm Cần Theo Dõi (ROAS 10–19)</div>
-      <div class="alert-grid" id="alert-yellow"></div>
-    </div>
-    <div class="card" style="margin-top:16px">
-      <div class="card-title"><span class="dot" style="background:#22c55e"></span> Camp ADS Tăng Đột Biến <span id="spike-up-label" style="font-size:11px;color:var(--text2);font-weight:400"></span></div>
-      <div class="alert-grid" id="alert-spike-up"></div>
-    </div>
-    <div class="card" style="margin-top:16px">
-      <div class="card-title"><span class="dot" style="background:#8b5cf6"></span> Camp ADS Giảm Đột Biến <span id="spike-down-label" style="font-size:11px;color:var(--text2);font-weight:400"></span></div>
-      <div class="alert-grid" id="alert-spike-down"></div>
-    </div>
-    <div class="card" style="margin-top:16px">
-      <div class="card-title"><span class="dot" style="background:#22c55e"></span> Camp ADS Tăng Đột Biến – 7 Ngày <span id="spike-up-label-7d" style="font-size:11px;color:var(--text2);font-weight:400"></span></div>
-      <div class="alert-grid" id="alert-spike-up-7d"></div>
-    </div>
-    <div class="card" style="margin-top:16px">
-      <div class="card-title"><span class="dot" style="background:#8b5cf6"></span> Camp ADS Giảm Đột Biến – 7 Ngày <span id="spike-down-label-7d" style="font-size:11px;color:var(--text2);font-weight:400"></span></div>
-      <div class="alert-grid" id="alert-spike-down-7d"></div>
-    </div>
-
-    <!-- ROAS Trend – nhúng vào Tổng Quan, không có bộ chọn Ngày/Tháng/Năm -->
-    <div class="card" style="margin-top:24px;margin-bottom:16px">
-      <div class="card-title"><span class="dot"></span> ROAS Trung Bình Theo Ngày / Giai Đoạn</div>
-      <canvas id="chart-trend" height="120"></canvas>
-    </div>
-    <div class="card">
+    <!-- (Các card "Sản Phẩm Cần Theo Dõi", 4 card "Camp ADS Tăng/Giảm Đột Biến" và biểu đồ
+         "ROAS Trung Bình Theo Ngày/Giai Đoạn" đã xóa theo yêu cầu Tân 2026-08-05.
+         Card đỏ "Cần Dừng/Tối Ưu Gấp" và biểu đồ "Doanh Thu & Chi Phí" giữ nguyên.) -->
+    <div class="card" style="margin-top:24px">
       <div class="card-title"><span class="dot"></span> Doanh Thu & Chi Phí Theo Ngày / Giai Đoạn</div>
       <canvas id="chart-revenue-cost" height="120"></canvas>
     </div>
 
-    <!-- Đối Soát Thực – nhúng vào Tổng Quan -->
-    <div class="card" style="margin-top:24px;margin-bottom:16px">
-      <div class="card-title">🔍 Đối Soát – Doanh Thu Thực vs ADS</div>
-      <p style="font-size:12px;color:var(--text2);margin:0 0 16px;line-height:1.6">
-        Chọn kỳ ADS + upload 2 file Salework để so sánh chính xác.<br>
-        <span style="color:var(--orange);font-weight:600">⚠ Lưu ý:</span> Dùng file sau ít nhất 20 ngày để đơn hoàn/hủy đã xử lý xong. File Đơn hàng bắt buộc cùng khoảng thời gian với kỳ ADS chọn.
-      </p>
-
-      <!-- Bước 1 -->
-      <div class="dosuat-step">
-        <div class="dosuat-step-title">📅 Bước 1: Chọn kỳ ADS cần đối soát (có thể chọn nhiều ngày)</div>
-        <div id="dosuat-date-chips" style="display:flex;gap:6px;flex-wrap:wrap;min-height:28px">
-          <span style="color:var(--text2);font-size:12px">Chưa có dữ liệu ADS</span>
-        </div>
-        <div id="dosuat-dates-selected" style="margin-top:6px;font-size:11px;color:var(--orange);font-weight:600"></div>
-      </div>
-
-      <!-- Bước 2a + 2b song song -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-        <div class="dosuat-step" style="margin-bottom:0">
-          <div class="dosuat-step-title">📊 Bước 2a: Thống kê sản phẩm <span style="color:var(--text2);font-weight:400">(doanh thu thực)</span></div>
-          <div id="sw-drop-zone" class="sw-drop-zone"
-               ondragover="event.preventDefault();this.classList.add('drag-over')"
-               ondragleave="this.classList.remove('drag-over')"
-               ondrop="handleSwDrop(event,'tk')">
-            <div style="font-size:28px;margin-bottom:6px">📊</div>
-            <div style="font-size:12px;font-weight:600;margin-bottom:4px" id="sw-drop-text">Kéo file vào đây</div>
-            <div style="font-size:11px;color:var(--text2);margin-bottom:10px" id="sw-drop-sub">Thong_ke_san_pham_Shopee_...</div>
-            <label for="sw-file-input" style="display:inline-block;background:var(--navy);color:white;padding:6px 16px;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600">📂 Chọn File</label>
-            <input type="file" id="sw-file-input" accept=".xlsx" style="display:none" onchange="handleSwFileInput(this,'tk')">
-          </div>
-        </div>
-        <div class="dosuat-step" style="margin-bottom:0">
-          <div class="dosuat-step-title">🧾 Bước 2b: Đơn hàng <span style="color:var(--text2);font-weight:400">(trạng thái TC / TT / ĐG)</span></div>
-          <div id="sw-order-drop-zone" class="sw-drop-zone"
-               ondragover="event.preventDefault();this.classList.add('drag-over')"
-               ondragleave="this.classList.remove('drag-over')"
-               ondrop="handleSwDrop(event,'dh')">
-            <div style="font-size:28px;margin-bottom:6px">🧾</div>
-            <div style="font-size:12px;font-weight:600;margin-bottom:4px" id="sw-order-drop-text">Kéo file vào đây</div>
-            <div style="font-size:11px;color:var(--text2);margin-bottom:10px" id="sw-order-drop-sub">Don_hang_Shopee_...</div>
-            <label for="sw-order-input" style="display:inline-block;background:var(--navy);color:white;padding:6px 16px;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600">📂 Chọn File</label>
-            <input type="file" id="sw-order-input" accept=".xlsx" style="display:none" onchange="handleSwFileInput(this,'dh')">
-          </div>
-        </div>
-      </div>
-
-      <button id="btn-dosuat-run" onclick="runDoSuat()"
-        style="display:none;background:var(--navy);color:white;border:none;padding:11px 28px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">
-        ⚡ So Sánh Ngay
-      </button>
-      <span id="dosuat-file-hint" style="margin-left:12px;font-size:11px;color:var(--orange);font-weight:600"></span>
-    </div>
-
-    <!-- Kết quả Đối Soát -->
-    <div id="dosuat-result" style="display:none">
-      <div class="dosuat-kpi" id="dosuat-kpi-grid"></div>
-      <div class="card">
-        <div class="card-title">📋 Chi Tiết Từng Sản Phẩm ADS</div>
-        <div id="dosuat-unmatched" style="margin-bottom:8px;font-size:11px;color:var(--orange)"></div>
-        <div id="dosuat-table-wrap" style="overflow-x:auto;max-height:560px;overflow-y:auto"></div>
-      </div>
-    </div>
+    <!-- (Card "Đối Soát – Doanh Thu Thực vs ADS" đã xóa theo yêu cầu Tân 2026-08-05.
+         Các hàm dosuat/sw JS vẫn giữ, initDoSuatPage đã guard null nên không lỗi.) -->
 
   </div>
 
@@ -13596,7 +13482,9 @@ function renderAlerts() {
         </div>`).join('')
     : '<div class="empty">🎉 Không có sản phẩm nào ROAS dưới 10</div>';
 
-  document.getElementById('alert-yellow').innerHTML = yellow.length
+  // Card "Sản Phẩm Cần Theo Dõi" (alert-yellow) đã xóa khỏi Tổng Quan (Tân 2026-08-05) — guard để không lỗi
+  const yellowEl = document.getElementById('alert-yellow');
+  if (yellowEl) yellowEl.innerHTML = yellow.length
     ? yellow.slice(0,20).map(p=>`
         <div class="alert-item warn">
           <span class="alert-icon">🟡</span>
@@ -13614,6 +13502,8 @@ function renderAlerts() {
   const spikeDownEl = document.getElementById('alert-spike-down');
   const labelUp     = document.getElementById('spike-up-label');
   const labelDown   = document.getElementById('spike-down-label');
+  // 4 card Tăng/Giảm Đột Biến đã xóa khỏi Tổng Quan (Tân 2026-08-05) — bỏ qua toàn bộ phần spike
+  if (!spikeUpEl || !spikeDownEl) return;
 
   if (allBlocks.length < 2) {
     const msg = '<div class="empty" style="color:var(--text2)">Cần ít nhất 2 ngày dữ liệu để so sánh</div>';
@@ -13955,6 +13845,8 @@ function renderChartCostPie() {
 }
 
 function renderChartTrend() {
+  // Card biểu đồ "ROAS Trung Bình Theo Ngày/Giai Đoạn" đã xóa khỏi Tổng Quan (Tân 2026-08-05)
+  if (!document.getElementById('chart-trend')) return;
   if (!cData().dateBlocks.length) return;
   const groups = getFilteredGroups();
   if (!groups.length) { if(chartTrend){chartTrend.destroy();chartTrend=null;} return; }
