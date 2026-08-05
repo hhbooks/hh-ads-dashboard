@@ -693,11 +693,14 @@
         <span id="ov-api-arrow" style="margin-left:auto;font-size:12px;color:var(--text2)">▶</span>
       </div>
       <div id="ov-api-body" style="display:none;margin-top:14px">
-      <p style="font-size:12px;color:var(--text2);line-height:1.7;margin:0 0 16px">
+      <!-- Ẩn theo yêu cầu Tân 2026-08-05 (rút gọn card): hướng dẫn Bước 1/Bước 2 + khung cảnh báo
+           "Quan trọng"/"Cách kết nối đúng shop". Giữ nguyên nội dung, chỉ display:none — có thể bật
+           lại bằng cách xoá display:none nếu cần tham khảo lại quy trình kết nối đúng shop. -->
+      <p style="display:none;font-size:12px;color:var(--text2);line-height:1.7;margin:0 0 16px">
         Bước 1: Bấm <b>Kết Nối</b> từng shop — Shopee sẽ yêu cầu đăng nhập, sau đó tự động lưu token về hệ thống. Chỉ làm <b>1 lần</b>, token tự refresh về sau.<br>
         Bước 2: Mỗi ngày bấm <b>Đồng Bộ ADS</b> để kéo data về Dashboard — không cần vào Shopee nữa.
       </p>
-      <div style="font-size:12px;color:#7d5b00;background:#fff8e1;border:1px solid #f39c12;border-radius:8px;padding:10px 14px;margin:0 0 16px;line-height:1.7">
+      <div style="display:none;font-size:12px;color:#7d5b00;background:#fff8e1;border:1px solid #f39c12;border-radius:8px;padding:10px 14px;margin:0 0 16px;line-height:1.7">
         ⚠️ <b>Quan trọng — Shopee chọn shop theo phiên đăng nhập trên open.shopee.com, KHÔNG theo nút bạn bấm:</b>
         trang xác thực nằm trên open.shopee.com (dùng chung phiên với Open Platform Console, khác hoàn toàn với Seller Centre banhang.shopee.vn).
         Nếu trình duyệt đang đăng nhập sẵn Console/open.shopee.com bằng tài khoản shop nào, mọi lần Kết Nối đều bị tự xác nhận cho shop đó mà không hỏi lại.<br>
@@ -706,12 +709,14 @@
       </div>
 
       <!-- Shop cards -->
-      <div id="sapi-shop-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:20px">
+      <div id="sapi-shop-grid" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-bottom:20px">
         <!-- Rendered by JS -->
       </div>
 
       <!-- Actions -->
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <!-- Nút "Tổng Quan (Nhanh)" ẩn theo yêu cầu Tân 2026-08-05 — JS sapiRenderShops() đã sửa
+             để không tự bật lại display nữa (xem dòng gán syncBtn.style.display bên dưới). -->
         <button id="sapi-sync-btn" onclick="sapiSyncAll()" style="display:none;padding:10px 22px;background:#ee4d2d;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">
           🔄 Tổng Quan (Nhanh)
         </button>
@@ -749,7 +754,8 @@
             </div>
           </div>
         </div>
-        <span style="font-size:12px;color:var(--text2)">Để trống = hôm qua · Chọn khoảng = sync nhiều ngày (tối đa 31)</span>
+        <!-- Ẩn theo yêu cầu Tân 2026-08-05 (rút gọn card) -->
+        <span style="display:none;font-size:12px;color:var(--text2)">Để trống = hôm qua · Chọn khoảng = sync nhiều ngày (tối đa 31)</span>
       </div>
 
       <!-- Log -->
@@ -8007,24 +8013,23 @@ async function sapiRenderShops() {
     const expireDate = tok ? new Date(tok.expire_at * 1000).toLocaleDateString('vi-VN') : '';
     const expireSoon = tok && (tok.expire_at - now < 3600 * 24 * 3);
     const statusBadge = connected
-      ? `<span style="background:#e8f8f0;color:#27ae60;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600">🟢 Đã kết nối</span>`
-      : `<span style="background:#fdf0ef;color:#e74c3c;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600">⚫ Chưa kết nối</span>`;
+      ? `<span style="background:#e8f8f0;color:#27ae60;border-radius:4px;padding:2px 6px;font-size:9.5px;font-weight:600;white-space:nowrap">🟢 Đã kết nối</span>`
+      : `<span style="background:#fdf0ef;color:#e74c3c;border-radius:4px;padding:2px 6px;font-size:9.5px;font-weight:600;white-space:nowrap">⚫ Chưa kết nối</span>`;
     const expireInfo = ''; // Ẩn — token tự refresh, không cần hiển thị
     const actionBtn = connected
-      ? `<div style="display:flex;gap:8px;margin-top:10px">
-           <button onclick="sapiDisconnect(${shop.id})" style="padding:5px 12px;border:1px solid #e74c3c;color:#e74c3c;background:white;border-radius:6px;font-size:11px;cursor:pointer">Ngắt kết nối</button>
-         </div>`
-      : `<button onclick="sapiConnect(${shop.id})" style="margin-top:10px;padding:6px 14px;background:#ee4d2d;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">🔗 Kết Nối</button>`;
-    return `<div style="background:white;border:2px solid ${connected?'#27ae60':'#ddd'};border-radius:10px;padding:14px">
-      <div style="font-weight:700;font-size:13px;margin-bottom:4px">${shop.name}</div>
-      <div style="font-size:11px;color:#999;margin-bottom:8px">@${shop.username} · ID: ${shop.id}</div>
+      ? `<button onclick="sapiDisconnect(${shop.id})" style="width:100%;margin-top:6px;padding:4px 6px;border:1px solid #e74c3c;color:#e74c3c;background:white;border-radius:6px;font-size:10px;cursor:pointer">Ngắt kết nối</button>`
+      : `<button onclick="sapiConnect(${shop.id})" style="width:100%;margin-top:6px;padding:5px 6px;background:#ee4d2d;color:white;border:none;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer">🔗 Kết Nối</button>`;
+    // Card thu gọn theo yêu cầu Tân 2026-08-05 — 6 shop hiện đủ trên 1 dòng ngang thay vì 2 dòng.
+    return `<div style="background:white;border:1.5px solid ${connected?'#27ae60':'#ddd'};border-radius:8px;padding:10px;min-width:0">
+      <div style="font-weight:700;font-size:11.5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${shop.name}">${shop.name}</div>
+      <div style="font-size:9px;color:#999;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="@${shop.username} · ID: ${shop.id}">ID: ${shop.id}</div>
       ${statusBadge}${expireInfo}${actionBtn}
     </div>`;
   }).join('');
 
-  // Hiện/ẩn nút Sync
+  // Hiện/ẩn nút Sync — "Tổng Quan (Nhanh)" ẩn vĩnh viễn theo yêu cầu Tân 2026-08-05 (rút gọn card).
   const syncBtn = document.getElementById('sapi-sync-btn');
-  if (syncBtn) syncBtn.style.display = connectedCount > 0 ? 'inline-block' : 'none';
+  if (syncBtn) syncBtn.style.display = 'none';
   const syncDetailBtn = document.getElementById('sapi-sync-detail-btn');
   if (syncDetailBtn) syncDetailBtn.style.display = connectedCount > 0 ? 'inline-block' : 'none';
   const badge = document.getElementById('badge-api-connected');
