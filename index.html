@@ -572,10 +572,6 @@
           <span class="icon">⚡</span> Chiến Dịch Tự Động GMS
           <span class="nav-badge warn" id="badge-auto-camp" style="display:none">–</span>
         </div>
-        <div class="nav-item" onclick="showPage('ads-api',this)" id="nav-ads-api">
-          <span class="icon">🔗</span> Kết Nối API
-          <span class="nav-badge green" id="badge-api-connected" style="display:none">●</span>
-        </div>
       </div>
     </div>
 
@@ -659,6 +655,82 @@
   <div class="page" id="page-overview">
     <!-- Bộ lọc Shop — chuyển từ sidebar vào đây (xác nhận với Tân 2026-08-05) -->
     <div class="shop-filter-bar" id="shop-filter-bar-overview"></div>
+
+    <!-- KẾT NỐI API — chuyển từ trang riêng vào đầu Tổng Quan, dạng card đóng/mở.
+         Mặc định thu gọn chỉ hiện dòng trạng thái; bấm tiêu đề để xòe. Xác nhận với Tân 2026-08-05. -->
+    <div class="card" style="margin-bottom:16px" id="ov-api-card">
+      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none" onclick="ovApiToggle()">
+        <span style="font-size:14px;font-weight:700;color:var(--text)">🔗 Kết Nối API &amp; Đồng Bộ ADS</span>
+        <span id="ov-api-status" style="font-size:12px;color:var(--text2)"></span>
+        <span id="ov-api-arrow" style="margin-left:auto;font-size:12px;color:var(--text2)">▶</span>
+      </div>
+      <div id="ov-api-body" style="display:none;margin-top:14px">
+      <p style="font-size:12px;color:var(--text2);line-height:1.7;margin:0 0 16px">
+        Bước 1: Bấm <b>Kết Nối</b> từng shop — Shopee sẽ yêu cầu đăng nhập, sau đó tự động lưu token về hệ thống. Chỉ làm <b>1 lần</b>, token tự refresh về sau.<br>
+        Bước 2: Mỗi ngày bấm <b>Đồng Bộ ADS</b> để kéo data về Dashboard — không cần vào Shopee nữa.
+      </p>
+      <div style="font-size:12px;color:#7d5b00;background:#fff8e1;border:1px solid #f39c12;border-radius:8px;padding:10px 14px;margin:0 0 16px;line-height:1.7">
+        ⚠️ <b>Quan trọng — Shopee chọn shop theo phiên đăng nhập trên open.shopee.com, KHÔNG theo nút bạn bấm:</b>
+        trang xác thực nằm trên open.shopee.com (dùng chung phiên với Open Platform Console, khác hoàn toàn với Seller Centre banhang.shopee.vn).
+        Nếu trình duyệt đang đăng nhập sẵn Console/open.shopee.com bằng tài khoản shop nào, mọi lần Kết Nối đều bị tự xác nhận cho shop đó mà không hỏi lại.<br>
+        👉 <b>Cách kết nối đúng shop:</b> mở <b>cửa sổ ẩn danh</b> → vào Dashboard này → bấm Kết Nối shop cần kết nối → Shopee sẽ hiện màn đăng nhập ("Login to Authorize Shopee Openplatform APP") → đăng nhập bằng tài khoản của <b>đúng shop đó</b> → xác nhận. Lặp lại từng shop (mỗi shop 1 cửa sổ ẩn danh mới, hoặc đăng xuất open.shopee.com giữa các lần).
+        Nếu lỡ kết nối lệch, hệ thống sẽ báo ngay và token vẫn lưu đúng theo shop Shopee thực trả về (không lưu nhầm).
+      </div>
+
+      <!-- Shop cards -->
+      <div id="sapi-shop-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:20px">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Actions -->
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <button id="sapi-sync-btn" onclick="sapiSyncAll()" style="display:none;padding:10px 22px;background:#ee4d2d;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">
+          🔄 Tổng Quan (Nhanh)
+        </button>
+        <button id="sapi-sync-detail-btn" onclick="sapiSyncPerCampaign()" style="display:none;padding:10px 22px;background:#c0392b;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">
+          📋 Chi Tiết Campaigns
+        </button>
+        <!-- Inputs ẩn — giữ nguyên để sapiSyncAll/sapiSyncPerCampaign đọc như cũ -->
+        <input type="date" id="sapi-sync-date" style="display:none">
+        <input type="date" id="sapi-sync-date-to" style="display:none">
+        <!-- Calendar picker thay thế UI -->
+        <div style="position:relative" id="sapipicker-wrap">
+          <div id="sapipicker-input" onclick="sapiPickerToggle()" style="display:flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid #ddd;border-radius:8px;cursor:pointer;font-size:13px;background:white;min-width:220px;user-select:none">
+            <span>📅</span>
+            <span id="sapipicker-label" style="flex:1;color:#999">Để trống = hôm qua</span>
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </div>
+          <div id="sapipicker-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:999;background:white;border:1px solid #ddd;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);overflow:hidden;min-width:280px">
+            <div style="display:flex">
+              <div style="width:130px;border-right:1px solid #eee;padding:8px 0">
+                <div onclick="sapiPickerShortcut('yesterday')" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''" style="padding:9px 16px;font-size:12px;cursor:pointer">Hôm qua</div>
+                <div onclick="sapiPickerShortcut('today')" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''" style="padding:9px 16px;font-size:12px;cursor:pointer">Hôm nay</div>
+                <div onclick="sapiPickerShortcut('last7days')" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''" style="padding:9px 16px;font-size:12px;cursor:pointer">7 ngày qua</div>
+                <div onclick="sapiPickerShortcut('thismonth')" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''" style="padding:9px 16px;font-size:12px;cursor:pointer">Tháng này</div>
+                <div onclick="sapiPickerShortcut('lastmonth')" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''" style="padding:9px 16px;font-size:12px;cursor:pointer">Tháng trước</div>
+                <div onclick="sapiPickerClear()" onmouseover="this.style.background='#fff0f0'" onmouseout="this.style.background=''" style="padding:9px 16px;font-size:12px;cursor:pointer;color:#c0392b;border-top:1px solid #eee;margin-top:4px">✕ Xoá (= hôm qua)</div>
+              </div>
+              <div style="padding:12px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                  <span onclick="sapiPickerCalNav(-1)" style="cursor:pointer;padding:2px 8px;font-size:16px;color:#0d47a1">‹</span>
+                  <span id="sapipicker-cal-title" style="font-size:13px;font-weight:700;color:#0d47a1;min-width:110px;text-align:center"></span>
+                  <span onclick="sapiPickerCalNav(1)" style="cursor:pointer;padding:2px 8px;font-size:16px;color:#0d47a1">›</span>
+                </div>
+                <div id="sapipicker-cal-grid" style="display:grid;grid-template-columns:repeat(7,32px);gap:2px;text-align:center"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <span style="font-size:12px;color:var(--text2)">Để trống = hôm qua · Chọn khoảng = sync nhiều ngày (tối đa 31)</span>
+      </div>
+
+      <!-- Log -->
+      <div id="sapi-log" class="drive-log"></div>
+
+      <!-- Kết quả sync -->
+      <div id="sapi-result" style="margin-top:16px"></div>
+      </div><!-- end ov-api-body -->
+    </div><!-- end ov-api-card -->
 
     <!-- OVERVIEW TIME FILTER -->
     <div class="trend-filter" id="overview-filter-bar">
@@ -1062,76 +1134,6 @@
   </div>
 
   <!-- KẾT NỐI SHOPEE API PAGE -->
-  <div class="page" id="page-ads-api">
-    <div class="card">
-      <div class="card-title">🔗 Kết Nối Shopee API — 6 Shop</div>
-      <p style="font-size:12px;color:var(--text2);line-height:1.7;margin:0 0 16px">
-        Bước 1: Bấm <b>Kết Nối</b> từng shop — Shopee sẽ yêu cầu đăng nhập, sau đó tự động lưu token về hệ thống. Chỉ làm <b>1 lần</b>, token tự refresh về sau.<br>
-        Bước 2: Mỗi ngày bấm <b>Đồng Bộ ADS</b> để kéo data về Dashboard — không cần vào Shopee nữa.
-      </p>
-      <div style="font-size:12px;color:#7d5b00;background:#fff8e1;border:1px solid #f39c12;border-radius:8px;padding:10px 14px;margin:0 0 16px;line-height:1.7">
-        ⚠️ <b>Quan trọng — Shopee chọn shop theo phiên đăng nhập trên open.shopee.com, KHÔNG theo nút bạn bấm:</b>
-        trang xác thực nằm trên open.shopee.com (dùng chung phiên với Open Platform Console, khác hoàn toàn với Seller Centre banhang.shopee.vn).
-        Nếu trình duyệt đang đăng nhập sẵn Console/open.shopee.com bằng tài khoản shop nào, mọi lần Kết Nối đều bị tự xác nhận cho shop đó mà không hỏi lại.<br>
-        👉 <b>Cách kết nối đúng shop:</b> mở <b>cửa sổ ẩn danh</b> → vào Dashboard này → bấm Kết Nối shop cần kết nối → Shopee sẽ hiện màn đăng nhập ("Login to Authorize Shopee Openplatform APP") → đăng nhập bằng tài khoản của <b>đúng shop đó</b> → xác nhận. Lặp lại từng shop (mỗi shop 1 cửa sổ ẩn danh mới, hoặc đăng xuất open.shopee.com giữa các lần).
-        Nếu lỡ kết nối lệch, hệ thống sẽ báo ngay và token vẫn lưu đúng theo shop Shopee thực trả về (không lưu nhầm).
-      </div>
-
-      <!-- Shop cards -->
-      <div id="sapi-shop-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:20px">
-        <!-- Rendered by JS -->
-      </div>
-
-      <!-- Actions -->
-      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
-        <button id="sapi-sync-btn" onclick="sapiSyncAll()" style="display:none;padding:10px 22px;background:#ee4d2d;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">
-          🔄 Tổng Quan (Nhanh)
-        </button>
-        <button id="sapi-sync-detail-btn" onclick="sapiSyncPerCampaign()" style="display:none;padding:10px 22px;background:#c0392b;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">
-          📋 Chi Tiết Campaigns
-        </button>
-        <!-- Inputs ẩn — giữ nguyên để sapiSyncAll/sapiSyncPerCampaign đọc như cũ -->
-        <input type="date" id="sapi-sync-date" style="display:none">
-        <input type="date" id="sapi-sync-date-to" style="display:none">
-        <!-- Calendar picker thay thế UI -->
-        <div style="position:relative" id="sapipicker-wrap">
-          <div id="sapipicker-input" onclick="sapiPickerToggle()" style="display:flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid #ddd;border-radius:8px;cursor:pointer;font-size:13px;background:white;min-width:220px;user-select:none">
-            <span>📅</span>
-            <span id="sapipicker-label" style="flex:1;color:#999">Để trống = hôm qua</span>
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-          </div>
-          <div id="sapipicker-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:999;background:white;border:1px solid #ddd;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);overflow:hidden;min-width:280px">
-            <div style="display:flex">
-              <div style="width:130px;border-right:1px solid #eee;padding:8px 0">
-                <div onclick="sapiPickerShortcut('yesterday')" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''" style="padding:9px 16px;font-size:12px;cursor:pointer">Hôm qua</div>
-                <div onclick="sapiPickerShortcut('today')" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''" style="padding:9px 16px;font-size:12px;cursor:pointer">Hôm nay</div>
-                <div onclick="sapiPickerShortcut('last7days')" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''" style="padding:9px 16px;font-size:12px;cursor:pointer">7 ngày qua</div>
-                <div onclick="sapiPickerShortcut('thismonth')" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''" style="padding:9px 16px;font-size:12px;cursor:pointer">Tháng này</div>
-                <div onclick="sapiPickerShortcut('lastmonth')" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''" style="padding:9px 16px;font-size:12px;cursor:pointer">Tháng trước</div>
-                <div onclick="sapiPickerClear()" onmouseover="this.style.background='#fff0f0'" onmouseout="this.style.background=''" style="padding:9px 16px;font-size:12px;cursor:pointer;color:#c0392b;border-top:1px solid #eee;margin-top:4px">✕ Xoá (= hôm qua)</div>
-              </div>
-              <div style="padding:12px">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                  <span onclick="sapiPickerCalNav(-1)" style="cursor:pointer;padding:2px 8px;font-size:16px;color:#0d47a1">‹</span>
-                  <span id="sapipicker-cal-title" style="font-size:13px;font-weight:700;color:#0d47a1;min-width:110px;text-align:center"></span>
-                  <span onclick="sapiPickerCalNav(1)" style="cursor:pointer;padding:2px 8px;font-size:16px;color:#0d47a1">›</span>
-                </div>
-                <div id="sapipicker-cal-grid" style="display:grid;grid-template-columns:repeat(7,32px);gap:2px;text-align:center"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <span style="font-size:12px;color:var(--text2)">Để trống = hôm qua · Chọn khoảng = sync nhiều ngày (tối đa 31)</span>
-      </div>
-
-      <!-- Log -->
-      <div id="sapi-log" class="drive-log"></div>
-
-      <!-- Kết quả sync -->
-      <div id="sapi-result" style="margin-top:16px"></div>
-    </div>
-  </div>
-
   <!-- CSV UPDATE PAGE -->
   <div class="page" id="page-update">
 
@@ -8005,8 +8007,10 @@ async function sapiHandleCallback() {
   localStorage.removeItem('sapi_intended_shop');
   try {
     await sapiExchangeToken(code, Number(shopId));
-    // Chuyển sang trang Kết Nối API để xem kết quả
-    showPage('ads-api', document.getElementById('nav-ads-api'));
+    // Chuyển sang Tổng Quan và xòe card Kết Nối API để xem kết quả (trang riêng đã bỏ)
+    const ovNav = document.querySelector('#block-body-ads .nav-item[onclick*="overview"]');
+    showPage('overview', ovNav);
+    ovApiExpand();
     await sapiRenderShops();
     // Đối chiếu shop ĐỊNH kết nối (lúc bấm nút) với shop Shopee THỰC SỰ trả về — nếu lệch, báo rõ
     // ngay (nguyên nhân đang được điều tra, xem ghi chú ở sapiConnect()). Token vẫn được lưu ĐÚNG
@@ -8076,6 +8080,26 @@ async function sapiRenderShops() {
   if (syncDetailBtn) syncDetailBtn.style.display = connectedCount > 0 ? 'inline-block' : 'none';
   const badge = document.getElementById('badge-api-connected');
   if (badge) badge.style.display = connectedCount > 0 ? 'inline-block' : 'none';
+  // Dòng trạng thái trên card thu gọn ở đầu Tổng Quan
+  const ovStatus = document.getElementById('ov-api-status');
+  if (ovStatus) ovStatus.textContent = `— ${connectedCount}/${SAPI_SHOPS.length} shop đã kết nối ${connectedCount === SAPI_SHOPS.length ? '🟢' : '⚠️'}`;
+}
+
+// ── Card Kết Nối API đóng/mở ở đầu Tổng Quan (thay trang riêng — Tân 2026-08-05) ──
+function ovApiToggle() {
+  const body = document.getElementById('ov-api-body');
+  const arrow = document.getElementById('ov-api-arrow');
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : '';
+  if (arrow) arrow.textContent = isOpen ? '▶' : '▼';
+  if (!isOpen) sapiRenderShops(); // refresh trạng thái mỗi lần mở
+}
+function ovApiExpand() {
+  const body = document.getElementById('ov-api-body');
+  const arrow = document.getElementById('ov-api-arrow');
+  if (body) body.style.display = '';
+  if (arrow) arrow.textContent = '▼';
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -13193,7 +13217,7 @@ function showPage(name, el) {
   if (name === 'tonkho-canh-bao') cbInitPage();
   if (name === 'tonkho-bao-cao-san-luong') bcslInitPage();
   if (name === 'gia-canh-bao') giaInitPage();
-  if (name === 'ads-api')   sapiRenderShops();
+  if (name === 'overview')  sapiRenderShops(); // cập nhật card Kết Nối API (đóng/mở) ở đầu Tổng Quan
   if (name === 'auto-camp') renderAutoCampPage();
 }
 
