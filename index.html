@@ -2023,6 +2023,21 @@
             <div style="font-size:11px;color:#e74c3c;font-weight:600;text-transform:uppercase">Không Khớp</div>
             <div style="font-size:22px;font-weight:700;color:#e74c3c" id="nhm-kpi-unmatched">0</div>
           </div>
+          <div style="border:2px solid #f39c12;border-radius:8px;padding:10px 18px;text-align:center;min-width:80px">
+            <div style="font-size:11px;color:#f39c12;font-weight:600;text-transform:uppercase">Không Có Trong Mass</div>
+            <div style="font-size:22px;font-weight:700;color:#f39c12" id="nhm-kpi-notfound">0</div>
+          </div>
+        </div>
+        <div id="nhm-notfound-box" style="display:none;margin-bottom:14px;border:1px solid #f39c12;border-radius:8px;padding:12px;background:#fffaf0">
+          <div style="font-size:13px;font-weight:600;color:#c87f0a;margin-bottom:8px">⚠️ Mã trong nguồn (phiếu/đơn) nhưng KHÔNG tìm thấy trong file Mass của shop này — <span id="nhm-notfound-count">0</span> mã</div>
+          <div class="table-wrap" style="max-height:220px;overflow-y:auto;border:1px solid var(--gray3);border-radius:8px;background:white">
+            <table>
+              <thead id="nhm-notfound-thead">
+                <tr><th>#</th><th style="text-align:left">Mã (SKU)</th><th style="text-align:left">Tên</th><th class="num">Số Lượng</th></tr>
+              </thead>
+              <tbody id="nhm-notfound-tbody"></tbody>
+            </table>
+          </div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
           <button class="filter-btn active" onclick="nhmSetFilter('all',this)">Tất cả</button>
@@ -5995,6 +6010,11 @@ function nhResetAll() {
   NHM.massWb = null; NHM.massWs = null; NHM.massFileName = '';
   NHM.massHeaderRow = -1; NHM.massIdx = null; NHM.massKhoCols = [];
   NHM.reportRows = []; NHM.reportFilter = 'all';
+  NHM.deliNotFound = []; NHM.boseNotFound = [];
+  const notfoundBox0 = document.getElementById('nhm-notfound-box');
+  if (notfoundBox0) notfoundBox0.style.display = 'none';
+  const kpiNotfound0 = document.getElementById('nhm-kpi-notfound');
+  if (kpiNotfound0) kpiNotfound0.textContent = '0';
   const massInput = document.getElementById('nhm-mass-input');
   if (massInput) massInput.value = '';
   const statusMass = document.getElementById('nhm-status-mass');
@@ -6111,7 +6131,8 @@ const NHM = {
   mode: 'deli', // 'deli' | 'bose'
   massWb: null, massWs: null, massFileName: '',
   massHeaderRow: -1, massIdx: null, massKhoCols: [],
-  reportRows: [], reportFilter: 'all'
+  reportRows: [], reportFilter: 'all',
+  deliNotFound: [], boseNotFound: [] // mã có trong nguồn (phiếu/đơn) nhưng không tìm thấy trong file mass
 };
 
 function nhmSetMode(mode, btn) {
@@ -6152,6 +6173,11 @@ function nhmSetMode(mode, btn) {
   }
 
   NHM.reportRows = []; NHM.reportFilter = 'all';
+  NHM.deliNotFound = []; NHM.boseNotFound = [];
+  const notfoundBox = document.getElementById('nhm-notfound-box');
+  if (notfoundBox) notfoundBox.style.display = 'none';
+  const kpiNotfound = document.getElementById('nhm-kpi-notfound');
+  if (kpiNotfound) kpiNotfound.textContent = '0';
   document.querySelectorAll('#nhm-export-row .filter-btn').forEach(b => b.classList.remove('active'));
   const allBtn = document.querySelector('#nhm-export-row .filter-btn');
   if (allBtn) allBtn.classList.add('active');
@@ -6304,6 +6330,7 @@ function nhmBuildReport() {
   const hnKhoCol = NHM.massKhoCols.find(k => k.kho === 'hn');
   const hcmKhoCol = NHM.massKhoCols.find(k => k.kho === 'hcm');
   const report = [];
+  const usedMa = new Set(); // mã (cột B phiếu) đã được tìm thấy ở đâu đó trong file mass (trực tiếp hoặc qua Salework)
   for (let i = headerRow + 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row) continue;
@@ -6318,24 +6345,28 @@ function nhmBuildReport() {
         const computed = [];
         let allFound = true;
         for (const c of comps) {
-          const pSl = phieuMap.get(String(c.maSalework).trim());
+          const maSw = String(c.maSalework).trim();
+          const pSl = phieuMap.get(maSw);
           if (pSl == null) { allFound = false; break; }
+          usedMa.add(maSw);
           computed.push(Math.floor(pSl / (c.comboQty || 1)));
         }
         if (allFound && computed.length) { addQty = Math.min(...computed); status = 'matched'; }
         else { status = 'missing'; }
       } else if (skuVal && phieuMap.has(skuVal)) {
-        addQty = phieuMap.get(skuVal); swSkus = skuVal; status = 'matched-sku';
+        addQty = phieuMap.get(skuVal); swSkus = skuVal; status = 'matched-sku'; usedMa.add(skuVal);
       }
     } else if (skuVal && phieuMap.has(skuVal)) {
-      addQty = phieuMap.get(skuVal); swSkus = skuVal; status = 'matched-sku';
+      addQty = phieuMap.get(skuVal); swSkus = skuVal; status = 'matched-sku'; usedMa.add(skuVal);
     }
     const tonHN = hnKhoCol != null ? (Number(row[hnKhoCol.col]) || 0) : null;
     const tonHCM = hcmKhoCol != null ? (Number(row[hcmKhoCol.col]) || 0) : null;
     report.push({ rowIdx: i, tenSp, maPhanLoai, swSkus, addQty, status, tonHN, tonHCM });
   }
   NHM.reportRows = report;
+  NHM.deliNotFound = NH.rows.filter(r => !usedMa.has(String(r.ma).trim()));
   nhmRenderReport();
+  nhmRenderNotFoundBox();
 }
 
 function nhmSetFilter(f, btn) {
@@ -6343,6 +6374,33 @@ function nhmSetFilter(f, btn) {
   document.querySelectorAll('#nhm-export-row .filter-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
   nhmRenderReport();
+}
+
+// Card + bảng "Không Có Trong Mass" — mã có trong nguồn (phiếu Deli / đơn Bose) nhưng
+// không tìm thấy ở đâu trong file Mass của shop đang xử lý (không qua Salework, không qua SKU trực tiếp).
+function nhmRenderNotFoundBox() {
+  const box = document.getElementById('nhm-notfound-box');
+  const thead = document.getElementById('nhm-notfound-thead');
+  const tbody = document.getElementById('nhm-notfound-tbody');
+  const countEl = document.getElementById('nhm-notfound-count');
+  const kpiEl = document.getElementById('nhm-kpi-notfound');
+  const list = NHM.mode === 'bose' ? (NHM.boseNotFound || []) : (NHM.deliNotFound || []);
+  if (kpiEl) kpiEl.textContent = list.length;
+  if (!box || !tbody) return;
+  if (!list.length) { box.style.display = 'none'; tbody.innerHTML = ''; return; }
+  if (countEl) countEl.textContent = list.length;
+  if (NHM.mode === 'bose') {
+    if (thead) thead.innerHTML = '<tr><th>#</th><th style="text-align:left">Mã SKU</th><th style="text-align:left">Tên</th><th class="num">SL HN</th><th class="num">SL HCM</th></tr>';
+    tbody.innerHTML = list.map((r, i) =>
+      `<tr><td>${i+1}</td><td>${r.sku}</td><td style="max-width:260px;white-space:normal">${r.ten||''}</td><td class="num">${r.hn.toLocaleString('vi-VN')}</td><td class="num">${r.hcm.toLocaleString('vi-VN')}</td></tr>`
+    ).join('');
+  } else {
+    if (thead) thead.innerHTML = '<tr><th>#</th><th style="text-align:left">Mã Hàng (SKU)</th><th style="text-align:left">Tên Hàng</th><th class="num">Số Lượng</th></tr>';
+    tbody.innerHTML = list.map((r, i) =>
+      `<tr><td>${i+1}</td><td>${r.ma}</td><td style="max-width:260px;white-space:normal">${r.ten||''}</td><td class="num">${r.sl.toLocaleString('vi-VN')}</td></tr>`
+    ).join('');
+  }
+  box.style.display = 'block';
 }
 
 function nhmRenderReport() {
@@ -6443,6 +6501,7 @@ function nhmBuildReportBose() {
   const hnKhoCol = NHM.massKhoCols.find(k => k.kho === 'hn');
   const hcmKhoCol = NHM.massKhoCols.find(k => k.kho === 'hcm');
   const report = [];
+  const usedSku = new Set(); // SKU đơn Bose đã được tìm thấy ở đâu đó trong file mass (trực tiếp hoặc qua Salework)
   for (let i = headerRow + 1; i < rows.length; i++) {
     const row = rows[i];
     if (!row) continue;
@@ -6457,8 +6516,10 @@ function nhmBuildReportBose() {
         const computedHn = [], computedHcm = [];
         let allFound = true;
         for (const c of comps) {
-          const v = boseMap.get(String(c.maSalework).trim());
+          const maSw = String(c.maSalework).trim();
+          const v = boseMap.get(maSw);
           if (v == null) { allFound = false; break; }
+          usedSku.add(maSw);
           computedHn.push(Math.floor(v.hn  / (c.comboQty || 1)));
           computedHcm.push(Math.floor(v.hcm / (c.comboQty || 1)));
         }
@@ -6471,18 +6532,20 @@ function nhmBuildReportBose() {
         }
       } else if (skuVal && boseMap.has(skuVal)) {
         const v = boseMap.get(skuVal);
-        addHn = v.hn; addHcm = v.hcm; swSkus = skuVal; status = 'matched-sku';
+        addHn = v.hn; addHcm = v.hcm; swSkus = skuVal; status = 'matched-sku'; usedSku.add(skuVal);
       }
     } else if (skuVal && boseMap.has(skuVal)) {
       const v = boseMap.get(skuVal);
-      addHn = v.hn; addHcm = v.hcm; swSkus = skuVal; status = 'matched-sku';
+      addHn = v.hn; addHcm = v.hcm; swSkus = skuVal; status = 'matched-sku'; usedSku.add(skuVal);
     }
     const tonHN = hnKhoCol != null ? (Number(row[hnKhoCol.col]) || 0) : null;
     const tonHCM = hcmKhoCol != null ? (Number(row[hcmKhoCol.col]) || 0) : null;
     report.push({ rowIdx: i, tenSp, maPhanLoai, sku: swSkus || skuVal, addHn, addHcm, status, tonHN, tonHCM });
   }
   NHM.reportRows = report;
+  NHM.boseNotFound = NH.boseRows.filter(r => !usedSku.has(String(r.sku).trim()));
   nhmRenderReportBose();
+  nhmRenderNotFoundBox();
 }
 
 function nhmRenderReportBose() {
