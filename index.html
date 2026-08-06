@@ -1975,14 +1975,18 @@
 
     <!-- NHẬP HÀNG TỪ PHIẾU XUẤT KHO DELI / LIÊN KẾT -->
     <div class="card" style="margin-top:18px">
-      <div class="card-title"><span class="dot" style="background:#27ae60"></span> Hàng DELI Về Thêm</div>
-      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-        Dùng khi <b>hàng mới về kho nhưng chưa có file tồn từ Misa</b>. Upload <b>phiếu xuất kho Deli</b> + <b>file Mass từ Shopee</b> — hệ thống map theo Salework, <b>cộng thêm</b> số lượng phiếu vào tồn trong file Mass và xuất file mới. Không lưu Firestore, không ảnh hưởng hệ thống.
+      <div class="card-title"><span class="dot" style="background:#27ae60"></span> Hàng Về Thêm (Deli / Bose)</div>
+      <p style="font-size:12px;color:var(--text2);margin:0 0 10px;line-height:1.6">
+        Dùng khi <b>hàng mới về kho nhưng chưa có file tồn từ Misa</b>. Chọn nguồn <b>Deli (phiếu xuất kho)</b> hoặc <b>Bose (đơn hàng)</b>, upload cùng <b>file Mass từ Shopee</b> — hệ thống <b>cộng thêm</b> số lượng vào tồn trong file Mass và xuất file mới. Không lưu Firestore, không ảnh hưởng hệ thống.
       </p>
+      <div id="nh-mode-toggle" style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="filter-btn active" onclick="nhmSetMode('deli',this)">📦 Deli (Phiếu Xuất Kho)</button>
+        <button class="filter-btn" onclick="nhmSetMode('bose',this)">📦 Bose (Đơn Hàng)</button>
+      </div>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
         <div>
-          <input type="file" id="nhap-hang-input" accept=".xlsx,.xls" style="display:none" onchange="nhHandleFile(this)">
-          <button class="sw-upload-btn" onclick="document.getElementById('nhap-hang-input').click()">📂 Chọn Phiếu Xuất Kho</button>
+          <input type="file" id="nhap-hang-input" accept=".xlsx,.xls" style="display:none" onchange="nhFileInputChange(this)">
+          <button class="sw-upload-btn" id="nh-input-btn" onclick="document.getElementById('nhap-hang-input').click()">📂 Chọn Phiếu Xuất Kho</button>
         </div>
         <div>
           <input type="file" id="nhm-mass-input" accept=".xlsx,.xls" style="display:none" onchange="nhmHandleMassFile(this)">
@@ -1990,14 +1994,14 @@
         </div>
         <button onclick="nhResetAll()" style="padding:6px 14px;border:1px solid var(--red);color:var(--red);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
       </div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Phiếu xuất kho: <b id="nh-status-file">chưa chọn</b></div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Nguồn hàng: <b id="nh-status-file">chưa chọn</b></div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:10px">File mass: <b id="nhm-status-mass">chưa chọn</b></div>
 
       <div id="nh-preview" style="display:none">
-        <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--navy)">📋 Xem trước phiếu xuất kho — <span id="nh-preview-count">0</span> mã hàng</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--navy)">📋 Xem trước — <span id="nh-preview-count">0</span> mã hàng</div>
         <div class="table-wrap" style="max-height:200px;overflow-y:auto;border:1px solid var(--gray3);border-radius:8px;margin-bottom:14px">
           <table>
-            <thead>
+            <thead id="nh-preview-thead">
               <tr><th>#</th><th style="text-align:left">Mã Hàng (SKU)</th><th style="text-align:left">Tên Hàng</th><th class="num">Số Lượng</th></tr>
             </thead>
             <tbody id="nh-preview-tbody"></tbody>
@@ -2027,15 +2031,18 @@
         </div>
         <div class="table-wrap" style="max-height:320px;overflow-y:auto;border:1px solid var(--gray3);border-radius:8px;margin-bottom:14px">
           <table>
-            <thead>
+            <thead id="nhm-report-thead">
               <tr><th>#</th><th style="text-align:left">Tên Sản Phẩm</th><th>Mã PL</th><th>Mã SW / SKU</th><th class="num">Tồn HN</th><th class="num">Tồn HCM</th><th class="num">SL Cộng Thêm</th><th>Trạng Thái</th></tr>
             </thead>
             <tbody id="nhm-report-tbody"></tbody>
           </table>
         </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div id="nhm-export-deli-btns" style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn-drive-sync" style="background:var(--navy)" onclick="nhmExportMassFile('hn')">📤 Xuất Mass — Cộng Thêm Kho HN</button>
           <button class="btn-drive-sync" style="background:#27ae60" onclick="nhmExportMassFile('hcm')">📤 Xuất Mass — Cộng Thêm Kho HCM</button>
+        </div>
+        <div id="nhm-export-bose-btns" style="display:none;gap:10px;flex-wrap:wrap">
+          <button class="btn-drive-sync" style="background:#8e44ad" onclick="nhmExportMassFileBose()">📤 Xuất Mass — Cộng Thêm Bose (HN + HCM)</button>
         </div>
       </div>
 
@@ -5960,7 +5967,13 @@ async function thExportNewMassFile() {
 // → cộng thêm vào tonkho_thuc (hn hoặc hcm tùy user chọn) → lưu Firestore.
 // Black List vẫn được áp sau khi cộng (giống các module khác).
 // ══════════════════════════════════════════════════════════════
-const NH = { rows: [], fileName: '' };
+const NH = { rows: [], boseRows: [], fileName: '' };
+
+// Dispatcher cho input phiếu/đơn dùng chung — rẽ nhánh theo NHM.mode
+function nhFileInputChange(input) {
+  if (NHM.mode === 'bose') nhBoseHandleFile(input);
+  else nhHandleFile(input);
+}
 
 function nhLog(msg, type) {
   const el = document.getElementById('nh-log');
@@ -5973,7 +5986,7 @@ function nhLog(msg, type) {
 }
 
 function nhResetAll() {
-  NH.rows = []; NH.fileName = '';
+  NH.rows = []; NH.boseRows = []; NH.fileName = '';
   document.getElementById('nhap-hang-input').value = '';
   document.getElementById('nh-status-file').textContent = 'chưa chọn';
   document.getElementById('nh-preview').style.display = 'none';
@@ -6095,10 +6108,55 @@ async function nhConfirmAdd(kho) {
 
 // ── NHM: Hàng DELI Về Thêm × Mass file (file-in-file-out, không lưu Firestore) ──
 const NHM = {
+  mode: 'deli', // 'deli' | 'bose'
   massWb: null, massWs: null, massFileName: '',
   massHeaderRow: -1, massIdx: null, massKhoCols: [],
   reportRows: [], reportFilter: 'all'
 };
+
+function nhmSetMode(mode, btn) {
+  if (NHM.mode === mode) return;
+  NHM.mode = mode;
+  document.querySelectorAll('#nh-mode-toggle .filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  // Đổi nguồn thì xóa dữ liệu phiếu/đơn cũ, tránh lẫn Deli/Bose
+  NH.rows = []; NH.boseRows = []; NH.fileName = '';
+  const fileInput = document.getElementById('nhap-hang-input');
+  if (fileInput) fileInput.value = '';
+  const statusFile = document.getElementById('nh-status-file');
+  if (statusFile) statusFile.textContent = 'chưa chọn';
+  const preview = document.getElementById('nh-preview');
+  if (preview) preview.style.display = 'none';
+  const tbody = document.getElementById('nh-preview-tbody');
+  if (tbody) tbody.innerHTML = '';
+
+  const inputBtn = document.getElementById('nh-input-btn');
+  const previewThead = document.getElementById('nh-preview-thead');
+  const reportThead = document.getElementById('nhm-report-thead');
+  const exportDeli = document.getElementById('nhm-export-deli-btns');
+  const exportBose = document.getElementById('nhm-export-bose-btns');
+
+  if (mode === 'bose') {
+    if (inputBtn) inputBtn.textContent = '📂 Chọn File Đơn Hàng Bose';
+    if (previewThead) previewThead.innerHTML = '<tr><th>#</th><th style="text-align:left">Mã SKU</th><th style="text-align:left">Tên Sản Phẩm</th><th class="num">SL HN</th><th class="num">SL HCM</th></tr>';
+    if (reportThead) reportThead.innerHTML = '<tr><th>#</th><th style="text-align:left">Tên Sản Phẩm</th><th>Mã PL</th><th>SKU</th><th class="num">Tồn HN</th><th class="num">Tồn HCM</th><th class="num">Cộng HN</th><th class="num">Cộng HCM</th><th>Trạng Thái</th></tr>';
+    if (exportDeli) exportDeli.style.display = 'none';
+    if (exportBose) exportBose.style.display = 'flex';
+  } else {
+    if (inputBtn) inputBtn.textContent = '📂 Chọn Phiếu Xuất Kho';
+    if (previewThead) previewThead.innerHTML = '<tr><th>#</th><th style="text-align:left">Mã Hàng (SKU)</th><th style="text-align:left">Tên Hàng</th><th class="num">Số Lượng</th></tr>';
+    if (reportThead) reportThead.innerHTML = '<tr><th>#</th><th style="text-align:left">Tên Sản Phẩm</th><th>Mã PL</th><th>Mã SW / SKU</th><th class="num">Tồn HN</th><th class="num">Tồn HCM</th><th class="num">SL Cộng Thêm</th><th>Trạng Thái</th></tr>';
+    if (exportDeli) exportDeli.style.display = 'flex';
+    if (exportBose) exportBose.style.display = 'none';
+  }
+
+  NHM.reportRows = []; NHM.reportFilter = 'all';
+  document.querySelectorAll('#nhm-export-row .filter-btn').forEach(b => b.classList.remove('active'));
+  const allBtn = document.querySelector('#nhm-export-row .filter-btn');
+  if (allBtn) allBtn.classList.add('active');
+  nhmCheckReady();
+}
 
 function nhmHandleMassFile(input) {
   const file = input.files[0];
@@ -6143,16 +6201,97 @@ function nhmHandleMassFile(input) {
 }
 
 async function nhmCheckReady() {
-  const ready = NH.rows.length > 0 && NHM.massWb != null;
+  const hasSource = NHM.mode === 'bose' ? NH.boseRows.length > 0 : NH.rows.length > 0;
+  const ready = hasSource && NHM.massWb != null;
   const exportRow = document.getElementById('nhm-export-row');
   if (!exportRow) return;
   if (ready) {
     if (!SHARED.saleworkMap) await sharedLoadSaleworkMap(false);
-    nhmBuildReport();
+    if (NHM.mode === 'bose') nhmBuildReportBose(); else nhmBuildReport();
     exportRow.style.display = '';
   } else {
     exportRow.style.display = 'none';
   }
+}
+
+// ── Bose: đọc file đơn hàng (SKU / 2H HN / 2H HCM — bỏ qua cột "HN2 đi HCM") ──
+function nhBoseHandleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  NH.fileName = file.name;
+  const statusEl = document.getElementById('nh-status-file');
+  if (statusEl) statusEl.textContent = `Đang đọc ${file.name}...`;
+  nhLog(`📂 Đang đọc file đơn hàng Bose "${file.name}"...`);
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const allRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+      // Tìm dòng header chứa "MÃ SKU" (quét tối đa 20 dòng đầu — file đơn có phần thông tin đơn ở trên)
+      let headerRow = -1, idxSku = -1, idxTen = -1, idxHn = -1, idxHcm = -1;
+      for (let i = 0; i < Math.min(allRows.length, 20); i++) {
+        const row = allRows[i];
+        if (!row) continue;
+        const norm = row.map(c => String(c || '').replace(/\s+/g, ' ').trim().toUpperCase());
+        const sIdx = norm.indexOf('MÃ SKU');
+        if (sIdx >= 0) {
+          headerRow = i; idxSku = sIdx;
+          idxTen = norm.findIndex(h => h === 'TÊN SẢN PHẨM');
+          idxHn  = norm.findIndex(h => h === '2H HN');
+          idxHcm = norm.findIndex(h => h === '2H HCM');
+          break;
+        }
+      }
+      if (headerRow === -1) throw new Error('Không tìm thấy dòng header "MÃ SKU" trong file đơn hàng Bose');
+      if (idxHn === -1 || idxHcm === -1) throw new Error('Không tìm thấy cột "2H HN" / "2H HCM" — kiểm tra lại tên cột trong file');
+
+      const parsed = [];
+      for (let i = headerRow + 1; i < allRows.length; i++) {
+        const row = allRows[i];
+        if (!row) continue;
+        const sku = row[idxSku] ? String(row[idxSku]).trim() : '';
+        if (!sku) continue;
+        const hn  = Number(row[idxHn])  || 0;
+        const hcm = Number(row[idxHcm]) || 0;
+        if (hn <= 0 && hcm <= 0) continue; // Bỏ qua — cột "HN2 đi HCM" không được đọc, đúng như đã chốt
+        parsed.push({
+          sku, hn: Math.round(hn), hcm: Math.round(hcm),
+          ten: idxTen >= 0 && row[idxTen] ? String(row[idxTen]).trim() : ''
+        });
+      }
+      if (!parsed.length) {
+        nhLog('⚠️ Không tìm thấy dòng hàng hợp lệ trong file (cần có Mã SKU và số lượng 2H HN hoặc 2H HCM > 0).', 'warn');
+        if (statusEl) statusEl.textContent = 'chưa chọn';
+        return;
+      }
+
+      NH.boseRows = parsed;
+      if (statusEl) statusEl.textContent = `${file.name} — ${parsed.length} mã (đã bỏ qua cột "HN2 đi HCM")`;
+      nhLog(`✅ Đọc xong đơn Bose: ${parsed.length} mã hàng, tổng HN ${parsed.reduce((s,r)=>s+r.hn,0).toLocaleString('vi-VN')} + HCM ${parsed.reduce((s,r)=>s+r.hcm,0).toLocaleString('vi-VN')} đơn vị.`, 'ok');
+      nhRenderBosePreview(parsed);
+    } catch (err) {
+      nhLog('❌ Lỗi đọc file: ' + err.message, 'err');
+      if (statusEl) statusEl.textContent = 'chưa chọn';
+    }
+    nhmCheckReady();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function nhRenderBosePreview(rows) {
+  const tbody = document.getElementById('nh-preview-tbody');
+  if (tbody) {
+    tbody.innerHTML = rows.map((r, i) =>
+      `<tr><td>${i+1}</td><td>${r.sku}</td><td style="max-width:260px;white-space:normal">${r.ten||''}</td><td class="num"><b>${r.hn.toLocaleString('vi-VN')}</b></td><td class="num"><b>${r.hcm.toLocaleString('vi-VN')}</b></td></tr>`
+    ).join('');
+  }
+  const countEl = document.getElementById('nh-preview-count');
+  if (countEl) countEl.textContent = rows.length;
+  const preview = document.getElementById('nh-preview');
+  if (preview) preview.style.display = 'block';
 }
 
 function nhmBuildReport() {
@@ -6287,6 +6426,156 @@ function nhmExportMassFile(kho) {
   const newWb = Object.assign({}, NHM.massWb, { Sheets: Object.assign({}, NHM.massWb.Sheets, { [NHM.massWb.SheetNames[0]]: newWs }) });
   XLSX.writeFile(newWb, outName);
   nhLog(`✅ Xuất xong "${outName}" — ${updatedCount} dòng được cộng thêm vào cột kho ${khoLabel}.`, 'ok');
+}
+
+// ── NHM Bose: khớp qua Map Salework trước (xử lý mã combo — mỗi thành phần chia comboQty,
+// lấy min các thành phần, tính riêng cho HN và HCM), không có trong Salework thì fallback so
+// khớp trực tiếp SKU mass ↔ SKU đơn Bose. Cộng cả 2 cột HN + HCM cùng lúc trong 1 lần xuất vì
+// mỗi dòng đơn Bose có sẵn 2 số lượng khác nhau (sửa theo yêu cầu Tân 2026-08-06: Bose vẫn cần
+// map qua Salework vì có một số mã combo).
+function nhmBuildReportBose() {
+  if (!NH.boseRows.length || !NHM.massWs) return;
+  const boseMap = new Map();
+  NH.boseRows.forEach(r => boseMap.set(String(r.sku).trim(), { hn: r.hn, hcm: r.hcm }));
+  const swMap = SHARED.saleworkMap;
+  const rows = XLSX.utils.sheet_to_json(NHM.massWs, { header: 1, defval: null });
+  const { massHeaderRow: headerRow, massIdx: idx } = NHM;
+  const hnKhoCol = NHM.massKhoCols.find(k => k.kho === 'hn');
+  const hcmKhoCol = NHM.massKhoCols.find(k => k.kho === 'hcm');
+  const report = [];
+  for (let i = headerRow + 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row) continue;
+    const maPhanLoai = idx.maPhanLoai >= 0 ? String(row[idx.maPhanLoai] || '').trim() : '';
+    const tenSp = idx.tenSp >= 0 ? String(row[idx.tenSp] || '').trim() : '';
+    const skuVal = idx.sku >= 0 ? String(row[idx.sku] || '').trim() : '';
+    let addHn = 0, addHcm = 0, status = 'unmatched', swSkus = '';
+    if (swMap && maPhanLoai) {
+      const comps = swMap.get(maPhanLoai);
+      if (comps && comps.length) {
+        swSkus = comps.map(c => c.maSalework).join(', ');
+        const computedHn = [], computedHcm = [];
+        let allFound = true;
+        for (const c of comps) {
+          const v = boseMap.get(String(c.maSalework).trim());
+          if (v == null) { allFound = false; break; }
+          computedHn.push(Math.floor(v.hn  / (c.comboQty || 1)));
+          computedHcm.push(Math.floor(v.hcm / (c.comboQty || 1)));
+        }
+        if (allFound && computedHn.length) {
+          addHn = Math.min(...computedHn);
+          addHcm = Math.min(...computedHcm);
+          status = 'matched';
+        } else {
+          status = 'missing';
+        }
+      } else if (skuVal && boseMap.has(skuVal)) {
+        const v = boseMap.get(skuVal);
+        addHn = v.hn; addHcm = v.hcm; swSkus = skuVal; status = 'matched-sku';
+      }
+    } else if (skuVal && boseMap.has(skuVal)) {
+      const v = boseMap.get(skuVal);
+      addHn = v.hn; addHcm = v.hcm; swSkus = skuVal; status = 'matched-sku';
+    }
+    const tonHN = hnKhoCol != null ? (Number(row[hnKhoCol.col]) || 0) : null;
+    const tonHCM = hcmKhoCol != null ? (Number(row[hcmKhoCol.col]) || 0) : null;
+    report.push({ rowIdx: i, tenSp, maPhanLoai, sku: swSkus || skuVal, addHn, addHcm, status, tonHN, tonHCM });
+  }
+  NHM.reportRows = report;
+  nhmRenderReportBose();
+}
+
+function nhmRenderReportBose() {
+  const f = NHM.reportFilter;
+  const rows = NHM.reportRows;
+  const matched = rows.filter(r => r.status === 'matched' || r.status === 'matched-sku');
+  const unmatched = rows.filter(r => r.status === 'unmatched' || r.status === 'missing');
+  const el = id => document.getElementById(id);
+  if (el('nhm-kpi-total')) el('nhm-kpi-total').textContent = rows.length;
+  if (el('nhm-kpi-matched')) el('nhm-kpi-matched').textContent = matched.length;
+  if (el('nhm-kpi-unmatched')) el('nhm-kpi-unmatched').textContent = unmatched.length;
+  let filtered = rows;
+  if (f === 'matched') filtered = matched;
+  if (f === 'unmatched') filtered = unmatched;
+  const tbody = el('nhm-report-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = filtered.map((r, i) => {
+    const statusLabel = r.status === 'matched'
+      ? `<span style="color:#27ae60">✅ Khớp map</span>`
+      : r.status === 'matched-sku'
+      ? `<span style="color:#2980b9">🔵 Khớp SKU</span>`
+      : r.status === 'missing'
+      ? `<span style="color:#f39c12">⚠️ Thiếu mã trong đơn</span>`
+      : `<span style="color:#e74c3c">❌ Không tìm thấy</span>`;
+    const addHnStr  = r.addHn  > 0 ? `<b style="color:#27ae60">+${r.addHn.toLocaleString('vi-VN')}</b>` : '—';
+    const addHcmStr = r.addHcm > 0 ? `<b style="color:#27ae60">+${r.addHcm.toLocaleString('vi-VN')}</b>` : '—';
+    const tonHNStr = r.tonHN != null ? r.tonHN.toLocaleString('vi-VN') : '—';
+    const tonHCMStr = r.tonHCM != null ? r.tonHCM.toLocaleString('vi-VN') : '—';
+    return `<tr><td>${i+1}</td><td style="max-width:220px;white-space:normal">${r.tenSp||'—'}</td><td>${r.maPhanLoai||'—'}</td><td style="font-size:11px">${r.sku||'—'}</td><td class="num">${tonHNStr}</td><td class="num">${tonHCMStr}</td><td class="num">${addHnStr}</td><td class="num">${addHcmStr}</td><td>${statusLabel}</td></tr>`;
+  }).join('');
+}
+
+function nhmExportMassFileBose() {
+  if (!NHM.massWb || !NH.boseRows.length) { nhLog('⚠️ Chưa đủ dữ liệu để xuất.', 'warn'); return; }
+  if (!SHARED.saleworkMap) { nhLog('⚠️ Chưa có Map Salework — vào mục Tổng Quan để tải file Map Salework trước.', 'warn'); return; }
+  const hnCol  = NHM.massKhoCols.find(kc => kc.kho === 'hn');
+  const hcmCol = NHM.massKhoCols.find(kc => kc.kho === 'hcm');
+  if (!hnCol || !hcmCol) { nhLog('⚠️ Không tìm thấy đủ 2 cột kho HN/HCM trong file mass.', 'warn'); return; }
+
+  const boseMap = new Map();
+  NH.boseRows.forEach(r => boseMap.set(String(r.sku).trim(), { hn: r.hn, hcm: r.hcm }));
+  const swMap = SHARED.saleworkMap;
+  const rows = XLSX.utils.sheet_to_json(NHM.massWs, { header: 1, defval: null });
+  const { massHeaderRow: headerRow, massIdx: idx } = NHM;
+
+  // Deep-copy worksheet để không làm thay đổi NHM.massWs gốc
+  const newWs = Object.assign({}, NHM.massWs);
+  let updatedCount = 0;
+
+  for (let i = headerRow + 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row) continue;
+    const maPhanLoai = idx.maPhanLoai >= 0 ? String(row[idx.maPhanLoai] || '').trim() : '';
+    const skuVal = idx.sku >= 0 ? String(row[idx.sku] || '').trim() : '';
+    let addHn = 0, addHcm = 0;
+    if (swMap && maPhanLoai) {
+      const comps = swMap.get(maPhanLoai);
+      if (comps && comps.length) {
+        const computedHn = [], computedHcm = []; let allFound = true;
+        for (const c of comps) {
+          const v = boseMap.get(String(c.maSalework).trim());
+          if (v == null) { allFound = false; break; }
+          computedHn.push(Math.floor(v.hn  / (c.comboQty || 1)));
+          computedHcm.push(Math.floor(v.hcm / (c.comboQty || 1)));
+        }
+        if (allFound && computedHn.length) { addHn = Math.min(...computedHn); addHcm = Math.min(...computedHcm); }
+      } else if (skuVal && boseMap.has(skuVal)) {
+        const v = boseMap.get(skuVal); addHn = v.hn; addHcm = v.hcm;
+      }
+    } else if (skuVal && boseMap.has(skuVal)) {
+      const v = boseMap.get(skuVal); addHn = v.hn; addHcm = v.hcm;
+    }
+    let touched = false;
+    if (addHn > 0) {
+      const addr = XLSX.utils.encode_cell({ r: i, c: hnCol.col });
+      const oldVal = newWs[addr] ? Number(newWs[addr].v) || 0 : 0;
+      newWs[addr] = { t: 'n', v: oldVal + addHn };
+      touched = true;
+    }
+    if (addHcm > 0) {
+      const addr = XLSX.utils.encode_cell({ r: i, c: hcmCol.col });
+      const oldVal = newWs[addr] ? Number(newWs[addr].v) || 0 : 0;
+      newWs[addr] = { t: 'n', v: oldVal + addHcm };
+      touched = true;
+    }
+    if (touched) updatedCount++;
+  }
+
+  const baseName = NHM.massFileName.replace(/\.xlsx?$/i, '');
+  const outName = `${baseName}_CONG_THEM_BOSE.xlsx`;
+  const newWb = Object.assign({}, NHM.massWb, { Sheets: Object.assign({}, NHM.massWb.Sheets, { [NHM.massWb.SheetNames[0]]: newWs }) });
+  XLSX.writeFile(newWb, outName);
+  nhLog(`✅ Xuất xong "${outName}" — ${updatedCount} dòng được cộng thêm vào kho HN + HCM (Bose).`, 'ok');
 }
 
 // ══════════════════════════════════════════════════════════════
