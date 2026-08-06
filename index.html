@@ -1583,67 +1583,6 @@
       <div id="tq-catalog-log" class="drive-log"></div>
     </div>
 
-    <div id="tq-kpi-grid" class="kpi-grid" style="margin-bottom:16px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
-      <div class="kpi-card navy">
-        <div class="kpi-icon">📦</div>
-        <div class="kpi-label">Tổng SKU Có Tồn</div>
-        <div class="kpi-value" id="tq-kpi-sku">0</div>
-        <div class="kpi-sub">SKU đang có tồn kho thật</div>
-      </div>
-      <div class="kpi-card green">
-        <div class="kpi-icon">🏬</div>
-        <div class="kpi-label">Tổng Tồn Kho HN</div>
-        <div class="kpi-value" id="tq-kpi-hn">0</div>
-        <div class="kpi-sub">Tổng số lượng kho Hà Nội</div>
-      </div>
-      <div class="kpi-card green">
-        <div class="kpi-icon">🏬</div>
-        <div class="kpi-label">Tổng Tồn Kho HCM</div>
-        <div class="kpi-value" id="tq-kpi-hcm">0</div>
-        <div class="kpi-sub">Tổng số lượng kho Hồ Chí Minh</div>
-      </div>
-      <div class="kpi-card orange">
-        <div class="kpi-icon">💰</div>
-        <div class="kpi-label">Giá Trị Tồn Kho</div>
-        <div class="kpi-value" id="tq-kpi-value">0</div>
-        <div class="kpi-sub">Tổng tồn × Giá vốn (SKU có trong danh mục)</div>
-      </div>
-      <div class="kpi-card red">
-        <div class="kpi-icon">⚠️</div>
-        <div class="kpi-label">SKU Chưa Có Trong Danh Mục</div>
-        <div class="kpi-value" id="tq-kpi-missing">0</div>
-        <div class="kpi-sub">Cần đồng bộ lại danh mục SKU</div>
-      </div>
-      <div class="kpi-card" style="border-top-color:#8e44ad">
-        <div class="kpi-icon">🆕</div>
-        <div class="kpi-label">SKU Mới — Chưa Có Tồn Kho</div>
-        <div class="kpi-value" id="tq-kpi-newsku" style="color:#8e44ad">0</div>
-        <div class="kpi-sub">Có trong danh mục nhưng chưa từng lưu tồn kho thật</div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="filter-bar">
-        <input class="search-box" id="tq-search" placeholder="🔍 Tìm theo Tên sản phẩm hoặc SKU..." oninput="tqRenderTable()">
-        <select id="tq-ncc-filter" class="filter-btn" style="cursor:pointer" onchange="tqSetNccFilter(this.value)">
-          <option value="all">🏢 Tất cả nhà cung cấp</option>
-        </select>
-        <button class="filter-btn active" data-filter="all" onclick="tqSetFilter('all',this)">Tất cả</button>
-        <button class="filter-btn" data-filter="missing-catalog" onclick="tqSetFilter('missing-catalog',this)">⚠️ Chưa có trong danh mục</button>
-        <button class="filter-btn" style="color:#8e44ad" data-filter="new-no-stock" onclick="tqSetFilter('new-no-stock',this)">🆕 SKU mới — chưa có tồn</button>
-      </div>
-      <div class="table-wrap" style="max-height:520px;overflow-y:auto;border:1px solid var(--gray3);border-radius:8px">
-        <table>
-          <thead>
-            <tr>
-              <th>#</th><th style="text-align:left;max-width:240px">Tên Hàng Hóa</th><th>SKU</th><th style="text-align:left">Nhà Cung Cấp</th>
-              <th class="num">Tồn HN</th><th class="num">Tồn HCM</th><th class="num" style="color:var(--text2)" title="Hàng đang ở kho Hangar, chưa chuyển về bán — không cộng vào Tổng Tồn">Tồn Hangar (tham khảo)</th><th class="num">Tổng Tồn</th><th class="num">Giá Vốn</th><th class="num">Giá Trị Tồn</th>
-            </tr>
-          </thead>
-          <tbody id="tq-tbody"><tr><td colspan="10" style="text-align:center;color:var(--text2);padding:18px">Đang tải dữ liệu...</td></tr></tbody>
-        </table>
-      </div>
-    </div>
   </div>
 
   <div class="page" id="page-tonkho-nhap">
@@ -10540,8 +10479,6 @@ function tqInitPage() {
 }
 
 async function tqLoadData() {
-  const tbody = document.getElementById('tq-tbody');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text2);padding:18px">Đang tải dữ liệu...</td></tr>';
   try {
     const [catalogSnap, stockSnap, hhCatalogSnap, blSnap] = await Promise.all([
       db.collection('sku_catalog').doc('all').get(),
@@ -10583,11 +10520,11 @@ async function tqLoadData() {
     // Black List: áp ngay khi hiển thị (không chờ ai upload lại tồn mới ghi đè vào Firestore),
     // để bảng SKU Tổng luôn phản ánh đúng số liệu chuẩn ngay sau khi đồng bộ Black List.
     await blLoadIfNeeded();
+    // Chỉ cần tqBuildRows() để có TQ.newSkuRows dùng cho log "phát hiện SKU mới" sau khi
+    // đồng bộ danh mục — KPI/bảng hiển thị đã bị xóa khỏi trang này (xác nhận Tân 2026-08-06).
     tqBuildRows();
-    tqRenderKpis();
-    tqRenderTable();
   } catch (err) {
-    if (tbody) tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--red);padding:18px">Lỗi tải dữ liệu: ${err.message}</td></tr>`;
+    tqCatalogLog('❌ Lỗi tải dữ liệu Tổng Quan Tồn Kho: ' + err.message, 'err');
   }
 }
 
@@ -10642,88 +10579,6 @@ function tqBuildRows() {
     });
   });
   TQ.newSkuRows = newSkuRows;
-
-  tqPopulateNccOptions();
-}
-
-function tqPopulateNccOptions() {
-  const sel = document.getElementById('tq-ncc-filter');
-  if (!sel) return;
-  const current = TQ.nccFilter || 'all';
-  const allNcc = TQ.rows.map(r => r.ncc).concat((TQ.newSkuRows || []).map(r => r.ncc));
-  const list = Array.from(new Set(allNcc.filter(v => v && String(v).trim()))).sort((a, b) => a.localeCompare(b, 'vi'));
-  const escAttr = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-  sel.innerHTML = '<option value="all">🏢 Tất cả nhà cung cấp</option>' + list.map(ncc => `<option value="${escAttr(ncc)}">${escAttr(ncc)}</option>`).join('');
-  sel.value = list.includes(current) ? current : 'all';
-  TQ.nccFilter = sel.value;
-}
-
-function tqSetNccFilter(value) {
-  TQ.nccFilter = value;
-  tqRenderKpis();
-  tqRenderTable();
-}
-
-function tqGetNccFilteredRows() {
-  return TQ.nccFilter === 'all' ? TQ.rows : TQ.rows.filter(r => r.ncc === TQ.nccFilter);
-}
-
-function tqGetNccFilteredNewRows() {
-  const rows = TQ.newSkuRows || [];
-  return TQ.nccFilter === 'all' ? rows : rows.filter(r => r.ncc === TQ.nccFilter);
-}
-
-function tqRenderKpis() {
-  const rows = tqGetNccFilteredRows();
-  const skuEl = document.getElementById('tq-kpi-sku'); if (skuEl) skuEl.textContent = rows.length;
-  const sumHn = rows.reduce((s, r) => s + r.hn, 0);
-  const sumHcm = rows.reduce((s, r) => s + r.hcm, 0);
-  const sumValue = rows.reduce((s, r) => s + (r.inCatalog ? r.total * r.giaVon : 0), 0);
-  const missing = rows.filter(r => !r.inCatalog).length;
-  const hnEl = document.getElementById('tq-kpi-hn'); if (hnEl) hnEl.textContent = sumHn.toLocaleString('vi-VN');
-  const hcmEl = document.getElementById('tq-kpi-hcm'); if (hcmEl) hcmEl.textContent = sumHcm.toLocaleString('vi-VN');
-  const valEl = document.getElementById('tq-kpi-value'); if (valEl) valEl.textContent = sumValue.toLocaleString('vi-VN') + 'đ';
-  const missEl = document.getElementById('tq-kpi-missing'); if (missEl) missEl.textContent = missing;
-  const newEl = document.getElementById('tq-kpi-newsku'); if (newEl) newEl.textContent = tqGetNccFilteredNewRows().length;
-}
-
-function tqSetFilter(filter, btn) {
-  TQ.filter = filter;
-  document.querySelectorAll('#page-tonkho-tong-quan .filter-btn').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  tqRenderTable();
-}
-
-function tqRenderTable() {
-  const tbody = document.getElementById('tq-tbody');
-  if (!tbody) return;
-  const searchEl = document.getElementById('tq-search');
-  const search = searchEl ? (searchEl.value || '').trim().toLowerCase() : '';
-  let filtered = TQ.filter === 'new-no-stock'
-    ? tqGetNccFilteredNewRows().slice()
-    : tqGetNccFilteredRows().filter(r => TQ.filter === 'all' || (TQ.filter === 'missing-catalog' && !r.inCatalog));
-  if (search) {
-    filtered = filtered.filter(r => String(r.ten).toLowerCase().includes(search) || String(r.sku).toLowerCase().includes(search));
-  }
-  if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text2);padding:18px">Không có dòng nào khớp điều kiện lọc/tìm kiếm</td></tr>`;
-    return;
-  }
-  const escAttr = s => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-  tbody.innerHTML = filtered.map((r, i) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td style="text-align:left;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escAttr(r.ten || 'Chưa có trong danh mục')}">${r.ten || '<span style="color:var(--red)">⚠ Chưa có trong danh mục</span>'}</td>
-      <td>${r.sku}${r.blOverride ? ' <span title="Số lượng đang lấy từ Black List (ghi đè file tồn nguồn)" style="color:#c0392b">🚫</span>' : ''}${r.isNew ? ' <span title="SKU mới trong danh mục — chưa lưu tồn kho thật" style="color:#8e44ad">🆕</span>' : ''}</td>
-      <td style="text-align:left">${r.ncc || '–'}</td>
-      <td class="num">${r.hn.toLocaleString('vi-VN')}</td>
-      <td class="num">${r.hcm.toLocaleString('vi-VN')}</td>
-      <td class="num" style="color:var(--text2)">${r.hangar.toLocaleString('vi-VN')}</td>
-      <td class="num">${r.total.toLocaleString('vi-VN')}</td>
-      <td class="num">${r.inCatalog ? r.giaVon.toLocaleString('vi-VN') : '–'}</td>
-      <td class="num">${r.inCatalog ? (r.total * r.giaVon).toLocaleString('vi-VN') : '–'}</td>
-    </tr>
-  `).join('');
 }
 
 // ── Đồng bộ Danh Mục SKU từ Google Sheet "Trung Tâm Dữ Liệu" (tái dùng OAuth Drive readonly có sẵn) ──
