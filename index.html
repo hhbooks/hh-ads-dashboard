@@ -592,6 +592,9 @@
         <div class="nav-item" onclick="showPage('overview',this)">
           <span class="icon">🏠</span> Tổng Quan
         </div>
+        <div class="nav-item" onclick="showPage('ads-hourly',this)" id="nav-ads-hourly">
+          <span class="icon">🕐</span> Chiến Dịch Theo Giờ
+        </div>
         <div class="nav-item" onclick="showPage('auto-camp',this)" id="nav-auto-camp">
           <span class="icon">⚡</span> Chiến Dịch Tự Động GMS
           <span class="nav-badge warn" id="badge-auto-camp" style="display:none">–</span>
@@ -922,6 +925,58 @@
 
     </div><!-- end ov-content -->
 
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!-- CHIẾN DỊCH THEO GIỜ — thêm 2026-08-06 theo yêu cầu Tân: xem chỉ số  -->
+  <!-- ADS theo từng khung giờ trong ngày để quyết định hạ/tăng ROAS mục   -->
+  <!-- tiêu hoặc bật đẩy nhanh theo giờ. CHỈ HIỂN THỊ + GỢI Ý — không gọi  -->
+  <!-- API ghi/sửa chiến dịch (Tân xác nhận tự tay chỉnh trên Shopee).     -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <div class="page" id="page-ads-hourly">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:20px;font-weight:700;color:var(--navy)">🕐 Chiến Dịch Theo Giờ</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">Hiệu suất CPC theo từng khung giờ trong 1 ngày — gợi ý khung giờ nên đẩy mạnh / nên hạn chế. Dữ liệu chỉ để tham khảo, Tân tự tay chỉnh ROAS mục tiêu / bật đẩy nhanh trên Shopee Seller Centre.</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><span class="dot"></span> Bộ Lọc</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <select id="adsh-shop-select" style="padding:7px 10px;border-radius:7px;border:1px solid var(--gray3);font-size:12.5px;min-width:200px"></select>
+        <input type="date" id="adsh-date" style="padding:6px 10px;border-radius:7px;border:1px solid var(--gray3);font-size:12.5px">
+        <button class="btn-drive-sync" id="adsh-load-btn" onclick="adshLoadData()">📡 Tải Dữ Liệu</button>
+        <span style="font-size:11px;color:var(--text2)">Shopee chỉ cho lấy tối đa lùi 6 tháng, mỗi lần 1 ngày.</span>
+      </div>
+      <div id="adsh-log" class="drive-log"></div>
+    </div>
+
+    <div class="kpi-grid" id="adsh-kpi-row" style="display:none;margin-bottom:16px"></div>
+
+    <div class="card">
+      <div class="card-title"><span class="dot"></span> Hiệu Suất Theo Giờ</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px">
+        Gợi ý so ROAS thật từng giờ với ROAS trung bình cả ngày: ROAS giờ đó ≥ 1.3× TB ngày → khung giờ đang hiệu quả, cân nhắc hạ ROAS mục tiêu / đẩy mạnh; ≤ 0.7× TB ngày → khung giờ kém hiệu quả, cân nhắc tăng ROAS mục tiêu / hạn chế; ở giữa → giữ nguyên. Giờ có quá ít dữ liệu (chi phí &lt;5.000đ và &lt;5 click) sẽ không gợi ý để tránh nhiễu.
+      </div>
+      <div class="table-wrap" style="max-height:600px;overflow-y:auto">
+        <table id="adsh-table">
+          <thead><tr>
+            <th>Giờ</th>
+            <th class="num">Lượt Xem</th>
+            <th class="num">Click</th>
+            <th class="num">CTR</th>
+            <th class="num">Đơn Hàng</th>
+            <th class="num">SP Bán</th>
+            <th class="num">Doanh Số</th>
+            <th class="num">Chi Phí</th>
+            <th class="num">ROAS</th>
+            <th>Gợi Ý</th>
+          </tr></thead>
+          <tbody id="adsh-tbody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <!-- AUTO CAMPAIGN PAGE -->
@@ -7649,6 +7704,141 @@ async function sapiGetToken(shopId) {
   return tok.access_token;
 }
 
+// ══════════════════════════════════════════════════════════════
+// ADSH — Chiến Dịch Theo Giờ (thêm 2026-08-06): hiệu suất CPC 24h trong
+// 1 ngày, gợi ý hạ/tăng ROAS mục tiêu theo khung giờ. Dùng lại đúng hạ
+// tầng SAPI_* (sapiGetToken/sapiCall/SAPI_SHOPS) như các trang ADS khác.
+// CHỈ HIỂN THỊ + GỢI Ý — không gọi API ghi/sửa chiến dịch (xác nhận Tân).
+// ══════════════════════════════════════════════════════════════
+const ADSH = { shopId: null, date: '', rows: [] };
+
+function adshInitPage() {
+  const sel = document.getElementById('adsh-shop-select');
+  if (sel && !sel.dataset.filled) {
+    sel.innerHTML = SAPI_SHOPS.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    sel.dataset.filled = '1';
+  }
+  const dateInput = document.getElementById('adsh-date');
+  if (dateInput && !dateInput.value) {
+    const y = new Date();
+    y.setDate(y.getDate() - 1); // mặc định hôm qua — hôm nay thường chưa chạy hết 24h
+    dateInput.value = y.toISOString().slice(0, 10);
+  }
+}
+
+function adshLog(msg, type = 'info') {
+  const el = document.getElementById('adsh-log');
+  if (!el) return;
+  el.classList.add('visible');
+  const color = type === 'err' ? '#e74c3c' : type === 'warn' ? '#f39c12' : type === 'ok' ? '#27ae60' : '#555';
+  const time = new Date().toLocaleTimeString('vi-VN');
+  el.innerHTML += `<div style="color:${color}">[${time}] ${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+async function adshLoadData() {
+  const sel = document.getElementById('adsh-shop-select');
+  const dateInput = document.getElementById('adsh-date');
+  const shopId = Number(sel?.value);
+  const dateStr = dateInput?.value;
+  if (!shopId || !dateStr) { adshLog('⚠️ Chọn shop và ngày trước.', 'warn'); return; }
+  const shop = SAPI_SHOPS.find(s => s.id === shopId);
+  const btn = document.getElementById('adsh-load-btn');
+  if (btn) btn.disabled = true;
+  adshLog(`📡 Đang lấy dữ liệu theo giờ — ${shop ? shop.name : shopId} — ngày ${dateStr}...`);
+  try {
+    let token;
+    try { token = await sapiGetToken(shopId); } catch (e) { token = null; }
+    if (!token) { adshLog('❌ Shop chưa kết nối API — vào Tổng Quan → Kết Nối API để đăng nhập trước.', 'err'); return; }
+    const data = await sapiCall('get_hourly_cpc', { shop_id: shopId, access_token: token, performance_date: dateStr });
+    if (data.error && data.error !== '') { adshLog(`❌ Lỗi Shopee: ${data.error} — ${data.message || ''}`, 'err'); return; }
+    const list = Array.isArray(data.response) ? data.response : [];
+    if (!list.length) {
+      adshLog('⚠️ Không có dữ liệu cho ngày này (có thể chưa chạy ads khung giờ đó, hoặc ngày quá xa).', 'warn');
+      ADSH.rows = [];
+      adshRender();
+      return;
+    }
+    ADSH.rows = list.map(r => ({
+      hour: Number(r.hour),
+      impression: Number(r.impression || 0),
+      clicks: Number(r.clicks || 0),
+      ctr: Number(r.ctr || 0),
+      order: Number(r.broad_order || 0),
+      sold: Number(r.broad_item_sold || 0),
+      gmv: Number(r.broad_gmv || 0),
+      expense: Number(r.expense || 0),
+      roas: Number(r.broad_roas || 0)
+    })).sort((a, b) => a.hour - b.hour);
+    ADSH.shopId = shopId;
+    ADSH.date = dateStr;
+    adshLog(`✅ Đã tải ${ADSH.rows.length} khung giờ.`, 'ok');
+    adshRender();
+  } catch (err) {
+    adshLog(`❌ Lỗi: ${err.message}`, 'err');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function adshRender() {
+  const rows = ADSH.rows;
+  const kpiWrap = document.getElementById('adsh-kpi-row');
+  const tbody = document.getElementById('adsh-tbody');
+  if (!tbody) return;
+
+  if (!rows.length) {
+    if (kpiWrap) kpiWrap.style.display = 'none';
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text2);padding:18px">Chưa có dữ liệu — chọn shop/ngày rồi bấm "Tải Dữ Liệu"</td></tr>`;
+    return;
+  }
+
+  const totalImp  = rows.reduce((s, r) => s + r.impression, 0);
+  const totalClk  = rows.reduce((s, r) => s + r.clicks, 0);
+  const totalOrd  = rows.reduce((s, r) => s + r.order, 0);
+  const totalSold = rows.reduce((s, r) => s + r.sold, 0);
+  const totalGmv  = rows.reduce((s, r) => s + r.gmv, 0);
+  const totalCost = rows.reduce((s, r) => s + r.expense, 0);
+  const avgRoas   = totalCost > 0 ? totalGmv / totalCost : 0;
+
+  if (kpiWrap) {
+    kpiWrap.style.display = '';
+    kpiWrap.innerHTML = `
+      <div class="kpi-card navy"><div class="kpi-label">Lượt Xem</div><div class="kpi-value">${totalImp.toLocaleString('vi-VN')}</div></div>
+      <div class="kpi-card navy"><div class="kpi-label">Click</div><div class="kpi-value">${totalClk.toLocaleString('vi-VN')}</div></div>
+      <div class="kpi-card green"><div class="kpi-label">Đơn Hàng</div><div class="kpi-value">${totalOrd.toLocaleString('vi-VN')}</div></div>
+      <div class="kpi-card green"><div class="kpi-label">SP Bán</div><div class="kpi-value">${totalSold.toLocaleString('vi-VN')}</div></div>
+      <div class="kpi-card orange"><div class="kpi-label">Chi Phí</div><div class="kpi-value">${totalCost.toLocaleString('vi-VN')}đ</div></div>
+      <div class="kpi-card orange"><div class="kpi-label">ROAS TB Ngày</div><div class="kpi-value">${avgRoas.toFixed(2)}</div></div>
+    `;
+  }
+
+  // Ngưỡng gợi ý (thuần tham khảo, có thể điều chỉnh): so ROAS thật từng giờ
+  // với ROAS trung bình cả ngày. Giờ quá ít dữ liệu (chi phí <5.000đ và <5 click)
+  // không đủ tin cậy để gợi ý — tránh nhiễu do mẫu quá nhỏ.
+  tbody.innerHTML = rows.map(r => {
+    const enoughData = r.expense >= 5000 || r.clicks >= 5;
+    let tag = '<span style="color:var(--text2)">— Ít dữ liệu</span>';
+    if (enoughData && avgRoas > 0) {
+      if (r.roas >= avgRoas * 1.3) tag = '<span style="color:#27ae60;font-weight:700">🔥 Hạ ROAS mục tiêu / đẩy mạnh</span>';
+      else if (r.roas <= avgRoas * 0.7) tag = '<span style="color:#e74c3c;font-weight:700">⚠️ Tăng ROAS mục tiêu / hạn chế</span>';
+      else tag = '<span style="color:var(--text2)">Giữ nguyên</span>';
+    }
+    return `<tr>
+      <td><b>${String(r.hour).padStart(2, '0')}:00</b></td>
+      <td class="num">${r.impression.toLocaleString('vi-VN')}</td>
+      <td class="num">${r.clicks.toLocaleString('vi-VN')}</td>
+      <td class="num">${(r.ctr * 100).toFixed(2)}%</td>
+      <td class="num">${r.order.toLocaleString('vi-VN')}</td>
+      <td class="num">${r.sold.toLocaleString('vi-VN')}</td>
+      <td class="num">${r.gmv.toLocaleString('vi-VN')}đ</td>
+      <td class="num">${r.expense.toLocaleString('vi-VN')}đ</td>
+      <td class="num"><b>${r.roas.toFixed(2)}</b></td>
+      <td>${tag}</td>
+    </tr>`;
+  }).join('');
+}
+
 // ── Kết nối 1 shop: mở OAuth URL ────────────────────────────
 // NGUYÊN NHÂN "bấm Kết Nối shop nào cũng ra 2hbookshcm" — ĐÃ CHỐT (xác minh cùng Tân 2026-08-05):
 // endpoint /api/v2/shop/auth_partner không nhận shop_id, và trang xác thực nằm trên open.shopee.com
@@ -12494,7 +12684,7 @@ function toggleSidebarBlock(name) {
   });
 }
 
-const ADS_PAGE_NAMES = new Set(['update','overview','auto-camp','products','alerts','trend','dosuat']);
+const ADS_PAGE_NAMES = new Set(['update','overview','ads-hourly','auto-camp','products','alerts','trend','dosuat']);
 function showPage(name, el) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -12513,6 +12703,7 @@ function showPage(name, el) {
   if (name === 'tonkho-bao-cao-san-luong') bcslInitPage();
   if (name === 'gia-canh-bao') giaInitPage();
   if (name === 'overview')  { sapiRenderShops(); ovUpdateGate(); } // cập nhật card Kết Nối API + gate chọn Shop/ngày ở đầu Tổng Quan
+  if (name === 'ads-hourly') adshInitPage();
   if (name === 'auto-camp') renderAutoCampPage();
 }
 
