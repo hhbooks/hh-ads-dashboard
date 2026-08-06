@@ -943,39 +943,58 @@
 
     <div class="card" style="margin-bottom:16px">
       <div class="card-title"><span class="dot"></span> Bộ Lọc</div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
         <select id="adsh-shop-select" style="padding:7px 10px;border-radius:7px;border:1px solid var(--gray3);font-size:12.5px;min-width:200px"></select>
+        <div style="display:flex;gap:6px" id="adsh-scope-tabs">
+          <button class="filter-btn active" data-scope="day" onclick="adshSetScope('day',this)">Theo Ngày</button>
+          <button class="filter-btn" data-scope="week" onclick="adshSetScope('week',this)">Theo Tuần</button>
+          <button class="filter-btn" data-scope="month" onclick="adshSetScope('month',this)">Theo Tháng</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <input type="date" id="adsh-date" style="padding:6px 10px;border-radius:7px;border:1px solid var(--gray3);font-size:12.5px">
-        <button class="btn-drive-sync" id="adsh-load-btn" onclick="adshLoadData()">📡 Tải Dữ Liệu</button>
-        <span style="font-size:11px;color:var(--text2)">Shopee chỉ cho lấy tối đa lùi 6 tháng, mỗi lần 1 ngày.</span>
+        <span id="adsh-range-wrap" style="display:none;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:12px;color:var(--text2)">Từ</span>
+          <input type="date" id="adsh-date-from" style="padding:6px 10px;border-radius:7px;border:1px solid var(--gray3);font-size:12.5px">
+          <span style="font-size:12px;color:var(--text2)">đến</span>
+          <input type="date" id="adsh-date-to" style="padding:6px 10px;border-radius:7px;border:1px solid var(--gray3);font-size:12.5px">
+          <button class="filter-btn" onclick="adshSetPreset(7)">7 ngày gần nhất</button>
+          <button class="filter-btn" onclick="adshSetPreset(30)">30 ngày gần nhất</button>
+          <button class="filter-btn" onclick="adshSetPresetThisMonth()">Tháng này</button>
+        </span>
+        <button class="btn-drive-sync" id="adsh-load-btn" onclick="adshLoadClick()">📡 Tải Dữ Liệu</button>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-top:8px">
+        <b>Theo Ngày</b>: gọi trực tiếp Shopee cho 1 ngày và tự động lưu lại (tối đa lùi 6 tháng).
+        <b>Theo Tuần/Tháng</b>: đọc từ dữ liệu đã lưu, tính trung bình mỗi khung giờ qua các ngày có dữ liệu — ngày nào chưa từng tải sẽ báo thiếu để tải bù.
       </div>
       <div id="adsh-log" class="drive-log"></div>
+    </div>
+
+    <div class="card" id="adsh-missing-box" style="display:none;margin-bottom:16px;border-color:var(--orange)">
+      <div class="card-title"><span class="dot" style="background:var(--orange)"></span> Ngày Chưa Có Dữ Liệu (<span id="adsh-missing-count">0</span>)</div>
+      <div id="adsh-missing-list" style="font-size:12px;color:var(--text2);margin-bottom:10px"></div>
+      <button class="btn-drive-sync" id="adsh-backfill-btn" onclick="adshBackfillMissing()">⏬ Tải Bù Các Ngày Còn Thiếu</button>
     </div>
 
     <div class="kpi-grid" id="adsh-kpi-row" style="display:none;margin-bottom:16px"></div>
 
     <div class="card">
       <div class="card-title"><span class="dot"></span> Hiệu Suất Theo Giờ</div>
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap" id="adsh-metric-tabs">
+        <button class="filter-btn active" data-metric="roas" onclick="adshSetMetric('roas',this)">ROAS</button>
+        <button class="filter-btn" data-metric="impression" onclick="adshSetMetric('impression',this)">Lượt Xem</button>
+        <button class="filter-btn" data-metric="clicks" onclick="adshSetMetric('clicks',this)">Click</button>
+        <button class="filter-btn" data-metric="order" onclick="adshSetMetric('order',this)">Đơn Hàng</button>
+        <button class="filter-btn" data-metric="gmv" onclick="adshSetMetric('gmv',this)">Doanh Số</button>
+      </div>
       <div style="font-size:11px;color:var(--text2);margin-bottom:8px">
-        Gợi ý so ROAS thật từng giờ với ROAS trung bình cả ngày: ROAS giờ đó ≥ 1.3× TB ngày → khung giờ đang hiệu quả, cân nhắc hạ ROAS mục tiêu / đẩy mạnh; ≤ 0.7× TB ngày → khung giờ kém hiệu quả, cân nhắc tăng ROAS mục tiêu / hạn chế; ở giữa → giữ nguyên. Giờ có quá ít dữ liệu (chi phí &lt;5.000đ và &lt;5 click) sẽ không gợi ý để tránh nhiễu.
+        Màu cột luôn theo ROAS thật của giờ đó so với ROAS trung bình (≥ 1.3× TB → xanh, nên đẩy mạnh; ≤ 0.7× TB → đỏ, nên hạn chế; còn lại → giữ nguyên), bất kể đang xem chỉ số nào. Giờ có quá ít dữ liệu (chi phí &lt;5.000đ và &lt;5 click) sẽ để màu xám, không gợi ý để tránh nhiễu.
       </div>
-      <div class="table-wrap" style="max-height:600px;overflow-y:auto">
-        <table id="adsh-table">
-          <thead><tr>
-            <th>Giờ</th>
-            <th class="num">Lượt Xem</th>
-            <th class="num">Click</th>
-            <th class="num">CTR</th>
-            <th class="num">Đơn Hàng</th>
-            <th class="num">SP Bán</th>
-            <th class="num">Doanh Số</th>
-            <th class="num">Chi Phí</th>
-            <th class="num">ROAS</th>
-            <th>Gợi Ý</th>
-          </tr></thead>
-          <tbody id="adsh-tbody"></tbody>
-        </table>
+      <div style="position:relative;height:320px">
+        <canvas id="adsh-chart"></canvas>
       </div>
+      <div id="adsh-summary" style="margin-top:14px;font-size:12.5px;line-height:1.7"></div>
     </div>
   </div>
 
@@ -2528,7 +2547,7 @@ function cData() {
 Chart.register(ChartDataLabels);
 let sortState = { col: 8, dir: 'desc' };
 let filterState = 'all';
-let chartTopRoas, chartCostPie, chartTrend, chartRevCost, chartOvTrend;
+let chartTopRoas, chartCostPie, chartTrend, chartRevCost, chartOvTrend, chartAdsh;
 
 // ── OVERVIEW FILTER STATE ──
 let ovFilterYear  = null;  // '2026'
@@ -7705,12 +7724,24 @@ async function sapiGetToken(shopId) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// ADSH — Chiến Dịch Theo Giờ (thêm 2026-08-06): hiệu suất CPC 24h trong
-// 1 ngày, gợi ý hạ/tăng ROAS mục tiêu theo khung giờ. Dùng lại đúng hạ
-// tầng SAPI_* (sapiGetToken/sapiCall/SAPI_SHOPS) như các trang ADS khác.
-// CHỈ HIỂN THỊ + GỢI Ý — không gọi API ghi/sửa chiến dịch (xác nhận Tân).
+// ADSH — Chiến Dịch Theo Giờ (thêm 2026-08-06, mở rộng 2026-08-06): hiệu
+// suất CPC theo khung giờ, gợi ý hạ/tăng ROAS mục tiêu theo giờ. Dùng lại
+// đúng hạ tầng SAPI_* (sapiGetToken/sapiCall/SAPI_SHOPS) như các trang ADS
+// khác. CHỈ HIỂN THỊ + GỢI Ý — không gọi API ghi/sửa chiến dịch (xác nhận
+// Tân). Mỗi lần tải "Theo Ngày" tự động lưu vào Firestore
+// (shopee_ads_hourly/{shopId}/days/{dateKey}) để tích lũy dần — chế độ
+// "Theo Tuần/Theo Tháng" đọc lại kho này và tính trung bình mỗi khung giờ
+// qua các ngày có dữ liệu (xác nhận Tân 2026-08-06: KHÔNG tự gọi API sống
+// cho cả khoảng ngày để tránh spam Shopee — ngày nào thiếu thì báo + có nút
+// tải bù tuần tự có delay).
 // ══════════════════════════════════════════════════════════════
-const ADSH = { shopId: null, date: '', rows: [] };
+const ADSH = {
+  shopId: null, scope: 'day', metric: 'roas',
+  date: '', dateFrom: '', dateTo: '',
+  rows: [], missingDates: [], periodLabel: ''
+};
+
+function adshDateKey(dateStr) { return dateStr.replace(/-/g, ''); }
 
 function adshInitPage() {
   const sel = document.getElementById('adsh-shop-select');
@@ -7736,7 +7767,76 @@ function adshLog(msg, type = 'info') {
   el.scrollTop = el.scrollHeight;
 }
 
-async function adshLoadData() {
+// ── Chọn phạm vi Ngày / Tuần / Tháng ─────────────────────────
+function adshSetScope(scope, btn) {
+  ADSH.scope = scope;
+  document.querySelectorAll('#adsh-scope-tabs .filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const dayInput = document.getElementById('adsh-date');
+  const rangeWrap = document.getElementById('adsh-range-wrap');
+  if (scope === 'day') {
+    if (dayInput) dayInput.style.display = '';
+    if (rangeWrap) rangeWrap.style.display = 'none';
+  } else {
+    if (dayInput) dayInput.style.display = 'none';
+    if (rangeWrap) rangeWrap.style.display = 'inline-flex';
+    const fromInput = document.getElementById('adsh-date-from');
+    if (fromInput && !fromInput.value) adshSetPreset(scope === 'month' ? 30 : 7);
+  }
+  adshHideMissingBox();
+}
+
+function adshSetPreset(days) {
+  const to = new Date(); to.setDate(to.getDate() - 1); // hôm qua
+  const from = new Date(to); from.setDate(from.getDate() - (days - 1));
+  const fromInput = document.getElementById('adsh-date-from');
+  const toInput = document.getElementById('adsh-date-to');
+  if (fromInput) fromInput.value = from.toISOString().slice(0, 10);
+  if (toInput) toInput.value = to.toISOString().slice(0, 10);
+}
+
+function adshSetPresetThisMonth() {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth(), 1);
+  let to = new Date(); to.setDate(to.getDate() - 1);
+  if (to < from) to = new Date(from);
+  const fromInput = document.getElementById('adsh-date-from');
+  const toInput = document.getElementById('adsh-date-to');
+  if (fromInput) fromInput.value = from.toISOString().slice(0, 10);
+  if (toInput) toInput.value = to.toISOString().slice(0, 10);
+}
+
+function adshLoadClick() {
+  if (ADSH.scope === 'day') adshLoadDay();
+  else adshLoadRange();
+}
+
+// ── Gọi Shopee sống cho 1 ngày + lưu lại Firestore ────────────
+async function adshFetchOneDayLive(shopId, dateStr) {
+  const token = await sapiGetToken(shopId);
+  if (!token) throw new Error('Shop chưa kết nối API — vào Tổng Quan → Kết Nối API để đăng nhập trước.');
+  const data = await sapiCall('get_hourly_cpc', { shop_id: shopId, access_token: token, performance_date: dateStr });
+  if (data.error && data.error !== '') throw new Error(`Lỗi Shopee: ${data.error} — ${data.message || ''}`);
+  const list = Array.isArray(data.response) ? data.response : [];
+  const rows = list.map(r => ({
+    hour: Number(r.hour),
+    impression: Number(r.impression || 0),
+    clicks: Number(r.clicks || 0),
+    ctr: Number(r.ctr || 0),
+    order: Number(r.broad_order || 0),
+    sold: Number(r.broad_item_sold || 0),
+    gmv: Number(r.broad_gmv || 0),
+    expense: Number(r.expense || 0),
+    roas: Number(r.broad_roas || 0)
+  })).sort((a, b) => a.hour - b.hour);
+  await db.collection('shopee_ads_hourly').doc(String(shopId)).collection('days').doc(adshDateKey(dateStr)).set({
+    date: dateStr, rows, synced_at: new Date().toISOString()
+  });
+  return rows;
+}
+
+// ── Theo Ngày: gọi sống 1 ngày, hiển thị + tự lưu ─────────────
+async function adshLoadDay() {
   const sel = document.getElementById('adsh-shop-select');
   const dateInput = document.getElementById('adsh-date');
   const shopId = Number(sel?.value);
@@ -7745,54 +7845,151 @@ async function adshLoadData() {
   const shop = SAPI_SHOPS.find(s => s.id === shopId);
   const btn = document.getElementById('adsh-load-btn');
   if (btn) btn.disabled = true;
+  adshHideMissingBox();
   adshLog(`📡 Đang lấy dữ liệu theo giờ — ${shop ? shop.name : shopId} — ngày ${dateStr}...`);
   try {
-    let token;
-    try { token = await sapiGetToken(shopId); } catch (e) { token = null; }
-    if (!token) { adshLog('❌ Shop chưa kết nối API — vào Tổng Quan → Kết Nối API để đăng nhập trước.', 'err'); return; }
-    const data = await sapiCall('get_hourly_cpc', { shop_id: shopId, access_token: token, performance_date: dateStr });
-    if (data.error && data.error !== '') { adshLog(`❌ Lỗi Shopee: ${data.error} — ${data.message || ''}`, 'err'); return; }
-    const list = Array.isArray(data.response) ? data.response : [];
-    if (!list.length) {
-      adshLog('⚠️ Không có dữ liệu cho ngày này (có thể chưa chạy ads khung giờ đó, hoặc ngày quá xa).', 'warn');
-      ADSH.rows = [];
-      adshRender();
-      return;
-    }
-    ADSH.rows = list.map(r => ({
-      hour: Number(r.hour),
-      impression: Number(r.impression || 0),
-      clicks: Number(r.clicks || 0),
-      ctr: Number(r.ctr || 0),
-      order: Number(r.broad_order || 0),
-      sold: Number(r.broad_item_sold || 0),
-      gmv: Number(r.broad_gmv || 0),
-      expense: Number(r.expense || 0),
-      roas: Number(r.broad_roas || 0)
-    })).sort((a, b) => a.hour - b.hour);
+    const rows = await adshFetchOneDayLive(shopId, dateStr);
     ADSH.shopId = shopId;
-    ADSH.date = dateStr;
-    adshLog(`✅ Đã tải ${ADSH.rows.length} khung giờ.`, 'ok');
-    adshRender();
+    ADSH.rows = rows;
+    if (!rows.length) adshLog('⚠️ Không có dữ liệu cho ngày này (có thể chưa chạy ads khung giờ đó, hoặc ngày quá xa).', 'warn');
+    else adshLog(`✅ Đã tải và lưu ${rows.length} khung giờ.`, 'ok');
+    adshRenderAll(`Ngày ${dateStr}`);
   } catch (err) {
-    adshLog(`❌ Lỗi: ${err.message}`, 'err');
+    adshLog(`❌ ${err.message}`, 'err');
   } finally {
     if (btn) btn.disabled = false;
   }
 }
 
-function adshRender() {
+// ── Theo Tuần/Tháng: đọc kho đã lưu, tính TB mỗi khung giờ ────
+async function adshLoadRange() {
+  const sel = document.getElementById('adsh-shop-select');
+  const fromInput = document.getElementById('adsh-date-from');
+  const toInput = document.getElementById('adsh-date-to');
+  const shopId = Number(sel?.value);
+  const fromStr = fromInput?.value;
+  const toStr = toInput?.value;
+  if (!shopId || !fromStr || !toStr) { adshLog('⚠️ Chọn shop và khoảng ngày trước.', 'warn'); return; }
+  if (fromStr > toStr) { adshLog('⚠️ "Từ ngày" phải trước "Đến ngày".', 'warn'); return; }
+  const btn = document.getElementById('adsh-load-btn');
+  if (btn) btn.disabled = true;
+  adshLog(`📂 Đang đọc dữ liệu đã lưu từ ${fromStr} đến ${toStr}...`);
+  try {
+    const snap = await db.collection('shopee_ads_hourly').doc(String(shopId)).collection('days')
+      .where('date', '>=', fromStr).where('date', '<=', toStr).get();
+    const foundMap = {};
+    snap.forEach(doc => { const d = doc.data(); foundMap[d.date] = Array.isArray(d.rows) ? d.rows : []; });
+
+    const allDates = [];
+    const cursor = new Date(fromStr + 'T00:00:00');
+    const endD = new Date(toStr + 'T00:00:00');
+    while (cursor <= endD) { allDates.push(cursor.toISOString().slice(0, 10)); cursor.setDate(cursor.getDate() + 1); }
+    const foundDates = allDates.filter(d => foundMap[d]);
+    const missing = allDates.filter(d => !foundMap[d]);
+
+    ADSH.shopId = shopId;
+    ADSH.missingDates = missing;
+    adshRenderMissingBox();
+
+    if (!foundDates.length) {
+      ADSH.rows = [];
+      adshLog('⚠️ Chưa có ngày nào trong khoảng này được lưu — tải từng ngày ở "Theo Ngày" trước, hoặc bấm "Tải Bù" bên dưới.', 'warn');
+      adshRenderAll(`${fromStr} → ${toStr}`);
+      return;
+    }
+
+    // Cộng dồn theo từng khung giờ qua các ngày có dữ liệu, rồi chia lại đúng số
+    // ngày CÓ dữ liệu cho riêng khung giờ đó (không chia đều theo tổng số ngày) —
+    // vì có ngày Shopee chỉ trả 1 phần khung giờ (ví dụ ngày chưa chạy hết 24h).
+    const agg = {};
+    for (let h = 0; h < 24; h++) agg[h] = { hour: h, impression: 0, clicks: 0, order: 0, sold: 0, gmv: 0, expense: 0, count: 0 };
+    foundDates.forEach(d => {
+      (foundMap[d] || []).forEach(r => {
+        const a = agg[r.hour];
+        if (!a) return;
+        a.impression += r.impression; a.clicks += r.clicks; a.order += r.order;
+        a.sold += r.sold; a.gmv += r.gmv; a.expense += r.expense; a.count += 1;
+      });
+    });
+    ADSH.rows = Object.values(agg).map(a => ({
+      hour: a.hour,
+      impression: a.count ? a.impression / a.count : 0,
+      clicks: a.count ? a.clicks / a.count : 0,
+      order: a.count ? a.order / a.count : 0,
+      sold: a.count ? a.sold / a.count : 0,
+      gmv: a.count ? a.gmv / a.count : 0,
+      expense: a.count ? a.expense / a.count : 0,
+      roas: a.expense > 0 ? a.gmv / a.expense : 0,
+      ctr: a.impression > 0 ? a.clicks / a.impression : 0,
+      dayCount: a.count
+    }));
+
+    adshLog(`✅ Đã tổng hợp trung bình ${foundDates.length}/${allDates.length} ngày có dữ liệu.` + (missing.length ? ` Thiếu ${missing.length} ngày.` : ''), 'ok');
+    adshRenderAll(`TB ${foundDates.length} ngày (${fromStr} → ${toStr})`);
+  } catch (err) {
+    adshLog(`❌ ${err.message}`, 'err');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+// ── Ngày còn thiếu + tải bù tuần tự (có delay tránh rate limit Shopee) ─
+function adshHideMissingBox() {
+  const box = document.getElementById('adsh-missing-box');
+  if (box) box.style.display = 'none';
+}
+
+function adshRenderMissingBox() {
+  const box = document.getElementById('adsh-missing-box');
+  const listEl = document.getElementById('adsh-missing-list');
+  const countEl = document.getElementById('adsh-missing-count');
+  if (!box) return;
+  if (!ADSH.missingDates.length) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  if (countEl) countEl.textContent = ADSH.missingDates.length;
+  if (listEl) listEl.textContent = ADSH.missingDates.join(', ');
+}
+
+async function adshBackfillMissing() {
+  if (!ADSH.shopId || !ADSH.missingDates.length) return;
+  const btn = document.getElementById('adsh-backfill-btn');
+  const loadBtn = document.getElementById('adsh-load-btn');
+  if (btn) btn.disabled = true;
+  if (loadBtn) loadBtn.disabled = true;
+  const dates = ADSH.missingDates.slice();
+  adshLog(`⏬ Bắt đầu tải bù ${dates.length} ngày còn thiếu...`);
+  let ok = 0, fail = 0;
+  for (let i = 0; i < dates.length; i++) {
+    const d = dates[i];
+    if (i > 0) await new Promise(r => setTimeout(r, 2500)); // tránh rate limit Shopee
+    try {
+      adshLog(`  → Đang tải ${d} (${i + 1}/${dates.length})...`);
+      await adshFetchOneDayLive(ADSH.shopId, d);
+      ok++;
+    } catch (err) {
+      fail++;
+      adshLog(`  ⚠️ Lỗi ngày ${d}: ${err.message}`, 'warn');
+    }
+  }
+  adshLog(`✅ Tải bù xong: ${ok} thành công, ${fail} lỗi.`, fail ? 'warn' : 'ok');
+  if (btn) btn.disabled = false;
+  if (loadBtn) loadBtn.disabled = false;
+  await adshLoadRange(); // tải lại tổng hợp với dữ liệu vừa bù
+}
+
+// ── Render: KPI + biểu đồ cột + tóm tắt gợi ý ─────────────────
+function adshRenderAll(periodLabel) {
+  ADSH.periodLabel = periodLabel || '';
+  adshRenderKpis();
+  adshRenderChart();
+  adshRenderSummary();
+}
+
+function adshRenderKpis() {
   const rows = ADSH.rows;
   const kpiWrap = document.getElementById('adsh-kpi-row');
-  const tbody = document.getElementById('adsh-tbody');
-  if (!tbody) return;
-
-  if (!rows.length) {
-    if (kpiWrap) kpiWrap.style.display = 'none';
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text2);padding:18px">Chưa có dữ liệu — chọn shop/ngày rồi bấm "Tải Dữ Liệu"</td></tr>`;
-    return;
-  }
-
+  if (!kpiWrap) return;
+  if (!rows.length) { kpiWrap.style.display = 'none'; return; }
   const totalImp  = rows.reduce((s, r) => s + r.impression, 0);
   const totalClk  = rows.reduce((s, r) => s + r.clicks, 0);
   const totalOrd  = rows.reduce((s, r) => s + r.order, 0);
@@ -7800,43 +7997,106 @@ function adshRender() {
   const totalGmv  = rows.reduce((s, r) => s + r.gmv, 0);
   const totalCost = rows.reduce((s, r) => s + r.expense, 0);
   const avgRoas   = totalCost > 0 ? totalGmv / totalCost : 0;
+  const scopeLabel = ADSH.scope === 'day' ? '' : ' (TB/Ngày)';
+  kpiWrap.style.display = '';
+  kpiWrap.innerHTML = `
+    <div class="kpi-card navy"><div class="kpi-label">Lượt Xem${scopeLabel}</div><div class="kpi-value">${Math.round(totalImp).toLocaleString('vi-VN')}</div></div>
+    <div class="kpi-card navy"><div class="kpi-label">Click${scopeLabel}</div><div class="kpi-value">${Math.round(totalClk).toLocaleString('vi-VN')}</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Đơn Hàng${scopeLabel}</div><div class="kpi-value">${Math.round(totalOrd).toLocaleString('vi-VN')}</div></div>
+    <div class="kpi-card green"><div class="kpi-label">SP Bán${scopeLabel}</div><div class="kpi-value">${Math.round(totalSold).toLocaleString('vi-VN')}</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">Chi Phí${scopeLabel}</div><div class="kpi-value">${Math.round(totalCost).toLocaleString('vi-VN')}đ</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">ROAS TB</div><div class="kpi-value">${avgRoas.toFixed(2)}</div></div>
+  `;
+}
 
-  if (kpiWrap) {
-    kpiWrap.style.display = '';
-    kpiWrap.innerHTML = `
-      <div class="kpi-card navy"><div class="kpi-label">Lượt Xem</div><div class="kpi-value">${totalImp.toLocaleString('vi-VN')}</div></div>
-      <div class="kpi-card navy"><div class="kpi-label">Click</div><div class="kpi-value">${totalClk.toLocaleString('vi-VN')}</div></div>
-      <div class="kpi-card green"><div class="kpi-label">Đơn Hàng</div><div class="kpi-value">${totalOrd.toLocaleString('vi-VN')}</div></div>
-      <div class="kpi-card green"><div class="kpi-label">SP Bán</div><div class="kpi-value">${totalSold.toLocaleString('vi-VN')}</div></div>
-      <div class="kpi-card orange"><div class="kpi-label">Chi Phí</div><div class="kpi-value">${totalCost.toLocaleString('vi-VN')}đ</div></div>
-      <div class="kpi-card orange"><div class="kpi-label">ROAS TB Ngày</div><div class="kpi-value">${avgRoas.toFixed(2)}</div></div>
-    `;
+function adshMetricInfo(metric) {
+  switch (metric) {
+    case 'impression': return { label: 'Lượt Xem', field: 'impression', fmt: v => Math.round(v).toLocaleString('vi-VN') };
+    case 'clicks':      return { label: 'Click', field: 'clicks', fmt: v => Math.round(v).toLocaleString('vi-VN') };
+    case 'order':       return { label: 'Đơn Hàng', field: 'order', fmt: v => Math.round(v).toLocaleString('vi-VN') };
+    case 'gmv':         return { label: 'Doanh Số', field: 'gmv', fmt: v => Math.round(v).toLocaleString('vi-VN') + 'đ' };
+    default:            return { label: 'ROAS', field: 'roas', fmt: v => v.toFixed(2) };
   }
+}
 
-  // Ngưỡng gợi ý (thuần tham khảo, có thể điều chỉnh): so ROAS thật từng giờ
-  // với ROAS trung bình cả ngày. Giờ quá ít dữ liệu (chi phí <5.000đ và <5 click)
-  // không đủ tin cậy để gợi ý — tránh nhiễu do mẫu quá nhỏ.
-  tbody.innerHTML = rows.map(r => {
-    const enoughData = r.expense >= 5000 || r.clicks >= 5;
-    let tag = '<span style="color:var(--text2)">— Ít dữ liệu</span>';
-    if (enoughData && avgRoas > 0) {
-      if (r.roas >= avgRoas * 1.3) tag = '<span style="color:#27ae60;font-weight:700">🔥 Hạ ROAS mục tiêu / đẩy mạnh</span>';
-      else if (r.roas <= avgRoas * 0.7) tag = '<span style="color:#e74c3c;font-weight:700">⚠️ Tăng ROAS mục tiêu / hạn chế</span>';
-      else tag = '<span style="color:var(--text2)">Giữ nguyên</span>';
+// Ngưỡng gợi ý (thuần tham khảo): so ROAS thật khung giờ với ROAS trung bình cả kỳ
+// đang xem. Khung giờ quá ít dữ liệu (chi phí <5.000đ/ngày và <5 click) không đủ
+// tin cậy để gợi ý — tránh nhiễu do mẫu quá nhỏ.
+function adshHourTag(r, avgRoas) {
+  const enoughData = r.expense >= 5000 || r.clicks >= 5;
+  if (!enoughData || avgRoas <= 0) return 'low';
+  if (r.roas >= avgRoas * 1.3) return 'up';
+  if (r.roas <= avgRoas * 0.7) return 'down';
+  return 'flat';
+}
+
+function adshSetMetric(metric, btn) {
+  ADSH.metric = metric;
+  document.querySelectorAll('#adsh-metric-tabs .filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  adshRenderChart();
+}
+
+function adshRenderChart() {
+  const canvas = document.getElementById('adsh-chart');
+  if (!canvas) return;
+  if (chartAdsh) { chartAdsh.destroy(); chartAdsh = null; }
+  const rows = ADSH.rows;
+  if (!rows.length) return;
+
+  const totalGmv  = rows.reduce((s, r) => s + r.gmv, 0);
+  const totalCost = rows.reduce((s, r) => s + r.expense, 0);
+  const avgRoas   = totalCost > 0 ? totalGmv / totalCost : 0;
+  const info = adshMetricInfo(ADSH.metric);
+  const colorMap = { up: '#27ae60', down: '#e74c3c', flat: '#2563eb', low: '#c7c9cc' };
+  const labels = rows.map(r => String(r.hour).padStart(2, '0') + 'h');
+  const data = rows.map(r => r[info.field]);
+  const colors = rows.map(r => colorMap[adshHourTag(r, avgRoas)]);
+
+  chartAdsh = new Chart(canvas, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: info.label, data, backgroundColor: colors, borderRadius: 4, maxBarThickness: 28 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const r = rows[ctx.dataIndex];
+              return [
+                `${info.label}: ${info.fmt(r[info.field])}`,
+                `ROAS: ${r.roas.toFixed(2)}`,
+                `Chi phí: ${Math.round(r.expense).toLocaleString('vi-VN')}đ`,
+                `Doanh số: ${Math.round(r.gmv).toLocaleString('vi-VN')}đ`
+              ];
+            }
+          }
+        }
+      },
+      scales: { y: { beginAtZero: true, ticks: { callback: v => info.fmt(v) } } }
     }
-    return `<tr>
-      <td><b>${String(r.hour).padStart(2, '0')}:00</b></td>
-      <td class="num">${r.impression.toLocaleString('vi-VN')}</td>
-      <td class="num">${r.clicks.toLocaleString('vi-VN')}</td>
-      <td class="num">${(r.ctr * 100).toFixed(2)}%</td>
-      <td class="num">${r.order.toLocaleString('vi-VN')}</td>
-      <td class="num">${r.sold.toLocaleString('vi-VN')}</td>
-      <td class="num">${r.gmv.toLocaleString('vi-VN')}đ</td>
-      <td class="num">${r.expense.toLocaleString('vi-VN')}đ</td>
-      <td class="num"><b>${r.roas.toFixed(2)}</b></td>
-      <td>${tag}</td>
-    </tr>`;
-  }).join('');
+  });
+}
+
+function adshRenderSummary() {
+  const el = document.getElementById('adsh-summary');
+  if (!el) return;
+  const rows = ADSH.rows;
+  if (!rows.length) {
+    el.innerHTML = '<span style="color:var(--text2)">Chưa có dữ liệu — chọn shop/ngày (hoặc khoảng ngày) rồi bấm "Tải Dữ Liệu".</span>';
+    return;
+  }
+  const totalGmv  = rows.reduce((s, r) => s + r.gmv, 0);
+  const totalCost = rows.reduce((s, r) => s + r.expense, 0);
+  const avgRoas   = totalCost > 0 ? totalGmv / totalCost : 0;
+  const up   = rows.filter(r => adshHourTag(r, avgRoas) === 'up').map(r => String(r.hour).padStart(2, '0') + ':00');
+  const down = rows.filter(r => adshHourTag(r, avgRoas) === 'down').map(r => String(r.hour).padStart(2, '0') + ':00');
+  let html = '';
+  if (up.length) html += `<div style="margin-bottom:4px"><span style="color:#27ae60;font-weight:700">🔥 Nên hạ ROAS mục tiêu / đẩy mạnh:</span> ${up.join(', ')}</div>`;
+  if (down.length) html += `<div><span style="color:#e74c3c;font-weight:700">⚠️ Nên tăng ROAS mục tiêu / hạn chế:</span> ${down.join(', ')}</div>`;
+  if (!up.length && !down.length) html = '<span style="color:var(--text2)">Chưa đủ dữ liệu để đưa gợi ý rõ ràng cho khung giờ nào.</span>';
+  el.innerHTML = html;
 }
 
 // ── Kết nối 1 shop: mở OAuth URL ────────────────────────────
