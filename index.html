@@ -1094,11 +1094,26 @@
              tải CSV thủ công + upload Drive nữa. Giữ nút Drive cũ song song làm dự phòng
              (xác nhận Tân 2026-08-07). API chỉ trả tổng theo TỪNG SẢN PHẨM cho CẢ khoảng ngày đã
              chọn (không tách theo từng ngày như CSV Drive) — dùng cho xem nhanh, không lưu Firestore. -->
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;padding:10px 12px;background:var(--surface);border-radius:8px;border:1px solid var(--gray3)">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;padding:10px 12px;background:var(--surface);border-radius:8px;border:1px solid var(--gray3);position:relative">
           <span style="font-size:11px;color:var(--text2);font-weight:700">🔄 Gọi API trực tiếp:</span>
-          <input type="date" id="ac-item-sync-from" style="padding:5px 8px;border:1px solid var(--gray3);border-radius:6px;font-size:12px">
-          <span style="font-size:11px;color:var(--text2)">→</span>
-          <input type="date" id="ac-item-sync-to" style="padding:5px 8px;border:1px solid var(--gray3);border-radius:6px;font-size:12px">
+          <button id="ac-sync-range-trigger" class="filter-btn" onclick="acSyncTogglePicker()" style="min-width:190px;text-align:left">📅 …</button>
+          <div id="ac-sync-range-popover" style="display:none;position:absolute;top:calc(100% + 4px);left:130px;z-index:40;background:white;border:1px solid var(--gray3);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.12);padding:12px;width:280px;user-select:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <button class="filter-btn" style="padding:4px 9px" onclick="acSyncCalNav(-1)">‹</button>
+              <span id="ac-sync-cal-title" style="font-size:12.5px;font-weight:700;color:var(--navy)"></span>
+              <button class="filter-btn" style="padding:4px 9px" onclick="acSyncCalNav(1)">›</button>
+            </div>
+            <div id="ac-sync-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px"></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--gray3)">
+              <button class="tchip" onclick="acSyncApplyPresetRange(1)">Hôm qua</button>
+              <button class="tchip" onclick="acSyncApplyPresetRange(7)">7 ngày</button>
+              <button class="tchip" onclick="acSyncApplyPresetRange(30)">30 ngày</button>
+              <button class="tchip" onclick="acSyncApplyPresetThisMonth()">Tháng này</button>
+            </div>
+            <div style="font-size:10.5px;color:var(--text2);margin-top:8px">Bấm 1 ngày = 1 ngày. Kéo từ ngày này sang ngày khác = chọn cả khoảng.</div>
+          </div>
+          <input type="hidden" id="ac-item-sync-from">
+          <input type="hidden" id="ac-item-sync-to">
           <button onclick="gmsSyncItemsFromApi()" style="padding:6px 14px;background:var(--navy);color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
             🔄 Đồng Bộ Trực Tiếp API
           </button>
@@ -9724,6 +9739,7 @@ function renderAcDateChips() {
 }
 
 function renderAutoCampPage() {
+  acSyncPickerInit();
   renderAcDateChips();
   // Load GMS data từ Firestore — mặc định hiện tab 2HBooks khi vào trang
   _acDriveFilter = { year: '', month: '', day: '' };
@@ -10129,6 +10145,163 @@ function renderAcTopFromDrive() {
     const logEl = document.getElementById('ac-prod-log');
     if (logEl) logEl.classList.remove('visible');
   }
+}
+
+// ── Lịch chọn khoảng ngày cho ô "Gọi API trực tiếp" (GMS) — 1 nút bấm sổ ra
+// lịch kéo-thả, thay 2 ô dd/mm/yyyy rời (xác nhận Tân 2026-08-07, cùng kiểu
+// với lịch ở Card 2 trang Chiến Dịch Theo Giờ). Chọn xong chỉ điền vào 2 input
+// ẩn ac-item-sync-from/to — KHÔNG tự gọi API, phải bấm nút Đồng Bộ mới chạy.
+const AC_SYNC_WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+const AC_SYNC_MONTH_NAMES = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+const AC_SYNC_PICKER = { rangeStart: '', rangeEnd: '', calYear: 0, calMonth: 0, dragging: false, dragAnchor: '', pickerOpen: false };
+let acSyncGlobalListenersBound = false;
+
+function acSyncFmtDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function acSyncPickerInit() {
+  if (!AC_SYNC_PICKER.rangeStart) {
+    const y = new Date(); y.setDate(y.getDate() - 1);
+    const yStr = acSyncFmtDate(y);
+    AC_SYNC_PICKER.rangeStart = yStr; AC_SYNC_PICKER.rangeEnd = yStr;
+    AC_SYNC_PICKER.calYear = y.getFullYear(); AC_SYNC_PICKER.calMonth = y.getMonth();
+    acSyncFinishPickerAction(); // điền sẵn 2 input ẩn + nhãn nút (popover đang đóng, không bị ảnh hưởng)
+  }
+  if (!acSyncGlobalListenersBound) {
+    document.addEventListener('mousedown', acSyncHandleOutsideClick);
+    document.addEventListener('mouseup', acSyncHandleGlobalMouseUp);
+    acSyncGlobalListenersBound = true;
+  }
+}
+
+function acSyncTogglePicker() {
+  const pop = document.getElementById('ac-sync-range-popover');
+  if (!pop) return;
+  const opening = pop.style.display === 'none';
+  pop.style.display = opening ? 'block' : 'none';
+  AC_SYNC_PICKER.pickerOpen = opening;
+  if (opening) acSyncRenderCalendar();
+}
+
+function acSyncHandleOutsideClick(e) {
+  if (!AC_SYNC_PICKER.pickerOpen) return;
+  const pop = document.getElementById('ac-sync-range-popover');
+  const trigger = document.getElementById('ac-sync-range-trigger');
+  if (!pop || !trigger) return;
+  if (pop.contains(e.target) || trigger.contains(e.target)) return;
+  pop.style.display = 'none';
+  AC_SYNC_PICKER.pickerOpen = false;
+}
+
+function acSyncCalNav(delta) {
+  AC_SYNC_PICKER.calMonth += delta;
+  if (AC_SYNC_PICKER.calMonth < 0) { AC_SYNC_PICKER.calMonth = 11; AC_SYNC_PICKER.calYear--; }
+  if (AC_SYNC_PICKER.calMonth > 11) { AC_SYNC_PICKER.calMonth = 0; AC_SYNC_PICKER.calYear++; }
+  acSyncRenderCalendar();
+}
+
+function acSyncRenderCalendar() {
+  const title = document.getElementById('ac-sync-cal-title');
+  const grid = document.getElementById('ac-sync-cal-grid');
+  if (!title || !grid) return;
+  title.textContent = `${AC_SYNC_MONTH_NAMES[AC_SYNC_PICKER.calMonth]} ${AC_SYNC_PICKER.calYear}`;
+
+  const firstOfMonth = new Date(AC_SYNC_PICKER.calYear, AC_SYNC_PICKER.calMonth, 1);
+  const firstWeekday = (firstOfMonth.getDay() + 6) % 7;
+  const daysInMonth = new Date(AC_SYNC_PICKER.calYear, AC_SYNC_PICKER.calMonth + 1, 0).getDate();
+  const daysInPrevMonth = new Date(AC_SYNC_PICKER.calYear, AC_SYNC_PICKER.calMonth, 0).getDate();
+
+  const todayStr = acSyncFmtDate(new Date());
+  const minD = new Date(); minD.setMonth(minD.getMonth() - 6);
+  const minStr = acSyncFmtDate(minD);
+  const maxStr = todayStr; // không cho chọn ngày tương lai
+
+  const cells = [];
+  for (let i = 0; i < firstWeekday; i++) cells.push({ day: daysInPrevMonth - firstWeekday + 1 + i, dateStr: null });
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ day: d, dateStr: `${AC_SYNC_PICKER.calYear}-${String(AC_SYNC_PICKER.calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}` });
+  }
+  let extra = 1;
+  while (cells.length % 7 !== 0) cells.push({ day: extra++, dateStr: null });
+
+  let html = AC_SYNC_WEEKDAYS.map(w => `<div style="text-align:center;font-size:10px;color:var(--text2);font-weight:700;padding:2px 0">${w}</div>`).join('');
+  html += cells.map(c => {
+    if (!c.dateStr) return `<div style="text-align:center;font-size:11.5px;color:var(--gray3);padding:6px 0">${c.day}</div>`;
+    const disabled = c.dateStr < minStr || c.dateStr > maxStr;
+    const inRange = AC_SYNC_PICKER.rangeStart && AC_SYNC_PICKER.rangeEnd && c.dateStr >= AC_SYNC_PICKER.rangeStart && c.dateStr <= AC_SYNC_PICKER.rangeEnd;
+    const isEndpoint = c.dateStr === AC_SYNC_PICKER.rangeStart || c.dateStr === AC_SYNC_PICKER.rangeEnd;
+    const isToday = c.dateStr === todayStr;
+    let bg = 'transparent', color = 'var(--text)', weight = '400', border = '';
+    if (disabled) color = 'var(--gray3)';
+    else if (isEndpoint) { bg = 'var(--navy)'; color = 'white'; weight = '700'; }
+    else if (inRange) { bg = 'var(--navy3)'; color = 'var(--navy)'; }
+    if (isToday && !isEndpoint && !disabled) border = 'border:1px solid var(--navy2);';
+    const handlers = disabled ? '' : `onmousedown="acSyncDayMouseDown('${c.dateStr}')" onmouseenter="acSyncDayMouseEnter('${c.dateStr}')"`;
+    return `<div ${handlers} style="text-align:center;font-size:11.5px;padding:6px 0;border-radius:6px;cursor:${disabled ? 'default' : 'pointer'};background:${bg};color:${color};font-weight:${weight};${border}">${c.day}</div>`;
+  }).join('');
+
+  grid.innerHTML = html;
+}
+
+function acSyncDayMouseDown(dateStr) {
+  AC_SYNC_PICKER.dragging = true;
+  AC_SYNC_PICKER.dragAnchor = dateStr;
+  AC_SYNC_PICKER.rangeStart = dateStr;
+  AC_SYNC_PICKER.rangeEnd = dateStr;
+  acSyncRenderCalendar();
+}
+
+function acSyncDayMouseEnter(dateStr) {
+  if (!AC_SYNC_PICKER.dragging) return;
+  if (dateStr < AC_SYNC_PICKER.dragAnchor) { AC_SYNC_PICKER.rangeStart = dateStr; AC_SYNC_PICKER.rangeEnd = AC_SYNC_PICKER.dragAnchor; }
+  else { AC_SYNC_PICKER.rangeStart = AC_SYNC_PICKER.dragAnchor; AC_SYNC_PICKER.rangeEnd = dateStr; }
+  acSyncRenderCalendar();
+}
+
+function acSyncHandleGlobalMouseUp() {
+  if (!AC_SYNC_PICKER.dragging) return;
+  AC_SYNC_PICKER.dragging = false;
+  acSyncFinishPickerAction();
+}
+
+function acSyncApplyPresetRange(days) {
+  const to = new Date();
+  const from = new Date(to); from.setDate(from.getDate() - (days - 1));
+  AC_SYNC_PICKER.rangeStart = acSyncFmtDate(from);
+  AC_SYNC_PICKER.rangeEnd = acSyncFmtDate(to);
+  AC_SYNC_PICKER.calYear = to.getFullYear(); AC_SYNC_PICKER.calMonth = to.getMonth();
+  acSyncFinishPickerAction();
+}
+
+function acSyncApplyPresetThisMonth() {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth(), 1);
+  const to = new Date();
+  AC_SYNC_PICKER.rangeStart = acSyncFmtDate(from);
+  AC_SYNC_PICKER.rangeEnd = acSyncFmtDate(to);
+  AC_SYNC_PICKER.calYear = to.getFullYear(); AC_SYNC_PICKER.calMonth = to.getMonth();
+  acSyncFinishPickerAction();
+}
+
+function acSyncFinishPickerAction() {
+  acSyncUpdateTriggerLabel();
+  const pop = document.getElementById('ac-sync-range-popover');
+  if (pop) pop.style.display = 'none';
+  AC_SYNC_PICKER.pickerOpen = false;
+  const fromInput = document.getElementById('ac-item-sync-from');
+  const toInput   = document.getElementById('ac-item-sync-to');
+  if (fromInput) fromInput.value = AC_SYNC_PICKER.rangeStart;
+  if (toInput)   toInput.value   = AC_SYNC_PICKER.rangeEnd;
+}
+
+function acSyncUpdateTriggerLabel() {
+  const trigger = document.getElementById('ac-sync-range-trigger');
+  if (!trigger) return;
+  const fmt = (s) => { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; };
+  trigger.textContent = AC_SYNC_PICKER.rangeStart === AC_SYNC_PICKER.rangeEnd
+    ? `📅 ${fmt(AC_SYNC_PICKER.rangeStart)}`
+    : `📅 ${fmt(AC_SYNC_PICKER.rangeStart)} → ${fmt(AC_SYNC_PICKER.rangeEnd)}`;
 }
 
 // ★ Thu gọn/mở Card 1 (Đồng Bộ Dữ Liệu) trang GMS — giống adshToggleSyncCard
