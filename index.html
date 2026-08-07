@@ -3199,7 +3199,7 @@ function ovProducts() {
   }
 
   return cData().products.map(p => {
-    let views=0, conv=0, doanh_so=0, chi_phi=0, clicks=0;
+    let views=0, conv=0, doanh_so=0, chi_phi=0, clicks=0, atc=0;
     labels.forEach(lbl => {
       const d = p.dailyData?.[lbl];
       if (!d) return;
@@ -3208,10 +3208,13 @@ function ovProducts() {
       doanh_so += Number(d['Doanh thu'])   || 0;
       chi_phi  += Number(d['Chi phí(đ)']) || 0;
       clicks   += Number(d['Lượt Click'])  || 0;
+      atc      += Number(d['Add to Cart']) || 0;
     });
     const roas = chi_phi>0 ? doanh_so/chi_phi : 0;
     const acos = doanh_so>0 ? chi_phi/doanh_so*100 : 0;
-    return { ...p, views, conv, doanh_so, chi_phi, roas, acos, clicks };
+    // Add to Cart Rate = tổng Add to Cart / tổng Lượt Click trong khoảng đã lọc (giống cách tính CTR)
+    const atc_rate = clicks>0 ? atc/clicks*100 : 0;
+    return { ...p, views, conv, doanh_so, chi_phi, roas, acos, clicks, atc, atc_rate };
   }).filter(p => p.doanh_so>0 || p.chi_phi>0);
 }
 
@@ -13677,8 +13680,16 @@ function renderTopTable() {
 let allRows = [];
 let ovPrevMap = {};
 let ovHasPrevPeriod = false;
+// FIX 2026-08-07 (báo cáo Tân): bảng "Tất Cả Sản Phẩm ADS" trước đây lấy dữ liệu từ
+// spProducts() — hàm này dùng bộ lọc spFilter* riêng của 1 trang "Sản Phẩm ADS" cũ mà
+// UI chọn ngày (sp-date-chips) đã bị xóa từ lâu, không còn cách nào set spFilter* nữa.
+// Vì vậy spProducts() LUÔN rơi vào nhánh "không lọc gì" → trả nguyên cData().products
+// (tổng LŨY KẾ TOÀN THỜI GIAN), trong khi 8 KPI card + biểu đồ xu hướng ở trên dùng
+// ovProducts()/ovDailySeries() lọc đúng theo "Kỳ xem" (ovFilter) → 2 phần lệch nhau,
+// dòng sản phẩm hiện doanh thu/chi phí LỚN HƠN CẢ tổng toàn shop trong kỳ đang xem.
+// Đổi sang dùng ovProducts() để bảng luôn khớp đúng khoảng ngày đang lọc.
 function renderAllTable() {
-  allRows = [...spProducts()];
+  allRows = [...ovProducts()];
   const prevLabels = getOvPrevPeriodLabels();
   ovHasPrevPeriod = prevLabels.length > 0;
   ovPrevMap = ovHasPrevPeriod ? ovProductsPrevMap(prevLabels) : {};
