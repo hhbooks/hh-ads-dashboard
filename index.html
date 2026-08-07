@@ -1065,7 +1065,7 @@
 
   <!-- AUTO CAMPAIGN PAGE -->
   <div class="page" id="page-auto-camp">
-    <!-- Header + sync controls -->
+    <!-- Header -->
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
       <div>
         <div style="font-size:20px;font-weight:700;color:var(--navy)">⚡ Chiến Dịch Tự Động Chọn Sản Phẩm</div>
@@ -1073,10 +1073,41 @@
       </div>
     </div>
 
-    <!-- View mode tabs -->
-    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
-      <button id="ac-tab-2hbooks"  onclick="setAcViewMode('2hbooks')"  style="padding:6px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none;background:var(--navy);color:white">🏪 Nhà Sách 2HBooks</button>
-      <button id="ac-tab-huyhoanh" onclick="setAcViewMode('huyhoanh')" style="padding:6px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none;background:var(--gray2);color:var(--text1)">📚 Huy Hoàng Bookstore</button>
+    <!-- CARD 1 — CHỈ để đồng bộ dữ liệu mới từ Shopee/Drive về, thu gọn mặc định
+         (xác nhận Tân 2026-08-07: đưa đồng bộ lên đầu, bộ lọc lúc mở card này chỉ dùng cho đồng bộ) -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="acToggleSyncCard()">
+        <span><span class="dot"></span> Đồng Bộ Dữ Liệu Chiến Dịch Tự Động</span>
+        <span id="ac-sync-toggle-icon" style="font-size:12px;color:var(--text2)">▸ Bấm để mở</span>
+      </div>
+      <div id="ac-sync-body" style="display:none;margin-top:14px">
+        <!-- View mode tabs (chọn shop trước khi đồng bộ) -->
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="font-size:11.5px;color:var(--text2);font-weight:700">Shop</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button id="ac-tab-2hbooks"  onclick="setAcViewMode('2hbooks')"  style="padding:6px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none;background:var(--navy);color:white">🏪 Nhà Sách 2HBooks</button>
+            <button id="ac-tab-huyhoanh" onclick="setAcViewMode('huyhoanh')" style="padding:6px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none;background:var(--gray2);color:var(--text1)">📚 Huy Hoàng Bookstore</button>
+          </div>
+        </div>
+
+        <!-- Gọi thẳng API Shopee (get_gms_item_performance qua action get_item_daily) — không cần
+             tải CSV thủ công + upload Drive nữa. Giữ nút Drive cũ song song làm dự phòng
+             (xác nhận Tân 2026-08-07). API chỉ trả tổng theo TỪNG SẢN PHẨM cho CẢ khoảng ngày đã
+             chọn (không tách theo từng ngày như CSV Drive) — dùng cho xem nhanh, không lưu Firestore. -->
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;padding:10px 12px;background:var(--surface);border-radius:8px;border:1px solid var(--gray3)">
+          <span style="font-size:11px;color:var(--text2);font-weight:700">🔄 Gọi API trực tiếp:</span>
+          <input type="date" id="ac-item-sync-from" style="padding:5px 8px;border:1px solid var(--gray3);border-radius:6px;font-size:12px">
+          <span style="font-size:11px;color:var(--text2)">→</span>
+          <input type="date" id="ac-item-sync-to" style="padding:5px 8px;border:1px solid var(--gray3);border-radius:6px;font-size:12px">
+          <button onclick="gmsSyncItemsFromApi()" style="padding:6px 14px;background:var(--navy);color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
+            🔄 Đồng Bộ Trực Tiếp API
+          </button>
+          <button onclick="gmsLoadFromDriveManual()" style="margin-left:auto;padding:6px 14px;background:#1a73e8;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
+            📂 Đồng Bộ Từ Drive
+          </button>
+        </div>
+        <div id="ac-prod-log" class="drive-log" style="max-height:120px"></div>
+      </div>
     </div>
 
     <!-- Drive-based cascading date filter -->
@@ -1160,26 +1191,9 @@
         <span id="ac-prod-date-label" style="font-size:11px;color:var(--orange);font-weight:600"></span>
         <span id="ac-prod-count" style="font-size:11px;color:var(--text2);margin-left:2px"></span>
       </div>
-      <!-- Gọi thẳng API Shopee (get_gms_item_performance qua action get_item_daily) — không cần
-           tải CSV thủ công + upload Drive nữa. Giữ nút Drive cũ song song làm dự phòng
-           (xác nhận Tân 2026-08-07). API chỉ trả tổng theo TỪNG SẢN PHẨM cho CẢ khoảng ngày đã
-           chọn (không tách theo từng ngày như CSV Drive) — dùng cho xem nhanh, không lưu Firestore. -->
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding:10px 12px;background:var(--surface);border-radius:8px;border:1px solid var(--gray3)">
-        <span style="font-size:11px;color:var(--text2);font-weight:700">🔄 Gọi API trực tiếp:</span>
-        <input type="date" id="ac-item-sync-from" style="padding:5px 8px;border:1px solid var(--gray3);border-radius:6px;font-size:12px">
-        <span style="font-size:11px;color:var(--text2)">→</span>
-        <input type="date" id="ac-item-sync-to" style="padding:5px 8px;border:1px solid var(--gray3);border-radius:6px;font-size:12px">
-        <button onclick="gmsSyncItemsFromApi()" style="padding:6px 14px;background:var(--navy);color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
-          🔄 Đồng Bộ Trực Tiếp API
-        </button>
-        <button onclick="gmsLoadFromDriveManual()" style="margin-left:auto;padding:6px 14px;background:#1a73e8;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
-          📂 Đồng Bộ Từ Drive
-        </button>
-      </div>
-      <div id="ac-prod-log" class="drive-log" style="max-height:120px"></div>
       <div id="ac-prod-hint" style="display:none;font-size:12px;padding:10px 12px;border-radius:8px;margin-bottom:10px"></div>
       <div id="ac-prod-empty" style="color:#999;font-size:12px;padding:28px;text-align:center">
-        Bấm <strong>🔄 Đồng Bộ Trực Tiếp API</strong> để lấy dữ liệu thẳng từ Shopee, hoặc tải file <strong>Shop GMV MAX-Detail-Data</strong> từ Shopee → đặt vào folder <strong>"Dữ Liệu GMS 2H"</strong> trên Drive → bấm <strong>📂 Đồng Bộ Từ Drive</strong>.
+        Bấm <strong>🔄 Đồng Bộ Trực Tiếp API</strong> hoặc <strong>📂 Đồng Bộ Từ Drive</strong> ở khối <strong>"Đồng Bộ Dữ Liệu Chiến Dịch Tự Động"</strong> phía trên để tải dữ liệu.
       </div>
       <div class="table-wrap" style="max-height:560px;overflow-y:auto">
         <table id="ac-prod-table" style="display:none">
@@ -10115,6 +10129,16 @@ function renderAcTopFromDrive() {
     const logEl = document.getElementById('ac-prod-log');
     if (logEl) logEl.classList.remove('visible');
   }
+}
+
+// ★ Thu gọn/mở Card 1 (Đồng Bộ Dữ Liệu) trang GMS — giống adshToggleSyncCard
+function acToggleSyncCard() {
+  const body = document.getElementById('ac-sync-body');
+  const icon = document.getElementById('ac-sync-toggle-icon');
+  if (!body) return;
+  const opening = body.style.display === 'none';
+  body.style.display = opening ? '' : 'none';
+  if (icon) icon.textContent = opening ? '▾ Bấm để đóng' : '▸ Bấm để mở';
 }
 
 // ★ Chuyển đổi view mode ('2hbooks' | 'huyhoanh')
