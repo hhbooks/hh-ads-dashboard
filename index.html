@@ -1125,18 +1125,28 @@
       </div>
     </div>
 
-    <!-- Drive-based cascading date filter -->
-    <div id="ac-filter-bar" style="margin-bottom:16px;padding:10px 14px;background:var(--surface);border-radius:10px;border:1px solid var(--gray3);display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-      <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">📅 Năm:</span>
-      <div id="ac-year-chips" style="display:flex;gap:4px;flex-wrap:wrap">
-        <span style="font-size:12px;color:var(--text2);font-style:italic">Bấm 📂 Đồng Bộ Từ Drive để tải dữ liệu</span>
+    <!-- Bộ Lọc xem dữ liệu đã đồng bộ — 1 nút sổ lịch, CHỌN BẰNG 2 LẦN CLICK
+         (xác nhận Tân 2026-08-07: bấm ngày đầu → bấm ngày cuối → tự áp dụng ngay,
+         khác với lịch ở Card Đồng Bộ phía trên dùng kéo-thả). Chỉ đọc dữ liệu đã tải,
+         không gọi lại Shopee/Firestore. -->
+    <div id="ac-filter-bar" style="margin-bottom:16px;padding:10px 14px;background:var(--surface);border-radius:10px;border:1px solid var(--gray3);display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:relative">
+      <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">📅 Kỳ Xem:</span>
+      <button id="ac-view-range-trigger" class="filter-btn" onclick="acViewTogglePicker()" style="min-width:220px;text-align:left">Bấm 📂 Đồng Bộ Từ Drive để tải dữ liệu</button>
+      <div id="ac-view-range-popover" style="display:none;position:absolute;top:calc(100% + 4px);left:96px;z-index:40;background:white;border:1px solid var(--gray3);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.12);padding:12px;width:280px;user-select:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <button class="filter-btn" style="padding:4px 9px" onclick="acViewCalNav(-1)">‹</button>
+          <span id="ac-view-cal-title" style="font-size:12.5px;font-weight:700;color:var(--navy)"></span>
+          <button class="filter-btn" style="padding:4px 9px" onclick="acViewCalNav(1)">›</button>
+        </div>
+        <div id="ac-view-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px"></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--gray3)">
+          <button class="tchip" onclick="acViewApplyPresetRange(7)">7 ngày</button>
+          <button class="tchip" onclick="acViewApplyPresetRange(30)">30 ngày</button>
+          <button class="tchip" onclick="acViewApplyPresetThisMonth()">Tháng này</button>
+          <button class="tchip" onclick="acViewApplyPresetAll()">Tất cả</button>
+        </div>
+        <div style="font-size:10.5px;color:var(--text2);margin-top:8px">Bấm 1 ngày = xem 1 ngày. Bấm ngày đầu rồi bấm ngày cuối = xem cả khoảng.</div>
       </div>
-      <span id="ac-month-sep" style="width:1px;height:18px;background:var(--gray3);margin:0 4px;flex-shrink:0;display:none"></span>
-      <span id="ac-month-label" style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap;display:none">Tháng:</span>
-      <div id="ac-month-chips" style="display:flex;gap:4px;flex-wrap:wrap"></div>
-      <span id="ac-day-sep" style="width:1px;height:18px;background:var(--gray3);margin:0 4px;flex-shrink:0;display:none"></span>
-      <span id="ac-day-label" style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap;display:none">Ngày:</span>
-      <div id="ac-day-chips" style="display:flex;gap:4px;flex-wrap:wrap"></div>
     </div>
 
     <!-- ===== SINGLE VIEW ===== -->
@@ -9742,7 +9752,7 @@ function renderAutoCampPage() {
   acSyncPickerInit();
   renderAcDateChips();
   // Load GMS data từ Firestore — mặc định hiện tab 2HBooks khi vào trang
-  _acDriveFilter = { year: '', month: '', day: '' };
+  AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = '';
   _acViewMode = '2hbooks';
   setAcViewMode('2hbooks'); // cập nhật tab style + load Firestore 2HBooks
 
@@ -9995,90 +10005,203 @@ function parseShopeeGmsCsvText(csvText) {
 
 // ★ Drive GMS data store — dữ liệu theo ngày từ Drive
 let _acDriveData   = []; // [{date:'2026-07-01', label:'01/07/2026', cost, rev, imp, clk, ord, items:[]}]
-let _acDriveFilter = { year: '', month: '', day: '' };
 let _acViewMode    = '2hbooks'; // '2hbooks' | 'huyhoanh'
 
-const _acChip = (active, onclick, text) =>
-  `<button onclick="${onclick}" style="padding:3px 10px;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer;border:none;${active?'background:var(--navy);color:white':'background:var(--gray2);color:var(--text1)'}">${text}</button>`;
+// ── Bộ Lọc xem dữ liệu đã đồng bộ — 1 nút bấm sổ lịch, CHỌN BẰNG 2 LẦN CLICK
+// (xác nhận Tân 2026-08-07: bấm ngày đầu muốn xem → bấm ngày cuối → tự áp dụng,
+// khác với lịch ở Card Đồng Bộ dùng kéo-thả). Chỉ đọc _acDriveData đã tải sẵn,
+// không gọi lại Shopee/Firestore.
+const AC_VIEW_PICKER = { rangeStart: '', rangeEnd: '', calYear: 0, calMonth: 0, pickerOpen: false, selecting: false, anchor: '', hoverEnd: '' };
+let acViewGlobalListenersBound = false;
 
-function renderAcDriveFilter() {
-  const MONTH_VI = {'01':'T1','02':'T2','03':'T3','04':'T4','05':'T5','06':'T6',
-                    '07':'T7','08':'T8','09':'T9','10':'T10','11':'T11','12':'T12'};
-  const years = [...new Set(_acDriveData.map(d => d.date.slice(0,4)))].sort();
-  const yearWrap  = document.getElementById('ac-year-chips');
-  const monthWrap = document.getElementById('ac-month-chips');
-  const dayWrap   = document.getElementById('ac-day-chips');
-  if (!yearWrap) return;
-
-  // Năm chips
-  const activeYear = _acDriveFilter.year || years[years.length-1] || '';
-  yearWrap.innerHTML = years.map(y =>
-    _acChip(_acDriveFilter.year === y, `setAcDriveYear('${y}')`, y)
-  ).join('') + (years.length ? _acChip(!_acDriveFilter.year, "setAcDriveYear('')", 'Tất cả') : '');
-
-  // Tháng chips
-  const monthSep   = document.getElementById('ac-month-sep');
-  const monthLabel = document.getElementById('ac-month-label');
-  if (activeYear) {
-    const months = [...new Set(_acDriveData.filter(d=>d.date.startsWith(activeYear)).map(d=>d.date.slice(5,7)))].sort();
-    monthWrap.innerHTML = _acChip(!_acDriveFilter.month, "setAcDriveMonth('')", 'Tất cả') +
-      months.map(m => _acChip(_acDriveFilter.month===m, `setAcDriveMonth('${m}')`, MONTH_VI[m]||m)).join('');
-    if (monthSep)  { monthSep.style.display=''; }
-    if (monthLabel){ monthLabel.style.display=''; }
-  } else {
-    monthWrap.innerHTML = '';
-    if (monthSep)  { monthSep.style.display='none'; }
-    if (monthLabel){ monthLabel.style.display='none'; }
+// ★ Gọi mỗi khi _acDriveData vừa được nạp lại (đổi shop / vừa đồng bộ xong).
+// forceDefault=true → luôn nhảy về ngày mới nhất (dùng khi đổi shop hoặc vừa có data mới).
+// forceDefault=false → giữ nguyên lựa chọn đang xem nếu đã có (chỉ set mặc định lần đầu).
+function acViewPickerInit(forceDefault) {
+  if (!_acDriveData.length) { acViewUpdateTriggerLabel(); return; }
+  const latest = _acDriveData[_acDriveData.length - 1].date;
+  if (forceDefault || !AC_VIEW_PICKER.rangeStart) {
+    AC_VIEW_PICKER.rangeStart = latest;
+    AC_VIEW_PICKER.rangeEnd   = latest;
   }
-
-  // Ngày chips — chỉ hiện khi chọn tháng cụ thể
-  const daySep   = document.getElementById('ac-day-sep');
-  const dayLabel = document.getElementById('ac-day-label');
-  if (_acDriveFilter.month && activeYear) {
-    const ym   = `${activeYear}-${_acDriveFilter.month}`;
-    const days = _acDriveData.filter(d=>d.date.startsWith(ym)).map(d=>d.date.slice(8,10)).sort();
-    dayWrap.innerHTML = _acChip(!_acDriveFilter.day, "setAcDriveDay('')", 'Tất cả') +
-      days.map(d => _acChip(_acDriveFilter.day===d, `setAcDriveDay('${d}')`, parseInt(d).toString())).join('');
-    if (daySep)  { daySep.style.display=''; }
-    if (dayLabel){ dayLabel.style.display=''; }
-  } else {
-    dayWrap.innerHTML = '';
-    if (daySep)  { daySep.style.display='none'; }
-    if (dayLabel){ dayLabel.style.display='none'; }
+  const d = new Date((AC_VIEW_PICKER.rangeEnd || latest) + 'T00:00:00');
+  AC_VIEW_PICKER.calYear = d.getFullYear();
+  AC_VIEW_PICKER.calMonth = d.getMonth();
+  AC_VIEW_PICKER.selecting = false;
+  acViewUpdateTriggerLabel();
+  if (!acViewGlobalListenersBound) {
+    document.addEventListener('mousedown', acViewHandleOutsideClick);
+    acViewGlobalListenersBound = true;
   }
 }
 
-function _acDispatchRender() {
-  renderAcDriveFilter();
+function acViewTogglePicker() {
+  if (!_acDriveData.length) return; // chưa có data thì không mở lịch
+  const pop = document.getElementById('ac-view-range-popover');
+  if (!pop) return;
+  const opening = pop.style.display === 'none';
+  pop.style.display = opening ? 'block' : 'none';
+  AC_VIEW_PICKER.pickerOpen = opening;
+  if (opening) { AC_VIEW_PICKER.selecting = false; acViewRenderCalendar(); }
+}
+
+function acViewHandleOutsideClick(e) {
+  if (!AC_VIEW_PICKER.pickerOpen) return;
+  const pop = document.getElementById('ac-view-range-popover');
+  const trigger = document.getElementById('ac-view-range-trigger');
+  if (!pop || !trigger) return;
+  if (pop.contains(e.target) || trigger.contains(e.target)) return;
+  pop.style.display = 'none';
+  AC_VIEW_PICKER.pickerOpen = false;
+  AC_VIEW_PICKER.selecting = false; // bấm ra ngoài khi đang chọn dở → hủy, giữ lựa chọn cũ
+}
+
+function acViewCalNav(delta) {
+  AC_VIEW_PICKER.calMonth += delta;
+  if (AC_VIEW_PICKER.calMonth < 0) { AC_VIEW_PICKER.calMonth = 11; AC_VIEW_PICKER.calYear--; }
+  if (AC_VIEW_PICKER.calMonth > 11) { AC_VIEW_PICKER.calMonth = 0; AC_VIEW_PICKER.calYear++; }
+  acViewRenderCalendar();
+}
+
+function acViewRenderCalendar() {
+  const title = document.getElementById('ac-view-cal-title');
+  const grid = document.getElementById('ac-view-cal-grid');
+  if (!title || !grid) return;
+  title.textContent = `${AC_SYNC_MONTH_NAMES[AC_VIEW_PICKER.calMonth]} ${AC_VIEW_PICKER.calYear}`;
+
+  const firstOfMonth = new Date(AC_VIEW_PICKER.calYear, AC_VIEW_PICKER.calMonth, 1);
+  const firstWeekday = (firstOfMonth.getDay() + 6) % 7;
+  const daysInMonth = new Date(AC_VIEW_PICKER.calYear, AC_VIEW_PICKER.calMonth + 1, 0).getDate();
+  const daysInPrevMonth = new Date(AC_VIEW_PICKER.calYear, AC_VIEW_PICKER.calMonth, 0).getDate();
+
+  const todayStr = acSyncFmtDate(new Date());
+  const minStr = _acDriveData[0]?.date || '';
+  const maxStr = _acDriveData[_acDriveData.length-1]?.date || '';
+
+  // Đang chọn dở (đã bấm ngày đầu, chưa bấm ngày cuối) → xem trước theo hover;
+  // đã chọn xong → hiện đúng khoảng đang áp dụng.
+  let dispStart, dispEnd;
+  if (AC_VIEW_PICKER.selecting) {
+    const a = AC_VIEW_PICKER.anchor, h = AC_VIEW_PICKER.hoverEnd || a;
+    dispStart = h < a ? h : a; dispEnd = h < a ? a : h;
+  } else {
+    dispStart = AC_VIEW_PICKER.rangeStart; dispEnd = AC_VIEW_PICKER.rangeEnd;
+  }
+
+  const cells = [];
+  for (let i = 0; i < firstWeekday; i++) cells.push({ day: daysInPrevMonth - firstWeekday + 1 + i, dateStr: null });
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ day: d, dateStr: `${AC_VIEW_PICKER.calYear}-${String(AC_VIEW_PICKER.calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}` });
+  }
+  let extra = 1;
+  while (cells.length % 7 !== 0) cells.push({ day: extra++, dateStr: null });
+
+  let html = AC_SYNC_WEEKDAYS.map(w => `<div style="text-align:center;font-size:10px;color:var(--text2);font-weight:700;padding:2px 0">${w}</div>`).join('');
+  html += cells.map(c => {
+    if (!c.dateStr) return `<div style="text-align:center;font-size:11.5px;color:var(--gray3);padding:6px 0">${c.day}</div>`;
+    const disabled = !minStr || c.dateStr < minStr || c.dateStr > maxStr;
+    const anchorSel = AC_VIEW_PICKER.selecting && c.dateStr === AC_VIEW_PICKER.anchor;
+    const inRange = dispStart && dispEnd && c.dateStr >= dispStart && c.dateStr <= dispEnd;
+    const isEndpoint = !AC_VIEW_PICKER.selecting && (c.dateStr === dispStart || c.dateStr === dispEnd);
+    const isToday = c.dateStr === todayStr;
+    let bg = 'transparent', color = 'var(--text)', weight = '400', border = '';
+    if (disabled) color = 'var(--gray3)';
+    else if (isEndpoint || anchorSel) { bg = 'var(--navy)'; color = 'white'; weight = '700'; }
+    else if (inRange) { bg = 'var(--navy3)'; color = 'var(--navy)'; }
+    if (isToday && !isEndpoint && !anchorSel && !disabled) border = 'border:1px solid var(--navy2);';
+    const handlers = disabled ? '' : `onclick="acViewDayClick('${c.dateStr}')" onmouseenter="acViewDayMouseEnter('${c.dateStr}')"`;
+    return `<div ${handlers} style="text-align:center;font-size:11.5px;padding:6px 0;border-radius:6px;cursor:${disabled ? 'default' : 'pointer'};background:${bg};color:${color};font-weight:${weight};${border}">${c.day}</div>`;
+  }).join('');
+
+  grid.innerHTML = html;
+}
+
+// Click 1: chọn ngày bắt đầu (chờ click thứ 2). Click 2: chọn ngày kết thúc → tự áp dụng.
+function acViewDayClick(dateStr) {
+  if (!AC_VIEW_PICKER.selecting) {
+    AC_VIEW_PICKER.anchor = dateStr;
+    AC_VIEW_PICKER.hoverEnd = dateStr;
+    AC_VIEW_PICKER.selecting = true;
+    acViewRenderCalendar();
+  } else {
+    const a = AC_VIEW_PICKER.anchor;
+    AC_VIEW_PICKER.rangeStart = dateStr < a ? dateStr : a;
+    AC_VIEW_PICKER.rangeEnd   = dateStr < a ? a : dateStr;
+    AC_VIEW_PICKER.selecting = false;
+    acViewFinishPickerAction();
+  }
+}
+
+function acViewDayMouseEnter(dateStr) {
+  if (!AC_VIEW_PICKER.selecting) return;
+  AC_VIEW_PICKER.hoverEnd = dateStr;
+  acViewRenderCalendar();
+}
+
+function acViewApplyPresetRange(days) {
+  if (!_acDriveData.length) return;
+  const to = _acDriveData[_acDriveData.length - 1].date;
+  const toD = new Date(to + 'T00:00:00');
+  const fromD = new Date(toD); fromD.setDate(fromD.getDate() - (days - 1));
+  let fromStr = acSyncFmtDate(fromD);
+  if (fromStr < _acDriveData[0].date) fromStr = _acDriveData[0].date;
+  AC_VIEW_PICKER.rangeStart = fromStr;
+  AC_VIEW_PICKER.rangeEnd = to;
+  AC_VIEW_PICKER.calYear = toD.getFullYear(); AC_VIEW_PICKER.calMonth = toD.getMonth();
+  AC_VIEW_PICKER.selecting = false;
+  acViewFinishPickerAction();
+}
+
+function acViewApplyPresetThisMonth() {
+  if (!_acDriveData.length) return;
+  const to = _acDriveData[_acDriveData.length - 1].date;
+  const toD = new Date(to + 'T00:00:00');
+  const fromD = new Date(toD.getFullYear(), toD.getMonth(), 1);
+  let fromStr = acSyncFmtDate(fromD);
+  if (fromStr < _acDriveData[0].date) fromStr = _acDriveData[0].date;
+  AC_VIEW_PICKER.rangeStart = fromStr;
+  AC_VIEW_PICKER.rangeEnd = to;
+  AC_VIEW_PICKER.calYear = toD.getFullYear(); AC_VIEW_PICKER.calMonth = toD.getMonth();
+  AC_VIEW_PICKER.selecting = false;
+  acViewFinishPickerAction();
+}
+
+function acViewApplyPresetAll() {
+  if (!_acDriveData.length) return;
+  AC_VIEW_PICKER.rangeStart = _acDriveData[0].date;
+  AC_VIEW_PICKER.rangeEnd = _acDriveData[_acDriveData.length - 1].date;
+  const toD = new Date(AC_VIEW_PICKER.rangeEnd + 'T00:00:00');
+  AC_VIEW_PICKER.calYear = toD.getFullYear(); AC_VIEW_PICKER.calMonth = toD.getMonth();
+  AC_VIEW_PICKER.selecting = false;
+  acViewFinishPickerAction();
+}
+
+function acViewFinishPickerAction() {
+  acViewUpdateTriggerLabel();
+  const pop = document.getElementById('ac-view-range-popover');
+  if (pop) pop.style.display = 'none';
+  AC_VIEW_PICKER.pickerOpen = false;
   renderAcTopFromDrive();
 }
-function setAcDriveYear(y) {
-  const years = [...new Set(_acDriveData.map(d => d.date.slice(0,4)))].sort();
-  _acDriveFilter.year  = y || (years[years.length-1] || '');
-  _acDriveFilter.month = '';
-  _acDriveFilter.day   = '';
-  _acDispatchRender();
-}
-function setAcDriveMonth(m) {
-  _acDriveFilter.month = m;
-  _acDriveFilter.day   = '';
-  _acDispatchRender();
-}
-function setAcDriveDay(d) {
-  _acDriveFilter.day = d;
-  _acDispatchRender();
+
+function acViewUpdateTriggerLabel() {
+  const trigger = document.getElementById('ac-view-range-trigger');
+  if (!trigger) return;
+  if (!_acDriveData.length) { trigger.textContent = 'Bấm 📂 Đồng Bộ Từ Drive để tải dữ liệu'; return; }
+  if (!AC_VIEW_PICKER.rangeStart) { trigger.textContent = '📅 Chọn kỳ xem…'; return; }
+  const fmt = (s) => { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; };
+  trigger.textContent = AC_VIEW_PICKER.rangeStart === AC_VIEW_PICKER.rangeEnd
+    ? `📅 ${fmt(AC_VIEW_PICKER.rangeStart)}`
+    : `📅 ${fmt(AC_VIEW_PICKER.rangeStart)} → ${fmt(AC_VIEW_PICKER.rangeEnd)}`;
 }
 
 function renderAcTopFromDrive() {
   if (!_acDriveData.length) return;
-  const years      = [...new Set(_acDriveData.map(d => d.date.slice(0,4)))].sort();
-  const activeYear = _acDriveFilter.year || years[years.length-1] || '';
 
-  // Lọc ngày theo filter hiện tại
+  // Lọc ngày theo khoảng đang chọn ở Bộ Lọc (Kỳ Xem)
   let filteredDays = _acDriveData.filter(d => {
-    if (activeYear && !d.date.startsWith(activeYear)) return false;
-    if (_acDriveFilter.month && d.date.slice(5,7) !== _acDriveFilter.month) return false;
-    if (_acDriveFilter.day   && d.date.slice(8,10) !== _acDriveFilter.day)  return false;
+    if (AC_VIEW_PICKER.rangeStart && d.date < AC_VIEW_PICKER.rangeStart) return false;
+    if (AC_VIEW_PICKER.rangeEnd   && d.date > AC_VIEW_PICKER.rangeEnd)   return false;
     return true;
   }).sort((a,b) => a.date.localeCompare(b.date));
 
@@ -10327,7 +10450,7 @@ function setAcViewMode(mode) {
     btn.style.color = mode === m ? 'white' : 'var(--text1)';
   });
   const shopId = mode === '2hbooks' ? 1289235612 : 371873832;
-  _acDriveFilter = { year:'', month:'', day:'' };
+  AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = ''; // đổi shop → về mặc định ngày mới nhất
   acLoadGmsFromFirestore(String(shopId));
 }
 
@@ -10372,15 +10495,8 @@ async function acLoadGmsFromFirestore(shopApiId) {
     });
     _acDriveData.sort((a,b) => a.date.localeCompare(b.date));
 
-    // Chỉ set default filter nếu chưa có filter đang chọn
-    if (!_acDriveFilter.year) {
-      const latestDate = _acDriveData[_acDriveData.length-1]?.date || '';
-      if (latestDate) {
-        _acDriveFilter = { year: latestDate.slice(0,4), month: latestDate.slice(5,7), day: '' };
-      }
-    }
-
-    renderAcDriveFilter();
+    // Chỉ set mặc định (ngày mới nhất) nếu chưa có lựa chọn — giữ nguyên nếu user đang xem kỳ khác
+    acViewPickerInit(false);
     renderAcTopFromDrive();
   } catch(e) {
     console.warn('[GMS Firestore] Load lỗi:', e.message);
@@ -10485,7 +10601,7 @@ async function gmsLoadFromDriveManual() {
     }
 
     // 5. Reload tất cả từ Firestore → render (bao gồm cả dữ liệu cũ + mới)
-    _acDriveFilter = { year: '', month: '', day: '' }; // reset để tự set theo dữ liệu mới nhất
+    AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = ''; // reset để tự set theo dữ liệu mới nhất
     await acLoadGmsFromFirestore(String(shopApiId));
     acLog(`✅ Xong: ${savedCount} ngày mới lưu, tổng ${existingDates.size + savedCount} ngày trong hệ thống`, 'ok');
   } catch(e) {
