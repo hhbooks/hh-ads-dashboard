@@ -1153,19 +1153,33 @@
       </div>
     </div>
 
-    <!-- Per-product table (từ Drive CSV) -->
+    <!-- Per-product table (từ Drive CSV hoặc gọi API Shopee trực tiếp) -->
     <div class="card" style="margin-top:16px">
       <div class="card-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span class="dot"></span> Sản Phẩm Trong Chiến Dịch Tự Động
         <span id="ac-prod-date-label" style="font-size:11px;color:var(--orange);font-weight:600"></span>
         <span id="ac-prod-count" style="font-size:11px;color:var(--text2);margin-left:2px"></span>
+      </div>
+      <!-- Gọi thẳng API Shopee (get_gms_item_performance qua action get_item_daily) — không cần
+           tải CSV thủ công + upload Drive nữa. Giữ nút Drive cũ song song làm dự phòng
+           (xác nhận Tân 2026-08-07). API chỉ trả tổng theo TỪNG SẢN PHẨM cho CẢ khoảng ngày đã
+           chọn (không tách theo từng ngày như CSV Drive) — dùng cho xem nhanh, không lưu Firestore. -->
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding:10px 12px;background:var(--surface);border-radius:8px;border:1px solid var(--gray3)">
+        <span style="font-size:11px;color:var(--text2);font-weight:700">🔄 Gọi API trực tiếp:</span>
+        <input type="date" id="ac-item-sync-from" style="padding:5px 8px;border:1px solid var(--gray3);border-radius:6px;font-size:12px">
+        <span style="font-size:11px;color:var(--text2)">→</span>
+        <input type="date" id="ac-item-sync-to" style="padding:5px 8px;border:1px solid var(--gray3);border-radius:6px;font-size:12px">
+        <button onclick="gmsSyncItemsFromApi()" style="padding:6px 14px;background:var(--navy);color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
+          🔄 Đồng Bộ Trực Tiếp API
+        </button>
         <button onclick="gmsLoadFromDriveManual()" style="margin-left:auto;padding:6px 14px;background:#1a73e8;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
           📂 Đồng Bộ Từ Drive
         </button>
       </div>
       <div id="ac-prod-log" class="drive-log" style="max-height:120px"></div>
+      <div id="ac-prod-hint" style="display:none;font-size:12px;padding:10px 12px;border-radius:8px;margin-bottom:10px"></div>
       <div id="ac-prod-empty" style="color:#999;font-size:12px;padding:28px;text-align:center">
-        Tải file <strong>Shop GMV MAX-Detail-Data</strong> từ Shopee → đặt vào folder <strong>"Dữ Liệu GMS 2H"</strong> trên Drive → bấm <strong>📂 Đồng Bộ Từ Drive</strong>.
+        Bấm <strong>🔄 Đồng Bộ Trực Tiếp API</strong> để lấy dữ liệu thẳng từ Shopee, hoặc tải file <strong>Shop GMV MAX-Detail-Data</strong> từ Shopee → đặt vào folder <strong>"Dữ Liệu GMS 2H"</strong> trên Drive → bấm <strong>📂 Đồng Bộ Từ Drive</strong>.
       </div>
       <div class="table-wrap" style="max-height:560px;overflow-y:auto">
         <table id="ac-prod-table" style="display:none">
@@ -4772,8 +4786,16 @@ function tkxParseTonkhoThatSheet(ws) {
   });
 
   // ── Dual-kho format (HH catalog): có cột "HN"/"TỒN HN" VÀ "SG"/"TỒN SG" riêng biệt ──
-  const hnColIdx  = header.findIndex(h => h === 'HN' || h === 'TỒN HN' || h === 'Tồn HN');
-  const hcmColIdx = header.findIndex(h => h === 'SG' || h === 'TỒN SG' || h === 'Tồn SG' || h === 'HCM' || h === 'TỒN HCM');
+  // FIX 2026-08-07 (báo cáo Tân — tồn HCM bị sai với file "TỒN VPP BOSE"): so khớp CASE-SENSITIVE
+  // trước đây làm rớt cột HN của file BOSE — header thật là "Tồn Hn" (chữ n thường), khác "Tồn HN"
+  // (file DELI). Vì thiếu hnColIdx nên toàn bộ file bị rớt khỏi nhánh "dual-kho", rơi xuống nhánh
+  // single-kho và bị nhận nhầm là 1 kho duy nhất (HN, do dòng tiêu đề báo cáo "KHO TỔNG HÀ NỘI")
+  // → cột "Tồn SG" (HCM) bị bỏ qua hoàn toàn, tồn HCM của toàn bộ SP trong file BOSE không được cập
+  // nhật. Chuyển sang so khớp không phân biệt hoa/thường (giống classifyKho) để tránh lặp lại lỗi
+  // này với các file tồn kho khác có thể viết hoa/thường không đồng nhất.
+  const normKho = h => String(h||'').trim().toUpperCase();
+  const hnColIdx  = header.findIndex(h => { const n = normKho(h); return n === 'HN' || n === 'TỒN HN'; });
+  const hcmColIdx = header.findIndex(h => { const n = normKho(h); return n === 'SG' || n === 'TỒN SG' || n === 'HCM' || n === 'TỒN HCM'; });
   if (hnColIdx !== -1 && hcmColIdx !== -1) {
     const tenHangCI = header.findIndex(h => { const hl=h.toLowerCase(); return hl==='tên sách'||hl==='tên hàng hóa'||hl==='tên hàng'; });
     const productsHn = new Map(), productsHcm = new Map(), meta = new Map();
@@ -9774,8 +9796,10 @@ function renderAutoCampPage() {
 function acShowEmpty(msg) {
   const empty = document.getElementById('ac-prod-empty');
   const table = document.getElementById('ac-prod-table');
+  const hint  = document.getElementById('ac-prod-hint');
   if (empty) { empty.style.display=''; empty.innerHTML=msg; }
   if (table) table.style.display='none';
+  if (hint)  hint.style.display='none';
 }
 
 // Convert "08/07/2026" → "20260708"
@@ -9815,6 +9839,11 @@ async function acSaveCampaignId(shopKey, campaignId) {
   console.log('✅ Đã lưu campaign_id', campaignId, 'cho shop', shopKey);
 }
 
+// Ngưỡng chi phí tối thiểu để coi 1 SP là "đã có đủ dữ liệu đánh giá" — SP tốn ít hơn mức này
+// dù ROAS thấp cũng chưa chắc đáng loại, có thể chỉ mới chạy vài giờ (xác nhận Tân 2026-08-07,
+// dùng chung ngưỡng với cột "Cần tối ưu" của bảng "Tất Cả Sản Phẩm ADS").
+const AC_PROD_MIN_COST_FOR_FLAG = 20000;
+
 function acRenderProductTable(list, label) {
   const empty = document.getElementById('ac-prod-empty');
   const table = document.getElementById('ac-prod-table');
@@ -9830,14 +9859,34 @@ function acRenderProductTable(list, label) {
   if (countEl) countEl.textContent = `(${list.length} sản phẩm)`;
 
   const sorted = [...list].sort((a, b) => (b.expense||0) - (a.expense||0));
+
+  // Gợi ý tối ưu: SP tốn đủ nhiều (≥20.000đ) nhưng ROAS <10 → đề xuất cân nhắc loại khỏi chiến
+  // dịch. CHỈ hiển thị + gợi ý — không tự động gọi API xóa SP, Tân tự quyết định trong Shopee
+  // Seller Centre (xác nhận Tân 2026-08-07, cùng nguyên tắc với toàn bộ trang ADS).
+  const flagged = sorted.filter(p => {
+    const roasNum = p.roas || (p.expense>0 ? p.broad_gmv/p.expense : 0);
+    return (p.expense||0) >= AC_PROD_MIN_COST_FOR_FLAG && roasNum < 10;
+  });
+  const hintEl = document.getElementById('ac-prod-hint');
+  if (hintEl) {
+    if (flagged.length) {
+      const flagCost = flagged.reduce((s,p)=>s+(p.expense||0), 0);
+      hintEl.style.display = '';
+      hintEl.style.background = 'var(--red2)'; hintEl.style.color = '#922B21';
+      hintEl.innerHTML = `🔴 <strong>${flagged.length} sản phẩm</strong> đang tốn ${fmtMoney(flagCost)} nhưng ROAS &lt;10 — cân nhắc loại khỏi chiến dịch tự động trong Shopee Seller Centre (chỉ gợi ý, không tự động xóa).`;
+    } else {
+      hintEl.style.display = 'none';
+    }
+  }
+
   tbody.innerHTML = sorted.map((p, i) => {
     const ctr     = p.ctr_str || (p.impression>0 ? (p.clicks/p.impression*100).toFixed(2)+'%' : '—');
     const roasNum = p.roas || (p.expense>0 ? p.broad_gmv/p.expense : 0);
     const roas    = p.roas_str || (p.expense>0 ? roasNum.toFixed(2) : '—');
-    const rColor  = roasNum>=15 ? 'var(--green)' : roasNum>=8 ? 'var(--orange)' : p.expense>0 ? 'var(--red)' : 'var(--text2)';
     const acosNum = (p.broad_gmv||0)>0 ? (p.expense||0)/(p.broad_gmv||1)*100 : 0;
-    const acos    = acosNum>0 ? acosNum.toFixed(1)+'%' : '—';
-    const aColor  = acosNum>0&&acosNum<=7?'var(--green)':acosNum<=15?'var(--orange)':(p.expense||0)>0?'var(--red)':'var(--text2)';
+    const acos    = acosNum>0 ? acosNum.toFixed(2)+'%' : '—';
+    // Ngưỡng màu ROAS/ACOS dùng CHUNG với bảng "Tất Cả Sản Phẩm ADS" (roasClass/acosClass) —
+    // đồng bộ 1 chuẩn duy nhất cho toàn dashboard (xác nhận Tân 2026-08-07).
     return `<tr>
       <td style="text-align:center;color:var(--text2);font-size:11px">${i+1}</td>
       <td>
@@ -9850,8 +9899,8 @@ function acRenderProductTable(list, label) {
       <td class="num" style="font-size:12px">${ctr}</td>
       <td class="num" style="font-size:12px;color:var(--orange);font-weight:600">${fmtMoney(p.expense||0)}</td>
       <td class="num" style="font-size:12px;color:var(--green);font-weight:600">${fmtMoney(p.broad_gmv||0)}</td>
-      <td class="num" style="font-size:12px;font-weight:700;color:${rColor}">${roas}</td>
-      <td class="num" style="font-size:12px;font-weight:700;color:${aColor}">${acos}</td>
+      <td class="num" style="font-size:12px"><span class="roas-badge ${roasClass(roasNum)}">${roas}</span></td>
+      <td class="num" style="font-size:12px"><span class="acos-badge ${acosClass(acosNum)}">${acos}</span></td>
       <td class="num" style="font-size:12px">${p.broad_order||0}</td>
     </tr>`;
   }).join('');
@@ -10245,6 +10294,134 @@ async function gmsLoadFromDriveManual() {
   } catch(e) {
     acLog(`❌ Lỗi: ${e.message}`, 'err');
   }
+}
+
+// ── Gọi thẳng API Shopee lấy hiệu suất từng SP trong chiến dịch GMV Max ─────
+// (get_gms_item_performance qua action get_item_daily) — thay cho việc phải tải CSV thủ
+// công rồi upload Drive mỗi lần (xác nhận Tân 2026-08-07, giữ nút Drive song song làm dự
+// phòng). API CHỈ trả 8 field/SP: item_id, impression, clicks, ctr, expense, gmv, roas,
+// orders — KHÔNG có tên SP, không tách trực tiếp/gộp riêng, KHÔNG có Voucher Amount/
+// Vouchered Sales như file CSV Seller Centre — đây là giới hạn thật của Open API Shopee,
+// không phải thiếu sót của proxy (đã xác minh qua tài liệu Ads API chính thức). Trả về gì
+// thì hiển thị đúng cái đó, thiếu gì tính sau — đúng theo yêu cầu Tân.
+// Tên SP: tra theo mã SP (item_id) trong catalog CSV đã nạp sẵn cho đúng shop (nếu có),
+// không tra được thì hiện "ID: <item_id>" trống tên.
+// Dữ liệu gọi trực tiếp — KHÔNG lưu Firestore: API trả TỔNG GỘP cho cả khoảng ngày đã chọn
+// (không tách theo từng ngày như CSV Drive) nên không khớp cấu trúc gms_days/{date} hiện có.
+async function gmsSyncItemsFromApi() {
+  const logEl = document.getElementById('ac-prod-log');
+  if (logEl) { logEl.innerHTML = ''; logEl.classList.add('visible'); }
+  acShowEmpty('');
+
+  const acLog = (msg, type='info') => {
+    if (!logEl) return;
+    const c = type==='ok'?'#27ae60':type==='err'?'#c0392b':type==='warn'?'#f39c12':'#555';
+    logEl.innerHTML += `<div style="color:${c}">[${new Date().toLocaleTimeString('vi-VN')}] ${msg}</div>`;
+    logEl.scrollTop = logEl.scrollHeight;
+  };
+
+  const shopApiId = _acViewMode === 'huyhoanh' ? 371873832
+                  : _acViewMode === '2hbooks'   ? 1289235612
+                  : SAPI_SHOP_MAP_INV[G.current];
+  if (!shopApiId) { acLog('❌ Không xác định được shop cần đồng bộ', 'err'); return; }
+  const shopInfo = SAPI_SHOPS.find(s => s.id === shopApiId);
+  const shopName = shopInfo?.name || String(shopApiId);
+
+  const fromInput = document.getElementById('ac-item-sync-from');
+  const toInput   = document.getElementById('ac-item-sync-to');
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const yestStr = `${y.getFullYear()}-${String(y.getMonth()+1).padStart(2,'0')}-${String(y.getDate()).padStart(2,'0')}`;
+  if (fromInput && !fromInput.value) fromInput.value = yestStr;
+  if (toInput   && !toInput.value)   toInput.value   = yestStr;
+  const dateFrom = fromInput?.value || yestStr;
+  const dateTo   = (toInput?.value && toInput.value >= dateFrom) ? toInput.value : dateFrom;
+
+  acLog(`🔄 ${shopName}: đang lấy token...`);
+  let token;
+  try { token = await sapiGetToken(shopApiId); } catch(e) { token = null; }
+  if (!token) { acLog(`❌ ${shopName}: chưa kết nối — vào Kết Nối API để đăng nhập`, 'err'); return; }
+
+  // Lấy campaign_id đã cache; nếu chưa có thì dò qua get_gms_campaigns 1 lần rồi cache lại
+  // (get_item_daily bắt buộc cần campaign_id).
+  let campaignId = '';
+  try {
+    const cfgSnap = await db.collection('shopee_ads').doc(String(shopApiId)).collection('gms_config').doc('main').get();
+    campaignId = cfgSnap.exists ? String(cfgSnap.data()?.campaign_id || '') : '';
+  } catch(e) { /* ignore, xử lý ở bước dò bên dưới */ }
+
+  if (!campaignId) {
+    acLog('  → Chưa có campaign_id lưu sẵn, đang dò qua get_gms_campaigns...');
+    try {
+      const campData = await sapiCall('get_gms_campaigns', {
+        shop_id: shopApiId, access_token: token,
+        date_from: dateFrom, date_to: dateTo, offset: 0, limit: 50
+      });
+      campaignId = String(campData?.response?.campaign_id || '');
+      if (campaignId) {
+        await db.collection('shopee_ads').doc(String(shopApiId)).collection('gms_config').doc('main').set({
+          campaign_id: campaignId, discovered_at: new Date().toISOString(), shop_name: shopName
+        });
+        acLog(`  → Đã tìm thấy campaign_id ${campaignId}`, 'ok');
+      }
+    } catch(e) { /* ignore, báo lỗi chung ở bước kiểm tra dưới */ }
+  }
+  if (!campaignId) {
+    acLog(`❌ Không xác định được campaign_id chiến dịch GMV Max của ${shopName} — có thể shop chưa chạy chiến dịch này, hoặc chưa có dữ liệu ngày đã chọn.`, 'err');
+    acShowEmpty('Không tìm thấy chiến dịch GMV Max đang chạy cho shop này.');
+    return;
+  }
+
+  acLog(`📅 Lấy hiệu suất từng SP: ${dateFrom} → ${dateTo} (campaign ${campaignId})...`);
+
+  // Tra tên SP theo mã SP (item_id) từ catalog CSV đã nạp cho đúng shop này (nếu có)
+  const shopKey  = SAPI_SHOP_MAP[shopApiId];
+  const catalog  = shopKey ? (G.shops[shopKey]?.products || []) : [];
+  const nameByCode = {};
+  catalog.forEach(p => { if (p.ma_sp) nameByCode[String(p.ma_sp)] = p.ten; });
+
+  const items = [];
+  let offset = 0, hasNext = true, guard = 0;
+  try {
+    while (hasNext && guard < 50) {
+      guard++;
+      const data = await sapiCall('get_item_daily', {
+        shop_id: shopApiId, access_token: token,
+        campaign_id: campaignId, date_from: dateFrom, date_to: dateTo,
+        offset, limit: 100
+      });
+      if (data.error && data.error !== '') { acLog(`❌ Lỗi API: [${data.error}] ${data.message||''}`, 'err'); break; }
+      const resp = data.response || {};
+      const list = resp.result_list || [];
+      list.forEach(it => {
+        const itemIdStr = String(it.item_id || '');
+        items.push({
+          item_id:     itemIdStr,
+          item_name:   nameByCode[itemIdStr] || '',
+          impression:  Number(it.impression || 0),
+          clicks:      Number(it.clicks     || 0),
+          expense:     Number(it.expense    || 0),
+          broad_gmv:   Number(it.gmv        || 0),
+          broad_order: Number(it.orders     || 0)
+        });
+      });
+      hasNext = resp.has_next_page === true;
+      offset += list.length;
+      if (hasNext) await new Promise(r => setTimeout(r, 600));
+    }
+  } catch(e) {
+    acLog(`❌ Lỗi khi gọi API: ${e.message}`, 'err');
+  }
+
+  if (!items.length) {
+    acShowEmpty(`Không có dữ liệu SP nào cho ${shopName} trong khoảng ${dateFrom} → ${dateTo}.`);
+    acLog('⚠️ API không trả sản phẩm nào — kiểm tra chiến dịch có đang chạy trong khoảng ngày này không.', 'warn');
+    return;
+  }
+
+  const unnamedCount = items.filter(p => !p.item_name).length;
+  const label = dateFrom === dateTo ? `Ngày ${dateFrom} (API trực tiếp)` : `${dateFrom} → ${dateTo} (API trực tiếp)`;
+  acRenderProductTable(items, label);
+  acLog(`✅ Xong: ${items.length} sản phẩm${unnamedCount ? `, ${unnamedCount} SP chưa tra được tên (chưa có trong catalog CSV đã nạp cho shop này)` : ''}`, 'ok');
 }
 
 async function sapiSyncAutoProducts() {
