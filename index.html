@@ -1089,8 +1089,8 @@
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <span style="font-size:11.5px;color:var(--text2);font-weight:700">Shop</span>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button id="ac-tab-2hbooks"  onclick="setAcViewMode('2hbooks')"  style="padding:6px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none;background:var(--navy);color:white">🏪 Nhà Sách 2HBooks</button>
-            <button id="ac-tab-huyhoanh" onclick="setAcViewMode('huyhoanh')" style="padding:6px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none;background:var(--gray2);color:var(--text1)">📚 Huy Hoàng Bookstore</button>
+            <button id="ac-tab-2hbooks"  onclick="setAcSyncShop('2hbooks')"  style="padding:6px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none;background:var(--navy);color:white">🏪 Nhà Sách 2HBooks</button>
+            <button id="ac-tab-huyhoanh" onclick="setAcSyncShop('huyhoanh')" style="padding:6px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none;background:var(--gray2);color:var(--text1)">📚 Huy Hoàng Bookstore</button>
           </div>
         </div>
 
@@ -1134,6 +1134,12 @@
          khác với lịch ở Card Đồng Bộ phía trên dùng kéo-thả). Chỉ đọc dữ liệu đã tải,
          không gọi lại Shopee/Firestore. -->
     <div id="ac-filter-bar" style="margin-bottom:16px;padding:10px 14px;background:var(--surface);border-radius:10px;border:1px solid var(--gray3);display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:relative">
+      <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">🏪 Shop:</span>
+      <div style="display:flex;gap:4px">
+        <button id="ac-view-shop-2hbooks" onclick="setAcViewShop('2hbooks')" style="padding:5px 12px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;border:none;background:var(--navy);color:white">🏪 2HBooks</button>
+        <button id="ac-view-shop-huyhoanh" onclick="setAcViewShop('huyhoanh')" style="padding:5px 12px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;border:none;background:var(--gray2);color:var(--text1)">📚 Huy Hoàng</button>
+      </div>
+      <span style="width:1px;height:18px;background:var(--gray3)"></span>
       <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">📅 Kỳ Xem:</span>
       <button id="ac-view-range-trigger" class="filter-btn" onclick="acViewTogglePicker()" style="min-width:220px;text-align:left">Bấm 📂 Đồng Bộ Từ Drive để tải dữ liệu</button>
       <div id="ac-view-range-popover" style="display:none;position:absolute;top:calc(100% + 4px);left:96px;z-index:40;background:white;border:1px solid var(--gray3);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.12);padding:12px;width:280px;user-select:none">
@@ -9755,10 +9761,10 @@ function renderAcDateChips() {
 function renderAutoCampPage() {
   acSyncPickerInit();
   renderAcDateChips();
-  // Load GMS data từ Firestore — mặc định hiện tab 2HBooks khi vào trang
+  // Load GMS data từ Firestore — mặc định hiện shop 2HBooks khi vào trang
   AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = '';
-  _acViewMode = '2hbooks';
-  setAcViewMode('2hbooks'); // cập nhật tab style + load Firestore 2HBooks
+  setAcSyncShop('2hbooks');  // style tab Card Đồng Bộ
+  setAcViewShop('2hbooks');  // load Firestore + render dữ liệu xem
 
   const shop = G.shops[G.current];
   const clearKpis = () => ['ac-kpi-cost','ac-kpi-rev','ac-kpi-roas','ac-kpi-imp','ac-kpi-clk','ac-kpi-ord']
@@ -10009,7 +10015,12 @@ function parseShopeeGmsCsvText(csvText) {
 
 // ★ Drive GMS data store — dữ liệu theo ngày từ Drive
 let _acDriveData   = []; // [{date:'2026-07-01', label:'01/07/2026', cost, rev, imp, clk, ord, items:[]}]
-let _acViewMode    = '2hbooks'; // '2hbooks' | 'huyhoanh'
+
+// Tách RIÊNG shop đang chọn để ĐỒNG BỘ (tab ở Card 1) với shop đang XEM (bộ lọc Kỳ Xem)
+// — xác nhận Tân 2026-08-07: bấm tab ở Card Đồng Bộ không được tự đổi dữ liệu đang xem
+// bên dưới, 2 việc này phải độc lập nhau.
+let _acSyncShop = '2hbooks'; // '2hbooks' | 'huyhoanh' — chỉ dùng khi bấm nút Đồng Bộ
+let _acViewShop = '2hbooks'; // '2hbooks' | 'huyhoanh' — quyết định dữ liệu hiển thị bên dưới
 
 // ── Bộ Lọc xem dữ liệu đã đồng bộ — 1 nút bấm sổ lịch, CHỌN BẰNG 2 LẦN CLICK
 // (xác nhận Tân 2026-08-07: bấm ngày đầu muốn xem → bấm ngày cuối → tự áp dụng,
@@ -10434,18 +10445,33 @@ function acToggleSyncCard() {
   if (icon) icon.textContent = opening ? '▾ Bấm để đóng' : '▸ Bấm để mở';
 }
 
-// ★ Chuyển đổi view mode ('2hbooks' | 'huyhoanh')
-function setAcViewMode(mode) {
-  _acViewMode = mode;
-  const sv = document.getElementById('ac-single-view');
-  if (sv) sv.style.display = '';
-  // Cập nhật style tabs
+// ★ Đổi shop CHỈ để đồng bộ (tab trong Card 1) — KHÔNG đụng dữ liệu đang xem bên dưới.
+function setAcSyncShop(mode) {
+  _acSyncShop = mode;
   ['2hbooks','huyhoanh'].forEach(m => {
     const btn = document.getElementById('ac-tab-' + m);
     if (!btn) return;
     btn.style.background = mode === m ? 'var(--navy)' : 'var(--gray2)';
     btn.style.color = mode === m ? 'white' : 'var(--text1)';
   });
+}
+
+// Cập nhật style 2 nút chọn shop ở bộ lọc "Kỳ Xem"
+function acViewShopSetStyle(mode) {
+  ['2hbooks','huyhoanh'].forEach(m => {
+    const btn = document.getElementById('ac-view-shop-' + m);
+    if (!btn) return;
+    btn.style.background = mode === m ? 'var(--navy)' : 'var(--gray2)';
+    btn.style.color = mode === m ? 'white' : 'var(--text1)';
+  });
+}
+
+// ★ Đổi shop ĐANG XEM (bộ lọc Kỳ Xem) — tải lại Firestore + render KPI/bảng bên dưới.
+function setAcViewShop(mode) {
+  _acViewShop = mode;
+  acViewShopSetStyle(mode);
+  const sv = document.getElementById('ac-single-view');
+  if (sv) sv.style.display = '';
   const shopId = mode === '2hbooks' ? 1289235612 : 371873832;
   AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = ''; // đổi shop → về mặc định ngày mới nhất
   acLoadGmsFromFirestore(String(shopId));
@@ -10514,9 +10540,9 @@ async function gmsLoadFromDriveManual() {
     logEl.scrollTop = logEl.scrollHeight;
   };
 
-  // Dùng shop của tab đang xem, không phụ thuộc vào G.current
-  const shopApiId = _acViewMode === 'huyhoanh' ? 371873832
-                  : _acViewMode === '2hbooks'   ? 1289235612
+  // Dùng shop đang chọn ở Card Đồng Bộ (không phụ thuộc shop đang xem bên dưới hay G.current)
+  const shopApiId = _acSyncShop === 'huyhoanh' ? 371873832
+                  : _acSyncShop === '2hbooks'   ? 1289235612
                   : SAPI_SHOP_MAP_INV[G.current];
   if (!shopApiId) { acLog('❌ Không xác định được shop cần đồng bộ', 'err'); return; }
 
@@ -10597,7 +10623,10 @@ async function gmsLoadFromDriveManual() {
       acLog(`  💾 Đã lưu ${fileLabel} (${items.length} SP) vào Firestore`, 'ok');
     }
 
-    // 5. Reload tất cả từ Firestore → render (bao gồm cả dữ liệu cũ + mới)
+    // 5. Vừa đồng bộ xong shop này → tự chuyển "Kỳ Xem" sang xem luôn shop này cho tiện,
+    // rồi reload tất cả từ Firestore → render (bao gồm cả dữ liệu cũ + mới)
+    _acViewShop = _acSyncShop;
+    acViewShopSetStyle(_acViewShop);
     AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = ''; // reset để tự set theo dữ liệu mới nhất
     await acLoadGmsFromFirestore(String(shopApiId));
     acLog(`✅ Xong: ${savedCount} ngày mới lưu, tổng ${existingDates.size + savedCount} ngày trong hệ thống`, 'ok');
@@ -10630,8 +10659,8 @@ async function gmsSyncItemsFromApi() {
     logEl.scrollTop = logEl.scrollHeight;
   };
 
-  const shopApiId = _acViewMode === 'huyhoanh' ? 371873832
-                  : _acViewMode === '2hbooks'   ? 1289235612
+  const shopApiId = _acSyncShop === 'huyhoanh' ? 371873832
+                  : _acSyncShop === '2hbooks'   ? 1289235612
                   : SAPI_SHOP_MAP_INV[G.current];
   if (!shopApiId) { acLog('❌ Không xác định được shop cần đồng bộ', 'err'); return; }
   const shopInfo = SAPI_SHOPS.find(s => s.id === shopApiId);
