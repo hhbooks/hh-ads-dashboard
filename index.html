@@ -401,6 +401,10 @@
   }
   .tchip.active { background: var(--orange); color: white; border-color: var(--orange); }
   .tchip:hover:not(.active) { border-color: var(--orange2); color: var(--orange); }
+  /* Hover CSS-thuần cho ô ngày trong lịch popover (Kỳ Xem GMS, kiểu click-click) — KHÔNG
+     dùng JS re-render khi hover vì làm mất DOM element giữa mousedown/mouseup, khiến click
+     lần 2 không bắt được (bug đã gặp thực tế 2026-08-07). */
+  .ac-cal-day:not(.ac-cal-day-disabled):not(.ac-cal-day-sel):hover { background: var(--navy3) !important; color: var(--navy) !important; }
 
   /* Chip lọc Năm/Tháng — dùng ở trang Tổng Hợp Hệ Thống (#th-filter-bar), trước đây không có CSS nên
      không thấy trạng thái đang chọn. Style giống .tchip để đồng bộ giao diện toàn dashboard. */
@@ -10011,7 +10015,7 @@ let _acViewMode    = '2hbooks'; // '2hbooks' | 'huyhoanh'
 // (xác nhận Tân 2026-08-07: bấm ngày đầu muốn xem → bấm ngày cuối → tự áp dụng,
 // khác với lịch ở Card Đồng Bộ dùng kéo-thả). Chỉ đọc _acDriveData đã tải sẵn,
 // không gọi lại Shopee/Firestore.
-const AC_VIEW_PICKER = { rangeStart: '', rangeEnd: '', calYear: 0, calMonth: 0, pickerOpen: false, selecting: false, anchor: '', hoverEnd: '' };
+const AC_VIEW_PICKER = { rangeStart: '', rangeEnd: '', calYear: 0, calMonth: 0, pickerOpen: false, selecting: false, anchor: '' };
 let acViewGlobalListenersBound = false;
 
 // ★ Gọi mỗi khi _acDriveData vừa được nạp lại (đổi shop / vừa đồng bộ xong).
@@ -10078,15 +10082,9 @@ function acViewRenderCalendar() {
   const minStr = _acDriveData[0]?.date || '';
   const maxStr = _acDriveData[_acDriveData.length-1]?.date || '';
 
-  // Đang chọn dở (đã bấm ngày đầu, chưa bấm ngày cuối) → xem trước theo hover;
-  // đã chọn xong → hiện đúng khoảng đang áp dụng.
-  let dispStart, dispEnd;
-  if (AC_VIEW_PICKER.selecting) {
-    const a = AC_VIEW_PICKER.anchor, h = AC_VIEW_PICKER.hoverEnd || a;
-    dispStart = h < a ? h : a; dispEnd = h < a ? a : h;
-  } else {
-    dispStart = AC_VIEW_PICKER.rangeStart; dispEnd = AC_VIEW_PICKER.rangeEnd;
-  }
+  // Đã chọn xong (không còn đang chờ click thứ 2) → hiện khoảng đang áp dụng.
+  // Đang chờ click thứ 2 → chỉ tô đậm mỗi ngày đã bấm (anchor), không tô khoảng.
+  const dispStart = AC_VIEW_PICKER.rangeStart, dispEnd = AC_VIEW_PICKER.rangeEnd;
 
   const cells = [];
   for (let i = 0; i < firstWeekday; i++) cells.push({ day: daysInPrevMonth - firstWeekday + 1 + i, dateStr: null });
@@ -10096,31 +10094,36 @@ function acViewRenderCalendar() {
   let extra = 1;
   while (cells.length % 7 !== 0) cells.push({ day: extra++, dateStr: null });
 
+  // KHÔNG re-render lúc hover (bug 2026-08-07: mouseenter re-render làm mất DOM element
+  // giữa mousedown/mouseup của lần click thứ 2, khiến click không bắt được). Hover chỉ
+  // dùng CSS thuần (.ac-cal-day:hover) — xem thêm style .ac-cal-day ở đầu file.
   let html = AC_SYNC_WEEKDAYS.map(w => `<div style="text-align:center;font-size:10px;color:var(--text2);font-weight:700;padding:2px 0">${w}</div>`).join('');
   html += cells.map(c => {
     if (!c.dateStr) return `<div style="text-align:center;font-size:11.5px;color:var(--gray3);padding:6px 0">${c.day}</div>`;
     const disabled = !minStr || c.dateStr < minStr || c.dateStr > maxStr;
     const anchorSel = AC_VIEW_PICKER.selecting && c.dateStr === AC_VIEW_PICKER.anchor;
-    const inRange = dispStart && dispEnd && c.dateStr >= dispStart && c.dateStr <= dispEnd;
+    const inRange = !AC_VIEW_PICKER.selecting && dispStart && dispEnd && c.dateStr >= dispStart && c.dateStr <= dispEnd;
     const isEndpoint = !AC_VIEW_PICKER.selecting && (c.dateStr === dispStart || c.dateStr === dispEnd);
     const isToday = c.dateStr === todayStr;
+    const isSel = isEndpoint || anchorSel;
     let bg = 'transparent', color = 'var(--text)', weight = '400', border = '';
     if (disabled) color = 'var(--gray3)';
-    else if (isEndpoint || anchorSel) { bg = 'var(--navy)'; color = 'white'; weight = '700'; }
+    else if (isSel) { bg = 'var(--navy)'; color = 'white'; weight = '700'; }
     else if (inRange) { bg = 'var(--navy3)'; color = 'var(--navy)'; }
-    if (isToday && !isEndpoint && !anchorSel && !disabled) border = 'border:1px solid var(--navy2);';
-    const handlers = disabled ? '' : `onclick="acViewDayClick('${c.dateStr}')" onmouseenter="acViewDayMouseEnter('${c.dateStr}')"`;
-    return `<div ${handlers} style="text-align:center;font-size:11.5px;padding:6px 0;border-radius:6px;cursor:${disabled ? 'default' : 'pointer'};background:${bg};color:${color};font-weight:${weight};${border}">${c.day}</div>`;
+    if (isToday && !isSel && !disabled) border = 'border:1px solid var(--navy2);';
+    const cls = 'ac-cal-day' + (disabled ? ' ac-cal-day-disabled' : '') + (isSel ? ' ac-cal-day-sel' : '');
+    const handler = disabled ? '' : `onclick="acViewDayClick('${c.dateStr}')"`;
+    return `<div class="${cls}" ${handler} style="text-align:center;font-size:11.5px;padding:6px 0;border-radius:6px;cursor:${disabled ? 'default' : 'pointer'};background:${bg};color:${color};font-weight:${weight};${border}">${c.day}</div>`;
   }).join('');
 
   grid.innerHTML = html;
 }
 
 // Click 1: chọn ngày bắt đầu (chờ click thứ 2). Click 2: chọn ngày kết thúc → tự áp dụng.
+// Chỉ re-render lúc CLICK thật (không render lúc hover) để tránh phá DOM giữa chừng click.
 function acViewDayClick(dateStr) {
   if (!AC_VIEW_PICKER.selecting) {
     AC_VIEW_PICKER.anchor = dateStr;
-    AC_VIEW_PICKER.hoverEnd = dateStr;
     AC_VIEW_PICKER.selecting = true;
     acViewRenderCalendar();
   } else {
@@ -10130,12 +10133,6 @@ function acViewDayClick(dateStr) {
     AC_VIEW_PICKER.selecting = false;
     acViewFinishPickerAction();
   }
-}
-
-function acViewDayMouseEnter(dateStr) {
-  if (!AC_VIEW_PICKER.selecting) return;
-  AC_VIEW_PICKER.hoverEnd = dateStr;
-  acViewRenderCalendar();
 }
 
 function acViewApplyPresetRange(days) {
