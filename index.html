@@ -991,7 +991,7 @@
             <button class="tchip" onclick="adshApplyPresetRange(30)">30 ngày</button>
             <button class="tchip" onclick="adshApplyPresetThisMonth()">Tháng này</button>
           </div>
-          <div style="font-size:10.5px;color:var(--text2);margin-top:8px">Bấm 1 ngày = xem 1 ngày. Kéo từ ngày này sang ngày khác = xem cả khoảng (trung bình theo giờ).</div>
+          <div style="font-size:10.5px;color:var(--text2);margin-top:8px">Bấm 1 ngày = xem 1 ngày. Bấm ngày đầu rồi bấm ngày cuối = xem cả khoảng (trung bình theo giờ).</div>
         </div>
       </div>
       <div id="adsh-view-status" style="font-size:11px;color:var(--text2);margin-top:10px"></div>
@@ -1114,7 +1114,7 @@
               <button class="tchip" onclick="acSyncApplyPresetRange(30)">30 ngày</button>
               <button class="tchip" onclick="acSyncApplyPresetThisMonth()">Tháng này</button>
             </div>
-            <div style="font-size:10.5px;color:var(--text2);margin-top:8px">Bấm 1 ngày = 1 ngày. Kéo từ ngày này sang ngày khác = chọn cả khoảng.</div>
+            <div style="font-size:10.5px;color:var(--text2);margin-top:8px">Bấm 1 ngày = 1 ngày. Bấm ngày đầu rồi bấm ngày cuối = chọn cả khoảng.</div>
           </div>
           <input type="hidden" id="ac-item-sync-from">
           <input type="hidden" id="ac-item-sync-to">
@@ -7881,7 +7881,7 @@ async function sapiGetToken(shopId) {
 // ══════════════════════════════════════════════════════════════
 const ADSH = {
   shopId: null, rangeStart: '', rangeEnd: '', rows: [], metric: 'roas', periodLabel: '',
-  calYear: 0, calMonth: 0, dragging: false, dragAnchor: '', pickerOpen: false, viewLoaded: false,
+  calYear: 0, calMonth: 0, selecting: false, anchor: '', pickerOpen: false, viewLoaded: false,
   dayRows: {}, dayDates: [] // dữ liệu THÔ theo từng ngày (chưa gộp) — nguồn cho top-5 consistency + heatmap
 };
 let adshGlobalListenersBound = false;
@@ -7923,7 +7923,6 @@ function adshInitPage() {
   adshUpdateTriggerLabel();
   if (!adshGlobalListenersBound) {
     document.addEventListener('mousedown', adshHandleOutsideClick);
-    document.addEventListener('mouseup', adshHandleGlobalMouseUp);
     adshGlobalListenersBound = true;
   }
   if (!ADSH.viewLoaded) {
@@ -8092,7 +8091,7 @@ function adshTogglePicker() {
   const opening = pop.style.display === 'none';
   pop.style.display = opening ? 'block' : 'none';
   ADSH.pickerOpen = opening;
-  if (opening) adshRenderCalendar();
+  if (opening) { ADSH.selecting = false; adshRenderCalendar(); }
 }
 
 function adshHandleOutsideClick(e) {
@@ -8103,6 +8102,7 @@ function adshHandleOutsideClick(e) {
   if (pop.contains(e.target) || trigger.contains(e.target)) return;
   pop.style.display = 'none';
   ADSH.pickerOpen = false;
+  ADSH.selecting = false; // bấm ra ngoài khi đang chọn dở → hủy, giữ lựa chọn cũ
 }
 
 function adshCalNav(delta) {
@@ -8137,44 +8137,49 @@ function adshRenderCalendar() {
   let extra = 1;
   while (cells.length % 7 !== 0) cells.push({ day: extra++, dateStr: null });
 
+  // Đã chọn xong (không còn chờ click thứ 2) → hiện khoảng đang áp dụng.
+  // Đang chờ click thứ 2 → chỉ tô đậm ngày đã bấm (anchor), không tô khoảng —
+  // và KHÔNG re-render lúc hover (bug 2026-08-07: mouseenter/mousedown re-render làm
+  // mất DOM element giữa chừng kéo/click, khiến chọn ngày 2 không ăn). Hover chỉ dùng
+  // CSS thuần .ac-cal-day:hover.
+  const dispStart = ADSH.rangeStart, dispEnd = ADSH.rangeEnd;
+
   let html = ADSH_WEEKDAYS.map(w => `<div style="text-align:center;font-size:10px;color:var(--text2);font-weight:700;padding:2px 0">${w}</div>`).join('');
   html += cells.map(c => {
     if (!c.dateStr) return `<div style="text-align:center;font-size:11.5px;color:var(--gray3);padding:6px 0">${c.day}</div>`;
     const disabled = c.dateStr < minStr || c.dateStr > maxStr;
-    const inRange = ADSH.rangeStart && ADSH.rangeEnd && c.dateStr >= ADSH.rangeStart && c.dateStr <= ADSH.rangeEnd;
-    const isEndpoint = c.dateStr === ADSH.rangeStart || c.dateStr === ADSH.rangeEnd;
+    const anchorSel = ADSH.selecting && c.dateStr === ADSH.anchor;
+    const inRange = !ADSH.selecting && dispStart && dispEnd && c.dateStr >= dispStart && c.dateStr <= dispEnd;
+    const isEndpoint = !ADSH.selecting && (c.dateStr === dispStart || c.dateStr === dispEnd);
     const isToday = c.dateStr === todayStr;
+    const isSel = isEndpoint || anchorSel;
     let bg = 'transparent', color = 'var(--text)', weight = '400', border = '';
     if (disabled) color = 'var(--gray3)';
-    else if (isEndpoint) { bg = 'var(--navy)'; color = 'white'; weight = '700'; }
+    else if (isSel) { bg = 'var(--navy)'; color = 'white'; weight = '700'; }
     else if (inRange) { bg = 'var(--navy3)'; color = 'var(--navy)'; }
-    if (isToday && !isEndpoint && !disabled) border = 'border:1px solid var(--navy2);';
-    const handlers = disabled ? '' : `onmousedown="adshDayMouseDown('${c.dateStr}')" onmouseenter="adshDayMouseEnter('${c.dateStr}')"`;
-    return `<div ${handlers} style="text-align:center;font-size:11.5px;padding:6px 0;border-radius:6px;cursor:${disabled ? 'default' : 'pointer'};background:${bg};color:${color};font-weight:${weight};${border}">${c.day}</div>`;
+    if (isToday && !isSel && !disabled) border = 'border:1px solid var(--navy2);';
+    const cls = 'ac-cal-day' + (disabled ? ' ac-cal-day-disabled' : '') + (isSel ? ' ac-cal-day-sel' : '');
+    const handler = disabled ? '' : `onclick="adshDayClick('${c.dateStr}')"`;
+    return `<div class="${cls}" ${handler} style="text-align:center;font-size:11.5px;padding:6px 0;border-radius:6px;cursor:${disabled ? 'default' : 'pointer'};background:${bg};color:${color};font-weight:${weight};${border}">${c.day}</div>`;
   }).join('');
 
   grid.innerHTML = html;
 }
 
-function adshDayMouseDown(dateStr) {
-  ADSH.dragging = true;
-  ADSH.dragAnchor = dateStr;
-  ADSH.rangeStart = dateStr;
-  ADSH.rangeEnd = dateStr;
-  adshRenderCalendar();
-}
-
-function adshDayMouseEnter(dateStr) {
-  if (!ADSH.dragging) return;
-  if (dateStr < ADSH.dragAnchor) { ADSH.rangeStart = dateStr; ADSH.rangeEnd = ADSH.dragAnchor; }
-  else { ADSH.rangeStart = ADSH.dragAnchor; ADSH.rangeEnd = dateStr; }
-  adshRenderCalendar();
-}
-
-function adshHandleGlobalMouseUp() {
-  if (!ADSH.dragging) return;
-  ADSH.dragging = false;
-  adshFinishPickerAction();
+// Click 1: chọn ngày bắt đầu (chờ click thứ 2). Click 2: chọn ngày kết thúc → tự áp dụng.
+// Chỉ re-render lúc CLICK thật (không render lúc hover) để tránh phá DOM giữa chừng click.
+function adshDayClick(dateStr) {
+  if (!ADSH.selecting) {
+    ADSH.anchor = dateStr;
+    ADSH.selecting = true;
+    adshRenderCalendar();
+  } else {
+    const a = ADSH.anchor;
+    ADSH.rangeStart = dateStr < a ? dateStr : a;
+    ADSH.rangeEnd   = dateStr < a ? a : dateStr;
+    ADSH.selecting = false;
+    adshFinishPickerAction();
+  }
 }
 
 function adshApplyPresetRange(days) {
@@ -10284,7 +10289,7 @@ function renderAcTopFromDrive() {
 // ẩn ac-item-sync-from/to — KHÔNG tự gọi API, phải bấm nút Đồng Bộ mới chạy.
 const AC_SYNC_WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 const AC_SYNC_MONTH_NAMES = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
-const AC_SYNC_PICKER = { rangeStart: '', rangeEnd: '', calYear: 0, calMonth: 0, dragging: false, dragAnchor: '', pickerOpen: false };
+const AC_SYNC_PICKER = { rangeStart: '', rangeEnd: '', calYear: 0, calMonth: 0, selecting: false, anchor: '', pickerOpen: false };
 let acSyncGlobalListenersBound = false;
 
 function acSyncFmtDate(d) {
@@ -10301,7 +10306,6 @@ function acSyncPickerInit() {
   }
   if (!acSyncGlobalListenersBound) {
     document.addEventListener('mousedown', acSyncHandleOutsideClick);
-    document.addEventListener('mouseup', acSyncHandleGlobalMouseUp);
     acSyncGlobalListenersBound = true;
   }
 }
@@ -10312,7 +10316,7 @@ function acSyncTogglePicker() {
   const opening = pop.style.display === 'none';
   pop.style.display = opening ? 'block' : 'none';
   AC_SYNC_PICKER.pickerOpen = opening;
-  if (opening) acSyncRenderCalendar();
+  if (opening) { AC_SYNC_PICKER.selecting = false; acSyncRenderCalendar(); }
 }
 
 function acSyncHandleOutsideClick(e) {
@@ -10323,6 +10327,7 @@ function acSyncHandleOutsideClick(e) {
   if (pop.contains(e.target) || trigger.contains(e.target)) return;
   pop.style.display = 'none';
   AC_SYNC_PICKER.pickerOpen = false;
+  AC_SYNC_PICKER.selecting = false; // bấm ra ngoài khi đang chọn dở → hủy, giữ lựa chọn cũ
 }
 
 function acSyncCalNav(delta) {
@@ -10356,44 +10361,43 @@ function acSyncRenderCalendar() {
   let extra = 1;
   while (cells.length % 7 !== 0) cells.push({ day: extra++, dateStr: null });
 
+  const dispStart = AC_SYNC_PICKER.rangeStart, dispEnd = AC_SYNC_PICKER.rangeEnd;
+
   let html = AC_SYNC_WEEKDAYS.map(w => `<div style="text-align:center;font-size:10px;color:var(--text2);font-weight:700;padding:2px 0">${w}</div>`).join('');
   html += cells.map(c => {
     if (!c.dateStr) return `<div style="text-align:center;font-size:11.5px;color:var(--gray3);padding:6px 0">${c.day}</div>`;
     const disabled = c.dateStr < minStr || c.dateStr > maxStr;
-    const inRange = AC_SYNC_PICKER.rangeStart && AC_SYNC_PICKER.rangeEnd && c.dateStr >= AC_SYNC_PICKER.rangeStart && c.dateStr <= AC_SYNC_PICKER.rangeEnd;
-    const isEndpoint = c.dateStr === AC_SYNC_PICKER.rangeStart || c.dateStr === AC_SYNC_PICKER.rangeEnd;
+    const anchorSel = AC_SYNC_PICKER.selecting && c.dateStr === AC_SYNC_PICKER.anchor;
+    const inRange = !AC_SYNC_PICKER.selecting && dispStart && dispEnd && c.dateStr >= dispStart && c.dateStr <= dispEnd;
+    const isEndpoint = !AC_SYNC_PICKER.selecting && (c.dateStr === dispStart || c.dateStr === dispEnd);
     const isToday = c.dateStr === todayStr;
+    const isSel = isEndpoint || anchorSel;
     let bg = 'transparent', color = 'var(--text)', weight = '400', border = '';
     if (disabled) color = 'var(--gray3)';
-    else if (isEndpoint) { bg = 'var(--navy)'; color = 'white'; weight = '700'; }
+    else if (isSel) { bg = 'var(--navy)'; color = 'white'; weight = '700'; }
     else if (inRange) { bg = 'var(--navy3)'; color = 'var(--navy)'; }
-    if (isToday && !isEndpoint && !disabled) border = 'border:1px solid var(--navy2);';
-    const handlers = disabled ? '' : `onmousedown="acSyncDayMouseDown('${c.dateStr}')" onmouseenter="acSyncDayMouseEnter('${c.dateStr}')"`;
-    return `<div ${handlers} style="text-align:center;font-size:11.5px;padding:6px 0;border-radius:6px;cursor:${disabled ? 'default' : 'pointer'};background:${bg};color:${color};font-weight:${weight};${border}">${c.day}</div>`;
+    if (isToday && !isSel && !disabled) border = 'border:1px solid var(--navy2);';
+    const cls = 'ac-cal-day' + (disabled ? ' ac-cal-day-disabled' : '') + (isSel ? ' ac-cal-day-sel' : '');
+    const handler = disabled ? '' : `onclick="acSyncDayClick('${c.dateStr}')"`;
+    return `<div class="${cls}" ${handler} style="text-align:center;font-size:11.5px;padding:6px 0;border-radius:6px;cursor:${disabled ? 'default' : 'pointer'};background:${bg};color:${color};font-weight:${weight};${border}">${c.day}</div>`;
   }).join('');
 
   grid.innerHTML = html;
 }
 
-function acSyncDayMouseDown(dateStr) {
-  AC_SYNC_PICKER.dragging = true;
-  AC_SYNC_PICKER.dragAnchor = dateStr;
-  AC_SYNC_PICKER.rangeStart = dateStr;
-  AC_SYNC_PICKER.rangeEnd = dateStr;
-  acSyncRenderCalendar();
-}
-
-function acSyncDayMouseEnter(dateStr) {
-  if (!AC_SYNC_PICKER.dragging) return;
-  if (dateStr < AC_SYNC_PICKER.dragAnchor) { AC_SYNC_PICKER.rangeStart = dateStr; AC_SYNC_PICKER.rangeEnd = AC_SYNC_PICKER.dragAnchor; }
-  else { AC_SYNC_PICKER.rangeStart = AC_SYNC_PICKER.dragAnchor; AC_SYNC_PICKER.rangeEnd = dateStr; }
-  acSyncRenderCalendar();
-}
-
-function acSyncHandleGlobalMouseUp() {
-  if (!AC_SYNC_PICKER.dragging) return;
-  AC_SYNC_PICKER.dragging = false;
-  acSyncFinishPickerAction();
+// Click 1: chọn ngày bắt đầu (chờ click thứ 2). Click 2: chọn ngày kết thúc → tự áp dụng.
+function acSyncDayClick(dateStr) {
+  if (!AC_SYNC_PICKER.selecting) {
+    AC_SYNC_PICKER.anchor = dateStr;
+    AC_SYNC_PICKER.selecting = true;
+    acSyncRenderCalendar();
+  } else {
+    const a = AC_SYNC_PICKER.anchor;
+    AC_SYNC_PICKER.rangeStart = dateStr < a ? dateStr : a;
+    AC_SYNC_PICKER.rangeEnd   = dateStr < a ? a : dateStr;
+    AC_SYNC_PICKER.selecting = false;
+    acSyncFinishPickerAction();
+  }
 }
 
 function acSyncApplyPresetRange(days) {
