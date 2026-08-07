@@ -60,7 +60,7 @@
   .nav-badge.warn  { background: var(--orange2); }
 
   /* ── SHOP FILTER BAR (trong nội dung trang — thay cho shop-selector cũ ở sidebar) ──
-     Dùng ở đầu 2 trang Cập Nhật CSV + Tổng Quan (2 trang duy nhất phụ thuộc G.current).
+     Dùng ở card Cập Nhật CSV (trong Tổng Quan, từ 2026-08-07) + Tổng Quan (2 nơi duy nhất phụ thuộc G.current).
      Xác nhận với Tân 2026-08-05: bỏ 6 nút shop khỏi sidebar cho gọn, chuyển vào trong trang. */
   .shop-filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
   .shop-filter-label { font-size: 12px; color: var(--text2); font-weight: 700; margin-right: 2px; white-space: nowrap; }
@@ -588,12 +588,7 @@
       </div>
       <div class="block-body" id="block-body-ads" style="display:none">
         <div class="nav-mini-label" id="nav-section-label">📚 Nhà Sách 2HBooks</div>
-        <div class="nav-item active" onclick="showPage('update',this)" id="nav-update">
-          <span class="icon">📥</span> Cập Nhật CSV
-          <span class="nav-badge green" id="badge-csv" style="display:none">Mới</span>
-        </div>
-        <div class="nav-mini-sep"></div>
-        <div class="nav-item" onclick="showPage('overview',this)">
+        <div class="nav-item active" onclick="showPage('overview',this)" id="nav-overview">
           <span class="icon">🏠</span> Tổng Quan
         </div>
         <div class="nav-item" onclick="showPage('ads-hourly',this)" id="nav-ads-hourly">
@@ -680,7 +675,114 @@
   <div id="upload-area" style="display:none"></div>
 
   <!-- OVERVIEW PAGE -->
-  <div class="page" id="page-overview">
+  <div class="page active" id="page-overview">
+    <!-- CẬP NHẬT CSV — chuyển từ trang riêng "Cập Nhật CSV" vào đầu Tổng Quan, dạng card đóng/mở,
+         nằm TRÊN card Kết Nối API. Mặc định thu gọn chỉ hiện dòng trạng thái; bấm tiêu đề để xòe.
+         Ô chọn shop dạng pill giữ NGUYÊN riêng của card này (không gộp chung ô sổ xuống ở bộ lọc
+         Kỳ Xem bên dưới) — xác nhận Tân 2026-08-07. -->
+    <div class="card" style="margin-bottom:16px" id="ov-csv-card">
+      <div style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none" onclick="ovCsvToggle()">
+        <span style="font-size:14px;font-weight:700;color:var(--text)">📥 Cập Nhật CSV</span>
+        <span id="ov-csv-status" style="font-size:12px;color:var(--text2)"></span>
+        <span class="nav-badge green" id="badge-csv" style="display:none">Mới</span>
+        <span id="ov-csv-arrow" style="margin-left:auto;font-size:12px;color:var(--text2)">▶</span>
+      </div>
+      <div id="ov-csv-body" style="display:none;margin-top:14px">
+
+        <!-- Bộ lọc Shop riêng của card này (dạng pill) -->
+        <div class="shop-filter-bar" id="shop-filter-bar-update"></div>
+
+        <!-- GOOGLE DRIVE SYNC CARD -->
+        <div class="card drive-sync-card">
+          <div class="card-title">🔄 Đồng Bộ Tự Động Từ Google Drive</div>
+          <div class="drive-folder-label">📂 Shop hiện tại: <span id="drive-folder-name">—</span></div>
+
+          <div class="drive-client-hint" style="color:#16a34a;background:#f0fdf4;border-radius:6px;padding:6px 10px;margin-bottom:12px">
+            ✅ Đã cấu hình sẵn — Nhấn nút bên dưới để đồng bộ ngay.
+          </div>
+          <!-- Ô nhập Client ID ẩn mặc định, admin có thể override nếu cần -->
+          <details style="margin-bottom:10px;font-size:11px;color:var(--text2)">
+            <summary style="cursor:pointer">⚙️ Cài đặt nâng cao (dành cho admin)</summary>
+            <div class="drive-client-row" style="margin-top:8px">
+              <input type="text" id="drive-client-id-input" class="drive-client-input"
+                     placeholder="Override Client ID..." autocomplete="off">
+              <button class="drive-btn-save" onclick="saveDriveClientId()">💾 Lưu</button>
+            </div>
+          </details>
+
+          <button id="btn-drive-sync" class="btn-drive-sync" onclick="syncFromDrive()">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M9 1.5A7.5 7.5 0 1 0 16.5 9" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+              <path d="M13.5 1.5v4.5H9" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Đồng bộ từ Drive
+          </button>
+          <button id="btn-drive-force-reload" onclick="sapiForceReloadFromDrive()" style="margin-top:6px;width:100%;padding:8px 12px;background:var(--gray2);border:1.5px dashed var(--gray3);border-radius:8px;font-size:12px;color:var(--text2);cursor:pointer" title="Xóa toàn bộ data CSV hiện tại và đọc lại từ Drive — dùng khi cần tính lại dailyTotals">
+            🔄 Xóa & tải lại toàn bộ từ Drive
+          </button>
+          <div class="drive-last-sync" id="drive-last-sync"></div>
+          <div class="drive-log" id="drive-log"></div>
+          <div id="drive-undo-bar" style="display:none;margin-top:8px">
+            <button class="btn-drive-undo" onclick="undoDriveSync()">
+              ↩ Hoàn tác đồng bộ vừa rồi
+            </button>
+            <div id="drive-undo-label" style="font-size:11px;color:var(--text2);margin-top:4px;text-align:center"></div>
+          </div>
+        </div>
+
+        <div id="update-success">
+          <span class="icon">✅</span>
+          <div>
+            <div class="msg" id="success-msg">Cập nhật thành công!</div>
+            <div class="sub" id="success-sub"></div>
+          </div>
+        </div>
+
+        <!-- CÁC KỲ DỮ LIỆU -->
+        <div class="card" style="margin-top:16px">
+          <div class="card-title"><span class="dot"></span> Các Kỳ Dữ Liệu Đã Có</div>
+          <div class="dates-loaded" id="dates-loaded-list">
+            <span style="color:var(--text2);font-size:12px">Chưa tải</span>
+          </div>
+        </div>
+
+        <!-- KÉO & THẢ CSV -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px">
+          <div class="card">
+            <div class="card-title"><span class="dot"></span> Kéo &amp; Thả File CSV</div>
+            <div id="csv-drop-zone" class="csv-drop-zone"
+                 ondragover="event.preventDefault();this.classList.add('drag-over')"
+                 ondragleave="this.classList.remove('drag-over')"
+                 ondrop="handleDrop(event)"
+                 onclick="document.getElementById('csv-file-input').click()">
+              <div class="drop-icon">📂</div>
+              <h4>Kéo file CSV vào đây</h4>
+              <p>hoặc nhấn để chọn file từ máy tính</p>
+              <button class="btn-select-csv" onclick="event.stopPropagation();document.getElementById('csv-file-input').click()">
+                Chọn file CSV
+              </button>
+            </div>
+            <input type="file" id="csv-file-input" accept=".csv" multiple onchange="handleCSVInput(this)">
+            <ul class="csv-preview-list" id="csv-preview-list"></ul>
+            <button class="btn-apply-csv" id="btn-apply" disabled onclick="applyAllCSV()">
+              ✅ Cập Nhật Vào Dashboard
+            </button>
+            <button class="btn-clear-csv" id="btn-clear" style="display:none" onclick="clearCSVQueue()">
+              🗑 Xóa danh sách
+            </button>
+            <button class="btn-undo-csv" id="btn-undo" onclick="undoLastUpdate()">
+              ↩ Hoàn tác — Xóa kỳ vừa thêm
+            </button>
+          </div>
+          <div class="card">
+            <div class="card-title"><span class="dot"></span> Log Xử Lý</div>
+            <div id="update-log"><span class="log-info">Chờ file CSV...</span></div>
+          </div>
+        </div>
+
+      </div><!-- /ov-csv-body -->
+    </div><!-- /ov-csv-card -->
+
     <!-- KẾT NỐI API — chuyển từ trang riêng vào đầu Tổng Quan, dạng card đóng/mở.
          Mặc định thu gọn chỉ hiện dòng trạng thái; bấm tiêu đề để xòe. Xác nhận với Tân 2026-08-05. -->
     <div class="card" style="margin-bottom:16px" id="ov-api-card">
@@ -1255,101 +1357,6 @@
 
   <!-- KẾT NỐI SHOPEE API PAGE -->
   <!-- CSV UPDATE PAGE -->
-  <div class="page" id="page-update">
-
-    <!-- Bộ lọc Shop — chuyển từ sidebar vào đây (xác nhận với Tân 2026-08-05) -->
-    <div class="shop-filter-bar" id="shop-filter-bar-update"></div>
-
-    <!-- GOOGLE DRIVE SYNC CARD -->
-    <div class="card drive-sync-card">
-      <div class="card-title">🔄 Đồng Bộ Tự Động Từ Google Drive</div>
-      <div class="drive-folder-label">📂 Shop hiện tại: <span id="drive-folder-name">—</span></div>
-
-      <div class="drive-client-hint" style="color:#16a34a;background:#f0fdf4;border-radius:6px;padding:6px 10px;margin-bottom:12px">
-        ✅ Đã cấu hình sẵn — Nhấn nút bên dưới để đồng bộ ngay.
-      </div>
-      <!-- Ô nhập Client ID ẩn mặc định, admin có thể override nếu cần -->
-      <details style="margin-bottom:10px;font-size:11px;color:var(--text2)">
-        <summary style="cursor:pointer">⚙️ Cài đặt nâng cao (dành cho admin)</summary>
-        <div class="drive-client-row" style="margin-top:8px">
-          <input type="text" id="drive-client-id-input" class="drive-client-input"
-                 placeholder="Override Client ID..." autocomplete="off">
-          <button class="drive-btn-save" onclick="saveDriveClientId()">💾 Lưu</button>
-        </div>
-      </details>
-
-      <button id="btn-drive-sync" class="btn-drive-sync" onclick="syncFromDrive()">
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-          <path d="M9 1.5A7.5 7.5 0 1 0 16.5 9" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
-          <path d="M13.5 1.5v4.5H9" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        Đồng bộ từ Drive
-      </button>
-      <button id="btn-drive-force-reload" onclick="sapiForceReloadFromDrive()" style="margin-top:6px;width:100%;padding:8px 12px;background:var(--gray2);border:1.5px dashed var(--gray3);border-radius:8px;font-size:12px;color:var(--text2);cursor:pointer" title="Xóa toàn bộ data CSV hiện tại và đọc lại từ Drive — dùng khi cần tính lại dailyTotals">
-        🔄 Xóa & tải lại toàn bộ từ Drive
-      </button>
-      <div class="drive-last-sync" id="drive-last-sync"></div>
-      <div class="drive-log" id="drive-log"></div>
-      <div id="drive-undo-bar" style="display:none;margin-top:8px">
-        <button class="btn-drive-undo" onclick="undoDriveSync()">
-          ↩ Hoàn tác đồng bộ vừa rồi
-        </button>
-        <div id="drive-undo-label" style="font-size:11px;color:var(--text2);margin-top:4px;text-align:center"></div>
-      </div>
-    </div>
-
-    <div id="update-success">
-      <span class="icon">✅</span>
-      <div>
-        <div class="msg" id="success-msg">Cập nhật thành công!</div>
-        <div class="sub" id="success-sub"></div>
-      </div>
-    </div>
-
-    <!-- CÁC KỲ DỮ LIỆU -->
-    <div class="card" style="margin-top:16px">
-      <div class="card-title"><span class="dot"></span> Các Kỳ Dữ Liệu Đã Có</div>
-      <div class="dates-loaded" id="dates-loaded-list">
-        <span style="color:var(--text2);font-size:12px">Chưa tải</span>
-      </div>
-    </div>
-
-    <!-- KÉO & THẢ CSV -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px">
-      <div class="card">
-        <div class="card-title"><span class="dot"></span> Kéo &amp; Thả File CSV</div>
-        <div id="csv-drop-zone" class="csv-drop-zone"
-             ondragover="event.preventDefault();this.classList.add('drag-over')"
-             ondragleave="this.classList.remove('drag-over')"
-             ondrop="handleDrop(event)"
-             onclick="document.getElementById('csv-file-input').click()">
-          <div class="drop-icon">📂</div>
-          <h4>Kéo file CSV vào đây</h4>
-          <p>hoặc nhấn để chọn file từ máy tính</p>
-          <button class="btn-select-csv" onclick="event.stopPropagation();document.getElementById('csv-file-input').click()">
-            Chọn file CSV
-          </button>
-        </div>
-        <input type="file" id="csv-file-input" accept=".csv" multiple onchange="handleCSVInput(this)">
-        <ul class="csv-preview-list" id="csv-preview-list"></ul>
-        <button class="btn-apply-csv" id="btn-apply" disabled onclick="applyAllCSV()">
-          ✅ Cập Nhật Vào Dashboard
-        </button>
-        <button class="btn-clear-csv" id="btn-clear" style="display:none" onclick="clearCSVQueue()">
-          🗑 Xóa danh sách
-        </button>
-        <button class="btn-undo-csv" id="btn-undo" onclick="undoLastUpdate()">
-          ↩ Hoàn tác — Xóa kỳ vừa thêm
-        </button>
-      </div>
-      <div class="card">
-        <div class="card-title"><span class="dot"></span> Log Xử Lý</div>
-        <div id="update-log"><span class="log-info">Chờ file CSV...</span></div>
-      </div>
-    </div>
-
-  </div>
-
   <!-- TỔNG HỢP HỆ THỐNG PAGE -->
   <div class="page" id="page-tonghop">
     <!-- Filter bar -->
@@ -8732,6 +8739,35 @@ async function sapiRenderShops() {
   if (ovStatus) ovStatus.textContent = `— ${connectedCount}/${SAPI_SHOPS.length} shop đã kết nối ${connectedCount === SAPI_SHOPS.length ? '🟢' : '⚠️'}`;
 }
 
+// ── Card Cập Nhật CSV đóng/mở ở đầu Tổng Quan, nằm TRÊN card Kết Nối API
+// (thay trang riêng "Cập Nhật CSV" — xác nhận Tân 2026-08-07) ──
+function ovCsvToggle() {
+  const body = document.getElementById('ov-csv-body');
+  const arrow = document.getElementById('ov-csv-arrow');
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : '';
+  if (arrow) arrow.textContent = isOpen ? '▶' : '▼';
+  if (!isOpen) { renderShopFilterChips(); updateDriveSyncStatus(); if (typeof refreshDatesPanel === 'function') refreshDatesPanel(); }
+}
+function ovCsvExpand() {
+  const body = document.getElementById('ov-csv-body');
+  const arrow = document.getElementById('ov-csv-arrow');
+  if (body) body.style.display = '';
+  if (arrow) arrow.textContent = '▼';
+  renderShopFilterChips();
+  updateDriveSyncStatus();
+  if (typeof refreshDatesPanel === 'function') refreshDatesPanel();
+}
+// Dòng trạng thái gọn trên tiêu đề card (giống ov-api-status) — X/N shop đã tải dữ liệu
+function ovCsvUpdateStatus() {
+  const el = document.getElementById('ov-csv-status');
+  if (!el) return;
+  const ids = Object.keys(SHOPS);
+  const loadedCount = ids.filter(id => G.shops[id] && G.shops[id].loaded).length;
+  el.textContent = `— ${loadedCount}/${ids.length} shop đã tải dữ liệu ${loadedCount === ids.length ? '🟢' : '⚠️'}`;
+}
+
 // ── Card Kết Nối API đóng/mở ở đầu Tổng Quan (thay trang riêng — Tân 2026-08-05) ──
 function ovApiToggle() {
   const body = document.getElementById('ov-api-body');
@@ -13717,8 +13753,9 @@ document.addEventListener('click', function(e) {
 populateTkShopSelect();
 loadTonkhoFromStorage();
 
-// Hiển thị trạng thái loading khi trang khởi động
-document.getElementById('page-update').classList.add('active');
+// Hiển thị trạng thái loading khi trang khởi động — Cập Nhật CSV đã gộp vào card đầu
+// Tổng Quan (xác nhận Tân 2026-08-07), nên trang mặc định giờ là page-overview.
+document.getElementById('page-overview').classList.add('active');
 document.getElementById('update-log').innerHTML = '<span class="log-info">⏳ Đang tải dữ liệu từ cloud...</span>';
 updateDriveSyncStatus();
 
@@ -13745,16 +13782,16 @@ loadFromStorage().then(hasStoredData => {
 // ══════════════════════════════════════════════════════════════
 // SHOP SWITCHER
 // ══════════════════════════════════════════════════════════════
-// Sinh lại thanh chọn shop ở đầu trang Cập Nhật CSV (dạng chip) + Tổng Quan (dạng sổ xuống,
-// xác nhận với Tân 2026-08-05 — gọn hơn vì trang Tổng Quan có thêm bộ lọc ngày trên cùng hàng).
-// 2 trang có DOM riêng nên phải render lại cả 2 mỗi lần G.current hoặc trạng thái "đã tải" của
-// 1 shop thay đổi, để luôn đồng bộ với nhau.
+// Sinh lại thanh chọn shop ở card Cập Nhật CSV (dạng chip, từ 2026-08-07 nằm trong Tổng Quan)
+// + bộ lọc Kỳ Xem của Tổng Quan (dạng sổ xuống, xác nhận với Tân 2026-08-05 — gọn hơn vì có
+// thêm bộ lọc ngày trên cùng hàng). 2 DOM riêng nên phải render lại cả 2 mỗi lần G.current
+// hoặc trạng thái "đã tải" của 1 shop thay đổi, để luôn đồng bộ với nhau.
 function renderAllShopFilterBars() {
   renderShopFilterChips();
   renderShopFilterDropdown();
 }
 
-// Trang Cập Nhật CSV — giữ dạng chip xoè như cũ.
+// Card Cập Nhật CSV — giữ dạng chip xoè như cũ, riêng của card này (không gộp ô sổ xuống).
 function renderShopFilterChips() {
   const el = document.getElementById('shop-filter-bar-update');
   if (!el) return;
@@ -13767,6 +13804,7 @@ function renderShopFilterChips() {
       <span class="shop-chip-status${loaded ? ' loaded' : ''}">${loaded ? '✓ Đã tải' : 'Chưa tải'}</span>
     </span>`;
   }).join('');
+  if (typeof ovCsvUpdateStatus === 'function') ovCsvUpdateStatus();
 }
 
 // Trang Tổng Quan — dạng sổ xuống (click mở/đóng), gọn hơn 6 chip xoè ra.
@@ -13858,11 +13896,14 @@ function switchShop(shopId, btn) {
   ovUpdateGate(); // cập nhật lại notice/content: mở nếu đã có sẵn ngày, đóng nếu chưa từng chọn
   const shopData = G.shops[shopId];
   if (!shopData || !shopData.loaded) {
-    // No data yet → show CSV update page
+    // Chưa có dữ liệu → về Tổng Quan và tự mở card Cập Nhật CSV để upload (trang riêng cũ
+    // đã gộp vào đây — xác nhận Tân 2026-08-07)
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.getElementById('page-update').classList.add('active');
+    document.getElementById('page-overview').classList.add('active');
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    document.getElementById('nav-update').classList.add('active');
+    const overviewNavEl = document.getElementById('nav-overview');
+    if (overviewNavEl) overviewNavEl.classList.add('active');
+    ovCsvExpand();
     document.getElementById('last-update').textContent = 'Chưa có dữ liệu';
     document.getElementById('update-log').innerHTML = '<span class="log-info">Chờ file CSV...</span>';
     document.getElementById('update-success').classList.remove('show');
@@ -13906,7 +13947,7 @@ function toggleSidebarBlock(name) {
   });
 }
 
-const ADS_PAGE_NAMES = new Set(['update','overview','ads-hourly','auto-camp','products','alerts','trend','dosuat']);
+const ADS_PAGE_NAMES = new Set(['overview','ads-hourly','auto-camp','products','alerts','trend','dosuat']);
 function showPage(name, el) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -13919,12 +13960,11 @@ function showPage(name, el) {
     if (ptsWrap) ptsWrap.style.display = 'none';
   }
   if (name === 'dosuat')    initDoSuatPage();
-  if (name === 'update')   updateDriveSyncStatus();
   if (name === 'tonghop')  initTongHopPage();
   if (name === 'tonkho-tong-quan') tqInitPage();
   if (name === 'tonkho-bao-cao-san-luong') bcslInitPage();
   if (name === 'gia-canh-bao') giaInitPage();
-  if (name === 'overview')  { sapiRenderShops(); ovUpdateGate(); } // cập nhật card Kết Nối API + gate chọn Shop/ngày ở đầu Tổng Quan
+  if (name === 'overview')  { sapiRenderShops(); ovUpdateGate(); updateDriveSyncStatus(); } // cập nhật card Kết Nối API + Cập Nhật CSV + gate chọn Shop/ngày ở đầu Tổng Quan
   if (name === 'ads-hourly') adshInitPage();
   if (name === 'auto-camp') renderAutoCampPage();
 }
