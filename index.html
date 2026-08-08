@@ -1287,6 +1287,38 @@
           </table>
         </div>
       </div>
+
+      <!-- Tỷ trọng doanh số theo nhóm (xác nhận Tân 2026-08-08: pie chart + số liệu Doanh số/%/Chi phí/ROAS/ACOS kèm theo) -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title"><span class="dot"></span> Tỷ Trọng Doanh Số Theo Nhóm</div>
+        <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;margin-top:8px">
+          <div style="width:260px;flex-shrink:0">
+            <canvas id="gc-rev-pie" style="max-height:260px"></canvas>
+          </div>
+          <div style="flex:1;min-width:280px">
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr style="font-size:11px;color:var(--text2);text-align:left;border-bottom:1px solid var(--gray3)">
+                <th style="padding:5px 8px 5px 0">Nhóm</th>
+                <th class="num" style="padding:5px 8px">Doanh Số</th>
+                <th class="num" style="padding:5px 8px">%</th>
+                <th class="num" style="padding:5px 8px">Chi Phí</th>
+                <th class="num" style="padding:5px 8px">ROAS</th>
+                <th class="num" style="padding:5px 8px">ACOS</th>
+              </tr></thead>
+              <tbody id="gc-rev-pie-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- SP tốt nhất / yếu nhất mỗi nhóm (xác nhận Tân 2026-08-08: xếp theo Doanh Số,
+           top 10 tốt nhất + top 10 yếu nhất mỗi nhóm, nhóm <20 SP có thể trùng ở giữa,
+           nhóm chỉ 1 SP vẫn hiện kèm nhãn "chỉ có 1 SP") -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title"><span class="dot"></span> Sản Phẩm Tốt Nhất / Yếu Nhất Trong Từng Nhóm</div>
+        <div style="font-size:11px;color:var(--text2);margin:4px 0 10px">Xếp theo Doanh Số. Mỗi nhóm hiện tối đa 10 SP tốt nhất và 10 SP yếu nhất.</div>
+        <div id="gc-best-worst-wrap"></div>
+      </div>
     </div>
   </div>
 
@@ -10557,6 +10589,7 @@ function sapiShowShopCampaigns(idx) {
 
 let _groupCampData  = []; // [{ fileName, shopApiId, shopKey, shopName, dateFrom, dateTo, dateLabel, groups:[...] }]
 let _groupCampShop  = null; // shopKey (hoặc 'unknown_<id>') đang xem
+let gcRevPieChart    = null; // Chart.js instance — pie tỷ trọng doanh số theo nhóm (Card 3)
 
 function parseShopeeAdGroupCsvText(csvText) {
   function parseLine(line) {
@@ -10843,6 +10876,108 @@ function groupCampRenderContent(rec) {
       </tr>`;
     }).join('');
   }
+
+  gcRenderRevPie(groups, totalRev);
+  gcRenderBestWorst(groups);
+}
+
+// Card "Tỷ Trọng Doanh Số Theo Nhóm" — pie chart + bảng số liệu kèm theo
+// (xác nhận Tân 2026-08-08: doanh số + % + chi phí + ROAS + ACOS mỗi nhóm)
+function gcRenderRevPie(groups, totalRev) {
+  const canvas = document.getElementById('gc-rev-pie');
+  const tbody  = document.getElementById('gc-rev-pie-tbody');
+  if (!canvas || !tbody) return;
+
+  const withRev = groups.filter(g => g.revenue > 0).sort((a, b) => b.revenue - a.revenue);
+  const COLORS = ['#1F3864','#2E4D7B','#3D6898','#E67E22','#F39C12','#27AE60','#E74C3C','#8E44AD','#7F8C8D','#16A085','#D35400','#2980B9'];
+
+  if (gcRevPieChart) { gcRevPieChart.destroy(); gcRevPieChart = null; }
+  if (!withRev.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;font-size:12px">Chưa có nhóm nào có doanh số trong kỳ này</td></tr>';
+    return;
+  }
+
+  gcRevPieChart = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: withRev.map(g => g.name),
+      datasets: [{ data: withRev.map(g => g.revenue), backgroundColor: COLORS, borderWidth: 2 }]
+    },
+    options: {
+      responsive: true, cutout: '58%',
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  tbody.innerHTML = withRev.map((g, i) => {
+    const pct = totalRev > 0 ? (g.revenue / totalRev * 100) : 0;
+    const roasStr = g.cost > 0 ? g.roas.toFixed(2) : '—';
+    const roasColor = g.cost === 0 ? '#999' : (g.roas >= 20 ? '#27ae60' : g.roas >= 10 ? '#f39c12' : '#e74c3c');
+    const color = COLORS[i % COLORS.length];
+    return `<tr style="border-bottom:1px solid #f0f0f0">
+      <td style="padding:5px 8px 5px 0;font-size:11.5px;font-weight:600">
+        <span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${color};margin-right:6px"></span>${g.name}
+      </td>
+      <td class="num" style="padding:5px 8px;font-size:11px">${fmtMoney(g.revenue)}</td>
+      <td class="num" style="padding:5px 8px;font-size:11px;font-weight:700">${pct.toFixed(1)}%</td>
+      <td class="num" style="padding:5px 8px;font-size:11px">${fmtMoney(g.cost)}</td>
+      <td class="num" style="padding:5px 8px;font-size:11px;font-weight:700;color:${roasColor}">${roasStr}</td>
+      <td class="num" style="padding:5px 8px;font-size:11px">${g.acos}</td>
+    </tr>`;
+  }).join('');
+}
+
+// Card "Sản Phẩm Tốt Nhất / Yếu Nhất Trong Từng Nhóm" — xếp theo Doanh Số
+// (xác nhận Tân 2026-08-08: top 10 tốt nhất + top 10 yếu nhất mỗi nhóm, nhóm <20 SP
+// có thể trùng ở giữa; nhóm chỉ 1 SP vẫn hiện kèm nhãn "chỉ có 1 SP"; nhóm 0 SP báo trống)
+function gcRenderBestWorst(groups) {
+  const wrap = document.getElementById('gc-best-worst-wrap');
+  if (!wrap) return;
+
+  const miniRow = (p) => `<tr style="border-bottom:1px solid #f5f5f5">
+    <td style="padding:4px 8px 4px 0;font-size:11px">${p.name}</td>
+    <td class="num" style="padding:4px 8px;font-size:11px;font-weight:600">${fmtMoney(p.revenue)}</td>
+    <td class="num" style="padding:4px 8px;font-size:11px">${fmtMoney(p.cost)}</td>
+    <td class="num" style="padding:4px 8px;font-size:11px">${p.cost > 0 ? (p.revenue / p.cost).toFixed(2) : '—'}</td>
+    <td class="num" style="padding:4px 8px;font-size:11px">${fmtNum(p.sold)}</td>
+  </tr>`;
+  const miniHead = `<thead><tr style="font-size:10.5px;color:var(--text2);text-align:left;border-bottom:1px solid var(--gray3)">
+    <th style="padding:4px 8px 4px 0">Sản Phẩm</th>
+    <th class="num" style="padding:4px 8px">Doanh Số</th>
+    <th class="num" style="padding:4px 8px">Chi Phí</th>
+    <th class="num" style="padding:4px 8px">ROAS</th>
+    <th class="num" style="padding:4px 8px">Đơn</th>
+  </tr></thead>`;
+
+  const sortedGroups = [...groups].sort((a, b) => b.revenue - a.revenue);
+  wrap.innerHTML = sortedGroups.map(g => {
+    const products = g.products || [];
+    let bodyHtml;
+    if (!products.length) {
+      bodyHtml = `<div style="font-size:11.5px;color:#999;padding:10px 0">Chưa có dữ liệu sản phẩm trong nhóm này.</div>`;
+    } else if (products.length === 1) {
+      bodyHtml = `<div style="font-size:11px;color:var(--text2);margin-bottom:4px">Nhóm chỉ có 1 sản phẩm:</div>
+        <table style="width:100%;border-collapse:collapse">${miniHead}<tbody>${miniRow(products[0])}</tbody></table>`;
+    } else {
+      const byRevDesc = [...products].sort((a, b) => b.revenue - a.revenue);
+      const best  = byRevDesc.slice(0, 10);
+      const worst = [...byRevDesc].reverse().slice(0, 10);
+      bodyHtml = `<div style="display:flex;gap:20px;flex-wrap:wrap">
+        <div style="flex:1;min-width:280px">
+          <div style="font-size:11px;font-weight:700;color:#27ae60;margin-bottom:4px">🏆 Tốt Nhất (${best.length})</div>
+          <table style="width:100%;border-collapse:collapse">${miniHead}<tbody>${best.map(miniRow).join('')}</tbody></table>
+        </div>
+        <div style="flex:1;min-width:280px">
+          <div style="font-size:11px;font-weight:700;color:#e74c3c;margin-bottom:4px">⚠️ Yếu Nhất (${worst.length})</div>
+          <table style="width:100%;border-collapse:collapse">${miniHead}<tbody>${worst.map(miniRow).join('')}</tbody></table>
+        </div>
+      </div>`;
+    }
+    return `<div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--gray3)">
+      <div style="font-size:12.5px;font-weight:700;color:var(--navy);margin-bottom:6px">${g.name} <span style="font-weight:400;color:var(--text2);font-size:11px">(${products.length} SP)</span></div>
+      ${bodyHtml}
+    </div>`;
+  }).join('');
 }
 
 // Gọi khi vào trang — KHÔNG tự đồng bộ, chỉ hiển thị lại dữ liệu đã có sẵn trong bộ nhớ
