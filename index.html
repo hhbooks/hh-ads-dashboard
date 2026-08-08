@@ -1291,11 +1291,11 @@
       <!-- Tỷ trọng doanh số theo nhóm (xác nhận Tân 2026-08-08: pie chart + số liệu Doanh số/%/Chi phí/ROAS/ACOS kèm theo) -->
       <div class="card" style="margin-top:16px">
         <div class="card-title"><span class="dot"></span> Tỷ Trọng Doanh Số Theo Nhóm</div>
-        <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;margin-top:8px">
-          <div style="width:260px;flex-shrink:0">
-            <canvas id="gc-rev-pie" style="max-height:260px"></canvas>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;margin-top:8px">
+          <div style="flex:1 1 50%;min-width:260px;display:flex;justify-content:center">
+            <canvas id="gc-rev-pie" style="max-height:400px"></canvas>
           </div>
-          <div style="flex:1;min-width:280px">
+          <div style="flex:1 1 50%;min-width:280px;overflow-x:auto">
             <table style="width:100%;border-collapse:collapse">
               <thead><tr style="font-size:11px;color:var(--text2);text-align:left;border-bottom:1px solid var(--gray3)">
                 <th style="padding:5px 8px 5px 0">Nhóm</th>
@@ -10904,8 +10904,18 @@ function gcRenderRevPie(groups, totalRev) {
       datasets: [{ data: withRev.map(g => g.revenue), backgroundColor: COLORS, borderWidth: 2 }]
     },
     options: {
-      responsive: true, cutout: '58%',
-      plugins: { legend: { display: false } }
+      responsive: true, maintainAspectRatio: true, cutout: '58%',
+      plugins: {
+        legend: { display: false },
+        // Tắt datalabels (plugin đăng ký global ở dòng ~2806) — nếu không sẽ đè số liệu
+        // doanh số lên từng lát bánh, chồng chéo nhau không đọc được (Tân báo 2026-08-08).
+        datalabels: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.label}: ${fmtMoney(ctx.parsed)} (${(ctx.parsed/totalRev*100).toFixed(1)}%)`
+          }
+        }
+      }
     }
   });
 
@@ -10934,20 +10944,24 @@ function gcRenderBestWorst(groups) {
   const wrap = document.getElementById('gc-best-worst-wrap');
   if (!wrap) return;
 
+  // table-layout:fixed + cột % cố định + tên SP cắt gọn bằng ellipsis (full tên xem qua title=)
+  // để 2 bảng Tốt Nhất/Yếu Nhất đặt cạnh nhau không bị tràn chữ đè lên nhau (Tân báo 2026-08-08).
+  const acosOf = (p) => (p.revenue > 0 ? (p.cost / p.revenue * 100).toFixed(1) + '%' : '—');
   const miniRow = (p) => `<tr style="border-bottom:1px solid #f5f5f5">
-    <td style="padding:4px 8px 4px 0;font-size:11px">${p.name}</td>
-    <td class="num" style="padding:4px 8px;font-size:11px;font-weight:600">${fmtMoney(p.revenue)}</td>
-    <td class="num" style="padding:4px 8px;font-size:11px">${fmtMoney(p.cost)}</td>
-    <td class="num" style="padding:4px 8px;font-size:11px">${p.cost > 0 ? (p.revenue / p.cost).toFixed(2) : '—'}</td>
-    <td class="num" style="padding:4px 8px;font-size:11px">${fmtNum(p.sold)}</td>
+    <td style="padding:4px 6px 4px 0;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.name.replace(/"/g,'&quot;')}">${p.name}</td>
+    <td class="num" style="padding:4px 6px;font-size:11px;font-weight:600;white-space:nowrap">${fmtMoney(p.revenue)}</td>
+    <td class="num" style="padding:4px 6px;font-size:11px;white-space:nowrap">${fmtMoney(p.cost)}</td>
+    <td class="num" style="padding:4px 6px;font-size:11px;white-space:nowrap">${p.cost > 0 ? (p.revenue / p.cost).toFixed(2) : '—'}</td>
+    <td class="num" style="padding:4px 0 4px 6px;font-size:11px;white-space:nowrap">${acosOf(p)}</td>
   </tr>`;
   const miniHead = `<thead><tr style="font-size:10.5px;color:var(--text2);text-align:left;border-bottom:1px solid var(--gray3)">
-    <th style="padding:4px 8px 4px 0">Sản Phẩm</th>
-    <th class="num" style="padding:4px 8px">Doanh Số</th>
-    <th class="num" style="padding:4px 8px">Chi Phí</th>
-    <th class="num" style="padding:4px 8px">ROAS</th>
-    <th class="num" style="padding:4px 8px">Đơn</th>
+    <th style="padding:4px 6px 4px 0;width:38%">Sản Phẩm</th>
+    <th class="num" style="padding:4px 6px;width:18%">Doanh Số</th>
+    <th class="num" style="padding:4px 6px;width:16%">Chi Phí</th>
+    <th class="num" style="padding:4px 6px;width:14%">ROAS</th>
+    <th class="num" style="padding:4px 0 4px 6px;width:14%">ACOS</th>
   </tr></thead>`;
+  const miniTable = (rows) => `<table style="width:100%;table-layout:fixed;border-collapse:collapse">${miniHead}<tbody>${rows.map(miniRow).join('')}</tbody></table>`;
 
   const sortedGroups = [...groups].sort((a, b) => b.revenue - a.revenue);
   wrap.innerHTML = sortedGroups.map(g => {
@@ -10957,19 +10971,19 @@ function gcRenderBestWorst(groups) {
       bodyHtml = `<div style="font-size:11.5px;color:#999;padding:10px 0">Chưa có dữ liệu sản phẩm trong nhóm này.</div>`;
     } else if (products.length === 1) {
       bodyHtml = `<div style="font-size:11px;color:var(--text2);margin-bottom:4px">Nhóm chỉ có 1 sản phẩm:</div>
-        <table style="width:100%;border-collapse:collapse">${miniHead}<tbody>${miniRow(products[0])}</tbody></table>`;
+        ${miniTable([products[0]])}`;
     } else {
       const byRevDesc = [...products].sort((a, b) => b.revenue - a.revenue);
       const best  = byRevDesc.slice(0, 10);
       const worst = [...byRevDesc].reverse().slice(0, 10);
       bodyHtml = `<div style="display:flex;gap:20px;flex-wrap:wrap">
-        <div style="flex:1;min-width:280px">
+        <div style="flex:1 1 45%;min-width:320px;max-width:100%;box-sizing:border-box;overflow-x:auto">
           <div style="font-size:11px;font-weight:700;color:#27ae60;margin-bottom:4px">🏆 Tốt Nhất (${best.length})</div>
-          <table style="width:100%;border-collapse:collapse">${miniHead}<tbody>${best.map(miniRow).join('')}</tbody></table>
+          ${miniTable(best)}
         </div>
-        <div style="flex:1;min-width:280px">
+        <div style="flex:1 1 45%;min-width:320px;max-width:100%;box-sizing:border-box;overflow-x:auto">
           <div style="font-size:11px;font-weight:700;color:#e74c3c;margin-bottom:4px">⚠️ Yếu Nhất (${worst.length})</div>
-          <table style="width:100%;border-collapse:collapse">${miniHead}<tbody>${worst.map(miniRow).join('')}</tbody></table>
+          ${miniTable(worst)}
         </div>
       </div>`;
     }
