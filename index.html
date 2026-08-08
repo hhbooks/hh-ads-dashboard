@@ -1291,11 +1291,14 @@
       <!-- Tỷ trọng doanh số theo nhóm (xác nhận Tân 2026-08-08: pie chart + số liệu Doanh số/%/Chi phí/ROAS/ACOS kèm theo) -->
       <div class="card" style="margin-top:16px">
         <div class="card-title"><span class="dot"></span> Tỷ Trọng Doanh Số Theo Nhóm</div>
-        <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;margin-top:8px">
-          <div style="flex:1 1 50%;min-width:260px;display:flex;justify-content:center">
-            <canvas id="gc-rev-pie" style="max-height:400px"></canvas>
+        <!-- 50/50 cố định bằng width % (không dùng flex-basis co giãn theo nội dung — đó là
+             nguyên nhân canvas Chart.js tự giãn cao rồi đẩy bảng xuống dòng dưới, Tân báo 2026-08-08 lần 3).
+             Chart dùng maintainAspectRatio:false để bám đúng khung 50% cố định, không tự tính theo tỷ lệ vuông. -->
+        <div style="display:flex;align-items:flex-start;margin-top:8px">
+          <div style="width:50%;box-sizing:border-box;padding-right:16px;height:320px;position:relative">
+            <canvas id="gc-rev-pie"></canvas>
           </div>
-          <div style="flex:1 1 50%;min-width:280px;overflow-x:auto">
+          <div style="width:50%;box-sizing:border-box;padding-left:16px;overflow-x:auto">
             <table style="width:100%;border-collapse:collapse">
               <thead><tr style="font-size:11px;color:var(--text2);text-align:left;border-bottom:1px solid var(--gray3)">
                 <th style="padding:5px 8px 5px 0">Nhóm</th>
@@ -10904,7 +10907,9 @@ function gcRenderRevPie(groups, totalRev) {
       datasets: [{ data: withRev.map(g => g.revenue), backgroundColor: COLORS, borderWidth: 2 }]
     },
     options: {
-      responsive: true, maintainAspectRatio: true, cutout: '58%',
+      // maintainAspectRatio:false — bám đúng khung 50%/320px cố định của div cha,
+      // KHÔNG tự tính chiều cao theo tỷ lệ vuông nữa (nguyên nhân đẩy bảng xuống dòng dưới).
+      responsive: true, maintainAspectRatio: false, cutout: '58%',
       plugins: {
         legend: { display: false },
         // Hiện "Tên nhóm + %" trên từng lát bánh (Tân yêu cầu 2026-08-08 lần 2).
