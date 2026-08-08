@@ -10907,9 +10907,21 @@ function gcRenderRevPie(groups, totalRev) {
       responsive: true, maintainAspectRatio: true, cutout: '58%',
       plugins: {
         legend: { display: false },
-        // Tắt datalabels (plugin đăng ký global ở dòng ~2806) — nếu không sẽ đè số liệu
-        // doanh số lên từng lát bánh, chồng chéo nhau không đọc được (Tân báo 2026-08-08).
-        datalabels: { display: false },
+        // Hiện "Tên nhóm + %" trên từng lát bánh (Tân yêu cầu 2026-08-08 lần 2).
+        // Chỉ hiện nhãn cho lát ≥4% tổng doanh số — lát nhỏ hơn để trống trên chart
+        // (tránh chữ chồng lên nhau), tên/số liệu đầy đủ vẫn xem ở bảng bên dưới.
+        datalabels: {
+          color: '#fff',
+          font: { size: 10, weight: '700' },
+          textAlign: 'center',
+          formatter: (value, ctx) => {
+            const pct = totalRev > 0 ? (value / totalRev * 100) : 0;
+            if (pct < 4) return '';
+            const label = ctx.chart.data.labels[ctx.dataIndex] || '';
+            const shortLabel = label.length > 16 ? label.slice(0, 16) + '…' : label;
+            return `${shortLabel}\n${pct.toFixed(1)}%`;
+          }
+        },
         tooltip: {
           callbacks: {
             label: (ctx) => `${ctx.label}: ${fmtMoney(ctx.parsed)} (${(ctx.parsed/totalRev*100).toFixed(1)}%)`
