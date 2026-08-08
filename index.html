@@ -1336,11 +1336,11 @@
       </div>
     </div>
 
-    <!-- Bộ Lọc xem dữ liệu đã đồng bộ — 1 nút sổ lịch, CHỌN BẰNG 2 LẦN CLICK
-         (xác nhận Tân 2026-08-07: bấm ngày đầu → bấm ngày cuối → tự áp dụng ngay,
-         khác với lịch ở Card Đồng Bộ phía trên dùng kéo-thả). Chỉ đọc dữ liệu đã tải,
-         không gọi lại Shopee/Firestore. -->
-    <div id="ac-filter-bar" style="margin-bottom:16px;padding:10px 14px;background:var(--surface);border-radius:10px;border:1px solid var(--gray3);display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:relative">
+    <!-- Bộ Lọc xem dữ liệu đã đồng bộ — DROPDOWN chọn 1 KỲ (xác nhận Tân 2026-08-08 lần 5:
+         Shopee giờ xuất báo cáo theo khoảng thời gian có sẵn, không còn breakdown theo từng
+         ngày để mà chọn khoảng bằng lịch nữa — chỉ chọn ĐÚNG 1 trong các kỳ đã đồng bộ).
+         Chỉ đọc dữ liệu đã tải, không gọi lại Shopee/Firestore. -->
+    <div id="ac-filter-bar" style="margin-bottom:16px;padding:10px 14px;background:var(--surface);border-radius:10px;border:1px solid var(--gray3);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">🏪 Shop:</span>
       <div style="display:flex;gap:4px">
         <button id="ac-view-shop-2hbooks" onclick="setAcViewShop('2hbooks')" style="padding:5px 12px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;border:none;background:var(--navy);color:white">🏪 Nhà Sách 2HBooks</button>
@@ -1348,22 +1348,9 @@
       </div>
       <span style="width:1px;height:18px;background:var(--gray3)"></span>
       <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">📅 Kỳ Xem:</span>
-      <button id="ac-view-range-trigger" class="filter-btn" onclick="acViewTogglePicker()" style="min-width:220px;text-align:left">Bấm 📂 Đồng Bộ Từ Drive để tải dữ liệu</button>
-      <div id="ac-view-range-popover" style="display:none;position:absolute;top:calc(100% + 4px);left:96px;z-index:40;background:white;border:1px solid var(--gray3);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.12);padding:12px;width:280px;user-select:none">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <button class="filter-btn" style="padding:4px 9px" onclick="acViewCalNav(-1)">‹</button>
-          <span id="ac-view-cal-title" style="font-size:12.5px;font-weight:700;color:var(--navy)"></span>
-          <button class="filter-btn" style="padding:4px 9px" onclick="acViewCalNav(1)">›</button>
-        </div>
-        <div id="ac-view-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px"></div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--gray3)">
-          <button class="tchip" onclick="acViewApplyPresetRange(7)">7 ngày</button>
-          <button class="tchip" onclick="acViewApplyPresetRange(30)">30 ngày</button>
-          <button class="tchip" onclick="acViewApplyPresetThisMonth()">Tháng này</button>
-          <button class="tchip" onclick="acViewApplyPresetAll()">Tất cả</button>
-        </div>
-        <div style="font-size:10.5px;color:var(--text2);margin-top:8px">Bấm 1 ngày = xem 1 ngày. Bấm ngày đầu rồi bấm ngày cuối = xem cả khoảng.</div>
-      </div>
+      <select id="ac-period-select" onchange="acSelectPeriod(this.value)" style="padding:5px 10px;border-radius:6px;border:1px solid var(--gray3);font-size:12px;font-weight:600;color:var(--text1);min-width:220px">
+        <option value="">Bấm 📂 Đồng Bộ Từ Drive để tải dữ liệu</option>
+      </select>
     </div>
 
     <!-- ===== SINGLE VIEW ===== -->
@@ -1403,13 +1390,13 @@
       </div>
     </div>
 
-    <!-- Date trend table -->
+    <!-- Period trend table -->
     <div class="card" style="margin-top:16px">
-      <div class="card-title"><span class="dot"></span> Hiệu Suất Theo Ngày</div>
+      <div class="card-title"><span class="dot"></span> Hiệu Suất Theo Kỳ</div>
       <div class="table-wrap" style="max-height:360px;overflow-y:auto">
         <table id="ac-trend-table">
           <thead><tr>
-            <th>Ngày</th>
+            <th>Kỳ</th>
             <th class="num">Chi Phí</th>
             <th class="num">Doanh Thu</th>
             <th class="num">ROAS</th>
@@ -9854,11 +9841,10 @@ async function sapiSyncPerCampaign() {
 // (setAcViewShop → renderAcTopFromDrive) và ĐÈ LẠI KPI/bảng Hiệu Suất Theo Ngày bằng dữ liệu
 // catalog CSV cũ, rồi gọi Firestore auto_products (không liên quan gì tới _acDriveData) để
 // đè tiếp bảng sản phẩm — 2 hệ thống chạy song song, giẫm lên nhau. Giờ chỉ còn 1 luồng
-// render duy nhất (Drive CSV / _acDriveData / AC_VIEW_PICKER).
+// render duy nhất (Drive CSV / _acDriveData, mỗi entry 1 kỳ).
 function renderAutoCampPage() {
   // Mặc định hiện shop 2HBooks khi vào trang — chỉ hiện dữ liệu đã đồng bộ từ Drive trong
   // phiên làm việc này (nếu có), chưa có thì hiện trống chờ đồng bộ.
-  AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = '';
   setAcViewShop('2hbooks');
 }
 
@@ -9967,12 +9953,18 @@ function parseShopeeGmsCsvText(csvText) {
   }
   const lines = csvText.split('\n').map(l => l.replace(/\r$/, ''));
 
-  // Lấy Mã Người Bán từ header block (thường dòng 4, 0-indexed dòng 3)
-  let shopSellerId = '';
+  // Lấy Mã Người Bán + Khoảng thời gian từ header block (dòng 2-6) — xác nhận Tân 2026-08-08
+  // (lần 5): mỗi file giờ là 1 KỲ (khoảng ngày), KHÔNG phải 1 ngày như trước — phải đọc đúng
+  // dòng "Khoảng thời gian" trong file, KHÔNG suy ra ngày từ tên file nữa (tên file chỉ có
+  // ngày bắt đầu, dùng tên file sẽ gán nhầm tổng CẢ KỲ vào đúng 1 ngày).
+  let shopSellerId = '', dateFrom = '', dateTo = '';
   for (let i = 0; i < Math.min(lines.length, 8); i++) {
     if (lines[i].startsWith('Mã Người bán,')) {
       shopSellerId = lines[i].split(',')[1]?.trim() || '';
-      break;
+    } else if (lines[i].startsWith('Khoảng thời gian,')) {
+      const rangeStr = lines[i].split(',').slice(1).join(',').trim(); // "01/08/2026 - 07/08/2026"
+      const m = rangeStr.match(/(\d{2})\/(\d{2})\/(\d{4})\s*-\s*(\d{2})\/(\d{2})\/(\d{4})/);
+      if (m) { dateFrom = `${m[3]}-${m[2]}-${m[1]}`; dateTo = `${m[6]}-${m[5]}-${m[4]}`; }
     }
   }
 
@@ -9981,7 +9973,7 @@ function parseShopeeGmsCsvText(csvText) {
   for (let i = 0; i < lines.length; i++) {
     if (lines[i].includes('Thứ tự') && lines[i].includes('Tên sản phẩm')) { headerIdx = i; break; }
   }
-  if (headerIdx === -1) return { shopSellerId, items: [] };
+  if (headerIdx === -1) return { shopSellerId, dateFrom, dateTo, items: [] };
 
   const parseNum = s => { if (!s || s === '-') return 0; return Number(String(s).replace(/[,%]/g,'')) || 0; };
 
@@ -10006,215 +9998,64 @@ function parseShopeeGmsCsvText(csvText) {
       roas_str:    cols[17] && cols[17] !== '-' ? String(cols[17]) : '—',
     });
   }
-  return { shopSellerId, items };
+  return { shopSellerId, dateFrom, dateTo, items };
 }
 
-// ★ Drive GMS data store — dữ liệu theo ngày, GỘP CẢ 2 SHOP cùng lúc (mỗi entry gắn
-// shopApiId — xác nhận Tân 2026-08-08 lần 3: 1 nút Đồng Bộ đọc hết file trong folder, tự
-// nhận diện shop qua "Mã Người Bán" trong từng file, không cần chọn shop trước). KHÔNG lưu
-// Firestore — chỉ tồn tại trong bộ nhớ trong phiên làm việc, đọc lại từ Drive mỗi lần bấm
-// Đồng Bộ. Dùng acCurrentShopDriveData() để lấy đúng subset của shop đang xem.
-let _acDriveData   = []; // [{date, label, shopApiId, cost, rev, imp, clk, ord, items:[]}]
+// ★ Drive GMS data store — mỗi entry là 1 KỲ (khoảng thời gian), KHÔNG phải 1 ngày — xác
+// nhận Tân 2026-08-08 (lần 5): Shopee giờ xuất báo cáo theo khoảng thời gian (dòng "Khoảng
+// thời gian" trong file), không còn theo từng ngày như trước. GỘP CẢ 2 SHOP cùng lúc (mỗi
+// entry gắn shopApiId). KHÔNG lưu Firestore — chỉ tồn tại trong bộ nhớ trong phiên làm
+// việc, đọc lại từ Drive mỗi lần bấm Đồng Bộ.
+let _acDriveData = []; // [{key, dateFrom, dateTo, label, shopApiId, cost, rev, imp, clk, ord, items:[]}]
 
 let _acViewShop = '2hbooks'; // '2hbooks' | 'huyhoanh' — quyết định dữ liệu hiển thị bên dưới
+let _acSelectedPeriodKey = ''; // key của kỳ đang chọn để xem KPI + bảng sản phẩm
 
 function acCurrentViewShopId() {
   return _acViewShop === 'huyhoanh' ? 371873832 : 1289235612;
 }
-// Subset của _acDriveData khớp đúng shop đang XEM, đã sắp xếp theo ngày tăng dần
-function acCurrentShopDriveData() {
-  return _acDriveData.filter(d => d.shopApiId === acCurrentViewShopId()).sort((a,b) => a.date.localeCompare(b.date));
+// Tất cả các kỳ đã đồng bộ khớp đúng shop đang XEM, mới nhất lên trước
+function acCurrentShopPeriods() {
+  return _acDriveData.filter(d => d.shopApiId === acCurrentViewShopId())
+    .sort((a,b) => b.dateFrom.localeCompare(a.dateFrom));
 }
 
-// ── Bộ Lọc xem dữ liệu đã đồng bộ — 1 nút bấm sổ lịch, CHỌN BẰNG 2 LẦN CLICK
-// (xác nhận Tân 2026-08-07: bấm ngày đầu muốn xem → bấm ngày cuối → tự áp dụng,
-// khác với lịch ở Card Đồng Bộ dùng kéo-thả). Chỉ đọc _acDriveData đã tải sẵn,
-// không gọi lại Shopee/Firestore.
-const AC_VIEW_PICKER = { rangeStart: '', rangeEnd: '', calYear: 0, calMonth: 0, pickerOpen: false, selecting: false, anchor: '' };
-let acViewGlobalListenersBound = false;
+function gmsFmtDateVN(iso) { // 'YYYY-MM-DD' → 'DD/MM/YYYY'
+  if (!iso) return '';
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
 
-// ★ Gọi mỗi khi _acDriveData vừa được nạp lại (đổi shop / vừa đồng bộ xong).
-// forceDefault=true → luôn nhảy về ngày mới nhất (dùng khi đổi shop hoặc vừa có data mới).
-// forceDefault=false → giữ nguyên lựa chọn đang xem nếu đã có (chỉ set mặc định lần đầu).
-function acViewPickerInit(forceDefault) {
-  const shopDays = acCurrentShopDriveData();
-  if (!shopDays.length) { acViewUpdateTriggerLabel(); return; }
-  const latest = shopDays[shopDays.length - 1].date;
-  if (forceDefault || !AC_VIEW_PICKER.rangeStart) {
-    AC_VIEW_PICKER.rangeStart = latest;
-    AC_VIEW_PICKER.rangeEnd   = latest;
+// ── Bộ Lọc xem dữ liệu đã đồng bộ — DROPDOWN chọn 1 KỲ (xác nhận Tân 2026-08-08 lần 5: bỏ
+// hẳn lịch chọn khoảng ngày vì dữ liệu Shopee xuất theo kỳ có sẵn, không có breakdown theo
+// từng ngày để mà chọn khoảng nữa — chỉ có thể chọn ĐÚNG 1 trong các kỳ đã đồng bộ để xem).
+function acRenderPeriodOptions() {
+  const sel = document.getElementById('ac-period-select');
+  if (!sel) return;
+  const periods = acCurrentShopPeriods();
+  if (!periods.length) {
+    sel.innerHTML = '<option value="">Bấm 📂 Đồng Bộ Từ Drive để tải dữ liệu</option>';
+    _acSelectedPeriodKey = '';
+    renderAcTopFromDrive();
+    return;
   }
-  const d = new Date((AC_VIEW_PICKER.rangeEnd || latest) + 'T00:00:00');
-  AC_VIEW_PICKER.calYear = d.getFullYear();
-  AC_VIEW_PICKER.calMonth = d.getMonth();
-  AC_VIEW_PICKER.selecting = false;
-  acViewUpdateTriggerLabel();
-  if (!acViewGlobalListenersBound) {
-    document.addEventListener('mousedown', acViewHandleOutsideClick);
-    acViewGlobalListenersBound = true;
+  sel.innerHTML = periods.map(p => `<option value="${p.key}">${p.label}</option>`).join('');
+  // Giữ nguyên lựa chọn cũ nếu vẫn còn trong danh sách, không thì mặc định kỳ mới nhất
+  if (!_acSelectedPeriodKey || !periods.some(p => p.key === _acSelectedPeriodKey)) {
+    _acSelectedPeriodKey = periods[0].key;
   }
-}
-
-function acViewTogglePicker() {
-  if (!acCurrentShopDriveData().length) return; // chưa có data thì không mở lịch
-  const pop = document.getElementById('ac-view-range-popover');
-  if (!pop) return;
-  const opening = pop.style.display === 'none';
-  pop.style.display = opening ? 'block' : 'none';
-  AC_VIEW_PICKER.pickerOpen = opening;
-  if (opening) { AC_VIEW_PICKER.selecting = false; acViewRenderCalendar(); }
-}
-
-function acViewHandleOutsideClick(e) {
-  if (!AC_VIEW_PICKER.pickerOpen) return;
-  const pop = document.getElementById('ac-view-range-popover');
-  const trigger = document.getElementById('ac-view-range-trigger');
-  if (!pop || !trigger) return;
-  if (pop.contains(e.target) || trigger.contains(e.target)) return;
-  pop.style.display = 'none';
-  AC_VIEW_PICKER.pickerOpen = false;
-  AC_VIEW_PICKER.selecting = false; // bấm ra ngoài khi đang chọn dở → hủy, giữ lựa chọn cũ
-}
-
-function acViewCalNav(delta) {
-  AC_VIEW_PICKER.calMonth += delta;
-  if (AC_VIEW_PICKER.calMonth < 0) { AC_VIEW_PICKER.calMonth = 11; AC_VIEW_PICKER.calYear--; }
-  if (AC_VIEW_PICKER.calMonth > 11) { AC_VIEW_PICKER.calMonth = 0; AC_VIEW_PICKER.calYear++; }
-  acViewRenderCalendar();
-}
-
-function acViewRenderCalendar() {
-  const title = document.getElementById('ac-view-cal-title');
-  const grid = document.getElementById('ac-view-cal-grid');
-  if (!title || !grid) return;
-  title.textContent = `${AC_SYNC_MONTH_NAMES[AC_VIEW_PICKER.calMonth]} ${AC_VIEW_PICKER.calYear}`;
-
-  const firstOfMonth = new Date(AC_VIEW_PICKER.calYear, AC_VIEW_PICKER.calMonth, 1);
-  const firstWeekday = (firstOfMonth.getDay() + 6) % 7;
-  const daysInMonth = new Date(AC_VIEW_PICKER.calYear, AC_VIEW_PICKER.calMonth + 1, 0).getDate();
-  const daysInPrevMonth = new Date(AC_VIEW_PICKER.calYear, AC_VIEW_PICKER.calMonth, 0).getDate();
-
-  const shopDaysForCal = acCurrentShopDriveData();
-  const todayStr = acSyncFmtDate(new Date());
-  const minStr = shopDaysForCal[0]?.date || '';
-  const maxStr = shopDaysForCal[shopDaysForCal.length-1]?.date || '';
-
-  // Đã chọn xong (không còn đang chờ click thứ 2) → hiện khoảng đang áp dụng.
-  // Đang chờ click thứ 2 → chỉ tô đậm mỗi ngày đã bấm (anchor), không tô khoảng.
-  const dispStart = AC_VIEW_PICKER.rangeStart, dispEnd = AC_VIEW_PICKER.rangeEnd;
-
-  const cells = [];
-  for (let i = 0; i < firstWeekday; i++) cells.push({ day: daysInPrevMonth - firstWeekday + 1 + i, dateStr: null });
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push({ day: d, dateStr: `${AC_VIEW_PICKER.calYear}-${String(AC_VIEW_PICKER.calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}` });
-  }
-  let extra = 1;
-  while (cells.length % 7 !== 0) cells.push({ day: extra++, dateStr: null });
-
-  // KHÔNG re-render lúc hover (bug 2026-08-07: mouseenter re-render làm mất DOM element
-  // giữa mousedown/mouseup của lần click thứ 2, khiến click không bắt được). Hover chỉ
-  // dùng CSS thuần (.ac-cal-day:hover) — xem thêm style .ac-cal-day ở đầu file.
-  let html = AC_SYNC_WEEKDAYS.map(w => `<div style="text-align:center;font-size:10px;color:var(--text2);font-weight:700;padding:2px 0">${w}</div>`).join('');
-  html += cells.map(c => {
-    if (!c.dateStr) return `<div style="text-align:center;font-size:11.5px;color:var(--gray3);padding:6px 0">${c.day}</div>`;
-    const disabled = !minStr || c.dateStr < minStr || c.dateStr > maxStr;
-    const anchorSel = AC_VIEW_PICKER.selecting && c.dateStr === AC_VIEW_PICKER.anchor;
-    const inRange = !AC_VIEW_PICKER.selecting && dispStart && dispEnd && c.dateStr >= dispStart && c.dateStr <= dispEnd;
-    const isEndpoint = !AC_VIEW_PICKER.selecting && (c.dateStr === dispStart || c.dateStr === dispEnd);
-    const isToday = c.dateStr === todayStr;
-    const isSel = isEndpoint || anchorSel;
-    let bg = 'transparent', color = 'var(--text)', weight = '400', border = '';
-    if (disabled) color = 'var(--gray3)';
-    else if (isSel) { bg = 'var(--navy)'; color = 'white'; weight = '700'; }
-    else if (inRange) { bg = 'var(--navy3)'; color = 'var(--navy)'; }
-    if (isToday && !isSel && !disabled) border = 'border:1px solid var(--navy2);';
-    const cls = 'ac-cal-day' + (disabled ? ' ac-cal-day-disabled' : '') + (isSel ? ' ac-cal-day-sel' : '');
-    const handler = disabled ? '' : `onclick="acViewDayClick('${c.dateStr}')"`;
-    return `<div class="${cls}" ${handler} style="text-align:center;font-size:11.5px;padding:6px 0;border-radius:6px;cursor:${disabled ? 'default' : 'pointer'};background:${bg};color:${color};font-weight:${weight};${border}">${c.day}</div>`;
-  }).join('');
-
-  grid.innerHTML = html;
-}
-
-// Click 1: chọn ngày bắt đầu (chờ click thứ 2). Click 2: chọn ngày kết thúc → tự áp dụng.
-// Chỉ re-render lúc CLICK thật (không render lúc hover) để tránh phá DOM giữa chừng click.
-function acViewDayClick(dateStr) {
-  if (!AC_VIEW_PICKER.selecting) {
-    AC_VIEW_PICKER.anchor = dateStr;
-    AC_VIEW_PICKER.selecting = true;
-    acViewRenderCalendar();
-  } else {
-    const a = AC_VIEW_PICKER.anchor;
-    AC_VIEW_PICKER.rangeStart = dateStr < a ? dateStr : a;
-    AC_VIEW_PICKER.rangeEnd   = dateStr < a ? a : dateStr;
-    AC_VIEW_PICKER.selecting = false;
-    acViewFinishPickerAction();
-  }
-}
-
-function acViewApplyPresetRange(days) {
-  const shopDays = acCurrentShopDriveData();
-  if (!shopDays.length) return;
-  const to = shopDays[shopDays.length - 1].date;
-  const toD = new Date(to + 'T00:00:00');
-  const fromD = new Date(toD); fromD.setDate(fromD.getDate() - (days - 1));
-  let fromStr = acSyncFmtDate(fromD);
-  if (fromStr < shopDays[0].date) fromStr = shopDays[0].date;
-  AC_VIEW_PICKER.rangeStart = fromStr;
-  AC_VIEW_PICKER.rangeEnd = to;
-  AC_VIEW_PICKER.calYear = toD.getFullYear(); AC_VIEW_PICKER.calMonth = toD.getMonth();
-  AC_VIEW_PICKER.selecting = false;
-  acViewFinishPickerAction();
-}
-
-function acViewApplyPresetThisMonth() {
-  const shopDays = acCurrentShopDriveData();
-  if (!shopDays.length) return;
-  const to = shopDays[shopDays.length - 1].date;
-  const toD = new Date(to + 'T00:00:00');
-  const fromD = new Date(toD.getFullYear(), toD.getMonth(), 1);
-  let fromStr = acSyncFmtDate(fromD);
-  if (fromStr < shopDays[0].date) fromStr = shopDays[0].date;
-  AC_VIEW_PICKER.rangeStart = fromStr;
-  AC_VIEW_PICKER.rangeEnd = to;
-  AC_VIEW_PICKER.calYear = toD.getFullYear(); AC_VIEW_PICKER.calMonth = toD.getMonth();
-  AC_VIEW_PICKER.selecting = false;
-  acViewFinishPickerAction();
-}
-
-function acViewApplyPresetAll() {
-  const shopDays = acCurrentShopDriveData();
-  if (!shopDays.length) return;
-  AC_VIEW_PICKER.rangeStart = shopDays[0].date;
-  AC_VIEW_PICKER.rangeEnd = shopDays[shopDays.length - 1].date;
-  const toD = new Date(AC_VIEW_PICKER.rangeEnd + 'T00:00:00');
-  AC_VIEW_PICKER.calYear = toD.getFullYear(); AC_VIEW_PICKER.calMonth = toD.getMonth();
-  AC_VIEW_PICKER.selecting = false;
-  acViewFinishPickerAction();
-}
-
-function acViewFinishPickerAction() {
-  acViewUpdateTriggerLabel();
-  const pop = document.getElementById('ac-view-range-popover');
-  if (pop) pop.style.display = 'none';
-  AC_VIEW_PICKER.pickerOpen = false;
+  sel.value = _acSelectedPeriodKey;
   renderAcTopFromDrive();
 }
 
-function acViewUpdateTriggerLabel() {
-  const trigger = document.getElementById('ac-view-range-trigger');
-  if (!trigger) return;
-  if (!acCurrentShopDriveData().length) { trigger.textContent = 'Bấm 📂 Đồng Bộ Từ Drive để tải dữ liệu'; return; }
-  if (!AC_VIEW_PICKER.rangeStart) { trigger.textContent = '📅 Chọn kỳ xem…'; return; }
-  const fmt = (s) => { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; };
-  trigger.textContent = AC_VIEW_PICKER.rangeStart === AC_VIEW_PICKER.rangeEnd
-    ? `📅 ${fmt(AC_VIEW_PICKER.rangeStart)}`
-    : `📅 ${fmt(AC_VIEW_PICKER.rangeStart)} → ${fmt(AC_VIEW_PICKER.rangeEnd)}`;
+function acSelectPeriod(key) {
+  _acSelectedPeriodKey = key;
+  renderAcTopFromDrive();
 }
 
 function renderAcTopFromDrive() {
-  const shopDays = acCurrentShopDriveData();
-  if (!shopDays.length) {
+  const periods = acCurrentShopPeriods();
+  if (!periods.length) {
     // Shop đang xem chưa có dữ liệu trong bộ nhớ (chưa đồng bộ lần nào trong phiên này, hoặc
     // Drive không có file nào của shop này) → xóa sạch KPI/bảng cũ và nhắc đồng bộ.
     ['ac-kpi-cost','ac-kpi-rev','ac-kpi-roas','ac-kpi-imp','ac-kpi-clk','ac-kpi-ord']
@@ -10225,87 +10066,55 @@ function renderAcTopFromDrive() {
     return;
   }
 
-  // Lọc ngày theo khoảng đang chọn ở Bộ Lọc (Kỳ Xem) — shopDays đã đúng shop đang xem
-  let filteredDays = shopDays.filter(d => {
-    if (AC_VIEW_PICKER.rangeStart && d.date < AC_VIEW_PICKER.rangeStart) return false;
-    if (AC_VIEW_PICKER.rangeEnd   && d.date > AC_VIEW_PICKER.rangeEnd)   return false;
-    return true;
-  });
-
-  // Cập nhật KPI cards
-  let totCost=0, totRev=0, totImp=0, totClk=0, totOrd=0;
-  filteredDays.forEach(d => { totCost+=d.cost; totRev+=d.rev; totImp+=d.imp; totClk+=d.clk; totOrd+=d.ord; });
-  const totRoas = totCost>0 ? (totRev/totCost).toFixed(2) : '—';
-  document.getElementById('ac-kpi-cost').textContent = fmtMoney(totCost);
-  document.getElementById('ac-kpi-rev').textContent  = fmtMoney(totRev);
-  document.getElementById('ac-kpi-roas').textContent = totRoas;
-  document.getElementById('ac-kpi-imp').textContent  = totImp.toLocaleString('vi-VN');
-  document.getElementById('ac-kpi-clk').textContent  = totClk.toLocaleString('vi-VN');
-  document.getElementById('ac-kpi-ord').textContent  = totOrd.toLocaleString('vi-VN');
-
-  // Bảng Hiệu Suất Theo Ngày (mới nhất ở trên)
-  const tbody = document.getElementById('ac-trend-tbody');
-  if (!filteredDays.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:28px;color:#999">Không có data trong kỳ đã chọn</td></tr>';
-  } else {
-    tbody.innerHTML = [...filteredDays].reverse().map(r => {
-      const roas = r.cost>0 ? r.rev/r.cost : 0;
-      const acos = r.rev>0  ? r.cost/r.rev*100 : 0;
-      const ctr  = r.imp>0  ? r.clk/r.imp*100 : 0;
-      const roasColor = roas>=15?'var(--green)':roas>=8?'var(--orange)':r.cost>0?'var(--red)':'var(--text2)';
-      const acosColor = acos>0&&acos<=7?'var(--green)':acos<=15?'var(--orange)':r.rev>0?'var(--red)':'var(--text2)';
-      return `<tr>
-        <td style="font-weight:600">${r.label}</td>
-        <td class="num" style="color:var(--orange)">${fmtMoney(r.cost)}</td>
-        <td class="num" style="color:var(--green)">${fmtMoney(r.rev)}</td>
-        <td class="num" style="font-weight:700;color:${roasColor}">${roas>0?roas.toFixed(2):'—'}</td>
-        <td class="num" style="font-weight:700;color:${acosColor}">${acos>0?acos.toFixed(1)+'%':'—'}</td>
-        <td class="num">${r.imp.toLocaleString('vi-VN')}</td>
-        <td class="num">${r.clk.toLocaleString('vi-VN')}</td>
-        <td class="num">${ctr>0?ctr.toFixed(2)+'%':'—'}</td>
-        <td class="num">${r.ord}</td>
-      </tr>`;
-    }).join('');
+  if (!_acSelectedPeriodKey || !periods.some(p => p.key === _acSelectedPeriodKey)) {
+    _acSelectedPeriodKey = periods[0].key;
   }
+  const sel = document.getElementById('ac-period-select');
+  if (sel && sel.value !== _acSelectedPeriodKey) sel.value = _acSelectedPeriodKey;
+  const current = periods.find(p => p.key === _acSelectedPeriodKey) || periods[0];
 
-  // Cộng dồn sản phẩm theo kỳ được lọc → cập nhật bảng sản phẩm
-  const aggr = {};
-  filteredDays.forEach(d => {
-    (d.items||[]).forEach(p => {
-      const k = String(p.item_id||p.item_name||'');
-      if (!aggr[k]) aggr[k] = {...p, impression:0, clicks:0, expense:0, broad_gmv:0, broad_order:0};
-      aggr[k].impression  += (p.impression||0);
-      aggr[k].clicks      += (p.clicks||0);
-      aggr[k].expense     += (p.expense||0);
-      aggr[k].broad_gmv   += (p.broad_gmv||0);
-      aggr[k].broad_order += (p.broad_order||0);
-    });
-  });
-  const products = Object.values(aggr);
-  products.forEach(p => {
-    p.ctr_str  = p.impression>0?(p.clicks/p.impression*100).toFixed(2)+'%':'—';
-    p.roas     = p.expense>0?p.broad_gmv/p.expense:0;
-    p.roas_str = p.expense>0?p.roas.toFixed(2):'—';
-  });
-  if (products.length) {
-    const label = filteredDays.length>1
-      ? `${filteredDays[0].label} → ${filteredDays[filteredDays.length-1].label} (${filteredDays.length} ngày)`
-      : (filteredDays[0]?.label||'');
-    acRenderProductTable(products, label);
+  // KPI cards — của đúng kỳ đang chọn ở dropdown
+  const totRoas = current.cost > 0 ? (current.rev / current.cost).toFixed(2) : '—';
+  document.getElementById('ac-kpi-cost').textContent = fmtMoney(current.cost);
+  document.getElementById('ac-kpi-rev').textContent  = fmtMoney(current.rev);
+  document.getElementById('ac-kpi-roas').textContent = totRoas;
+  document.getElementById('ac-kpi-imp').textContent  = current.imp.toLocaleString('vi-VN');
+  document.getElementById('ac-kpi-clk').textContent  = current.clk.toLocaleString('vi-VN');
+  document.getElementById('ac-kpi-ord').textContent  = current.ord.toLocaleString('vi-VN');
+
+  // Bảng "Hiệu Suất Theo Kỳ" — TẤT CẢ các kỳ đã đồng bộ của shop này (không chỉ kỳ đang
+  // chọn) để so sánh kỳ này với kỳ trước, mới nhất lên trên. Bấm vào 1 dòng = chọn kỳ đó
+  // (đồng bộ 2 chiều với dropdown ở trên). Kỳ đang chọn được tô nền để dễ nhận biết.
+  const tbody = document.getElementById('ac-trend-tbody');
+  tbody.innerHTML = periods.map(r => {
+    const roas = r.cost>0 ? r.rev/r.cost : 0;
+    const acos = r.rev>0  ? r.cost/r.rev*100 : 0;
+    const ctr  = r.imp>0  ? r.clk/r.imp*100 : 0;
+    const roasColor = roas>=15?'var(--green)':roas>=8?'var(--orange)':r.cost>0?'var(--red)':'var(--text2)';
+    const acosColor = acos>0&&acos<=7?'var(--green)':acos<=15?'var(--orange)':r.rev>0?'var(--red)':'var(--text2)';
+    const isSelected = r.key === _acSelectedPeriodKey;
+    return `<tr style="cursor:pointer;${isSelected ? 'background:var(--navy3)' : ''}" onclick="acSelectPeriod('${r.key}')">
+      <td style="font-weight:600">${r.label}</td>
+      <td class="num" style="color:var(--orange)">${fmtMoney(r.cost)}</td>
+      <td class="num" style="color:var(--green)">${fmtMoney(r.rev)}</td>
+      <td class="num" style="font-weight:700;color:${roasColor}">${roas>0?roas.toFixed(2):'—'}</td>
+      <td class="num" style="font-weight:700;color:${acosColor}">${acos>0?acos.toFixed(1)+'%':'—'}</td>
+      <td class="num">${r.imp.toLocaleString('vi-VN')}</td>
+      <td class="num">${r.clk.toLocaleString('vi-VN')}</td>
+      <td class="num">${ctr>0?ctr.toFixed(2)+'%':'—'}</td>
+      <td class="num">${r.ord}</td>
+    </tr>`;
+  }).join('');
+
+  // Bảng sản phẩm — đúng kỳ đang chọn (mỗi kỳ đã là số liệu gộp sẵn của Shopee, không cộng
+  // dồn nhiều kỳ với nhau nữa vì các kỳ có thể chồng lấn ngày).
+  if (current.items?.length) {
+    acRenderProductTable(current.items, current.label);
     const logEl = document.getElementById('ac-prod-log');
     if (logEl) logEl.classList.remove('visible');
+  } else {
+    acShowEmpty('Không có dữ liệu sản phẩm cho kỳ này.');
   }
-}
-
-// AC_SYNC_WEEKDAYS / AC_SYNC_MONTH_NAMES / acSyncFmtDate: hằng số & hàm dùng CHUNG cho lịch
-// "Kỳ Xem" (AC_VIEW_PICKER) — đặt tên "acSync" từ hồi còn lịch chọn ngày cho "Gọi API trực
-// tiếp", nay phần đó đã bị xóa hẳn (xác nhận Tân 2026-08-08: API không đủ dữ liệu để phân
-// tích) nhưng 3 thứ này vẫn được acViewRenderCalendar()/acViewApplyPresetRange() dùng, KHÔNG xóa.
-const AC_SYNC_WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-const AC_SYNC_MONTH_NAMES = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
-
-function acSyncFmtDate(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // ★ Thu gọn/mở Card 1 (Đồng Bộ Dữ Liệu) trang GMS — giống adshToggleSyncCard
@@ -10337,9 +10146,8 @@ function setAcViewShop(mode) {
   acViewShopSetStyle(mode);
   const sv = document.getElementById('ac-single-view');
   if (sv) sv.style.display = '';
-  AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = ''; // đổi shop → về mặc định ngày mới nhất của shop đó
-  acViewPickerInit(true);
-  renderAcTopFromDrive();
+  _acSelectedPeriodKey = ''; // đổi shop → về mặc định kỳ mới nhất của shop đó
+  acRenderPeriodOptions();
 }
 
 // ★ Đồng bộ GMS từ Drive — xác nhận Tân 2026-08-08 (lần 3): KHÔNG lưu Firestore, KHÔNG cần
@@ -10368,19 +10176,20 @@ async function gmsLoadFromDriveManual() {
     if (!allFiles.length) {
       acLog('Folder "Dữ Liệu GMS 2H" đang trống.', 'warn');
       _acDriveData = [];
-      AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = '';
-      acViewPickerInit(true);
-      renderAcTopFromDrive();
+      _acSelectedPeriodKey = '';
+      acRenderPeriodOptions();
       return;
     }
     acLog(`  → ${allFiles.length} file CSV trong folder Drive`);
 
-    const newData = [];
-    let unknownCount = 0;
+    // Gộp theo key = shop + đúng khoảng ngày (dateFrom_dateTo) — nếu Drive có 2 file trùng
+    // cùng 1 kỳ + 1 shop (vd tải lại file đã sửa), giữ bản đọc SAU CÙNG, không nhân đôi dòng.
+    const byKey = new Map();
+    let unknownCount = 0, skippedCount = 0;
     for (const file of allFiles) {
       const contentResp = await sapiCall('read_gms_drive_file', { file_id: file.id });
       const csvText = contentResp.content || '';
-      const { shopSellerId, items } = parseShopeeGmsCsvText(csvText);
+      const { shopSellerId, dateFrom, dateTo, items } = parseShopeeGmsCsvText(csvText);
 
       const shopName = KNOWN_GMS_SHOPS[String(shopSellerId)];
       if (!shopName) {
@@ -10388,37 +10197,45 @@ async function gmsLoadFromDriveManual() {
         acLog(`  → ${file.name}: shop ${shopSellerId || '?'} không thuộc 2HBooks/Huy Hoàng, bỏ qua`, 'warn');
         continue;
       }
+      if (!dateFrom || !dateTo) {
+        skippedCount++;
+        acLog(`  → ${file.name}: không đọc được "Khoảng thời gian" trong file, bỏ qua`, 'warn');
+        continue;
+      }
 
-      const fm = file.name.match(/(\d{2})_(\d{2})_(\d{4})/);
-      const fileDate  = fm ? `${fm[3]}-${fm[2]}-${fm[1]}` : '';
-      const fileLabel = fm ? `${fm[1]}/${fm[2]}/${fm[3]}` : file.name;
-      if (!fileDate) { acLog(`  → ${file.name}: không đọc được ngày từ tên file, bỏ qua`, 'warn'); continue; }
+      const label = dateFrom === dateTo
+        ? gmsFmtDateVN(dateFrom)
+        : `${gmsFmtDateVN(dateFrom)} → ${gmsFmtDateVN(dateTo)}`;
+      const key = `${shopSellerId}_${dateFrom}_${dateTo}`;
 
-      // Tính daily totals từ items
-      const dayData = { date: fileDate, label: fileLabel, shopApiId: Number(shopSellerId), cost:0, rev:0, imp:0, clk:0, ord:0, items };
+      // Tổng cả kỳ = cộng dồn toàn bộ sản phẩm trong file (khớp đúng dòng "Shop GMV Max" Shopee tự tính)
+      const periodData = { key, dateFrom, dateTo, label, shopApiId: Number(shopSellerId), cost:0, rev:0, imp:0, clk:0, ord:0, items };
       items.forEach(p => {
-        dayData.cost += (p.expense     || 0);
-        dayData.rev  += (p.broad_gmv   || 0);
-        dayData.imp  += (p.impression  || 0);
-        dayData.clk  += (p.clicks      || 0);
-        dayData.ord  += (p.broad_order || 0);
+        periodData.cost += (p.expense     || 0);
+        periodData.rev  += (p.broad_gmv   || 0);
+        periodData.imp  += (p.impression  || 0);
+        periodData.clk  += (p.clicks      || 0);
+        periodData.ord  += (p.broad_order || 0);
       });
-      newData.push(dayData);
-      acLog(`  → ${shopName} — ${fileLabel} (${items.length} SP)`, 'ok');
+      if (byKey.has(key)) acLog(`  → ${shopName} — ${label}: trùng kỳ đã đọc trước đó, dùng bản mới nhất (${file.name})`, 'warn');
+      byKey.set(key, periodData);
+      acLog(`  → ${shopName} — ${label} (${items.length} SP)`, 'ok');
     }
 
-    newData.sort((a,b) => a.date.localeCompare(b.date));
+    const newData = [...byKey.values()];
     _acDriveData = newData;
-
-    AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = ''; // reset để tự set theo dữ liệu mới nhất
-    acViewPickerInit(true);
-    renderAcTopFromDrive();
+    _acSelectedPeriodKey = '';
+    acRenderPeriodOptions();
 
     const shopCount = new Set(newData.map(d => d.shopApiId)).size;
+    const noteParts = [];
+    if (unknownCount) noteParts.push(`${unknownCount} file không rõ shop`);
+    if (skippedCount) noteParts.push(`${skippedCount} file thiếu Khoảng thời gian`);
+    const noteStr = noteParts.length ? ` (đã bỏ qua ${noteParts.join(', ')})` : '';
     if (!newData.length) {
-      acLog(`❌ Không có file nào khớp 2 shop GMS${unknownCount ? ` (đã bỏ qua ${unknownCount} file không rõ shop)` : ''}.`, 'err');
+      acLog(`❌ Không có file nào khớp 2 shop GMS${noteStr}.`, 'err');
     } else {
-      acLog(`✅ Xong: ${newData.length} ngày, ${shopCount} shop${unknownCount ? `, đã bỏ qua ${unknownCount} file không rõ shop` : ''}`, 'ok');
+      acLog(`✅ Xong: ${newData.length} kỳ, ${shopCount} shop${noteStr}`, 'ok');
     }
   } catch(e) {
     acLog(`❌ Lỗi: ${e.message}`, 'err');
@@ -10478,8 +10295,8 @@ async function gmsDeleteOldFirestoreData() {
   }
 
   _acDriveData = [];
-  renderAcTopFromDrive();
-  acViewPickerInit(true);
+  _acSelectedPeriodKey = '';
+  acRenderPeriodOptions();
 }
 
 async function sapiSyncAutoProducts() {
