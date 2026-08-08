@@ -9844,148 +9844,22 @@ async function sapiSyncPerCampaign() {
 // ══════════════════════════════════════════════════════════════
 // CHIẾN DỊCH TỰ ĐỘNG PAGE — JS Functions
 // ══════════════════════════════════════════════════════════════
-let _acFilterDays = new Set();
-let _acFilterYear = null, _acFilterMonth = null;
-
-function setAcAll() {
-  _acFilterDays = new Set(); _acFilterYear = null; _acFilterMonth = null;
-  document.getElementById('acchip-all')?.classList.add('active');
-  document.getElementById('acchip-lastweek')?.classList.remove('active');
-  renderAcDateChips(); renderAutoCampPage();
-}
-
-function setAcLastNDays(n) {
-  _acFilterYear = null; _acFilterMonth = null;
-  const sorted = [...cData().dateBlocks].sort((a,b) => parseDateLabel(a.label) - parseDateLabel(b.label));
-  _acFilterDays = new Set(sorted.slice(-n).map(b => b.label));
-  document.getElementById('acchip-all')?.classList.remove('active');
-  document.getElementById('acchip-lastweek')?.classList.add('active');
-  renderAcDateChips(); renderAutoCampPage();
-}
-
-function getAcLabels() {
-  let blocks = cData().dateBlocks;
-  if (_acFilterDays.size) return blocks.filter(b => _acFilterDays.has(b.label)).map(b => b.label);
-  if (_acFilterYear)  blocks = blocks.filter(b => parseDateLabelInfo(b.label)?.year  === _acFilterYear);
-  if (_acFilterMonth) blocks = blocks.filter(b => parseDateLabelInfo(b.label)?.month === _acFilterMonth);
-  return blocks.map(b => b.label);
-}
-
-function setAcYear(y) {
-  _acFilterYear = y; _acFilterMonth = null; _acFilterDays = new Set();
-  document.getElementById('acchip-all')?.classList.remove('active');
-  document.getElementById('acchip-lastweek')?.classList.remove('active');
-  renderAcDateChips(); renderAutoCampPage();
-}
-
-function setAcMonth(y, m) {
-  _acFilterYear = y; _acFilterMonth = m; _acFilterDays = new Set();
-  document.getElementById('acchip-all')?.classList.remove('active');
-  document.getElementById('acchip-lastweek')?.classList.remove('active');
-  renderAcDateChips(); renderAutoCampPage();
-}
-
-function renderAcDateChips() {
-  const wrap = document.getElementById('ac-date-chips');
-  if (!wrap) return;
-  const MONTH_NAMES = {'01':'T1','02':'T2','03':'T3','04':'T4','05':'T5','06':'T6',
-                        '07':'T7','08':'T8','09':'T9','10':'T10','11':'T11','12':'T12'};
-  const dateBlocks = cData().dateBlocks;
-  const years = [...new Set(dateBlocks.map(b => parseDateLabelInfo(b.label)?.year).filter(Boolean))].sort();
-  if (!years.length) { wrap.innerHTML = ''; return; }
-  let html = '';
-  for (const y of years) {
-    html += `<span class="month-opt ${_acFilterYear===y && !_acFilterMonth?'active':''}" onclick="setAcYear('${y}')">${y}</span>`;
-    const months = [...new Set(dateBlocks.filter(b => parseDateLabelInfo(b.label)?.year===y).map(b => parseDateLabelInfo(b.label)?.month).filter(Boolean))].sort();
-    for (const m of months) {
-      html += `<span class="month-opt ${_acFilterYear===y && _acFilterMonth===m?'active':''}" onclick="setAcMonth('${y}','${m}')">${MONTH_NAMES[m]||m}</span>`;
-    }
-  }
-  wrap.innerHTML = html;
-}
-
+// Xác nhận Tân 2026-08-08 (lần 4): xóa hẳn hệ thống CŨ từng nằm ở đây — lọc Năm/Tháng
+// (_acFilterYear/_acFilterMonth/getAcLabels/setAcYear/setAcMonth/renderAcDateChips,
+// không còn HTML nào trỏ tới #ac-date-chips/#acchip-all/#acchip-lastweek) và luồng đọc
+// KPI/bảng từ "autoEntry" trong catalog CSV (shop.products) + Firestore collection
+// auto_products (acLoadProductsFromFirestore/sapiLabelToDateKey). Đây chính là NGUYÊN NHÂN
+// card "Sản Phẩm Trong Chiến Dịch Tự Động" luôn báo "chưa có data" dù đã đồng bộ Drive
+// thành công: mỗi lần renderAutoCampPage() chạy, code cũ này chạy NGAY SAU luồng Drive mới
+// (setAcViewShop → renderAcTopFromDrive) và ĐÈ LẠI KPI/bảng Hiệu Suất Theo Ngày bằng dữ liệu
+// catalog CSV cũ, rồi gọi Firestore auto_products (không liên quan gì tới _acDriveData) để
+// đè tiếp bảng sản phẩm — 2 hệ thống chạy song song, giẫm lên nhau. Giờ chỉ còn 1 luồng
+// render duy nhất (Drive CSV / _acDriveData / AC_VIEW_PICKER).
 function renderAutoCampPage() {
-  renderAcDateChips();
-  // Mặc định hiện shop 2HBooks khi vào trang — KHÔNG còn Firestore, chỉ hiện dữ liệu đã
-  // đồng bộ từ Drive trong phiên làm việc này (nếu có), chưa có thì hiện trống chờ đồng bộ.
+  // Mặc định hiện shop 2HBooks khi vào trang — chỉ hiện dữ liệu đã đồng bộ từ Drive trong
+  // phiên làm việc này (nếu có), chưa có thì hiện trống chờ đồng bộ.
   AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = '';
-  setAcViewShop('2hbooks');  // hiện dữ liệu đã có trong bộ nhớ (nếu có) hoặc trống
-
-  const shop = G.shops[G.current];
-  const clearKpis = () => ['ac-kpi-cost','ac-kpi-rev','ac-kpi-roas','ac-kpi-imp','ac-kpi-clk','ac-kpi-ord']
-    .forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '–'; });
-
-  if (!shop?.products?.length) {
-    clearKpis();
-    document.getElementById('ac-trend-tbody').innerHTML = '<tr><td colspan="9" style="text-align:center;padding:28px;color:#999">Chưa có dữ liệu — hãy sync từ Kết Nối API trước</td></tr>';
-    return;
-  }
-
-  // Tìm entry chiến dịch tự động trong products
-  const autoEntry = shop.products.find(p => p.ma_sp === '0' || p.ten?.includes('Chiến dịch Tự Động'));
-
-  if (!autoEntry) {
-    clearKpis();
-    document.getElementById('ac-trend-tbody').innerHTML = '<tr><td colspan="9" style="text-align:center;padding:28px;color:#999">Chưa phát hiện chiến dịch tự động — sync "Chi Tiết Campaigns" để tự động phát hiện</td></tr>';
-    return;
-  }
-
-  const labels = getAcLabels();
-  let totCost=0, totRev=0, totImp=0, totClk=0, totOrd=0;
-  const trendRows = [];
-
-  for (const label of labels) {
-    const d = autoEntry.dailyData?.[label];
-    if (!d) continue;
-    const cost = Number(d['Chi phí(đ)'] || 0);
-    const rev  = Number(d['Doanh thu']   || 0);
-    const imp  = Number(d['Lượt Xem']    || 0);
-    const clk  = Number(d['Lượt Click']  || 0);
-    const ord  = Number(d['Conv.']       || 0);
-    const roas = cost > 0 ? rev / cost : 0;
-    const ctr  = imp  > 0 ? clk / imp * 100 : 0;
-    totCost += cost; totRev += rev; totImp += imp; totClk += clk; totOrd += ord;
-    trendRows.push({ label, cost, rev, roas, imp, clk, ctr, ord });
-  }
-
-  const totRoas = totCost > 0 ? (totRev / totCost).toFixed(2) : '—';
-  document.getElementById('ac-kpi-cost').textContent = fmtMoney(totCost);
-  document.getElementById('ac-kpi-rev').textContent  = fmtMoney(totRev);
-  document.getElementById('ac-kpi-roas').textContent = totRoas;
-  document.getElementById('ac-kpi-imp').textContent  = totImp.toLocaleString('vi-VN');
-  document.getElementById('ac-kpi-clk').textContent  = totClk.toLocaleString('vi-VN');
-  document.getElementById('ac-kpi-ord').textContent  = totOrd.toLocaleString('vi-VN');
-
-  // Bảng trend (mới nhất ở trên)
-  const tbody = document.getElementById('ac-trend-tbody');
-  if (!trendRows.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:28px;color:#999">Không có data trong kỳ đã chọn</td></tr>';
-  } else {
-    tbody.innerHTML = [...trendRows].reverse().map(r => {
-      const roasColor = r.roas>=15?'var(--green)':r.roas>=8?'var(--orange)':'var(--red)';
-      return `<tr>
-        <td style="font-weight:600">${r.label}</td>
-        <td class="num" style="color:var(--orange)">${fmtMoney(r.cost)}</td>
-        <td class="num" style="color:var(--green)">${fmtMoney(r.rev)}</td>
-        <td class="num" style="font-weight:700;color:${roasColor}">${r.roas>0?r.roas.toFixed(2):'—'}</td>
-        <td class="num">${r.imp.toLocaleString('vi-VN')}</td>
-        <td class="num">${r.clk.toLocaleString('vi-VN')}</td>
-        <td class="num">${r.ctr>0?r.ctr.toFixed(2)+'%':'—'}</td>
-        <td class="num">${r.ord}</td>
-      </tr>`;
-    }).join('');
-  }
-
-  // Load per-product data từ Firestore cho ngày gần nhất được filter
-  const latestLabel = [...trendRows].reverse()[0]?.label;
-  if (latestLabel) {
-    const dateKey = sapiLabelToDateKey(latestLabel);
-    const shopApiId = SAPI_SHOP_MAP_INV[G.current];
-    if (dateKey && shopApiId) acLoadProductsFromFirestore(String(shopApiId), dateKey, latestLabel);
-    else acShowEmpty(`Chọn ngày và bấm 🔄 Sync Chi Tiết SP để tải sản phẩm.`);
-  } else {
-    acShowEmpty('Không có data trong kỳ đã chọn.');
-  }
+  setAcViewShop('2hbooks');
 }
 
 function acShowEmpty(msg) {
@@ -9995,29 +9869,6 @@ function acShowEmpty(msg) {
   if (empty) { empty.style.display=''; empty.innerHTML=msg; }
   if (table) table.style.display='none';
   if (hint)  hint.style.display='none';
-}
-
-// Convert "08/07/2026" → "20260708"
-function sapiLabelToDateKey(label) {
-  const m = label.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!m) return null;
-  return m[3] + m[2] + m[1];
-}
-
-async function acLoadProductsFromFirestore(shopApiId, dateKey, label) {
-  const empty = document.getElementById('ac-prod-empty');
-  const table = document.getElementById('ac-prod-table');
-  if (!shopApiId || !dateKey) { acShowEmpty('Không xác định được shop ID.'); return; }
-  try {
-    const snap = await db.collection('shopee_ads').doc(shopApiId).collection('auto_products').doc(dateKey).get();
-    if (!snap.exists || !snap.data()?.list?.length) {
-      acShowEmpty(`Chưa có data sản phẩm cho ngày <strong>${label}</strong>. Bấm <strong>🔄 Sync Chi Tiết SP</strong> để tải.`);
-      return;
-    }
-    acRenderProductTable(snap.data().list, label);
-  } catch(e) {
-    acShowEmpty('Lỗi load Firestore: ' + e.message);
-  }
 }
 
 // Tiện ích: lưu campaign_id thủ công vào Firestore cache
