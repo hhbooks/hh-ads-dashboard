@@ -594,6 +594,9 @@
         <div class="nav-item" onclick="showPage('ads-hourly',this)" id="nav-ads-hourly">
           <span class="icon">🕐</span> Chiến Dịch Theo Giờ
         </div>
+        <div class="nav-item" onclick="showPage('group-camp',this)" id="nav-group-camp">
+          <span class="icon">🧩</span> Chiến Dịch Nhóm Sản Phẩm
+        </div>
         <div class="nav-item" onclick="showPage('auto-camp',this)" id="nav-auto-camp">
           <span class="icon">⚡</span> Chiến Dịch Tự Động GMS
           <span class="nav-badge warn" id="badge-auto-camp" style="display:none">–</span>
@@ -1166,6 +1169,124 @@
         <span style="cursor:pointer;font-size:22px;color:var(--text2);line-height:1" onclick="adshCloseHourModal()">&times;</span>
       </div>
       <div id="adsh-hour-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- CHIẾN DỊCH NHÓM SẢN PHẨM PAGE (Ad Group) — xác nhận Tân 2026-08-08:
+       đọc CSV "Ad Group Data" tải thủ công từ Shopee, upload vào Drive folder "Dữ Liệu Nhóm 2H",
+       đồng bộ về xem — KHÔNG lưu Firestore (đọc lại từ Drive mỗi lần cần xem). Hỗ trợ nhiều
+       shop cùng lúc — tự nhận diện shop qua "Mã Người bán" trong CSV. -->
+  <div class="page" id="page-group-camp">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:20px;font-weight:700;color:var(--navy)">🧩 Chiến Dịch Nhóm Sản Phẩm</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">Ad Group (Dịch Vụ Hiển Thị Sản Phẩm) — đọc CSV từ Drive, không lưu lịch sử</div>
+      </div>
+    </div>
+
+    <!-- CARD 1 — Đồng Bộ Dữ Liệu, thu gọn mặc định (cùng kiểu Card 1 với GMS/ADSH) -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="gcToggleSyncCard()">
+        <span><span class="dot"></span> Đồng Bộ Dữ Liệu Nhóm Sản Phẩm</span>
+        <span id="gc-sync-toggle-icon" style="font-size:12px;color:var(--text2)">▸ Bấm để mở</span>
+      </div>
+      <div id="gc-sync-body" style="display:none;margin-top:14px">
+        <div style="font-size:12px;color:var(--text2);line-height:1.6">
+          Đọc toàn bộ file CSV <strong>"Ad Group Data"</strong> trong Drive folder <strong>"Dữ Liệu Nhóm 2H"</strong> —
+          tự nhận diện từng shop theo Mã Người Bán trong file, không cần chọn shop trước.
+          Không lưu lịch sử — mỗi lần bấm đều đọc lại từ Drive.
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap">
+          <button onclick="groupCampSyncFromDrive()" style="padding:6px 14px;background:#1a73e8;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
+            📂 Đồng Bộ Từ Drive
+          </button>
+          <span id="gc-last-sync" style="font-size:11px;color:var(--text2)">Chưa đồng bộ lần nào</span>
+        </div>
+        <div id="gc-log" class="drive-log" style="max-height:140px"></div>
+      </div>
+    </div>
+
+    <!-- Bộ lọc Shop + Kỳ -->
+    <div id="gc-filter-bar" style="margin-bottom:16px;padding:10px 14px;background:var(--surface);border-radius:10px;border:1px solid var(--gray3);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">🏪 Shop:</span>
+      <div id="gc-shop-pills" style="display:flex;gap:4px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--text2)">Bấm 📂 Đồng Bộ Từ Drive để tải dữ liệu</span>
+      </div>
+      <span style="width:1px;height:18px;background:var(--gray3)"></span>
+      <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">📅 Kỳ:</span>
+      <select id="gc-period-select" onchange="groupCampSelectPeriod(this.value)" style="padding:5px 10px;border-radius:6px;border:1px solid var(--gray3);font-size:12px;font-weight:600;color:var(--text1)">
+        <option value="">—</option>
+      </select>
+    </div>
+
+    <div id="gc-empty" style="color:#999;font-size:12px;padding:28px;text-align:center">
+      Bấm <strong>📂 Đồng Bộ Từ Drive</strong> ở khối <strong>"Đồng Bộ Dữ Liệu Nhóm Sản Phẩm"</strong> phía trên để tải dữ liệu.
+    </div>
+
+    <div id="gc-content" style="display:none">
+      <!-- KPI row -->
+      <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+        <div class="kpi-card orange">
+          <div class="kpi-icon">💸</div>
+          <div class="kpi-label">Chi Phí</div>
+          <div class="kpi-value" id="gc-kpi-cost">–</div>
+        </div>
+        <div class="kpi-card green">
+          <div class="kpi-icon">💰</div>
+          <div class="kpi-label">Doanh Số (Gộp)</div>
+          <div class="kpi-value" id="gc-kpi-rev">–</div>
+        </div>
+        <div class="kpi-card navy">
+          <div class="kpi-icon">📈</div>
+          <div class="kpi-label">ROAS (Gộp)</div>
+          <div class="kpi-value" id="gc-kpi-roas">–</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">🎯</div>
+          <div class="kpi-label">ACOS (Gộp)</div>
+          <div class="kpi-value" id="gc-kpi-acos">–</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">👁</div>
+          <div class="kpi-label">Lượt Xem</div>
+          <div class="kpi-value" id="gc-kpi-imp">–</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">🛒</div>
+          <div class="kpi-label">Đơn Hàng</div>
+          <div class="kpi-value" id="gc-kpi-ord">–</div>
+        </div>
+      </div>
+
+      <!-- Cảnh báo tự động -->
+      <div id="gc-alerts" style="margin-top:16px"></div>
+
+      <!-- Bảng nhóm quảng cáo -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span class="dot"></span> Danh Sách Nhóm Quảng Cáo
+          <span id="gc-group-count" style="font-size:11px;color:var(--text2);margin-left:2px"></span>
+        </div>
+        <div class="table-wrap" style="max-height:560px;overflow-y:auto">
+          <table id="gc-group-table">
+            <thead><tr>
+              <th style="width:36px">#</th>
+              <th>Nhóm Quảng Cáo</th>
+              <th>Trạng Thái</th>
+              <th class="num">Lượt Xem</th>
+              <th class="num">Lượt Click</th>
+              <th class="num">CTR</th>
+              <th class="num">Chi Phí</th>
+              <th class="num">Doanh Số</th>
+              <th class="num">ROAS</th>
+              <th class="num">ACOS</th>
+              <th class="num">Đơn</th>
+            </tr></thead>
+            <tbody id="gc-group-tbody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -11047,6 +11168,324 @@ function sapiShowShopCampaigns(idx) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// CHIẾN DỊCH NHÓM SẢN PHẨM (Ad Group / Dịch Vụ Hiển Thị Sản Phẩm)
+// — xác nhận Tân 2026-08-08:
+// 1. Tân tự tải file CSV "Ad Group Data" từ Shopee Seller Centre, upload thủ công vào
+//    Drive folder "Dữ Liệu Nhóm 2H" (GROUP_DRIVE_FOLDER_ID trong Apps Script proxy).
+// 2. KHÔNG gọi Shopee API trực tiếp, KHÔNG lưu Firestore — mỗi lần bấm "Đồng Bộ Từ Drive"
+//    đọc lại TOÀN BỘ file CSV trong folder, giữ trong bộ nhớ (mất khi tải lại trang).
+//    Lý do: nhiều file CSV theo thời gian sẽ tốn dung lượng Firestore không cần thiết —
+//    Tân chỉ cần xem khi cần, không cần lưu lịch sử lâu dài như GMS.
+// 3. Hỗ trợ NHIỀU SHOP cùng lúc trong 1 lần đồng bộ — tự nhận diện shop qua "Mã Người bán"
+//    trong từng file CSV (khớp với SAPI_SHOPS), không cần chọn shop trước khi đồng bộ.
+// ══════════════════════════════════════════════════════════════
+
+let _groupCampData  = []; // [{ fileName, shopApiId, shopKey, shopName, dateFrom, dateTo, dateLabel, groups:[...] }]
+let _groupCampShop  = null; // shopKey (hoặc 'unknown_<id>') đang xem
+
+function parseShopeeAdGroupCsvText(csvText) {
+  function parseLine(line) {
+    const result = []; let inQuote = false, field = '';
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { inQuote = !inQuote; }
+      else if (ch === ',' && !inQuote) { result.push(field.trim()); field = ''; }
+      else { field += ch; }
+    }
+    result.push(field.trim());
+    return result;
+  }
+  const lines = csvText.split('\n').map(l => l.replace(/\r$/, ''));
+
+  // ── Header block (dòng 2-6): Tên đăng nhập / Tên gian hàng / Mã Người bán / Khoảng thời gian
+  let username = '', shopName = '', shopSellerId = '', dateFrom = '', dateTo = '';
+  for (let i = 0; i < Math.min(lines.length, 10); i++) {
+    const l = lines[i];
+    if (l.startsWith('Tên đăng nhập,'))        username = l.split(',').slice(1).join(',').trim();
+    else if (l.startsWith('Tên gian hàng,'))    shopName = l.split(',').slice(1).join(',').trim();
+    else if (l.startsWith('Mã Người bán,'))     shopSellerId = l.split(',')[1]?.trim() || '';
+    else if (l.startsWith('Khoảng thời gian,')) {
+      const rangeStr = l.split(',').slice(1).join(',').trim(); // "01/08/2026 - 01/08/2026"
+      const m = rangeStr.match(/(\d{2})\/(\d{2})\/(\d{4})\s*-\s*(\d{2})\/(\d{2})\/(\d{4})/);
+      if (m) { dateFrom = `${m[3]}-${m[2]}-${m[1]}`; dateTo = `${m[6]}-${m[5]}-${m[4]}`; }
+    }
+  }
+
+  // Tìm dòng header thật của bảng dữ liệu
+  let headerIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].includes('Thứ tự') && lines[i].includes('Chiến dịch')) { headerIdx = i; break; }
+  }
+  if (headerIdx === -1) return { username, shopName, shopSellerId, dateFrom, dateTo, groups: [] };
+
+  const parseNum = s => { if (s === undefined || s === null || s === '' || s === '-') return 0; return Number(String(s).replace(/[,%]/g,'')) || 0; };
+  const pctStr = s => (s && s !== '-') ? String(s) : '—';
+
+  // Cột (0-indexed) theo header thật của báo cáo "Ad Group Data":
+  // 0 Thứ tự | 1 Chiến dịch/Tên SP | 2 Trạng thái | 3 Loại DV Hiển thị | 4 Mã sản phẩm |
+  // 8 Lượt xem | 9 Lượt click | 10 CTR | 11 Chuyển đổi | 12 Chuyển đổi trực tiếp |
+  // 17 SP đã bán | 18 SP đã bán trực tiếp | 19 Doanh số | 20 Doanh số trực tiếp | 21 Chi phí |
+  // 22 ROAS | 23 ROAS trực tiếp | 24 ACOS | 25 ACOS trực tiếp | 26 Voucher Amount | 27 Vouchered Sales
+  // Dòng NHÓM: Mã sản phẩm = '-' và Trạng thái khác '-'. Dòng SP con: Mã sản phẩm là số, Trạng thái = '-'.
+  const groups = [];
+  let currentGroup = null;
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const cols = parseLine(line);
+    if (cols.length < 20) continue;
+    const name = (cols[1] || '').replace(/^"|"$/g, '');
+    if (!name) continue;
+    const status = cols[2] || '-';
+    const code   = cols[4] || '-';
+    const isGroupRow = (code === '-' && status !== '-');
+    if (isGroupRow) {
+      currentGroup = {
+        name, status,
+        adType:         cols[3] || '',
+        views:          parseNum(cols[8]),
+        clicks:         parseNum(cols[9]),
+        ctr:            pctStr(cols[10]),
+        conv:           parseNum(cols[11]),
+        convDirect:     parseNum(cols[12]),
+        sold:           parseNum(cols[17]),
+        soldDirect:     parseNum(cols[18]),
+        revenue:        parseNum(cols[19]),
+        revenueDirect:  parseNum(cols[20]),
+        cost:           parseNum(cols[21]),
+        roas:           parseNum(cols[22]),
+        roasDirect:     parseNum(cols[23]),
+        acos:           pctStr(cols[24]),
+        acosDirect:     pctStr(cols[25]),
+        voucherAmount:  parseNum(cols[26]),
+        voucheredSales: parseNum(cols[27]),
+        products: []
+      };
+      groups.push(currentGroup);
+    } else if (currentGroup) {
+      currentGroup.products.push({
+        name, itemId: code,
+        views: parseNum(cols[8]), clicks: parseNum(cols[9]),
+        sold: parseNum(cols[17]), revenue: parseNum(cols[19]), cost: parseNum(cols[21]),
+        roas: parseNum(cols[22])
+      });
+    }
+  }
+  return { username, shopName, shopSellerId, dateFrom, dateTo, groups };
+}
+
+// Nhận diện shop qua Mã Người Bán (Shopee shop_id) — khớp với SAPI_SHOPS/SAPI_SHOP_MAP đã có sẵn
+function groupCampResolveShop(shopSellerId) {
+  const idNum = Number(shopSellerId);
+  const info = SAPI_SHOPS.find(s => s.id === idNum);
+  const shopKey = SAPI_SHOP_MAP[idNum] || null;
+  return { shopApiId: idNum || null, shopKey, displayName: info?.name || (shopSellerId ? `Shop ${shopSellerId}` : 'Không rõ shop') };
+}
+
+function gcFmtDate(iso) { // 'YYYY-MM-DD' → 'DD/MM'
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}`;
+}
+
+function gcToggleSyncCard() {
+  const body = document.getElementById('gc-sync-body');
+  const icon = document.getElementById('gc-sync-toggle-icon');
+  if (!body) return;
+  const opening = body.style.display === 'none';
+  body.style.display = opening ? '' : 'none';
+  if (icon) icon.textContent = opening ? '▾ Bấm để đóng' : '▸ Bấm để mở';
+}
+
+async function groupCampSyncFromDrive() {
+  const logEl = document.getElementById('gc-log');
+  if (logEl) { logEl.innerHTML = ''; logEl.classList.add('visible'); }
+  const gcLog = (msg, type = 'info') => {
+    if (!logEl) return;
+    const c = type==='ok'?'#27ae60':type==='err'?'#c0392b':type==='warn'?'#f39c12':'#555';
+    logEl.innerHTML += `<div style="color:${c}">[${new Date().toLocaleTimeString('vi-VN')}] ${msg}</div>`;
+    logEl.scrollTop = logEl.scrollHeight;
+  };
+  gcLog('📂 Đang lấy danh sách file từ Drive "Dữ Liệu Nhóm 2H"...');
+  try {
+    const listResp = await sapiCall('list_group_drive_files', {});
+    const allFiles = (listResp.files || []).filter(f => f.name && f.name.toLowerCase().endsWith('.csv'));
+    if (!allFiles.length) { gcLog('Folder "Dữ Liệu Nhóm 2H" đang trống.', 'warn'); return; }
+    gcLog(`  → ${allFiles.length} file CSV trong folder Drive`);
+
+    const newData = [];
+    for (const file of allFiles) {
+      gcLog(`  → Đọc: ${file.name}`);
+      const contentResp = await sapiCall('read_group_drive_file', { file_id: file.id });
+      const csvText = contentResp.content || '';
+      const parsed = parseShopeeAdGroupCsvText(csvText);
+      if (!parsed.groups.length) { gcLog(`  → ${file.name}: không đọc được dữ liệu, bỏ qua`, 'warn'); continue; }
+      const shopInfo = groupCampResolveShop(parsed.shopSellerId);
+      newData.push({
+        fileName: file.name,
+        shopApiId: shopInfo.shopApiId,
+        shopKey: shopInfo.shopKey,
+        shopName: shopInfo.displayName,
+        dateFrom: parsed.dateFrom, dateTo: parsed.dateTo,
+        dateLabel: (parsed.dateFrom && parsed.dateTo)
+          ? (parsed.dateFrom === parsed.dateTo ? gcFmtDate(parsed.dateFrom) : `${gcFmtDate(parsed.dateFrom)} → ${gcFmtDate(parsed.dateTo)}`)
+          : file.name,
+        groups: parsed.groups
+      });
+      gcLog(`  💾 ${shopInfo.displayName}: ${parsed.groups.length} nhóm QC${parsed.dateFrom ? ' (' + parsed.dateFrom + ')' : ''}`, 'ok');
+    }
+    if (!newData.length) { gcLog('❌ Không có file nào đọc được dữ liệu hợp lệ.', 'err'); return; }
+
+    newData.sort((a, b) => (a.dateFrom || '').localeCompare(b.dateFrom || ''));
+    _groupCampData = newData;
+    _groupCampShop = newData[newData.length - 1].shopKey || ('unknown_' + newData[newData.length - 1].shopApiId);
+
+    const shopCount = new Set(newData.map(d => d.shopApiId || d.shopKey)).size;
+    gcLog(`✅ Xong: đã đọc ${newData.length} file, ${shopCount} shop`, 'ok');
+
+    const lastSyncEl = document.getElementById('gc-last-sync');
+    if (lastSyncEl) lastSyncEl.textContent = `Đồng bộ lúc ${new Date().toLocaleString('vi-VN')} — ${newData.length} file, ${shopCount} shop`;
+
+    groupCampRenderShopPills();
+    groupCampSelectShop(_groupCampShop);
+  } catch (e) {
+    gcLog(`❌ Lỗi: ${e.message}`, 'err');
+  }
+}
+
+function groupCampRenderShopPills() {
+  const wrap = document.getElementById('gc-shop-pills');
+  if (!wrap) return;
+  if (!_groupCampData.length) {
+    wrap.innerHTML = '<span style="font-size:12px;color:var(--text2)">Bấm 📂 Đồng Bộ Từ Drive để tải dữ liệu</span>';
+    return;
+  }
+  const seen = new Set();
+  const shopList = [];
+  _groupCampData.forEach(d => {
+    const key = d.shopKey || ('unknown_' + d.shopApiId);
+    if (seen.has(key)) return;
+    seen.add(key);
+    shopList.push({ key, name: d.shopName, icon: (d.shopKey && SHOPS[d.shopKey]) ? SHOPS[d.shopKey].icon : '🏪' });
+  });
+  wrap.innerHTML = shopList.map(s => {
+    const active = s.key === _groupCampShop;
+    return `<button onclick="groupCampSelectShop('${s.key}')" style="padding:5px 12px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;border:none;background:${active?'var(--navy)':'var(--gray2)'};color:${active?'white':'var(--text1)'}">${s.icon} ${s.name}</button>`;
+  }).join('');
+}
+
+function groupCampSelectShop(shopKey) {
+  _groupCampShop = shopKey;
+  groupCampRenderShopPills();
+  groupCampRenderPeriodOptions();
+}
+
+function groupCampRenderPeriodOptions() {
+  const sel = document.getElementById('gc-period-select');
+  if (!sel) return;
+  const files = _groupCampData.filter(d => (d.shopKey || ('unknown_' + d.shopApiId)) === _groupCampShop);
+  if (!files.length) { sel.innerHTML = '<option value="">—</option>'; groupCampSelectPeriod(''); return; }
+  const sorted = [...files].sort((a, b) => (b.dateFrom || '').localeCompare(a.dateFrom || ''));
+  sel.innerHTML = sorted.map(f => `<option value="${f.fileName}">${f.dateLabel}</option>`).join('');
+  sel.value = sorted[0].fileName;
+  groupCampSelectPeriod(sorted[0].fileName);
+}
+
+function groupCampSelectPeriod(fileName) {
+  const sel = document.getElementById('gc-period-select');
+  if (sel && sel.value !== fileName) sel.value = fileName;
+  const rec = _groupCampData.find(d => d.fileName === fileName);
+  const emptyEl = document.getElementById('gc-empty');
+  const contentEl = document.getElementById('gc-content');
+  if (!rec) {
+    if (contentEl) contentEl.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = '';
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+  if (contentEl) contentEl.style.display = '';
+  groupCampRenderContent(rec);
+}
+
+function groupCampRenderContent(rec) {
+  const groups = rec.groups || [];
+  const totalCost = groups.reduce((s, g) => s + g.cost, 0);
+  const totalRev  = groups.reduce((s, g) => s + g.revenue, 0);
+  const totalImp  = groups.reduce((s, g) => s + g.views, 0);
+  const totalOrd  = groups.reduce((s, g) => s + g.sold, 0);
+  const roas = totalCost > 0 ? (totalRev / totalCost) : 0;
+  const acos = totalRev > 0 ? (totalCost / totalRev * 100) : 0;
+
+  const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  setTxt('gc-kpi-cost', fmtMoney(totalCost));
+  setTxt('gc-kpi-rev',  fmtMoney(totalRev));
+  setTxt('gc-kpi-roas', totalCost > 0 ? roas.toFixed(2) : '—');
+  setTxt('gc-kpi-acos', totalRev > 0 ? acos.toFixed(2) + '%' : '—');
+  setTxt('gc-kpi-imp',  fmtNum(totalImp));
+  setTxt('gc-kpi-ord',  fmtNum(totalOrd));
+
+  // Cảnh báo: (1) tốn chi phí nhưng 0 đơn, (2) đang chạy nhưng 0 lượt xem
+  const zeroOrderCost     = groups.filter(g => g.cost > 0 && g.sold === 0);
+  const zeroTrafficActive = groups.filter(g => g.status === 'Đang diễn ra' && g.views === 0);
+  const alertsEl = document.getElementById('gc-alerts');
+  if (alertsEl) {
+    let html = '';
+    if (zeroOrderCost.length) {
+      const wasted = zeroOrderCost.reduce((s, g) => s + g.cost, 0);
+      html += `<div style="font-size:12px;padding:10px 12px;border-radius:8px;margin-bottom:8px;background:#fdecea;color:#c0392b;border:1px solid #f5c6cb">
+        ⚠️ <strong>${zeroOrderCost.length} nhóm tốn chi phí nhưng 0 đơn</strong> — tổng chi phí lãng phí <strong>${fmtMoney(wasted)}</strong>: ${zeroOrderCost.map(g=>g.name).join(', ')}</div>`;
+    }
+    if (zeroTrafficActive.length) {
+      html += `<div style="font-size:12px;padding:10px 12px;border-radius:8px;margin-bottom:8px;background:#fff8e1;color:#8a6100;border:1px solid #ffe58f">
+        ⚠️ <strong>${zeroTrafficActive.length} nhóm đang chạy nhưng 0 lượt xem</strong> — kiểm tra ngân sách/duyệt quảng cáo: ${zeroTrafficActive.map(g=>g.name).join(', ')}</div>`;
+    }
+    alertsEl.innerHTML = html;
+  }
+
+  setTxt('gc-group-count', `${groups.length} nhóm`);
+
+  const sorted = [...groups].sort((a, b) => b.cost - a.cost);
+  const tbody = document.getElementById('gc-group-tbody');
+  if (tbody) {
+    tbody.innerHTML = sorted.map((g, i) => {
+      const isZeroOrder = g.cost > 0 && g.sold === 0;
+      const isZeroTraffic = g.status === 'Đang diễn ra' && g.views === 0;
+      const warnIcon = isZeroOrder ? ' 🔴' : (isZeroTraffic ? ' 🟡' : '');
+      const roasStr = g.cost > 0 ? g.roas.toFixed(2) : '—';
+      const roasColor = g.cost === 0 ? '#999' : (g.roas >= 20 ? '#27ae60' : g.roas >= 10 ? '#f39c12' : '#e74c3c');
+      return `<tr style="border-bottom:1px solid #f0f0f0">
+        <td style="padding:6px 10px;font-size:11px">${i+1}</td>
+        <td style="padding:6px 10px;font-size:11.5px;font-weight:600">${g.name}${warnIcon}</td>
+        <td style="padding:6px 10px;font-size:11px;color:var(--text2)">${g.status}</td>
+        <td class="num" style="padding:6px 10px;font-size:11px">${fmtNum(g.views)}</td>
+        <td class="num" style="padding:6px 10px;font-size:11px">${fmtNum(g.clicks)}</td>
+        <td class="num" style="padding:6px 10px;font-size:11px">${g.ctr}</td>
+        <td class="num" style="padding:6px 10px;font-size:11px">${fmtMoney(g.cost)}</td>
+        <td class="num" style="padding:6px 10px;font-size:11px">${fmtMoney(g.revenue)}</td>
+        <td class="num" style="padding:6px 10px;font-size:11px;font-weight:700;color:${roasColor}">${roasStr}</td>
+        <td class="num" style="padding:6px 10px;font-size:11px">${g.acos}</td>
+        <td class="num" style="padding:6px 10px;font-size:11px">${fmtNum(g.sold)}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+// Gọi khi vào trang — KHÔNG tự đồng bộ, chỉ hiển thị lại dữ liệu đã có sẵn trong bộ nhớ
+// (nếu Tân đã bấm Đồng Bộ Từ Drive trước đó trong cùng phiên làm việc).
+function renderGroupCampPage() {
+  if (_groupCampData.length) {
+    groupCampRenderShopPills();
+    groupCampSelectShop(_groupCampShop);
+  } else {
+    groupCampRenderShopPills();
+    const contentEl = document.getElementById('gc-content');
+    const emptyEl = document.getElementById('gc-empty');
+    if (contentEl) contentEl.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = '';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
 // Hàm dùng chung — giữ lại sau khi xóa trang "Cảnh Báo Tồn Kho" (2026-08-06) vì
 // tonComputeSoldSinceDate() (tự động trừ tồn kho sau mỗi lần đồng bộ đơn hàng) vẫn
 // gọi trực tiếp hàm này. Đây là hàm thuần (không phụ thuộc state CB.* đã bị xóa).
@@ -13947,7 +14386,7 @@ function toggleSidebarBlock(name) {
   });
 }
 
-const ADS_PAGE_NAMES = new Set(['overview','ads-hourly','auto-camp','products','alerts','trend','dosuat']);
+const ADS_PAGE_NAMES = new Set(['overview','ads-hourly','group-camp','auto-camp','products','alerts','trend','dosuat']);
 function showPage(name, el) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -13966,6 +14405,7 @@ function showPage(name, el) {
   if (name === 'gia-canh-bao') giaInitPage();
   if (name === 'overview')  { sapiRenderShops(); ovUpdateGate(); updateDriveSyncStatus(); } // cập nhật card Kết Nối API + Cập Nhật CSV + gate chọn Shop/ngày ở đầu Tổng Quan
   if (name === 'ads-hourly') adshInitPage();
+  if (name === 'group-camp') renderGroupCampPage();
   if (name === 'auto-camp') renderAutoCampPage();
 }
 
