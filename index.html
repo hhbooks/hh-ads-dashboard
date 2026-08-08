@@ -1319,10 +1319,20 @@
 
         <!-- Xác nhận Tân 2026-08-08: bỏ hẳn "Gọi API trực tiếp" (get_item_daily) — API không trả
              đủ dữ liệu để phân tích (thiếu tên SP, không tách trực tiếp/gộp, không có Voucher
-             Amount/Vouchered Sales như CSV Seller Centre). Chỉ còn 1 đường lấy dữ liệu: Đồng Bộ Từ Drive. -->
+             Amount/Vouchered Sales như CSV Seller Centre). Chỉ còn 1 đường lấy dữ liệu: Đồng Bộ Từ Drive.
+
+             Xác nhận Tân 2026-08-08 (lần 2): KHÔNG lưu Firestore nữa — Drive folder "Dữ Liệu GMS 2H"
+             là nguồn dữ liệu DUY NHẤT, mỗi lần bấm Đồng Bộ đọc lại TOÀN BỘ file trong folder (đổi lại
+             tốc độ để tránh phình dung lượng Firestore khi nhiều file). Tân cam kết không xóa file
+             CSV gốc khỏi Drive. Dữ liệu Firestore cũ (gms_days) không dùng nữa — thêm nút xóa để
+             Tân tự bấm giải phóng, agent không tự xóa dữ liệu thay Tân. -->
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;padding:10px 12px;background:var(--surface);border-radius:8px;border:1px solid var(--gray3)">
           <button onclick="gmsLoadFromDriveManual()" style="padding:6px 14px;background:#1a73e8;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
             📂 Đồng Bộ Từ Drive
+          </button>
+          <span style="font-size:11px;color:var(--text2)">Đọc lại toàn bộ file trong Drive mỗi lần bấm — không lưu Firestore.</span>
+          <button onclick="gmsDeleteOldFirestoreData()" style="margin-left:auto;padding:6px 12px;background:#fff;color:#c0392b;border:1px solid #e6b3ab;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">
+            🗑️ Xóa Dữ Liệu Cũ (Firestore)
           </button>
         </div>
         <div id="ac-prod-log" class="drive-log" style="max-height:120px"></div>
@@ -9899,10 +9909,11 @@ function renderAcDateChips() {
 
 function renderAutoCampPage() {
   renderAcDateChips();
-  // Load GMS data từ Firestore — mặc định hiện shop 2HBooks khi vào trang
+  // Mặc định hiện shop 2HBooks khi vào trang — KHÔNG còn Firestore, chỉ hiện dữ liệu đã
+  // đồng bộ từ Drive trong phiên làm việc này (nếu có), chưa có thì hiện trống chờ đồng bộ.
   AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = '';
   setAcSyncShop('2hbooks');  // style tab Card Đồng Bộ
-  setAcViewShop('2hbooks');  // load Firestore + render dữ liệu xem
+  setAcViewShop('2hbooks');  // hiện dữ liệu đã có trong bộ nhớ (nếu có) hoặc trống
 
   const shop = G.shops[G.current];
   const clearKpis = () => ['ac-kpi-cost','ac-kpi-rev','ac-kpi-roas','ac-kpi-imp','ac-kpi-clk','ac-kpi-ord']
@@ -10151,8 +10162,12 @@ function parseShopeeGmsCsvText(csvText) {
   return { shopSellerId, items };
 }
 
-// ★ Drive GMS data store — dữ liệu theo ngày từ Drive
+// ★ Drive GMS data store — dữ liệu theo ngày từ Drive. Xác nhận Tân 2026-08-08: KHÔNG lưu
+// Firestore — chỉ tồn tại trong bộ nhớ trong phiên làm việc, đọc lại từ Drive mỗi lần bấm
+// Đồng Bộ. _acDriveDataShopId ghi nhớ dữ liệu đang có trong bộ nhớ là của shop nào, để
+// setAcViewShop() biết khi nào cần hiện trống (đổi sang shop chưa đồng bộ trong phiên này).
 let _acDriveData   = []; // [{date:'2026-07-01', label:'01/07/2026', cost, rev, imp, clk, ord, items:[]}]
+let _acDriveDataShopId = null;
 
 // Tách RIÊNG shop đang chọn để ĐỒNG BỘ (tab ở Card 1) với shop đang XEM (bộ lọc Kỳ Xem)
 // — xác nhận Tân 2026-08-07: bấm tab ở Card Đồng Bộ không được tự đổi dữ liệu đang xem
@@ -10342,7 +10357,16 @@ function acViewUpdateTriggerLabel() {
 }
 
 function renderAcTopFromDrive() {
-  if (!_acDriveData.length) return;
+  if (!_acDriveData.length) {
+    // Không còn Firestore dự phòng — shop đang xem chưa được đồng bộ trong phiên này →
+    // xóa sạch KPI/bảng cũ (tránh còn sót số liệu của shop vừa xem trước đó) và nhắc đồng bộ.
+    ['ac-kpi-cost','ac-kpi-rev','ac-kpi-roas','ac-kpi-imp','ac-kpi-clk','ac-kpi-ord']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '–'; });
+    const tbody = document.getElementById('ac-trend-tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:28px;color:#999">Chưa có dữ liệu — bấm 📂 Đồng Bộ Từ Drive ở khối phía trên cho shop này</td></tr>';
+    acShowEmpty('Chưa có dữ liệu cho shop này trong phiên làm việc — bấm <strong>📂 Đồng Bộ Từ Drive</strong> ở khối <strong>"Đồng Bộ Dữ Liệu Chiến Dịch Tự Động"</strong> phía trên.');
+    return;
+  }
 
   // Lọc ngày theo khoảng đang chọn ở Bộ Lọc (Kỳ Xem)
   let filteredDays = _acDriveData.filter(d => {
@@ -10458,68 +10482,27 @@ function acViewShopSetStyle(mode) {
   });
 }
 
-// ★ Đổi shop ĐANG XEM (bộ lọc Kỳ Xem) — tải lại Firestore + render KPI/bảng bên dưới.
+// ★ Đổi shop ĐANG XEM (bộ lọc Kỳ Xem) — xác nhận Tân 2026-08-08: KHÔNG còn Firestore để tải
+// lại, CHỈ hiển thị dữ liệu đang có sẵn trong bộ nhớ (đã đồng bộ từ Drive trong phiên làm
+// việc này). Nếu đổi sang shop CHƯA đồng bộ trong phiên này → hiện trống, nhắc bấm Đồng Bộ
+// Từ Drive ở Card 1 (chọn đúng shop đó trước).
 function setAcViewShop(mode) {
   _acViewShop = mode;
   acViewShopSetStyle(mode);
   const sv = document.getElementById('ac-single-view');
   if (sv) sv.style.display = '';
   const shopId = mode === '2hbooks' ? 1289235612 : 371873832;
+  if (_acDriveDataShopId !== shopId) _acDriveData = []; // dữ liệu đang có (nếu có) là của shop khác
   AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = ''; // đổi shop → về mặc định ngày mới nhất
-  acLoadGmsFromFirestore(String(shopId));
+  acViewPickerInit(true);
+  renderAcTopFromDrive();
 }
 
-
-// ★ Lưu 1 ngày GMS vào Firestore: shopee_ads/{shopId}/gms_days/{YYYY-MM-DD}
-async function acSaveGmsDayToFirestore(shopApiId, dayData) {
-  await db.collection('shopee_ads').doc(String(shopApiId))
-    .collection('gms_days').doc(dayData.date).set({
-      date:      dayData.date,
-      label:     dayData.label,
-      cost:      dayData.cost,
-      rev:       dayData.rev,
-      imp:       dayData.imp,
-      clk:       dayData.clk,
-      ord:       dayData.ord,
-      items:     dayData.items,
-      synced_at: new Date().toISOString()
-    });
-}
-
-// ★ Load tất cả GMS days từ Firestore → populate _acDriveData → re-render
-async function acLoadGmsFromFirestore(shopApiId) {
-  if (!shopApiId) return;
-  try {
-    const snap = await db.collection('shopee_ads').doc(String(shopApiId))
-      .collection('gms_days').get();
-    if (snap.empty) return;
-
-    _acDriveData = [];
-    snap.forEach(doc => {
-      const d = doc.data();
-      _acDriveData.push({
-        date:  d.date  || doc.id,
-        label: d.label || doc.id,
-        cost:  Number(d.cost) || 0,
-        rev:   Number(d.rev)  || 0,
-        imp:   Number(d.imp)  || 0,
-        clk:   Number(d.clk)  || 0,
-        ord:   Number(d.ord)  || 0,
-        items: d.items || []
-      });
-    });
-    _acDriveData.sort((a,b) => a.date.localeCompare(b.date));
-
-    // Chỉ set mặc định (ngày mới nhất) nếu chưa có lựa chọn — giữ nguyên nếu user đang xem kỳ khác
-    acViewPickerInit(false);
-    renderAcTopFromDrive();
-  } catch(e) {
-    console.warn('[GMS Firestore] Load lỗi:', e.message);
-  }
-}
-
-
-// ★ Đồng bộ GMS per-product từ Drive — đọc file Shopee export, match shop + ngày
+// ★ Đồng bộ GMS per-product từ Drive — xác nhận Tân 2026-08-08: KHÔNG lưu Firestore nữa,
+// Drive folder "Dữ Liệu GMS 2H" là nguồn dữ liệu DUY NHẤT. Mỗi lần bấm đọc lại TOÀN BỘ file
+// CSV trong folder (không còn incremental-skip theo Firestore) — chậm hơn cách cũ nhưng
+// tránh phình dung lượng Firestore khi số file tăng theo thời gian. Tân cam kết không xóa
+// file CSV gốc khỏi Drive.
 async function gmsLoadFromDriveManual() {
   const logEl = document.getElementById('ac-prod-log');
   if (logEl) { logEl.innerHTML = ''; logEl.classList.add('visible'); }
@@ -10538,67 +10521,37 @@ async function gmsLoadFromDriveManual() {
                   : SAPI_SHOP_MAP_INV[G.current];
   if (!shopApiId) { acLog('❌ Không xác định được shop cần đồng bộ', 'err'); return; }
 
-  // Nếu có chọn ngày cụ thể → force-reload ngày đó (bỏ qua Firestore cache)
-  const dateInput = document.getElementById('ac-sync-date');
-  const forceDate = dateInput?.value || ''; // YYYY-MM-DD, nếu có
-  let forceDateInFile = '';
-  if (forceDate) {
-    const [yr, mo, dy] = forceDate.split('-');
-    forceDateInFile = `${dy}_${mo}_${yr}`; // DD_MM_YYYY để khớp tên file
-  }
-
-  acLog('📂 Kiểm tra dữ liệu đã có trong Firestore...');
+  acLog('📂 Đang lấy danh sách file từ Drive "Dữ Liệu GMS 2H"...');
   try {
-    // 1. Lấy danh sách ngày đã lưu trong Firestore cho shop này
-    const fsSnap = await db.collection('shopee_ads').doc(String(shopApiId))
-      .collection('gms_days').get();
-    const existingDates = new Set();
-    fsSnap.forEach(doc => existingDates.add(doc.id)); // doc.id = YYYY-MM-DD
-    acLog(`  → Firestore đã có ${existingDates.size} ngày`);
-
-    // 2. Lấy danh sách file trong Drive
     const listResp = await sapiCall('list_gms_drive_files', {});
     const allFiles = (listResp.files || []).filter(f => f.name && f.name.toLowerCase().endsWith('.csv'));
     if (!allFiles.length) {
       acLog('Folder "Dữ Liệu GMS 2H" đang trống.', 'warn');
-      // Vẫn load từ Firestore nếu có
-      if (existingDates.size) await acLoadGmsFromFirestore(String(shopApiId));
+      _acDriveData = []; _acDriveDataShopId = shopApiId;
+      _acViewShop = _acSyncShop; acViewShopSetStyle(_acViewShop);
+      AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = '';
+      acViewPickerInit(true);
+      renderAcTopFromDrive();
       return;
     }
     acLog(`  → ${allFiles.length} file CSV trong folder Drive`);
 
-    // 3. Xác định file nào cần đọc (chưa có trong Firestore, hoặc force ngày cụ thể)
-    const toProcess = allFiles.filter(f => {
-      const m = f.name.match(/(\d{2})_(\d{2})_(\d{4})/);
-      if (!m) return false;
-      if (forceDateInFile) return f.name.includes(forceDateInFile); // chế độ force ngày
-      const fileDate = `${m[3]}-${m[2]}-${m[1]}`; // YYYY-MM-DD
-      return !existingDates.has(fileDate); // chỉ file chưa có trong Firestore
-    });
-
-    if (!toProcess.length) {
-      acLog('✅ Tất cả file đã được lưu trước đó — không cần đọc lại.', 'ok');
-      await acLoadGmsFromFirestore(String(shopApiId));
-      return;
-    }
-    acLog(`  → ${toProcess.length} file mới cần xử lý`);
-
-    // 4. Đọc, parse, lưu Firestore cho từng file mới
-    let savedCount = 0;
-    for (const file of toProcess) {
-      acLog(`  → Đọc: ${file.name}`);
+    const newData = [];
+    let skippedCount = 0;
+    for (const file of allFiles) {
       const contentResp = await sapiCall('read_gms_drive_file', { file_id: file.id });
       const csvText = contentResp.content || '';
       const { shopSellerId, items } = parseShopeeGmsCsvText(csvText);
 
       if (String(shopSellerId) !== String(shopApiId)) {
-        acLog(`  → Shop ${shopSellerId || '?'} — bỏ qua (khác shop)`);
+        skippedCount++;
         continue;
       }
 
       const fm = file.name.match(/(\d{2})_(\d{2})_(\d{4})/);
       const fileDate  = fm ? `${fm[3]}-${fm[2]}-${fm[1]}` : '';
       const fileLabel = fm ? `${fm[1]}/${fm[2]}/${fm[3]}` : file.name;
+      if (!fileDate) { acLog(`  → ${file.name}: không đọc được ngày từ tên file, bỏ qua`, 'warn'); continue; }
 
       // Tính daily totals từ items
       const dayData = { date: fileDate, label: fileLabel, cost:0, rev:0, imp:0, clk:0, ord:0, items };
@@ -10609,22 +10562,87 @@ async function gmsLoadFromDriveManual() {
         dayData.clk  += (p.clicks      || 0);
         dayData.ord  += (p.broad_order || 0);
       });
-
-      await acSaveGmsDayToFirestore(shopApiId, dayData);
-      savedCount++;
-      acLog(`  💾 Đã lưu ${fileLabel} (${items.length} SP) vào Firestore`, 'ok');
+      newData.push(dayData);
+      acLog(`  → ${fileLabel} (${items.length} SP)`, 'ok');
     }
 
-    // 5. Vừa đồng bộ xong shop này → tự chuyển "Kỳ Xem" sang xem luôn shop này cho tiện,
-    // rồi reload tất cả từ Firestore → render (bao gồm cả dữ liệu cũ + mới)
+    newData.sort((a,b) => a.date.localeCompare(b.date));
+    _acDriveData = newData;
+    _acDriveDataShopId = shopApiId;
+
+    // Vừa đồng bộ xong shop này → tự chuyển "Kỳ Xem" sang xem luôn shop này cho tiện
     _acViewShop = _acSyncShop;
     acViewShopSetStyle(_acViewShop);
     AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = ''; // reset để tự set theo dữ liệu mới nhất
-    await acLoadGmsFromFirestore(String(shopApiId));
-    acLog(`✅ Xong: ${savedCount} ngày mới lưu, tổng ${existingDates.size + savedCount} ngày trong hệ thống`, 'ok');
+    acViewPickerInit(true);
+    renderAcTopFromDrive();
+
+    if (!newData.length) {
+      acLog(`❌ Không có file nào khớp shop đang chọn (đã bỏ qua ${skippedCount} file khác shop).`, 'err');
+    } else {
+      acLog(`✅ Xong: ${newData.length} ngày${skippedCount ? `, đã bỏ qua ${skippedCount} file khác shop` : ''}`, 'ok');
+    }
   } catch(e) {
     acLog(`❌ Lỗi: ${e.message}`, 'err');
   }
+}
+
+// ★ Xóa toàn bộ dữ liệu GMS cũ đã lưu Firestore (gms_days, 2 shop 2HBooks + Huy Hoàng) —
+// xác nhận Tân 2026-08-08: sau khi bỏ Firestore, dữ liệu cũ không dùng nữa, xóa để giải
+// phóng dung lượng, Tân sẽ tải CSV mới lên Drive. HÀNH ĐỘNG KHÔNG THỂ HOÀN TÁC — Tân tự bấm
+// và tự xác nhận, agent không thực hiện xóa dữ liệu thay Tân.
+async function gmsDeleteOldFirestoreData() {
+  const shops = [
+    { id: 1289235612, name: 'Nhà Sách 2HBooks' },
+    { id: 371873832,  name: 'Huy Hoàng Bookstore' }
+  ];
+  let totalDocs = 0;
+  const snaps = [];
+  try {
+    for (const s of shops) {
+      const snap = await db.collection('shopee_ads').doc(String(s.id)).collection('gms_days').get();
+      snaps.push({ shop: s, snap });
+      totalDocs += snap.size;
+    }
+  } catch(e) {
+    alert('Lỗi khi kiểm tra dữ liệu Firestore: ' + e.message);
+    return;
+  }
+  if (totalDocs === 0) { alert('Không còn dữ liệu GMS nào trong Firestore.'); return; }
+  const ok = confirm(`Sẽ xóa VĨNH VIỄN ${totalDocs} ngày dữ liệu GMS đã lưu trong Firestore (2HBooks + Huy Hoàng).\n\nSau khi xóa, Drive folder "Dữ Liệu GMS 2H" là nguồn dữ liệu DUY NHẤT — hãy chắc chắn đã có đủ file CSV cần thiết trong Drive trước khi xác nhận.\n\nTiếp tục xóa?`);
+  if (!ok) return;
+
+  const logEl = document.getElementById('ac-prod-log');
+  if (logEl) { logEl.innerHTML = ''; logEl.classList.add('visible'); }
+  const acLog = (msg, type='info') => {
+    if (!logEl) return;
+    const c = type==='ok'?'#27ae60':type==='err'?'#c0392b':type==='warn'?'#f39c12':'#555';
+    logEl.innerHTML += `<div style="color:${c}">[${new Date().toLocaleTimeString('vi-VN')}] ${msg}</div>`;
+    logEl.scrollTop = logEl.scrollHeight;
+  };
+
+  try {
+    for (const { shop, snap } of snaps) {
+      if (snap.empty) continue;
+      acLog(`🗑️ Đang xóa ${snap.size} ngày của ${shop.name}...`);
+      const docs = snap.docs;
+      for (let i = 0; i < docs.length; i += 400) { // Firestore batch giới hạn 500 writes/lần
+        const batch = db.batch();
+        docs.slice(i, i + 400).forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      }
+      acLog(`✅ Đã xóa xong dữ liệu Firestore của ${shop.name}`, 'ok');
+    }
+    acLog('✅ Hoàn tất — Firestore đã sạch, Drive là nguồn dữ liệu duy nhất từ giờ.', 'ok');
+  } catch(e) {
+    acLog(`❌ Lỗi khi xóa: ${e.message}`, 'err');
+    return;
+  }
+
+  _acDriveData = [];
+  _acDriveDataShopId = null;
+  renderAcTopFromDrive();
+  acViewPickerInit(true);
 }
 
 async function sapiSyncAutoProducts() {
