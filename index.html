@@ -1308,15 +1308,6 @@
         <span id="ac-sync-toggle-icon" style="font-size:12px;color:var(--text2)">▸ Bấm để mở</span>
       </div>
       <div id="ac-sync-body" style="display:none;margin-top:14px">
-        <!-- View mode tabs (chọn shop trước khi đồng bộ) -->
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <span style="font-size:11.5px;color:var(--text2);font-weight:700">Shop</span>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button id="ac-tab-2hbooks"  onclick="setAcSyncShop('2hbooks')"  style="padding:6px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none;background:var(--navy);color:white">🏪 Nhà Sách 2HBooks</button>
-            <button id="ac-tab-huyhoanh" onclick="setAcSyncShop('huyhoanh')" style="padding:6px 16px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;border:none;background:var(--gray2);color:var(--text1)">📚 Huy Hoàng Bookstore</button>
-          </div>
-        </div>
-
         <!-- Xác nhận Tân 2026-08-08: bỏ hẳn "Gọi API trực tiếp" (get_item_daily) — API không trả
              đủ dữ liệu để phân tích (thiếu tên SP, không tách trực tiếp/gộp, không có Voucher
              Amount/Vouchered Sales như CSV Seller Centre). Chỉ còn 1 đường lấy dữ liệu: Đồng Bộ Từ Drive.
@@ -1325,8 +1316,14 @@
              là nguồn dữ liệu DUY NHẤT, mỗi lần bấm Đồng Bộ đọc lại TOÀN BỘ file trong folder (đổi lại
              tốc độ để tránh phình dung lượng Firestore khi nhiều file). Tân cam kết không xóa file
              CSV gốc khỏi Drive. Dữ liệu Firestore cũ (gms_days) không dùng nữa — thêm nút xóa để
-             Tân tự bấm giải phóng, agent không tự xóa dữ liệu thay Tân. -->
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;padding:10px 12px;background:var(--surface);border-radius:8px;border:1px solid var(--gray3)">
+             Tân tự bấm giải phóng, agent không tự xóa dữ liệu thay Tân.
+
+             Xác nhận Tân 2026-08-08 (lần 3): bỏ luôn 2 tab chọn shop trước khi đồng bộ — cả 2 shop
+             (2HBooks + Huy Hoàng) cùng nằm 1 folder Drive "Dữ Liệu GMS 2H", mỗi file tự có "Mã Người
+             Bán" riêng trong nội dung CSV để nhận diện, không cần Tân chọn trước. 1 nút Đồng Bộ đọc
+             hết file, tự nạp CẢ 2 shop vào bộ nhớ cùng lúc — đổi "Kỳ Xem" giữa 2 shop chỉ lọc dữ liệu
+             đã có, không mất, không cần đồng bộ lại (trừ khi tải lại trang). -->
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;background:var(--surface);border-radius:8px;border:1px solid var(--gray3)">
           <button onclick="gmsLoadFromDriveManual()" style="padding:6px 14px;background:#1a73e8;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
             📂 Đồng Bộ Từ Drive
           </button>
@@ -9912,7 +9909,6 @@ function renderAutoCampPage() {
   // Mặc định hiện shop 2HBooks khi vào trang — KHÔNG còn Firestore, chỉ hiện dữ liệu đã
   // đồng bộ từ Drive trong phiên làm việc này (nếu có), chưa có thì hiện trống chờ đồng bộ.
   AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = '';
-  setAcSyncShop('2hbooks');  // style tab Card Đồng Bộ
   setAcViewShop('2hbooks');  // hiện dữ liệu đã có trong bộ nhớ (nếu có) hoặc trống
 
   const shop = G.shops[G.current];
@@ -10162,18 +10158,22 @@ function parseShopeeGmsCsvText(csvText) {
   return { shopSellerId, items };
 }
 
-// ★ Drive GMS data store — dữ liệu theo ngày từ Drive. Xác nhận Tân 2026-08-08: KHÔNG lưu
+// ★ Drive GMS data store — dữ liệu theo ngày, GỘP CẢ 2 SHOP cùng lúc (mỗi entry gắn
+// shopApiId — xác nhận Tân 2026-08-08 lần 3: 1 nút Đồng Bộ đọc hết file trong folder, tự
+// nhận diện shop qua "Mã Người Bán" trong từng file, không cần chọn shop trước). KHÔNG lưu
 // Firestore — chỉ tồn tại trong bộ nhớ trong phiên làm việc, đọc lại từ Drive mỗi lần bấm
-// Đồng Bộ. _acDriveDataShopId ghi nhớ dữ liệu đang có trong bộ nhớ là của shop nào, để
-// setAcViewShop() biết khi nào cần hiện trống (đổi sang shop chưa đồng bộ trong phiên này).
-let _acDriveData   = []; // [{date:'2026-07-01', label:'01/07/2026', cost, rev, imp, clk, ord, items:[]}]
-let _acDriveDataShopId = null;
+// Đồng Bộ. Dùng acCurrentShopDriveData() để lấy đúng subset của shop đang xem.
+let _acDriveData   = []; // [{date, label, shopApiId, cost, rev, imp, clk, ord, items:[]}]
 
-// Tách RIÊNG shop đang chọn để ĐỒNG BỘ (tab ở Card 1) với shop đang XEM (bộ lọc Kỳ Xem)
-// — xác nhận Tân 2026-08-07: bấm tab ở Card Đồng Bộ không được tự đổi dữ liệu đang xem
-// bên dưới, 2 việc này phải độc lập nhau.
-let _acSyncShop = '2hbooks'; // '2hbooks' | 'huyhoanh' — chỉ dùng khi bấm nút Đồng Bộ
 let _acViewShop = '2hbooks'; // '2hbooks' | 'huyhoanh' — quyết định dữ liệu hiển thị bên dưới
+
+function acCurrentViewShopId() {
+  return _acViewShop === 'huyhoanh' ? 371873832 : 1289235612;
+}
+// Subset của _acDriveData khớp đúng shop đang XEM, đã sắp xếp theo ngày tăng dần
+function acCurrentShopDriveData() {
+  return _acDriveData.filter(d => d.shopApiId === acCurrentViewShopId()).sort((a,b) => a.date.localeCompare(b.date));
+}
 
 // ── Bộ Lọc xem dữ liệu đã đồng bộ — 1 nút bấm sổ lịch, CHỌN BẰNG 2 LẦN CLICK
 // (xác nhận Tân 2026-08-07: bấm ngày đầu muốn xem → bấm ngày cuối → tự áp dụng,
@@ -10186,8 +10186,9 @@ let acViewGlobalListenersBound = false;
 // forceDefault=true → luôn nhảy về ngày mới nhất (dùng khi đổi shop hoặc vừa có data mới).
 // forceDefault=false → giữ nguyên lựa chọn đang xem nếu đã có (chỉ set mặc định lần đầu).
 function acViewPickerInit(forceDefault) {
-  if (!_acDriveData.length) { acViewUpdateTriggerLabel(); return; }
-  const latest = _acDriveData[_acDriveData.length - 1].date;
+  const shopDays = acCurrentShopDriveData();
+  if (!shopDays.length) { acViewUpdateTriggerLabel(); return; }
+  const latest = shopDays[shopDays.length - 1].date;
   if (forceDefault || !AC_VIEW_PICKER.rangeStart) {
     AC_VIEW_PICKER.rangeStart = latest;
     AC_VIEW_PICKER.rangeEnd   = latest;
@@ -10204,7 +10205,7 @@ function acViewPickerInit(forceDefault) {
 }
 
 function acViewTogglePicker() {
-  if (!_acDriveData.length) return; // chưa có data thì không mở lịch
+  if (!acCurrentShopDriveData().length) return; // chưa có data thì không mở lịch
   const pop = document.getElementById('ac-view-range-popover');
   if (!pop) return;
   const opening = pop.style.display === 'none';
@@ -10242,9 +10243,10 @@ function acViewRenderCalendar() {
   const daysInMonth = new Date(AC_VIEW_PICKER.calYear, AC_VIEW_PICKER.calMonth + 1, 0).getDate();
   const daysInPrevMonth = new Date(AC_VIEW_PICKER.calYear, AC_VIEW_PICKER.calMonth, 0).getDate();
 
+  const shopDaysForCal = acCurrentShopDriveData();
   const todayStr = acSyncFmtDate(new Date());
-  const minStr = _acDriveData[0]?.date || '';
-  const maxStr = _acDriveData[_acDriveData.length-1]?.date || '';
+  const minStr = shopDaysForCal[0]?.date || '';
+  const maxStr = shopDaysForCal[shopDaysForCal.length-1]?.date || '';
 
   // Đã chọn xong (không còn đang chờ click thứ 2) → hiện khoảng đang áp dụng.
   // Đang chờ click thứ 2 → chỉ tô đậm mỗi ngày đã bấm (anchor), không tô khoảng.
@@ -10300,12 +10302,13 @@ function acViewDayClick(dateStr) {
 }
 
 function acViewApplyPresetRange(days) {
-  if (!_acDriveData.length) return;
-  const to = _acDriveData[_acDriveData.length - 1].date;
+  const shopDays = acCurrentShopDriveData();
+  if (!shopDays.length) return;
+  const to = shopDays[shopDays.length - 1].date;
   const toD = new Date(to + 'T00:00:00');
   const fromD = new Date(toD); fromD.setDate(fromD.getDate() - (days - 1));
   let fromStr = acSyncFmtDate(fromD);
-  if (fromStr < _acDriveData[0].date) fromStr = _acDriveData[0].date;
+  if (fromStr < shopDays[0].date) fromStr = shopDays[0].date;
   AC_VIEW_PICKER.rangeStart = fromStr;
   AC_VIEW_PICKER.rangeEnd = to;
   AC_VIEW_PICKER.calYear = toD.getFullYear(); AC_VIEW_PICKER.calMonth = toD.getMonth();
@@ -10314,12 +10317,13 @@ function acViewApplyPresetRange(days) {
 }
 
 function acViewApplyPresetThisMonth() {
-  if (!_acDriveData.length) return;
-  const to = _acDriveData[_acDriveData.length - 1].date;
+  const shopDays = acCurrentShopDriveData();
+  if (!shopDays.length) return;
+  const to = shopDays[shopDays.length - 1].date;
   const toD = new Date(to + 'T00:00:00');
   const fromD = new Date(toD.getFullYear(), toD.getMonth(), 1);
   let fromStr = acSyncFmtDate(fromD);
-  if (fromStr < _acDriveData[0].date) fromStr = _acDriveData[0].date;
+  if (fromStr < shopDays[0].date) fromStr = shopDays[0].date;
   AC_VIEW_PICKER.rangeStart = fromStr;
   AC_VIEW_PICKER.rangeEnd = to;
   AC_VIEW_PICKER.calYear = toD.getFullYear(); AC_VIEW_PICKER.calMonth = toD.getMonth();
@@ -10328,9 +10332,10 @@ function acViewApplyPresetThisMonth() {
 }
 
 function acViewApplyPresetAll() {
-  if (!_acDriveData.length) return;
-  AC_VIEW_PICKER.rangeStart = _acDriveData[0].date;
-  AC_VIEW_PICKER.rangeEnd = _acDriveData[_acDriveData.length - 1].date;
+  const shopDays = acCurrentShopDriveData();
+  if (!shopDays.length) return;
+  AC_VIEW_PICKER.rangeStart = shopDays[0].date;
+  AC_VIEW_PICKER.rangeEnd = shopDays[shopDays.length - 1].date;
   const toD = new Date(AC_VIEW_PICKER.rangeEnd + 'T00:00:00');
   AC_VIEW_PICKER.calYear = toD.getFullYear(); AC_VIEW_PICKER.calMonth = toD.getMonth();
   AC_VIEW_PICKER.selecting = false;
@@ -10348,7 +10353,7 @@ function acViewFinishPickerAction() {
 function acViewUpdateTriggerLabel() {
   const trigger = document.getElementById('ac-view-range-trigger');
   if (!trigger) return;
-  if (!_acDriveData.length) { trigger.textContent = 'Bấm 📂 Đồng Bộ Từ Drive để tải dữ liệu'; return; }
+  if (!acCurrentShopDriveData().length) { trigger.textContent = 'Bấm 📂 Đồng Bộ Từ Drive để tải dữ liệu'; return; }
   if (!AC_VIEW_PICKER.rangeStart) { trigger.textContent = '📅 Chọn kỳ xem…'; return; }
   const fmt = (s) => { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; };
   trigger.textContent = AC_VIEW_PICKER.rangeStart === AC_VIEW_PICKER.rangeEnd
@@ -10357,23 +10362,24 @@ function acViewUpdateTriggerLabel() {
 }
 
 function renderAcTopFromDrive() {
-  if (!_acDriveData.length) {
-    // Không còn Firestore dự phòng — shop đang xem chưa được đồng bộ trong phiên này →
-    // xóa sạch KPI/bảng cũ (tránh còn sót số liệu của shop vừa xem trước đó) và nhắc đồng bộ.
+  const shopDays = acCurrentShopDriveData();
+  if (!shopDays.length) {
+    // Shop đang xem chưa có dữ liệu trong bộ nhớ (chưa đồng bộ lần nào trong phiên này, hoặc
+    // Drive không có file nào của shop này) → xóa sạch KPI/bảng cũ và nhắc đồng bộ.
     ['ac-kpi-cost','ac-kpi-rev','ac-kpi-roas','ac-kpi-imp','ac-kpi-clk','ac-kpi-ord']
       .forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '–'; });
     const tbody = document.getElementById('ac-trend-tbody');
     if (tbody) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:28px;color:#999">Chưa có dữ liệu — bấm 📂 Đồng Bộ Từ Drive ở khối phía trên cho shop này</td></tr>';
-    acShowEmpty('Chưa có dữ liệu cho shop này trong phiên làm việc — bấm <strong>📂 Đồng Bộ Từ Drive</strong> ở khối <strong>"Đồng Bộ Dữ Liệu Chiến Dịch Tự Động"</strong> phía trên.');
+    acShowEmpty('Chưa có dữ liệu cho shop này — bấm <strong>📂 Đồng Bộ Từ Drive</strong> ở khối <strong>"Đồng Bộ Dữ Liệu Chiến Dịch Tự Động"</strong> phía trên.');
     return;
   }
 
-  // Lọc ngày theo khoảng đang chọn ở Bộ Lọc (Kỳ Xem)
-  let filteredDays = _acDriveData.filter(d => {
+  // Lọc ngày theo khoảng đang chọn ở Bộ Lọc (Kỳ Xem) — shopDays đã đúng shop đang xem
+  let filteredDays = shopDays.filter(d => {
     if (AC_VIEW_PICKER.rangeStart && d.date < AC_VIEW_PICKER.rangeStart) return false;
     if (AC_VIEW_PICKER.rangeEnd   && d.date > AC_VIEW_PICKER.rangeEnd)   return false;
     return true;
-  }).sort((a,b) => a.date.localeCompare(b.date));
+  });
 
   // Cập nhật KPI cards
   let totCost=0, totRev=0, totImp=0, totClk=0, totOrd=0;
@@ -10461,17 +10467,6 @@ function acToggleSyncCard() {
   if (icon) icon.textContent = opening ? '▾ Bấm để đóng' : '▸ Bấm để mở';
 }
 
-// ★ Đổi shop CHỈ để đồng bộ (tab trong Card 1) — KHÔNG đụng dữ liệu đang xem bên dưới.
-function setAcSyncShop(mode) {
-  _acSyncShop = mode;
-  ['2hbooks','huyhoanh'].forEach(m => {
-    const btn = document.getElementById('ac-tab-' + m);
-    if (!btn) return;
-    btn.style.background = mode === m ? 'var(--navy)' : 'var(--gray2)';
-    btn.style.color = mode === m ? 'white' : 'var(--text1)';
-  });
-}
-
 // Cập nhật style 2 nút chọn shop ở bộ lọc "Kỳ Xem"
 function acViewShopSetStyle(mode) {
   ['2hbooks','huyhoanh'].forEach(m => {
@@ -10483,26 +10478,23 @@ function acViewShopSetStyle(mode) {
 }
 
 // ★ Đổi shop ĐANG XEM (bộ lọc Kỳ Xem) — xác nhận Tân 2026-08-08: KHÔNG còn Firestore để tải
-// lại, CHỈ hiển thị dữ liệu đang có sẵn trong bộ nhớ (đã đồng bộ từ Drive trong phiên làm
-// việc này). Nếu đổi sang shop CHƯA đồng bộ trong phiên này → hiện trống, nhắc bấm Đồng Bộ
-// Từ Drive ở Card 1 (chọn đúng shop đó trước).
+// lại, CHỈ lọc dữ liệu đang có sẵn trong bộ nhớ (đã đồng bộ từ Drive trong phiên làm việc
+// này — 1 lần Đồng Bộ nạp CẢ 2 shop cùng lúc nên chuyển qua lại giữa 2 shop KHÔNG mất dữ
+// liệu, không cần đồng bộ lại). Nếu chưa đồng bộ lần nào trong phiên này → hiện trống.
 function setAcViewShop(mode) {
   _acViewShop = mode;
   acViewShopSetStyle(mode);
   const sv = document.getElementById('ac-single-view');
   if (sv) sv.style.display = '';
-  const shopId = mode === '2hbooks' ? 1289235612 : 371873832;
-  if (_acDriveDataShopId !== shopId) _acDriveData = []; // dữ liệu đang có (nếu có) là của shop khác
-  AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = ''; // đổi shop → về mặc định ngày mới nhất
+  AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = ''; // đổi shop → về mặc định ngày mới nhất của shop đó
   acViewPickerInit(true);
   renderAcTopFromDrive();
 }
 
-// ★ Đồng bộ GMS per-product từ Drive — xác nhận Tân 2026-08-08: KHÔNG lưu Firestore nữa,
-// Drive folder "Dữ Liệu GMS 2H" là nguồn dữ liệu DUY NHẤT. Mỗi lần bấm đọc lại TOÀN BỘ file
-// CSV trong folder (không còn incremental-skip theo Firestore) — chậm hơn cách cũ nhưng
-// tránh phình dung lượng Firestore khi số file tăng theo thời gian. Tân cam kết không xóa
-// file CSV gốc khỏi Drive.
+// ★ Đồng bộ GMS từ Drive — xác nhận Tân 2026-08-08 (lần 3): KHÔNG lưu Firestore, KHÔNG cần
+// chọn shop trước — 2HBooks + Huy Hoàng cùng nằm 1 folder "Dữ Liệu GMS 2H", mỗi file tự có
+// "Mã Người Bán" riêng trong nội dung CSV để nhận diện. 1 nút đọc hết file, tự nạp CẢ 2 shop
+// vào bộ nhớ cùng lúc — đổi "Kỳ Xem" giữa 2 shop sau đó chỉ lọc, không mất dữ liệu.
 async function gmsLoadFromDriveManual() {
   const logEl = document.getElementById('ac-prod-log');
   if (logEl) { logEl.innerHTML = ''; logEl.classList.add('visible'); }
@@ -10515,11 +10507,8 @@ async function gmsLoadFromDriveManual() {
     logEl.scrollTop = logEl.scrollHeight;
   };
 
-  // Dùng shop đang chọn ở Card Đồng Bộ (không phụ thuộc shop đang xem bên dưới hay G.current)
-  const shopApiId = _acSyncShop === 'huyhoanh' ? 371873832
-                  : _acSyncShop === '2hbooks'   ? 1289235612
-                  : SAPI_SHOP_MAP_INV[G.current];
-  if (!shopApiId) { acLog('❌ Không xác định được shop cần đồng bộ', 'err'); return; }
+  // 2 shop GMS đã biết — file nào khớp Mã Người Bán khác 2 shop này sẽ bị bỏ qua + cảnh báo
+  const KNOWN_GMS_SHOPS = { '1289235612': 'Nhà Sách 2HBooks', '371873832': 'Huy Hoàng Bookstore' };
 
   acLog('📂 Đang lấy danh sách file từ Drive "Dữ Liệu GMS 2H"...');
   try {
@@ -10527,8 +10516,7 @@ async function gmsLoadFromDriveManual() {
     const allFiles = (listResp.files || []).filter(f => f.name && f.name.toLowerCase().endsWith('.csv'));
     if (!allFiles.length) {
       acLog('Folder "Dữ Liệu GMS 2H" đang trống.', 'warn');
-      _acDriveData = []; _acDriveDataShopId = shopApiId;
-      _acViewShop = _acSyncShop; acViewShopSetStyle(_acViewShop);
+      _acDriveData = [];
       AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = '';
       acViewPickerInit(true);
       renderAcTopFromDrive();
@@ -10537,14 +10525,16 @@ async function gmsLoadFromDriveManual() {
     acLog(`  → ${allFiles.length} file CSV trong folder Drive`);
 
     const newData = [];
-    let skippedCount = 0;
+    let unknownCount = 0;
     for (const file of allFiles) {
       const contentResp = await sapiCall('read_gms_drive_file', { file_id: file.id });
       const csvText = contentResp.content || '';
       const { shopSellerId, items } = parseShopeeGmsCsvText(csvText);
 
-      if (String(shopSellerId) !== String(shopApiId)) {
-        skippedCount++;
+      const shopName = KNOWN_GMS_SHOPS[String(shopSellerId)];
+      if (!shopName) {
+        unknownCount++;
+        acLog(`  → ${file.name}: shop ${shopSellerId || '?'} không thuộc 2HBooks/Huy Hoàng, bỏ qua`, 'warn');
         continue;
       }
 
@@ -10554,7 +10544,7 @@ async function gmsLoadFromDriveManual() {
       if (!fileDate) { acLog(`  → ${file.name}: không đọc được ngày từ tên file, bỏ qua`, 'warn'); continue; }
 
       // Tính daily totals từ items
-      const dayData = { date: fileDate, label: fileLabel, cost:0, rev:0, imp:0, clk:0, ord:0, items };
+      const dayData = { date: fileDate, label: fileLabel, shopApiId: Number(shopSellerId), cost:0, rev:0, imp:0, clk:0, ord:0, items };
       items.forEach(p => {
         dayData.cost += (p.expense     || 0);
         dayData.rev  += (p.broad_gmv   || 0);
@@ -10563,24 +10553,21 @@ async function gmsLoadFromDriveManual() {
         dayData.ord  += (p.broad_order || 0);
       });
       newData.push(dayData);
-      acLog(`  → ${fileLabel} (${items.length} SP)`, 'ok');
+      acLog(`  → ${shopName} — ${fileLabel} (${items.length} SP)`, 'ok');
     }
 
     newData.sort((a,b) => a.date.localeCompare(b.date));
     _acDriveData = newData;
-    _acDriveDataShopId = shopApiId;
 
-    // Vừa đồng bộ xong shop này → tự chuyển "Kỳ Xem" sang xem luôn shop này cho tiện
-    _acViewShop = _acSyncShop;
-    acViewShopSetStyle(_acViewShop);
     AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = ''; // reset để tự set theo dữ liệu mới nhất
     acViewPickerInit(true);
     renderAcTopFromDrive();
 
+    const shopCount = new Set(newData.map(d => d.shopApiId)).size;
     if (!newData.length) {
-      acLog(`❌ Không có file nào khớp shop đang chọn (đã bỏ qua ${skippedCount} file khác shop).`, 'err');
+      acLog(`❌ Không có file nào khớp 2 shop GMS${unknownCount ? ` (đã bỏ qua ${unknownCount} file không rõ shop)` : ''}.`, 'err');
     } else {
-      acLog(`✅ Xong: ${newData.length} ngày${skippedCount ? `, đã bỏ qua ${skippedCount} file khác shop` : ''}`, 'ok');
+      acLog(`✅ Xong: ${newData.length} ngày, ${shopCount} shop${unknownCount ? `, đã bỏ qua ${unknownCount} file không rõ shop` : ''}`, 'ok');
     }
   } catch(e) {
     acLog(`❌ Lỗi: ${e.message}`, 'err');
@@ -10640,7 +10627,6 @@ async function gmsDeleteOldFirestoreData() {
   }
 
   _acDriveData = [];
-  _acDriveDataShopId = null;
   renderAcTopFromDrive();
   acViewPickerInit(true);
 }
