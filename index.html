@@ -1317,34 +1317,11 @@
           </div>
         </div>
 
-        <!-- Gọi thẳng API Shopee (get_gms_item_performance qua action get_item_daily) — không cần
-             tải CSV thủ công + upload Drive nữa. Giữ nút Drive cũ song song làm dự phòng
-             (xác nhận Tân 2026-08-07). API chỉ trả tổng theo TỪNG SẢN PHẨM cho CẢ khoảng ngày đã
-             chọn (không tách theo từng ngày như CSV Drive) — dùng cho xem nhanh, không lưu Firestore. -->
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;padding:10px 12px;background:var(--surface);border-radius:8px;border:1px solid var(--gray3);position:relative">
-          <span style="font-size:11px;color:var(--text2);font-weight:700">🔄 Gọi API trực tiếp:</span>
-          <button id="ac-sync-range-trigger" class="filter-btn" onclick="acSyncTogglePicker()" style="min-width:190px;text-align:left">📅 …</button>
-          <div id="ac-sync-range-popover" style="display:none;position:absolute;top:calc(100% + 4px);left:130px;z-index:40;background:white;border:1px solid var(--gray3);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.12);padding:12px;width:280px;user-select:none">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-              <button class="filter-btn" style="padding:4px 9px" onclick="acSyncCalNav(-1)">‹</button>
-              <span id="ac-sync-cal-title" style="font-size:12.5px;font-weight:700;color:var(--navy)"></span>
-              <button class="filter-btn" style="padding:4px 9px" onclick="acSyncCalNav(1)">›</button>
-            </div>
-            <div id="ac-sync-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px"></div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--gray3)">
-              <button class="tchip" onclick="acSyncApplyPresetRange(1)">Hôm qua</button>
-              <button class="tchip" onclick="acSyncApplyPresetRange(7)">7 ngày</button>
-              <button class="tchip" onclick="acSyncApplyPresetRange(30)">30 ngày</button>
-              <button class="tchip" onclick="acSyncApplyPresetThisMonth()">Tháng này</button>
-            </div>
-            <div style="font-size:10.5px;color:var(--text2);margin-top:8px">Bấm 1 ngày = 1 ngày. Bấm ngày đầu rồi bấm ngày cuối = chọn cả khoảng.</div>
-          </div>
-          <input type="hidden" id="ac-item-sync-from">
-          <input type="hidden" id="ac-item-sync-to">
-          <button onclick="gmsSyncItemsFromApi()" style="padding:6px 14px;background:var(--navy);color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
-            🔄 Đồng Bộ Trực Tiếp API
-          </button>
-          <button onclick="gmsLoadFromDriveManual()" style="margin-left:auto;padding:6px 14px;background:#1a73e8;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
+        <!-- Xác nhận Tân 2026-08-08: bỏ hẳn "Gọi API trực tiếp" (get_item_daily) — API không trả
+             đủ dữ liệu để phân tích (thiếu tên SP, không tách trực tiếp/gộp, không có Voucher
+             Amount/Vouchered Sales như CSV Seller Centre). Chỉ còn 1 đường lấy dữ liệu: Đồng Bộ Từ Drive. -->
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;padding:10px 12px;background:var(--surface);border-radius:8px;border:1px solid var(--gray3)">
+          <button onclick="gmsLoadFromDriveManual()" style="padding:6px 14px;background:#1a73e8;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
             📂 Đồng Bộ Từ Drive
           </button>
         </div>
@@ -1451,7 +1428,7 @@
       </div>
       <div id="ac-prod-hint" style="display:none;font-size:12px;padding:10px 12px;border-radius:8px;margin-bottom:10px"></div>
       <div id="ac-prod-empty" style="color:#999;font-size:12px;padding:28px;text-align:center">
-        Bấm <strong>🔄 Đồng Bộ Trực Tiếp API</strong> hoặc <strong>📂 Đồng Bộ Từ Drive</strong> ở khối <strong>"Đồng Bộ Dữ Liệu Chiến Dịch Tự Động"</strong> phía trên để tải dữ liệu.
+        Bấm <strong>📂 Đồng Bộ Từ Drive</strong> ở khối <strong>"Đồng Bộ Dữ Liệu Chiến Dịch Tự Động"</strong> phía trên để tải dữ liệu.
       </div>
       <div class="table-wrap" style="max-height:560px;overflow-y:auto">
         <table id="ac-prod-table" style="display:none">
@@ -9921,7 +9898,6 @@ function renderAcDateChips() {
 }
 
 function renderAutoCampPage() {
-  acSyncPickerInit();
   renderAcDateChips();
   // Load GMS data từ Firestore — mặc định hiện shop 2HBooks khi vào trang
   AC_VIEW_PICKER.rangeStart = ''; AC_VIEW_PICKER.rangeEnd = '';
@@ -10440,160 +10416,15 @@ function renderAcTopFromDrive() {
   }
 }
 
-// ── Lịch chọn khoảng ngày cho ô "Gọi API trực tiếp" (GMS) — 1 nút bấm sổ ra
-// lịch kéo-thả, thay 2 ô dd/mm/yyyy rời (xác nhận Tân 2026-08-07, cùng kiểu
-// với lịch ở Card 2 trang Chiến Dịch Theo Giờ). Chọn xong chỉ điền vào 2 input
-// ẩn ac-item-sync-from/to — KHÔNG tự gọi API, phải bấm nút Đồng Bộ mới chạy.
+// AC_SYNC_WEEKDAYS / AC_SYNC_MONTH_NAMES / acSyncFmtDate: hằng số & hàm dùng CHUNG cho lịch
+// "Kỳ Xem" (AC_VIEW_PICKER) — đặt tên "acSync" từ hồi còn lịch chọn ngày cho "Gọi API trực
+// tiếp", nay phần đó đã bị xóa hẳn (xác nhận Tân 2026-08-08: API không đủ dữ liệu để phân
+// tích) nhưng 3 thứ này vẫn được acViewRenderCalendar()/acViewApplyPresetRange() dùng, KHÔNG xóa.
 const AC_SYNC_WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 const AC_SYNC_MONTH_NAMES = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
-const AC_SYNC_PICKER = { rangeStart: '', rangeEnd: '', calYear: 0, calMonth: 0, selecting: false, anchor: '', pickerOpen: false };
-let acSyncGlobalListenersBound = false;
 
 function acSyncFmtDate(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function acSyncPickerInit() {
-  if (!AC_SYNC_PICKER.rangeStart) {
-    const y = new Date(); y.setDate(y.getDate() - 1);
-    const yStr = acSyncFmtDate(y);
-    AC_SYNC_PICKER.rangeStart = yStr; AC_SYNC_PICKER.rangeEnd = yStr;
-    AC_SYNC_PICKER.calYear = y.getFullYear(); AC_SYNC_PICKER.calMonth = y.getMonth();
-    acSyncFinishPickerAction(); // điền sẵn 2 input ẩn + nhãn nút (popover đang đóng, không bị ảnh hưởng)
-  }
-  if (!acSyncGlobalListenersBound) {
-    document.addEventListener('mousedown', acSyncHandleOutsideClick);
-    acSyncGlobalListenersBound = true;
-  }
-}
-
-function acSyncTogglePicker() {
-  const pop = document.getElementById('ac-sync-range-popover');
-  if (!pop) return;
-  const opening = pop.style.display === 'none';
-  pop.style.display = opening ? 'block' : 'none';
-  AC_SYNC_PICKER.pickerOpen = opening;
-  if (opening) { AC_SYNC_PICKER.selecting = false; acSyncRenderCalendar(); }
-}
-
-function acSyncHandleOutsideClick(e) {
-  if (!AC_SYNC_PICKER.pickerOpen) return;
-  const pop = document.getElementById('ac-sync-range-popover');
-  const trigger = document.getElementById('ac-sync-range-trigger');
-  if (!pop || !trigger) return;
-  if (pop.contains(e.target) || trigger.contains(e.target)) return;
-  pop.style.display = 'none';
-  AC_SYNC_PICKER.pickerOpen = false;
-  AC_SYNC_PICKER.selecting = false; // bấm ra ngoài khi đang chọn dở → hủy, giữ lựa chọn cũ
-}
-
-function acSyncCalNav(delta) {
-  AC_SYNC_PICKER.calMonth += delta;
-  if (AC_SYNC_PICKER.calMonth < 0) { AC_SYNC_PICKER.calMonth = 11; AC_SYNC_PICKER.calYear--; }
-  if (AC_SYNC_PICKER.calMonth > 11) { AC_SYNC_PICKER.calMonth = 0; AC_SYNC_PICKER.calYear++; }
-  acSyncRenderCalendar();
-}
-
-function acSyncRenderCalendar() {
-  const title = document.getElementById('ac-sync-cal-title');
-  const grid = document.getElementById('ac-sync-cal-grid');
-  if (!title || !grid) return;
-  title.textContent = `${AC_SYNC_MONTH_NAMES[AC_SYNC_PICKER.calMonth]} ${AC_SYNC_PICKER.calYear}`;
-
-  const firstOfMonth = new Date(AC_SYNC_PICKER.calYear, AC_SYNC_PICKER.calMonth, 1);
-  const firstWeekday = (firstOfMonth.getDay() + 6) % 7;
-  const daysInMonth = new Date(AC_SYNC_PICKER.calYear, AC_SYNC_PICKER.calMonth + 1, 0).getDate();
-  const daysInPrevMonth = new Date(AC_SYNC_PICKER.calYear, AC_SYNC_PICKER.calMonth, 0).getDate();
-
-  const todayStr = acSyncFmtDate(new Date());
-  const minD = new Date(); minD.setMonth(minD.getMonth() - 6);
-  const minStr = acSyncFmtDate(minD);
-  const maxStr = todayStr; // không cho chọn ngày tương lai
-
-  const cells = [];
-  for (let i = 0; i < firstWeekday; i++) cells.push({ day: daysInPrevMonth - firstWeekday + 1 + i, dateStr: null });
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push({ day: d, dateStr: `${AC_SYNC_PICKER.calYear}-${String(AC_SYNC_PICKER.calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}` });
-  }
-  let extra = 1;
-  while (cells.length % 7 !== 0) cells.push({ day: extra++, dateStr: null });
-
-  const dispStart = AC_SYNC_PICKER.rangeStart, dispEnd = AC_SYNC_PICKER.rangeEnd;
-
-  let html = AC_SYNC_WEEKDAYS.map(w => `<div style="text-align:center;font-size:10px;color:var(--text2);font-weight:700;padding:2px 0">${w}</div>`).join('');
-  html += cells.map(c => {
-    if (!c.dateStr) return `<div style="text-align:center;font-size:11.5px;color:var(--gray3);padding:6px 0">${c.day}</div>`;
-    const disabled = c.dateStr < minStr || c.dateStr > maxStr;
-    const anchorSel = AC_SYNC_PICKER.selecting && c.dateStr === AC_SYNC_PICKER.anchor;
-    const inRange = !AC_SYNC_PICKER.selecting && dispStart && dispEnd && c.dateStr >= dispStart && c.dateStr <= dispEnd;
-    const isEndpoint = !AC_SYNC_PICKER.selecting && (c.dateStr === dispStart || c.dateStr === dispEnd);
-    const isToday = c.dateStr === todayStr;
-    const isSel = isEndpoint || anchorSel;
-    let bg = 'transparent', color = 'var(--text)', weight = '400', border = '';
-    if (disabled) color = 'var(--gray3)';
-    else if (isSel) { bg = 'var(--navy)'; color = 'white'; weight = '700'; }
-    else if (inRange) { bg = 'var(--navy3)'; color = 'var(--navy)'; }
-    if (isToday && !isSel && !disabled) border = 'border:1px solid var(--navy2);';
-    const cls = 'ac-cal-day' + (disabled ? ' ac-cal-day-disabled' : '') + (isSel ? ' ac-cal-day-sel' : '');
-    const handler = disabled ? '' : `onclick="acSyncDayClick('${c.dateStr}')"`;
-    return `<div class="${cls}" ${handler} style="text-align:center;font-size:11.5px;padding:6px 0;border-radius:6px;cursor:${disabled ? 'default' : 'pointer'};background:${bg};color:${color};font-weight:${weight};${border}">${c.day}</div>`;
-  }).join('');
-
-  grid.innerHTML = html;
-}
-
-// Click 1: chọn ngày bắt đầu (chờ click thứ 2). Click 2: chọn ngày kết thúc → tự áp dụng.
-function acSyncDayClick(dateStr) {
-  if (!AC_SYNC_PICKER.selecting) {
-    AC_SYNC_PICKER.anchor = dateStr;
-    AC_SYNC_PICKER.selecting = true;
-    acSyncRenderCalendar();
-  } else {
-    const a = AC_SYNC_PICKER.anchor;
-    AC_SYNC_PICKER.rangeStart = dateStr < a ? dateStr : a;
-    AC_SYNC_PICKER.rangeEnd   = dateStr < a ? a : dateStr;
-    AC_SYNC_PICKER.selecting = false;
-    acSyncFinishPickerAction();
-  }
-}
-
-function acSyncApplyPresetRange(days) {
-  const to = new Date();
-  const from = new Date(to); from.setDate(from.getDate() - (days - 1));
-  AC_SYNC_PICKER.rangeStart = acSyncFmtDate(from);
-  AC_SYNC_PICKER.rangeEnd = acSyncFmtDate(to);
-  AC_SYNC_PICKER.calYear = to.getFullYear(); AC_SYNC_PICKER.calMonth = to.getMonth();
-  acSyncFinishPickerAction();
-}
-
-function acSyncApplyPresetThisMonth() {
-  const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), 1);
-  const to = new Date();
-  AC_SYNC_PICKER.rangeStart = acSyncFmtDate(from);
-  AC_SYNC_PICKER.rangeEnd = acSyncFmtDate(to);
-  AC_SYNC_PICKER.calYear = to.getFullYear(); AC_SYNC_PICKER.calMonth = to.getMonth();
-  acSyncFinishPickerAction();
-}
-
-function acSyncFinishPickerAction() {
-  acSyncUpdateTriggerLabel();
-  const pop = document.getElementById('ac-sync-range-popover');
-  if (pop) pop.style.display = 'none';
-  AC_SYNC_PICKER.pickerOpen = false;
-  const fromInput = document.getElementById('ac-item-sync-from');
-  const toInput   = document.getElementById('ac-item-sync-to');
-  if (fromInput) fromInput.value = AC_SYNC_PICKER.rangeStart;
-  if (toInput)   toInput.value   = AC_SYNC_PICKER.rangeEnd;
-}
-
-function acSyncUpdateTriggerLabel() {
-  const trigger = document.getElementById('ac-sync-range-trigger');
-  if (!trigger) return;
-  const fmt = (s) => { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; };
-  trigger.textContent = AC_SYNC_PICKER.rangeStart === AC_SYNC_PICKER.rangeEnd
-    ? `📅 ${fmt(AC_SYNC_PICKER.rangeStart)}`
-    : `📅 ${fmt(AC_SYNC_PICKER.rangeStart)} → ${fmt(AC_SYNC_PICKER.rangeEnd)}`;
 }
 
 // ★ Thu gọn/mở Card 1 (Đồng Bộ Dữ Liệu) trang GMS — giống adshToggleSyncCard
@@ -10794,134 +10625,6 @@ async function gmsLoadFromDriveManual() {
   } catch(e) {
     acLog(`❌ Lỗi: ${e.message}`, 'err');
   }
-}
-
-// ── Gọi thẳng API Shopee lấy hiệu suất từng SP trong chiến dịch GMV Max ─────
-// (get_gms_item_performance qua action get_item_daily) — thay cho việc phải tải CSV thủ
-// công rồi upload Drive mỗi lần (xác nhận Tân 2026-08-07, giữ nút Drive song song làm dự
-// phòng). API CHỈ trả 8 field/SP: item_id, impression, clicks, ctr, expense, gmv, roas,
-// orders — KHÔNG có tên SP, không tách trực tiếp/gộp riêng, KHÔNG có Voucher Amount/
-// Vouchered Sales như file CSV Seller Centre — đây là giới hạn thật của Open API Shopee,
-// không phải thiếu sót của proxy (đã xác minh qua tài liệu Ads API chính thức). Trả về gì
-// thì hiển thị đúng cái đó, thiếu gì tính sau — đúng theo yêu cầu Tân.
-// Tên SP: tra theo mã SP (item_id) trong catalog CSV đã nạp sẵn cho đúng shop (nếu có),
-// không tra được thì hiện "ID: <item_id>" trống tên.
-// Dữ liệu gọi trực tiếp — KHÔNG lưu Firestore: API trả TỔNG GỘP cho cả khoảng ngày đã chọn
-// (không tách theo từng ngày như CSV Drive) nên không khớp cấu trúc gms_days/{date} hiện có.
-async function gmsSyncItemsFromApi() {
-  const logEl = document.getElementById('ac-prod-log');
-  if (logEl) { logEl.innerHTML = ''; logEl.classList.add('visible'); }
-  acShowEmpty('');
-
-  const acLog = (msg, type='info') => {
-    if (!logEl) return;
-    const c = type==='ok'?'#27ae60':type==='err'?'#c0392b':type==='warn'?'#f39c12':'#555';
-    logEl.innerHTML += `<div style="color:${c}">[${new Date().toLocaleTimeString('vi-VN')}] ${msg}</div>`;
-    logEl.scrollTop = logEl.scrollHeight;
-  };
-
-  const shopApiId = _acSyncShop === 'huyhoanh' ? 371873832
-                  : _acSyncShop === '2hbooks'   ? 1289235612
-                  : SAPI_SHOP_MAP_INV[G.current];
-  if (!shopApiId) { acLog('❌ Không xác định được shop cần đồng bộ', 'err'); return; }
-  const shopInfo = SAPI_SHOPS.find(s => s.id === shopApiId);
-  const shopName = shopInfo?.name || String(shopApiId);
-
-  const fromInput = document.getElementById('ac-item-sync-from');
-  const toInput   = document.getElementById('ac-item-sync-to');
-  const y = new Date(); y.setDate(y.getDate() - 1);
-  const yestStr = `${y.getFullYear()}-${String(y.getMonth()+1).padStart(2,'0')}-${String(y.getDate()).padStart(2,'0')}`;
-  if (fromInput && !fromInput.value) fromInput.value = yestStr;
-  if (toInput   && !toInput.value)   toInput.value   = yestStr;
-  const dateFrom = fromInput?.value || yestStr;
-  const dateTo   = (toInput?.value && toInput.value >= dateFrom) ? toInput.value : dateFrom;
-
-  acLog(`🔄 ${shopName}: đang lấy token...`);
-  let token;
-  try { token = await sapiGetToken(shopApiId); } catch(e) { token = null; }
-  if (!token) { acLog(`❌ ${shopName}: chưa kết nối — vào Kết Nối API để đăng nhập`, 'err'); return; }
-
-  // Lấy campaign_id đã cache; nếu chưa có thì dò qua get_gms_campaigns 1 lần rồi cache lại
-  // (get_item_daily bắt buộc cần campaign_id).
-  let campaignId = '';
-  try {
-    const cfgSnap = await db.collection('shopee_ads').doc(String(shopApiId)).collection('gms_config').doc('main').get();
-    campaignId = cfgSnap.exists ? String(cfgSnap.data()?.campaign_id || '') : '';
-  } catch(e) { /* ignore, xử lý ở bước dò bên dưới */ }
-
-  if (!campaignId) {
-    acLog('  → Chưa có campaign_id lưu sẵn, đang dò qua get_gms_campaigns...');
-    try {
-      const campData = await sapiCall('get_gms_campaigns', {
-        shop_id: shopApiId, access_token: token,
-        date_from: dateFrom, date_to: dateTo, offset: 0, limit: 50
-      });
-      campaignId = String(campData?.response?.campaign_id || '');
-      if (campaignId) {
-        await db.collection('shopee_ads').doc(String(shopApiId)).collection('gms_config').doc('main').set({
-          campaign_id: campaignId, discovered_at: new Date().toISOString(), shop_name: shopName
-        });
-        acLog(`  → Đã tìm thấy campaign_id ${campaignId}`, 'ok');
-      }
-    } catch(e) { /* ignore, báo lỗi chung ở bước kiểm tra dưới */ }
-  }
-  if (!campaignId) {
-    acLog(`❌ Không xác định được campaign_id chiến dịch GMV Max của ${shopName} — có thể shop chưa chạy chiến dịch này, hoặc chưa có dữ liệu ngày đã chọn.`, 'err');
-    acShowEmpty('Không tìm thấy chiến dịch GMV Max đang chạy cho shop này.');
-    return;
-  }
-
-  acLog(`📅 Lấy hiệu suất từng SP: ${dateFrom} → ${dateTo} (campaign ${campaignId})...`);
-
-  // Tra tên SP theo mã SP (item_id) từ catalog CSV đã nạp cho đúng shop này (nếu có)
-  const shopKey  = SAPI_SHOP_MAP[shopApiId];
-  const catalog  = shopKey ? (G.shops[shopKey]?.products || []) : [];
-  const nameByCode = {};
-  catalog.forEach(p => { if (p.ma_sp) nameByCode[String(p.ma_sp)] = p.ten; });
-
-  const items = [];
-  let offset = 0, hasNext = true, guard = 0;
-  try {
-    while (hasNext && guard < 50) {
-      guard++;
-      const data = await sapiCall('get_item_daily', {
-        shop_id: shopApiId, access_token: token,
-        campaign_id: campaignId, date_from: dateFrom, date_to: dateTo,
-        offset, limit: 100
-      });
-      if (data.error && data.error !== '') { acLog(`❌ Lỗi API: [${data.error}] ${data.message||''}`, 'err'); break; }
-      const resp = data.response || {};
-      const list = resp.result_list || [];
-      list.forEach(it => {
-        const itemIdStr = String(it.item_id || '');
-        items.push({
-          item_id:     itemIdStr,
-          item_name:   nameByCode[itemIdStr] || '',
-          impression:  Number(it.impression || 0),
-          clicks:      Number(it.clicks     || 0),
-          expense:     Number(it.expense    || 0),
-          broad_gmv:   Number(it.gmv        || 0),
-          broad_order: Number(it.orders     || 0)
-        });
-      });
-      hasNext = resp.has_next_page === true;
-      offset += list.length;
-      if (hasNext) await new Promise(r => setTimeout(r, 600));
-    }
-  } catch(e) {
-    acLog(`❌ Lỗi khi gọi API: ${e.message}`, 'err');
-  }
-
-  if (!items.length) {
-    acShowEmpty(`Không có dữ liệu SP nào cho ${shopName} trong khoảng ${dateFrom} → ${dateTo}.`);
-    acLog('⚠️ API không trả sản phẩm nào — kiểm tra chiến dịch có đang chạy trong khoảng ngày này không.', 'warn');
-    return;
-  }
-
-  const unnamedCount = items.filter(p => !p.item_name).length;
-  const label = dateFrom === dateTo ? `Ngày ${dateFrom} (API trực tiếp)` : `${dateFrom} → ${dateTo} (API trực tiếp)`;
-  acRenderProductTable(items, label);
-  acLog(`✅ Xong: ${items.length} sản phẩm${unnamedCount ? `, ${unnamedCount} SP chưa tra được tên (chưa có trong catalog CSV đã nạp cho shop này)` : ''}`, 'ok');
 }
 
 async function sapiSyncAutoProducts() {
