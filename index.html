@@ -1826,6 +1826,9 @@
           </div>
         </div>
         <input class="search-box" id="giaday-search" placeholder="🔍 Tìm theo Tên SP, SKU..." oninput="giaDayRender()" style="height:36px">
+        <select id="giaday-shop-select" onchange="giaDayBuildRows();giaDayRender()" style="height:36px;border:1px solid var(--gray3);border-radius:6px;padding:0 8px;font-size:12px">
+          <option value="all">Tất cả Shop</option>
+        </select>
       </div>
 
       <div id="giaday-report" style="display:none">
@@ -12930,6 +12933,7 @@ function giaRenderPriceTable() {
 const GIADAY = {
   startDate: null, endDate: null,
   rows: [],
+  rawRows: [],  // dòng đã lọc theo ngày, GIỮ shop — dùng để build lại rows khi đổi bộ lọc Shop
   pickerOpen: false,
   pickStep: 0,        // 0 = chờ click start, 1 = chờ click end
   firstClick: null,   // 'yyyy-mm-dd'
@@ -13096,7 +13100,7 @@ async function giaDayRun() {
       try { rows = JSON.parse(rowsJson || '[]'); } catch(e) {}
       allRows.push(...rows);
     }
-    const skuMap = new Map();
+    const rawRows = [];
     let totalDong = 0;
     allRows.forEach(r => {
       const ds = giaNormalizeDateStr(r.ngay);
@@ -13108,18 +13112,24 @@ async function giaDayRun() {
       const skus = skuRaw.split(',').map(s => s.trim()).filter(Boolean);
       const kho = classifyKho(r.tenKho);
       const tenSp = String(r.tenSp || '').trim();
+      const shop = String(r.shop || '').trim();
       totalDong++;
       skus.forEach(sku => {
-        let cur = skuMap.get(sku);
-        if (!cur) { cur = { tenSp: tenSp || sku, hn: 0, hcm: 0 }; skuMap.set(sku, cur); }
-        if (!cur.tenSp && tenSp) cur.tenSp = tenSp;
-        if (kho === 'hn') cur.hn += qty;
-        else if (kho === 'hcm') cur.hcm += qty;
+        rawRows.push({ sku, tenSp, kho, qty, shop });
       });
     });
-    GIADAY.rows = Array.from(skuMap.entries())
-      .map(([sku, v]) => ({ sku, tenSp: v.tenSp, hn: v.hn, hcm: v.hcm, total: v.hn + v.hcm }))
-      .sort((a, b) => b.total - a.total);
+    GIADAY.rawRows = rawRows;
+
+    // Populate bộ lọc Shop — giữ lại lựa chọn hiện tại nếu shop đó vẫn còn trong khoảng ngày mới
+    const shopSel = document.getElementById('giaday-shop-select');
+    if (shopSel) {
+      const prevShop = shopSel.value || 'all';
+      const shops = Array.from(new Set(rawRows.map(x => x.shop).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'vi'));
+      shopSel.innerHTML = '<option value="all">Tất cả Shop</option>' + shops.map(s => `<option value="${s.replace(/"/g, '&quot;')}">${s}</option>`).join('');
+      shopSel.value = shops.includes(prevShop) ? prevShop : 'all';
+    }
+
+    giaDayBuildRows();
     const fmtD = ds => ds.split('-').reverse().join('/');
     const rangeLabel = GIADAY.startDate === GIADAY.endDate ? fmtD(GIADAY.startDate) : `${fmtD(GIADAY.startDate)} – ${fmtD(GIADAY.endDate)}`;
     giaDayLog(`✅ ${rangeLabel} — ${GIADAY.rows.length} SKU bán ra từ ${totalDong} dòng đơn.`, 'ok');
@@ -13129,6 +13139,24 @@ async function giaDayRun() {
   } catch(e) {
     giaDayLog('❌ Lỗi: ' + e.message, 'err');
   }
+}
+
+// Build lại GIADAY.rows (gộp theo SKU) từ GIADAY.rawRows, áp dụng bộ lọc Shop hiện tại —
+// gọi lại mỗi khi đổi Shop, KHÔNG cần tải lại dữ liệu từ Firestore.
+function giaDayBuildRows() {
+  const shopFilter = document.getElementById('giaday-shop-select')?.value || 'all';
+  const skuMap = new Map();
+  (GIADAY.rawRows || []).forEach(x => {
+    if (shopFilter !== 'all' && x.shop !== shopFilter) return;
+    let cur = skuMap.get(x.sku);
+    if (!cur) { cur = { tenSp: x.tenSp || x.sku, hn: 0, hcm: 0 }; skuMap.set(x.sku, cur); }
+    if (!cur.tenSp && x.tenSp) cur.tenSp = x.tenSp;
+    if (x.kho === 'hn') cur.hn += x.qty;
+    else if (x.kho === 'hcm') cur.hcm += x.qty;
+  });
+  GIADAY.rows = Array.from(skuMap.entries())
+    .map(([sku, v]) => ({ sku, tenSp: v.tenSp, hn: v.hn, hcm: v.hcm, total: v.hn + v.hcm }))
+    .sort((a, b) => b.total - a.total);
 }
 
 function giaDayRender() {
