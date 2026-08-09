@@ -12167,18 +12167,25 @@ async function giaHandleOrdersImportFile(input) {
   if (!files.length) return;
   const submitBtn = document.getElementById('gia-import-submit-btn');
   if (submitBtn) submitBtn.disabled = true;
-  _giaImportPending = null;
 
-  const mergedGroups = {};
-  let totalRows = 0, cancelledCount = 0, readyRows = 0, okFiles = 0;
+  // Cộng dồn vào hàng đợi hiện có thay vì xóa sạch — tránh mất dữ liệu khi bấm "Chọn nhiều file
+  // Excel" nhiều lần trước khi bấm "Nhập vào sheet" (lỗi thực tế đã gặp 2026-08-09: đọc 6 file
+  // tháng 7+8 xong CHƯA gửi, chọn thêm 1 file nữa → toàn bộ 15380 dòng tháng 7 đã đọc trước đó bị
+  // xóa mất, chỉ gửi được tháng 8 — xác nhận Tân, sửa để mỗi lần chọn thêm file sẽ cộng dồn).
+  // Hàng đợi chỉ bị xóa sau khi gửi thành công hết các tab (xem giaSubmitOrdersImport).
+  if (!_giaImportPending) {
+    _giaImportPending = { groups: {}, totalRows: 0, cancelledCount: 0, readyRows: 0 };
+  }
+  const mergedGroups = _giaImportPending.groups;
+  let addedRows = 0, addedCancelled = 0, addedReady = 0, okFiles = 0;
   const allSkippedTabs = new Set();
 
   for (const file of files) {
     try {
       const result = await giaReadOneOrderFile(file);
-      totalRows += result.totalRows;
-      cancelledCount += result.cancelledCount;
-      readyRows += result.readyRows;
+      addedRows += result.totalRows;
+      addedCancelled += result.cancelledCount;
+      addedReady += result.readyRows;
       result.skippedTabs.forEach(t => allSkippedTabs.add(t));
       Object.entries(result.groups).forEach(([tab, rows]) => {
         if (!mergedGroups[tab]) mergedGroups[tab] = [];
@@ -12192,15 +12199,19 @@ async function giaHandleOrdersImportFile(input) {
     }
   }
 
-  if (!readyRows) {
+  if (!addedReady) {
     giaImportLog(`⚠ Không có dòng nào sẵn sàng để nhập từ ${files.length} file đã chọn.`, 'err');
     input.value = '';
+    if (submitBtn) submitBtn.disabled = !_giaImportPending.readyRows;
     return;
   }
 
-  _giaImportPending = { groups: mergedGroups, totalRows, cancelledCount, readyRows };
+  _giaImportPending.totalRows += addedRows;
+  _giaImportPending.cancelledCount += addedCancelled;
+  _giaImportPending.readyRows += addedReady;
+
   const tabList = Object.keys(mergedGroups).map(t => `${t} (${mergedGroups[t].length})`).join(', ');
-  let msg = `✅ Đã đọc ${okFiles}/${files.length} file: tổng ${totalRows} dòng đơn, lọc bỏ ${cancelledCount} đơn hủy. Sẵn sàng nhập ${readyRows} dòng vào sheet — chia theo tab: ${tabList}.`;
+  let msg = `✅ Đã đọc thêm ${okFiles}/${files.length} file (${addedReady} dòng). 📦 Tổng đang chờ gửi: ${_giaImportPending.readyRows} dòng — chia theo tab: ${tabList}.`;
   if (allSkippedTabs.size) msg += ` ⚠ Có dòng bị bỏ qua vì ${Array.from(allSkippedTabs).join(', ')}.`;
   giaImportLog(msg, 'ok');
   if (submitBtn) submitBtn.disabled = false;
@@ -12216,7 +12227,7 @@ async function giaSubmitOrdersImport() {
   if (!_giaImportPending) { alert('Chưa có dữ liệu hợp lệ để nhập. Hãy chọn file trước.'); return; }
   const submitBtn = document.getElementById('gia-import-submit-btn');
   if (submitBtn) submitBtn.disabled = true;
-  const { groups } = _giaImportPending;
+  const groups = _giaImportPending.groups;
   const tabs = Object.keys(groups);
   let okTabs = [];
   for (const tab of tabs) {
@@ -12242,20 +12253,33 @@ async function giaSubmitOrdersImport() {
         giaImportLog(`✅ Tab "${tab}"${chunkLabel}: thêm mới ${data.inserted}, cập nhật ${data.updated}.`, 'ok');
       } catch (err) {
         tabFailed = true;
-        giaImportLog(`❌ Tab "${tab}"${chunkLabel}: ${err.message} — đã gửi được ${sentRows}/${allRows.length} dòng trước khi lỗi, phần còn lại CHƯA gửi. Bấm "Nhập vào sheet" lại để gửi tiếp (dữ liệu đã gửi không bị trùng, hệ thống tự cập nhật theo Mã đơn hàng).`, 'err');
+        giaImportLog(`❌ Tab "${tab}"${chunkLabel}: ${err.message} — đã gửi được ${sentRows}/${allRows.length} dòng trước khi lỗi. Phần còn lại (${allRows.length - sentRows} dòng) vẫn giữ trong hàng đợi — bấm "Nhập vào sheet" lại để gửi tiếp (dữ liệu đã gửi không bị trùng, hệ thống tự cập nhật theo Mã đơn hàng).`, 'err');
         break; // dừng các phần sau của tab này — lỗi (thường do mạng/timeout) nhiều khả năng lặp lại nếu gửi tiếp ngay
       }
     }
     if (!tabFailed) {
       giaImportLog(`🔁 Tab "${tab}": hoàn tất ${sentRows}/${allRows.length} dòng — tổng thêm mới ${tabInserted}, cập nhật ${tabUpdated}.`, 'ok');
       okTabs.push(tab);
+      delete groups[tab]; // gửi xong hết — bỏ khỏi hàng đợi
+    } else {
+      // Chỉ giữ lại phần CHƯA gửi được — bấm gửi lại không phải chọn file từ đầu, cũng không
+      // gửi trùng lại phần đã thành công.
+      groups[tab] = allRows.slice(sentRows);
     }
   }
   if (okTabs.length) {
-    giaImportLog(`🔁 Đã đẩy lên Google Sheet xong. Hãy bấm "Đồng bộ đơn hàng" ở trên cho từng tháng (${okTabs.join(', ')}) để cập nhật vào dashboard.`, 'warn');
+    giaImportLog(`🔁 Đã đẩy lên Google Sheet xong ${okTabs.length}/${tabs.length} tab. Hãy bấm "Đồng bộ đơn hàng" ở trên cho từng tháng (${okTabs.join(', ')}) để cập nhật vào dashboard.`, 'warn');
   }
-  _giaImportPending = null;
-  if (submitBtn) submitBtn.disabled = true;
+  const remainingTabs = Object.keys(groups);
+  if (remainingTabs.length) {
+    const remainingCount = remainingTabs.reduce((s, t) => s + groups[t].length, 0);
+    _giaImportPending.readyRows = remainingCount;
+    giaImportLog(`📦 Còn ${remainingCount} dòng chưa gửi được (${remainingTabs.map(t => `${t} (${groups[t].length})`).join(', ')}) — vẫn giữ trong hàng đợi, bấm "Nhập vào sheet" để thử gửi lại.`, 'warn');
+    if (submitBtn) submitBtn.disabled = false;
+  } else {
+    _giaImportPending = null;
+    if (submitBtn) submitBtn.disabled = true;
+  }
 }
 
 // ── Đồng bộ đơn hàng từ Google Sheet "Cập Nhật Đơn Hằng Ngày" —
