@@ -1896,8 +1896,8 @@
       <div class="card-title"><span class="dot"></span> Đồng Bộ Dữ Liệu</div>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
         <button class="sw-upload-btn" onclick="_catalogLogTarget='tq-catalog-log';tqSyncCatalog()" id="tq-sync-btn">🔄 Đồng Bộ Danh Mục SKU (Google Sheet)</button>
-        <span id="tq-catalog-last-sync" style="font-size:12px;color:var(--text2)"></span>
       </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px"><span id="tq-catalog-last-sync"></span></div>
       <div id="tq-catalog-log" class="drive-log"></div>
       <!-- Map Salework + Map TikTok — đây là nơi DUY NHẤT trong toàn dashboard upload 2 file này,
            dùng chung cho mọi tính năng khác (Cập Nhật Tồn Kho, Cập Nhật Đơn Hằng Ngày, Trả Hàng,
@@ -1920,8 +1920,8 @@
       <div id="maptk-log" class="drive-log"></div>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:14px;padding-top:14px;border-top:1px dashed var(--border)">
         <button class="sw-upload-btn" style="background:#fde8e8;color:#c0392b;border:1px solid #c0392b" onclick="blSyncBlacklist()" id="bl-sync-btn">🚫 Đồng Bộ Black List (Google Sheet)</button>
-        <span id="bl-last-sync" style="font-size:12px;color:var(--text2)"></span>
       </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px"><span id="bl-last-sync"></span></div>
       <div id="bl-log" class="drive-log"></div>
     </div>
 
