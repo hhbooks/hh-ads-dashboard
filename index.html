@@ -1888,9 +1888,6 @@
           <div class="kpi-card green"><div class="kpi-label">Số Tỉnh Thành Phố</div><div class="kpi-value" id="gia-ov-kpi-tinhthanh">0</div></div>
           <div class="kpi-card green"><div class="kpi-label">Đơn Vị Vận Chuyển</div><div class="kpi-value" id="gia-ov-kpi-donvivanchuyen">0</div></div>
         </div>
-
-        <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:8px">🚚 Đơn Vị Vận Chuyển Đã Dùng</div>
-        <div id="gia-ov-donvivanchuyen" style="display:flex;gap:8px;flex-wrap:wrap"></div>
       </div>
     </div>
   </div>
@@ -13339,22 +13336,17 @@ async function giaOverviewRun() {
     });
 
     const setKpi = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-    setKpi('gia-ov-kpi-magiamgiashop', fmtMoney(magiamgiashop));
-    setKpi('gia-ov-kpi-troGia', fmtMoney(troGia));
-    setKpi('gia-ov-kpi-magiamgiashopee', fmtMoney(magiamgiashopee));
-    setKpi('gia-ov-kpi-phicodinh', fmtMoney(phicodinh));
-    setKpi('gia-ov-kpi-phidichvu', fmtMoney(phidichvu));
-    setKpi('gia-ov-kpi-phixulygiaodich', fmtMoney(phixulygiaodich));
+    // Không dùng fmtMoney() ở đây — Card ④ hiển thị số tiền KHÔNG kèm chữ "đ" (xác nhận Tân
+    // 2026-08-09), khác với fmtMoney() dùng chung toàn dashboard (giữ nguyên không đổi).
+    const fmtNumOnly = v => (Number(v) || 0).toLocaleString('vi-VN');
+    setKpi('gia-ov-kpi-magiamgiashop', fmtNumOnly(magiamgiashop));
+    setKpi('gia-ov-kpi-troGia', fmtNumOnly(troGia));
+    setKpi('gia-ov-kpi-magiamgiashopee', fmtNumOnly(magiamgiashopee));
+    setKpi('gia-ov-kpi-phicodinh', fmtNumOnly(phicodinh));
+    setKpi('gia-ov-kpi-phidichvu', fmtNumOnly(phidichvu));
+    setKpi('gia-ov-kpi-phixulygiaodich', fmtNumOnly(phixulygiaodich));
     setKpi('gia-ov-kpi-tinhthanh', tinhThanhSet.size.toLocaleString('vi-VN'));
     setKpi('gia-ov-kpi-donvivanchuyen', donViSet.size.toLocaleString('vi-VN'));
-
-    const dvWrap = document.getElementById('gia-ov-donvivanchuyen');
-    if (dvWrap) {
-      const list = Array.from(donViSet).sort((a, b) => a.localeCompare(b, 'vi'));
-      dvWrap.innerHTML = list.length
-        ? list.map(dv => `<span style="padding:4px 12px;border:1px solid var(--gray3);background:var(--bg2);border-radius:12px;font-size:11px;font-weight:700;color:var(--navy)">${String(dv).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span>`).join('')
-        : '<span style="font-size:12px;color:var(--text2)">Không có dữ liệu Đơn Vị Vận Chuyển trong tháng này</span>';
-    }
 
     if (reportEl) reportEl.style.display = 'block';
     log(`✅ Đã tính từ ${entry.rows.length} dòng đơn — tab "${entry.tab || tab}".`, 'ok');
