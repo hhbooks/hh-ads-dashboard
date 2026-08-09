@@ -1624,9 +1624,6 @@
   <div class="page" id="page-gia-canh-bao">
     <div class="card" style="margin-bottom:16px">
       <div class="card-title"><span class="dot"></span> ⓪ Nhập Đơn Hàng Từ Shopee (tự động đẩy lên Google Sheet)</div>
-      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-        Chọn 1 hoặc NHIỀU file Excel order tải trực tiếp từ Shopee (mỗi file 1 shop, không cần sửa gì, không cần chọn shop) — hệ thống tự lọc bỏ đơn "Đã hủy", quy đổi đúng cột, gộp theo tháng (từ tất cả các file đã chọn) và đẩy vào tab tương ứng trong Google Sheet "Cập Nhật Đơn Hằng Ngày" (đơn đã có sẽ được cập nhật, không bị trùng).
-      </p>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
         <label class="sw-upload-btn" style="cursor:pointer">
           📂 Chọn nhiều file Excel (.xlsx)
@@ -1635,17 +1632,9 @@
         <button class="sw-upload-btn" id="gia-import-submit-btn" onclick="giaSubmitOrdersImport()" disabled>✓ Nhập vào sheet</button>
       </div>
       <div id="gia-import-log" class="drive-log"></div>
-    </div>
 
-    <!-- Card "① Map Salework" đã bỏ 2026-08-09 (xác nhận Tân): Map Salework giờ chỉ upload 1 lần
-         ở trang "Tổng Quan Tồn Kho" (Card "Tổng Quan Tồn Kho Thật"), trang này tự đọc lại qua
-         sharedLoadSaleworkMap() — xem giaInitPage(). -->
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-title"><span class="dot"></span> ① Đồng Bộ Đơn Hàng (Google Sheet "Cập Nhật Đơn Hằng Ngày")</div>
-      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-        Chọn tháng cần đồng bộ — dữ liệu được đọc trực tiếp từ tab tương ứng trong Google Sheet và lưu vào hệ thống (chỉ đồng bộ khi bạn bấm nút, không tự động).
-      </p>
-      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+      <!-- Card "① Đồng Bộ Đơn Hàng" gộp chung vào đây 2026-08-09 (xác nhận Tân) -->
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:14px;margin-bottom:10px;padding-top:14px;border-top:1px dashed var(--border)">
         <select id="gia-month-select" class="sw-upload-btn" style="background:white;color:var(--navy);border:1px solid var(--navy);cursor:pointer" onchange="giaRefreshOrdersStatus()">
           <option value="Tháng 12 2026">Tháng 12 2026</option>
           <option value="Tháng 11 2026">Tháng 11 2026</option>
@@ -1672,9 +1661,6 @@
 
       <div style="margin-bottom:22px;padding-bottom:18px;border-bottom:2px dashed var(--gray3)">
         <div style="font-weight:700;color:var(--navy);font-size:14px;margin-bottom:6px">📋 Danh Sách Cần Chỉnh Giá Trên Sàn</div>
-        <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-          Gom các đơn vi phạm giá theo từng <b>SKU + Shop</b> — đây là danh sách thực tế cần vào sàn (Shopee/TikTok) sửa giá, thay vì phải lướt từng đơn riêng lẻ. Nếu 1 SKU có nhiều mức giá bán khác nhau trong các đơn vi phạm, mỗi mức được liệt kê riêng kèm số đơn và %Lệch tương ứng.
-        </p>
         <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
           <div>
             <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Tháng kiểm tra</div>
@@ -1738,9 +1724,6 @@
       </div>
 
       <div style="font-weight:700;color:var(--navy);font-size:14px;margin-bottom:6px">🔍 Kiểm Tra Theo Đơn</div>
-      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-        Đối chiếu giá bán thực tế của từng dòng đơn hàng (đã đồng bộ ở mục ②) với giá chuẩn trong Danh Mục SKU (<b>sku_catalog</b>, đồng bộ từ Google Sheet "Trung Tâm Dữ Liệu"). Combo (nhiều SKU trong cùng 1 dòng, cách nhau bởi dấu phẩy) = TỔNG giá của từng SKU thành phần.
-      </p>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
         <div>
           <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Ngưỡng lệch (%)</div>
@@ -1817,9 +1800,6 @@
 
     <div class="card" style="margin-top:16px">
       <div class="card-title"><span class="dot" style="background:var(--green)"></span> ④ Lượng Bán Theo Ngày</div>
-      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-        Tổng hợp số lượng bán ra theo từng SKU trong khoảng ngày đã chọn, tách theo kho HN/HCM.
-      </p>
       <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
         <div style="position:relative">
           <div id="giaday-picker-input" onclick="giaDayTogglePicker()" style="display:flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid var(--gray3);border-radius:8px;cursor:pointer;font-size:13px;background:white;min-width:220px;user-select:none">
@@ -11502,7 +11482,7 @@ async function tqLoadData() {
     ]);
     const blLastEl = document.getElementById('bl-last-sync');
     if (blLastEl) blLastEl.textContent = (blSnap.exists && blSnap.data().updatedAt)
-      ? ('🕐 Black List — lần đồng bộ cuối: ' + new Date(blSnap.data().updatedAt).toLocaleString('vi-VN'))
+      ? ('Đồng bộ lần cuối: ' + new Date(blSnap.data().updatedAt).toLocaleString('vi-VN'))
       : '⚠ Chưa đồng bộ Black List lần nào';
     const catalogData = catalogSnap.exists ? catalogSnap.data() : null;
     if (catalogData && catalogData.itemsJson) {
@@ -11574,7 +11554,7 @@ function tqBuildRows() {
   TQ.blOverrideCount = blOverrideCount;
   const blLastEl = document.getElementById('bl-last-sync');
   if (blLastEl && blOverrideCount) {
-    blLastEl.textContent += ` — đang áp dụng cho ${blOverrideCount} SKU trong bảng dưới đây`;
+    blLastEl.textContent += ` — ${blOverrideCount} SKU có trong bảng`;
   }
 
   // SKU mới — có trong Danh Mục SKU (đồng bộ từ Google Sheet) nhưng CHƯA từng có bản ghi
@@ -11903,7 +11883,7 @@ async function blDoBlacklistSync() {
     await blLoadIfNeeded();
 
     const lastEl = document.getElementById('bl-last-sync');
-    if (lastEl) lastEl.textContent = '🕐 Black List — lần đồng bộ cuối: ' + new Date().toLocaleString('vi-VN');
+    if (lastEl) lastEl.textContent = 'Đồng bộ lần cuối: ' + new Date().toLocaleString('vi-VN');
     blLog(`✅ Đã đồng bộ ${count} SKU vào Black List.`, 'ok');
   } catch (err) {
     blLog('❌ Lỗi đồng bộ: ' + err.message, 'err');
