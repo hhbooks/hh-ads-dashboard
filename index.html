@@ -1892,21 +1892,16 @@
   <!-- KHỐI: TỒN KHO                                     -->
   <!-- ══════════════════════════════════════════════════ -->
   <div class="page" id="page-tonkho-tong-quan">
-    <div class="card" style="margin-bottom:16px">
+    <div class="card" style="margin-bottom:18px">
       <div class="card-title"><span class="dot"></span> Tổng Quan Tồn Kho Thật (Toàn Hệ Thống)</div>
-      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-        Tồn của mỗi SKU là <b>số thực duy nhất</b> (không nhân theo số shop đang đăng bán). Số tồn lấy từ bước "💾 Lưu Tồn Kho Thật Vào Hệ Thống" ở trang <b>Cập Nhật Tồn Kho</b>. Tên hàng hóa / Nhà cung cấp / Giá vốn được nối theo <b>Mã SKU</b> từ Danh Mục SKU — đồng bộ từ Google Sheet "Trung Tâm Dữ Liệu" khi bạn bấm nút dưới đây (chỉ đồng bộ khi có sản phẩm mới, không tự động).
-      </p>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
         <button class="sw-upload-btn" onclick="_catalogLogTarget='tq-catalog-log';tqSyncCatalog()" id="tq-sync-btn">🔄 Đồng Bộ Danh Mục SKU (Google Sheet)</button>
-        <button class="sw-upload-btn" style="background:white;color:var(--navy);border:1px solid var(--navy)" onclick="tqLoadData()">🔁 Tải Lại Dữ Liệu</button>
         <span id="tq-catalog-last-sync" style="font-size:12px;color:var(--text2)"></span>
       </div>
       <div id="tq-catalog-log" class="drive-log"></div>
-      <!-- Map Salework + Map TikTok dồn từ Card "Cập Nhật Tổng Quan Tồn Kho" lên đây 2026-08-09
-           (xác nhận Tân) — đây là nơi DUY NHẤT trong toàn dashboard upload 2 file này, dùng
-           chung cho mọi tính năng khác (Cập Nhật Tồn Kho, Cập Nhật Đơn Hằng Ngày, Trả Hàng,
-           Chương Trình Của Shop, khuyến mãi Shopee...). Hàm xử lý phía sau giữ nguyên, chỉ đổi vị trí hiển thị. -->
+      <!-- Map Salework + Map TikTok — đây là nơi DUY NHẤT trong toàn dashboard upload 2 file này,
+           dùng chung cho mọi tính năng khác (Cập Nhật Tồn Kho, Cập Nhật Đơn Hằng Ngày, Trả Hàng,
+           Chương Trình Của Shop, khuyến mãi Shopee...). -->
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;padding-top:14px;border-top:1px dashed var(--border)">
         <div>
           <input type="file" id="tqo-map-input" accept=".xlsx,.xls" style="display:none" onchange="tqoHandleMapFile(this)">
@@ -1919,39 +1914,15 @@
           <button id="maptk-push-btn" class="sw-upload-btn" style="display:none;background:#010101;color:#fff;border:none" onclick="mapTkPushToSheet()">📤 Đẩy lên SKU Tổng (Tab MAP TIKTOK)</button>
         </div>
       </div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Map Salework dùng chung (toàn dashboard): <b id="tqo-status-map">chưa chọn</b></div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Map Salework — cập nhật lúc: <b id="tqo-status-map">chưa có dữ liệu</b></div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Map TikTok đã nạp: <b id="tqo-status-maptk">chưa chọn</b></div>
       <div id="mapsw-log" class="drive-log"></div>
       <div id="maptk-log" class="drive-log"></div>
-    </div>
-
-    <div class="card" style="margin-bottom:18px">
-      <div class="card-title"><span class="dot" style="background:var(--navy)"></span> Cập Nhật Tổng Quan Tồn Kho (Chỉ Cần File Tồn Kho)</div>
-      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-        Đây là nơi <b>DUY NHẤT</b> cần upload file Tồn Kho (KiotViet, có thể nhiều file). Map Salework/Map TikTok đã chuyển lên Card "Tổng Quan Tồn Kho Thật" phía trên. Các mục "Cập Nhật Tồn Kho Deli/Liên Kết/Huy Hoàng" phía dưới sẽ tự lấy lại dữ liệu đã lưu ở đây — không cần upload lại Tồn/Map ở từng mục nữa, chỉ cần nạp File Mass rồi xuất file mới.
-      </p>
-      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
-        <div>
-          <input type="file" id="tqo-ton-input" accept=".xlsx,.xls" multiple style="display:none" onchange="tqoHandleTonFiles(this)">
-          <button class="sw-upload-btn" onclick="document.getElementById('tqo-ton-input').click()">📂 Chọn File Tồn Kho</button>
-        </div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap">
-          <button id="tqo-save-real-btn" class="btn-drive-sync" style="display:none;max-width:320px;background:var(--navy)" onclick="tqoSaveRealStockToStorage()">💾 Lưu Tồn Kho Thật Vào Hệ Thống (Tổng Quan)</button>
-          <button onclick="tqoResetAll()" style="padding:6px 14px;border:1px solid var(--red);color:var(--red);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
-        </div>
-      </div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">File tồn đã nạp: <b id="tqo-status-ton">chưa chọn</b></div>
-      <div id="tqo-save-real-status" style="font-size:12px;color:var(--text2)"></div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
-        <button class="sw-upload-btn" style="background:#1a6b3a;color:#fff;border:none" onclick="misaExportFile('hn')">📥 Xuất File Tồn Misa — HN</button>
-        <button class="sw-upload-btn" style="background:#155a8a;color:#fff;border:none" onclick="misaExportFile('hcm')">📥 Xuất File Tồn Misa — HCM</button>
-        <span id="misa-export-status" style="font-size:12px;color:var(--text2);align-self:center"></span>
-      </div>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:14px;padding-top:14px;border-top:1px dashed var(--border)">
         <button class="sw-upload-btn" style="background:#fde8e8;color:#c0392b;border:1px solid #c0392b" onclick="blSyncBlacklist()" id="bl-sync-btn">🚫 Đồng Bộ Black List (Google Sheet)</button>
         <span id="bl-last-sync" style="font-size:12px;color:var(--text2)"></span>
       </div>
-      <p style="font-size:11px;color:var(--text2);margin:6px 0 0;line-height:1.5">Black List = các SKU mà số liệu trên file tồn nguồn (KiotViet...) bị lệch so với tồn vật lý thật. Số lượng trong Black List sẽ <b>luôn được dùng làm chuẩn</b>, ghi đè lên mọi file/luồng cập nhật tồn (Lưu Tồn Kho Thật + Xuất File Mass), cho tất cả kho.</p>
+      <p style="font-size:11px;color:var(--text2);margin:6px 0 0;line-height:1.5">Black List = các SKU mà số liệu trên file tồn nguồn (KiotViet...) bị lệch so với tồn vật lý thật. Số lượng trong Black List sẽ <b>luôn được dùng làm chuẩn</b>, ghi đè lên tồn kho thật cho tất cả kho.</p>
       <div id="bl-log" class="drive-log"></div>
     </div>
 
@@ -3819,227 +3790,10 @@ let TKX = {
   reportFilter: 'all'
 };
 
-// ── TQO: state độc lập cho card "Cập Nhật Tổng Quan Tồn Kho (Chỉ Cần File Tồn Kho)"
-//    Tách riêng hoàn toàn khỏi TKX để không ảnh hưởng card "Cập Nhật Tồn Kho Deli".
-let TQO = {
-  tonLookup: { hn: new Map(), hcm: new Map(), hangar: new Map() },
-  tonFileNames: [],
-  metaLookup: new Map()  // SKU → { tenHang, dvt, thuongHieu }
-};
-
-function tqoHandleTonFiles(input) {
-  const files = [...input.files];
-  if (!files.length) return;
-  let doneCount = 0;
-  const names = [];
-  files.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const wb = XLSX.read(e.target.result, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const { kho, products, productsHn, productsHcm, meta } = tkxParseTonkhoThatSheet(ws);
-        const applyMeta = (meta) => { if (meta) meta.forEach((m, sku) => { if (!TQO.metaLookup.has(sku) || (!TQO.metaLookup.get(sku).tenHang && m.tenHang)) TQO.metaLookup.set(sku, m); }); };
-        if (!kho) {
-          console.warn(`⚠ ${file.name}: không nhận diện được kho (HN/HCM) — bỏ qua file này`);
-        } else if (kho === 'dual') {
-          // File HH catalog: có cả 2 cột HN + SG trong cùng 1 file
-          if (!productsHn.size && !productsHcm.size) { console.warn(`⚠ ${file.name}: không có SKU hợp lệ`); }
-          else {
-            productsHn.forEach((qty, sku) => TQO.tonLookup.hn.set(sku, (TQO.tonLookup.hn.get(sku)||0) + qty));
-            productsHcm.forEach((qty, sku) => TQO.tonLookup.hcm.set(sku, (TQO.tonLookup.hcm.get(sku)||0) + qty));
-            applyMeta(meta); names.push(file.name);
-          }
-        } else if (!products.size) {
-          console.warn(`⚠ ${file.name}: không tìm thấy dữ liệu SKU hợp lệ — bỏ qua`);
-        } else {
-          products.forEach((qty, sku) => TQO.tonLookup[kho].set(sku, (TQO.tonLookup[kho].get(sku)||0) + qty));
-          applyMeta(meta); names.push(file.name);
-        }
-      } catch (err) {
-        console.error(`❌ Lỗi đọc ${file.name}: ${err.message}`);
-      }
-      doneCount++;
-      if (doneCount === files.length) {
-        TQO.tonFileNames = TQO.tonFileNames.concat(names);
-        const tonStatusText = `${TQO.tonFileNames.length} file đã nạp — Kho HN: ${TQO.tonLookup.hn.size} SKU | Kho HCM: ${TQO.tonLookup.hcm.size} SKU | Kho Hangar: ${TQO.tonLookup.hangar.size} SKU`;
-        const tonStatusEl = document.getElementById('tqo-status-ton');
-        if (tonStatusEl) tonStatusEl.textContent = tonStatusText;
-        const saveRealBtn = document.getElementById('tqo-save-real-btn');
-        if (saveRealBtn) saveRealBtn.style.display = (TQO.tonLookup.hn.size + TQO.tonLookup.hcm.size + TQO.tonLookup.hangar.size > 0) ? 'inline-flex' : 'none';
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  });
-}
-
-async function tqoSaveRealStockToStorage() {
-  const statusEl = document.getElementById('tqo-save-real-status');
-  const allSkus = new Set([...TQO.tonLookup.hn.keys(), ...TQO.tonLookup.hcm.keys(), ...TQO.tonLookup.hangar.keys()]);
-  if (!allSkus.size) {
-    if (statusEl) statusEl.textContent = '⚠ Chưa có dữ liệu tồn kho thật để lưu.';
-    return;
-  }
-  const btn = document.getElementById('tqo-save-real-btn');
-  if (btn) btn.disabled = true;
-  if (statusEl) { statusEl.style.color = 'var(--text2)'; statusEl.textContent = '⏳ Đang lưu vào hệ thống...'; }
-  try {
-    await blLoadIfNeeded();
-    // Gộp với dữ liệu tồn ĐÃ LƯU trước đó (Huy Hoàng/Liên Kết/Deli kho khác...) — KHÔNG ghi đè
-    // toàn bộ, vì file vừa upload có thể chỉ là 1 phần (vd chỉ 1 nhà cung cấp/1 kho). Ghi đè
-    // toàn bộ ở đây từng làm mất sạch tồn của các SKU không có trong file vừa upload.
-    const stockSnap = await db.collection('tonkho_thuc').doc('all').get();
-    let stock = {}, prevFileNames = [];
-    if (stockSnap.exists) {
-      const d = stockSnap.data();
-      prevFileNames = d.fileNames || [];
-      if (d.stockJson) { try { stock = JSON.parse(d.stockJson); } catch (e) { stock = {}; } }
-      else if (d.stock) { stock = d.stock; }
-    }
-    // Gộp Ở CẤP TỪNG KHO: file vừa upload chỉ thuộc 1 kho (HN hoặc HCM hoặc Hangar — xác định
-    // theo từng file), nên với 1 SKU, chỉ kho có trong file vừa upload mới được ghi đè; kho
-    // không xuất hiện trong file lần này phải giữ nguyên giá trị đã lưu trước đó (không set về 0).
-    let blOverrideCount = 0;
-    allSkus.forEach(sku => {
-      const prev = stock[sku]; // KHÔNG dùng || {} — cần phân biệt SKU mới (prev=undefined) vs cũ
-      const newEntry = {};
-      // hn: luôn được upload → dùng giá trị mới; nếu không có (hiếm) thì giữ prev
-      newEntry.hn = TQO.tonLookup.hn.has(sku) ? TQO.tonLookup.hn.get(sku) : (Number(prev?.hn) || 0);
-      // hcm + hangar: KHÔNG tạo key mặc định = 0. Chỉ lưu nếu:
-      //   (a) Lần upload này có data thực, HOẶC
-      //   (b) Firestore trước đó đã có giá trị > 0 (đã từng upload file kho đó)
-      // → Nếu chưa bao giờ upload file HCM: key hcm KHÔNG tồn tại trong Firestore
-      if (TQO.tonLookup.hcm.has(sku)) newEntry.hcm = TQO.tonLookup.hcm.get(sku);
-      else if (Number(prev?.hcm) > 0) newEntry.hcm = Number(prev.hcm);
-      if (TQO.tonLookup.hangar.has(sku)) newEntry.hangar = TQO.tonLookup.hangar.get(sku);
-      else if (Number(prev?.hangar) > 0) newEntry.hangar = Number(prev.hangar);
-      stock[sku] = newEntry;
-      // Black List: SKU có số liệu file nguồn bị lệch so với tồn vật lý thật — ghi đè số lượng
-      // chuẩn cho TẤT CẢ kho, áp dụng SAU khi gộp file vừa upload (luôn thắng).
-      if (BL.lookup.has(sku)) {
-        const v = BL.lookup.get(sku);
-        stock[sku] = { hn: v, hcm: v, hangar: v };
-        blOverrideCount++;
-      }
-    });
-    const mergedFileNames = Array.from(new Set([...prevFileNames, ...TQO.tonFileNames]));
-    await db.collection('tonkho_thuc').doc('all').set({
-      stockJson: JSON.stringify(stock),
-      fileNames: mergedFileNames,
-      updatedAt: new Date().toISOString()
-    });
-    // Lưu meta (tenHang, dvt, thuongHieu) vào collection riêng — merge để không xóa các SKU cũ
-    if (TQO.metaLookup.size > 0) {
-      const prevMetaSnap = await db.collection('tonkho_meta').doc('all').get();
-      let metaObj = {};
-      if (prevMetaSnap.exists && prevMetaSnap.data().metaJson) {
-        try { metaObj = JSON.parse(prevMetaSnap.data().metaJson); } catch(e) { metaObj = {}; }
-      }
-      TQO.metaLookup.forEach((m, sku) => { metaObj[sku] = m; });
-      await db.collection('tonkho_meta').doc('all').set({
-        metaJson: JSON.stringify(metaObj),
-        updatedAt: new Date().toISOString()
-      });
-    }
-    if (statusEl) { statusEl.style.color = '#27ae60'; statusEl.textContent = `✅ Đã lưu ${allSkus.size} SKU vừa upload (tổng hệ thống hiện có ${Object.keys(stock).length} SKU, lúc ${new Date().toLocaleTimeString('vi-VN')}${blOverrideCount ? `, trong đó ${blOverrideCount} SKU bị ghi đè theo Black List` : ''}). Trang Tổng Quan Tồn Kho sẽ dùng dữ liệu này.`; }
-  } catch (err) {
-    if (statusEl) { statusEl.style.color = 'var(--red)'; statusEl.textContent = '❌ Lỗi khi lưu: ' + err.message; }
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
-
-function tqoResetAll() {
-  TQO.tonLookup = { hn: new Map(), hcm: new Map(), hangar: new Map() };
-  TQO.tonFileNames = [];
-  TQO.metaLookup = new Map();
-  const input = document.getElementById('tqo-ton-input');
-  if (input) input.value = '';
-  const statusEl = document.getElementById('tqo-status-ton');
-  if (statusEl) statusEl.textContent = 'chưa chọn';
-  const saveStatusEl = document.getElementById('tqo-save-real-status');
-  if (saveStatusEl) saveStatusEl.textContent = '';
-  const saveBtn = document.getElementById('tqo-save-real-btn');
-  if (saveBtn) saveBtn.style.display = 'none';
-}
-
-// ── Xuất File Tồn theo cấu trúc Misa ──
-// kho: 'hn' hoặc 'hcm' — đọc từ Firestore tonkho_thuc + tonkho_meta, xuất xlsx.
-async function misaExportFile(kho) {
-  const statusEl = document.getElementById('misa-export-status');
-  if (statusEl) { statusEl.style.color = 'var(--text2)'; statusEl.textContent = '⏳ Đang tạo file...'; }
-  try {
-    // 1. Đọc tonkho_thuc
-    const stockSnap = await db.collection('tonkho_thuc').doc('all').get();
-    if (!stockSnap.exists) throw new Error('Chưa có dữ liệu tồn kho trong hệ thống. Hãy lưu file tồn trước.');
-    const stockData = stockSnap.data();
-    let stock = {};
-    if (stockData.stockJson) { try { stock = JSON.parse(stockData.stockJson); } catch(e) { stock = {}; } }
-    else if (stockData.stock) { stock = stockData.stock; }
-
-    // 2. Đọc tonkho_meta
-    const metaSnap = await db.collection('tonkho_meta').doc('all').get();
-    let metaObj = {};
-    if (metaSnap.exists && metaSnap.data().metaJson) {
-      try { metaObj = JSON.parse(metaSnap.data().metaJson); } catch(e) { metaObj = {}; }
-    }
-
-    // 3. Lọc các SKU có tồn kho > 0 hoặc tồn = 0 (vẫn xuất để Misa biết)
-    const khoLabel = kho === 'hn' ? 'KHO TỔNG HÀ NỘI' : 'KHO TỔNG HCM';
-    const fileName = kho === 'hn'
-      ? `Ton_Misa_HN_${new Date().toISOString().slice(0,10)}.xlsx`
-      : `Ton_Misa_HCM_${new Date().toISOString().slice(0,10)}.xlsx`;
-    const isHCM = kho === 'hcm';
-    const today = new Date();
-    const dateStr = `${today.getDate()}/${today.getMonth()+1}/${today.getFullYear()}`;
-
-    // 4. Build worksheet data
-    // Header rows 1-9 giống cấu trúc file Misa gốc
-    const headerRows = [
-      [null, khoLabel, null, null, isHCM ? null : null],                  // Row 1
-      ['Mã đơn vị:', null, null, null, isHCM ? null : null],              // Row 2
-      ['Tên đơn vị:', null, null, null, isHCM ? null : null],             // Row 3
-      ['Địa chỉ:', null, null, null, isHCM ? null : null],                // Row 4
-      ['Loại báo cáo:', 'Tồn kho', null, null, isHCM ? null : null],      // Row 5
-      ['Kỳ:', null, null, null, isHCM ? null : null],                     // Row 6
-      ['Ngày in:', dateStr, null, null, isHCM ? null : null],             // Row 7
-    ];
-    const colHeaderRow = isHCM
-      ? ['Mã SKU', 'Tên hàng hóa', 'Đơn vị tính', 'Thương hiệu', 'Tồn cuối kỳ', null]
-      : ['Mã SKU', 'Tên hàng hóa', 'Đơn vị tính', 'Tồn cuối kỳ', null];
-    const subHeaderRow = isHCM
-      ? [null, null, null, null, 'Số lượng', 'Giá trị']
-      : [null, null, null, 'Số lượng', 'Giá trị'];
-
-    const allRows = [...headerRows, colHeaderRow, subHeaderRow];
-
-    // 5. Data rows: chỉ xuất SKU có tồn kho kho này
-    let countRows = 0;
-    Object.entries(stock).forEach(([sku, qtyObj]) => {
-      const qty = Number(qtyObj[kho]) || 0;
-      if (qty === 0) return; // bỏ SKU tồn 0
-      const m = metaObj[sku] || { tenHang: '', dvt: '', thuongHieu: '' };
-      if (isHCM) {
-        allRows.push([sku, m.tenHang, m.dvt, m.thuongHieu, qty, null]);
-      } else {
-        allRows.push([sku, m.tenHang, m.dvt, qty, null]);
-      }
-      countRows++;
-    });
-
-    if (!countRows) throw new Error(`Không có SKU nào có tồn ${kho.toUpperCase()} > 0.`);
-
-    // 6. Tạo workbook SheetJS
-    const ws = XLSX.utils.aoa_to_sheet(allRows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, khoLabel.substring(0, 31));
-    XLSX.writeFile(wb, fileName);
-
-    if (statusEl) { statusEl.style.color = '#27ae60'; statusEl.textContent = `✅ Đã xuất ${countRows} SKU → ${fileName}`; }
-  } catch (err) {
-    if (statusEl) { statusEl.style.color = 'var(--red)'; statusEl.textContent = '❌ ' + err.message; }
-  }
-}
+// Card "Cập Nhật Tổng Quan Tồn Kho" (Chọn File Tồn Kho / Lưu Tồn Kho Thật / Xuất Misa) đã bị
+// xóa hẳn theo yêu cầu Tân (2026-08-09) — không còn dùng luồng upload Tồn Kho Thật này nữa.
+// Toàn bộ state TQO + các hàm tqoHandleTonFiles/tqoSaveRealStockToStorage/tqoResetAll/
+// misaExportFile đã bị gỡ bỏ (chỉ dùng riêng cho card này, không nơi nào khác gọi tới).
 
 // ══════════════════════════════════════════════════════════════
 // SHARED: Map Salework + Tồn Kho Thật dùng CHUNG cho Deli/Liên Kết/Huy Hoàng —
@@ -4241,7 +3995,7 @@ function tqoHandleMapFile(input) {
       const pushBtn = document.getElementById('mapsw-push-btn');
       if (pushBtn) pushBtn.style.display = 'inline-flex';
 
-      if (statusEl) statusEl.textContent = `✅ ${file.name} (${map.size} mã phân loại, ${totalRows} dòng, ${wb.SheetNames.length} sheet) — dùng chung cho Deli/Liên Kết/Huy Hoàng`;
+      if (statusEl) statusEl.textContent = new Date(updatedAt).toLocaleString('vi-VN');
     } catch (err) {
       if (statusEl) statusEl.textContent = '❌ Lỗi: ' + err.message;
     }
@@ -11771,6 +11525,28 @@ function tqCatalogLog(msg, type) {
 
 function tqInitPage() {
   if (!TQ.loaded) tqLoadData();
+  tqoRefreshMapStatus();
+}
+
+// Đọc nhanh mỗi khi vào trang — chỉ lấy fileName/updatedAt của doc gốc map_salework_ton/all,
+// KHÔNG tải toàn bộ map (nặng, chỉ tải khi thật sự cần dùng qua sharedLoadSaleworkMap()) —
+// để hiển thị đúng giờ cập nhật gần nhất kể cả khi chưa upload gì trong phiên này.
+async function tqoRefreshMapStatus() {
+  const statusEl = document.getElementById('tqo-status-map');
+  if (!statusEl) return;
+  try {
+    const snap = await db.collection('map_salework_ton').doc('all').get();
+    if (snap.exists && snap.data().updatedAt) {
+      const d = snap.data();
+      SHARED.saleworkFileName = d.fileName || '';
+      SHARED.saleworkUpdatedAt = d.updatedAt;
+      statusEl.textContent = new Date(d.updatedAt).toLocaleString('vi-VN');
+    } else {
+      statusEl.textContent = 'chưa có dữ liệu';
+    }
+  } catch (err) {
+    statusEl.textContent = 'lỗi tải trạng thái';
+  }
 }
 
 async function tqLoadData() {
