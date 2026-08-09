@@ -12207,6 +12207,11 @@ async function giaHandleOrdersImportFile(input) {
   input.value = '';
 }
 
+// Số dòng gửi mỗi lần POST lên Apps Script — chia nhỏ để KHÔNG chạm giới hạn thực thi 6 phút
+// của Google Apps Script (batch gửi hết 1 lần 5655 dòng từng bị timeout giữa chừng, ghi thiếu
+// dữ liệu từ ngày 20-31 mà không báo rõ — xác nhận Tân 2026-08-09 sau khi tái hiện lỗi thực tế).
+const GIA_IMPORT_CHUNK_SIZE = 1200;
+
 async function giaSubmitOrdersImport() {
   if (!_giaImportPending) { alert('Chưa có dữ liệu hợp lệ để nhập. Hãy chọn file trước.'); return; }
   const submitBtn = document.getElementById('gia-import-submit-btn');
@@ -12215,19 +12220,35 @@ async function giaSubmitOrdersImport() {
   const tabs = Object.keys(groups);
   let okTabs = [];
   for (const tab of tabs) {
-    giaImportLog(`📤 Đang gửi ${groups[tab].length} dòng vào tab "${tab}"...`);
-    try {
-      const resp = await fetch(GIA_APPS_SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ tab, headers: GIA_IMPORT_HEADERS, rows: groups[tab] })
-      });
-      const data = await resp.json();
-      if (!data.ok) throw new Error(data.error || 'Lỗi không xác định từ Apps Script');
-      giaImportLog(`✅ Tab "${tab}": thêm mới ${data.inserted}, cập nhật ${data.updated}.`, 'ok');
+    const allRows = groups[tab];
+    const totalChunks = Math.ceil(allRows.length / GIA_IMPORT_CHUNK_SIZE) || 1;
+    let tabInserted = 0, tabUpdated = 0, sentRows = 0, tabFailed = false;
+    for (let c = 0; c < totalChunks; c++) {
+      const chunkRows = allRows.slice(c * GIA_IMPORT_CHUNK_SIZE, (c + 1) * GIA_IMPORT_CHUNK_SIZE);
+      if (!chunkRows.length) continue;
+      const chunkLabel = totalChunks > 1 ? ` (phần ${c + 1}/${totalChunks})` : '';
+      giaImportLog(`📤 Đang gửi ${chunkRows.length} dòng vào tab "${tab}"${chunkLabel}...`);
+      try {
+        const resp = await fetch(GIA_APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ tab, headers: GIA_IMPORT_HEADERS, rows: chunkRows })
+        });
+        const data = await resp.json();
+        if (!data.ok) throw new Error(data.error || 'Lỗi không xác định từ Apps Script');
+        tabInserted += Number(data.inserted) || 0;
+        tabUpdated += Number(data.updated) || 0;
+        sentRows += chunkRows.length;
+        giaImportLog(`✅ Tab "${tab}"${chunkLabel}: thêm mới ${data.inserted}, cập nhật ${data.updated}.`, 'ok');
+      } catch (err) {
+        tabFailed = true;
+        giaImportLog(`❌ Tab "${tab}"${chunkLabel}: ${err.message} — đã gửi được ${sentRows}/${allRows.length} dòng trước khi lỗi, phần còn lại CHƯA gửi. Bấm "Nhập vào sheet" lại để gửi tiếp (dữ liệu đã gửi không bị trùng, hệ thống tự cập nhật theo Mã đơn hàng).`, 'err');
+        break; // dừng các phần sau của tab này — lỗi (thường do mạng/timeout) nhiều khả năng lặp lại nếu gửi tiếp ngay
+      }
+    }
+    if (!tabFailed) {
+      giaImportLog(`🔁 Tab "${tab}": hoàn tất ${sentRows}/${allRows.length} dòng — tổng thêm mới ${tabInserted}, cập nhật ${tabUpdated}.`, 'ok');
       okTabs.push(tab);
-    } catch (err) {
-      giaImportLog(`❌ Tab "${tab}": ${err.message}`, 'err');
     }
   }
   if (okTabs.length) {
