@@ -1885,14 +1885,14 @@
           <div class="kpi-card red" id="gia-ov-card-magiamgiashopee" style="cursor:pointer" onclick="giaOverviewShowDetail('maGiamGiaShopee',this)"><div class="kpi-label">Mã Giảm Giá Của Shopee</div><div class="kpi-value" id="gia-ov-kpi-magiamgiashopee">0</div></div>
         </div>
         <div class="kpi-grid" style="margin-bottom:16px;grid-template-columns:repeat(5,1fr)">
-          <div class="kpi-card navy"><div class="kpi-label">Phí Cố Định</div><div class="kpi-value" id="gia-ov-kpi-phicodinh">0</div></div>
-          <div class="kpi-card navy"><div class="kpi-label">Phí Dịch Vụ</div><div class="kpi-value" id="gia-ov-kpi-phidichvu">0</div></div>
-          <div class="kpi-card navy"><div class="kpi-label">Phí Xử Lý Giao Dịch</div><div class="kpi-value" id="gia-ov-kpi-phixulygiaodich">0</div></div>
-          <div class="kpi-card green"><div class="kpi-label">Số Tỉnh Thành Phố</div><div class="kpi-value" id="gia-ov-kpi-tinhthanh">0</div></div>
-          <div class="kpi-card green"><div class="kpi-label">Đơn Vị Vận Chuyển</div><div class="kpi-value" id="gia-ov-kpi-donvivanchuyen">0</div></div>
+          <div class="kpi-card navy" id="gia-ov-card-phicodinh" style="cursor:pointer" onclick="giaOverviewShowDetail('phiCoDinh',this)"><div class="kpi-label">Phí Cố Định</div><div class="kpi-value" id="gia-ov-kpi-phicodinh">0</div></div>
+          <div class="kpi-card navy" id="gia-ov-card-phidichvu" style="cursor:pointer" onclick="giaOverviewShowDetail('phiDichVu',this)"><div class="kpi-label">Phí Dịch Vụ</div><div class="kpi-value" id="gia-ov-kpi-phidichvu">0</div></div>
+          <div class="kpi-card navy" id="gia-ov-card-phixulygiaodich" style="cursor:pointer" onclick="giaOverviewShowDetail('phiXuLyGiaoDich',this)"><div class="kpi-label">Phí Xử Lý Giao Dịch</div><div class="kpi-value" id="gia-ov-kpi-phixulygiaodich">0</div></div>
+          <div class="kpi-card green" id="gia-ov-card-tinhthanh" style="cursor:pointer" onclick="giaOverviewShowDetail('tinhThanhPho',this)"><div class="kpi-label">Số Tỉnh Thành Phố</div><div class="kpi-value" id="gia-ov-kpi-tinhthanh">0</div></div>
+          <div class="kpi-card green" id="gia-ov-card-donvivanchuyen" style="cursor:pointer" onclick="giaOverviewShowDetail('donViVanChuyen',this)"><div class="kpi-label">Đơn Vị Vận Chuyển</div><div class="kpi-value" id="gia-ov-kpi-donvivanchuyen">0</div></div>
         </div>
 
-        <div id="gia-ov-detail-hint" style="font-size:12px;color:var(--text2);margin-bottom:8px">👆 Bấm vào card Doanh Số hoặc 1 trong 3 card giảm giá phía trên (Mã Giảm Giá Của Shop / Được Shopee Trợ Giá / Mã Giảm Giá Của Shopee) để xem chi tiết theo từng Shop.</div>
+        <div id="gia-ov-detail-hint" style="font-size:12px;color:var(--text2);margin-bottom:8px">👆 Bấm vào 1 trong 9 card phía trên để xem chi tiết: Doanh Số/3 loại phí/3 loại mã giảm giá xem theo Shop, riêng Số Tỉnh Thành Phố và Đơn Vị Vận Chuyển xem theo từng Tỉnh/Đơn vị.</div>
         <div id="gia-ov-detail-wrap" style="display:none">
           <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:8px" id="gia-ov-detail-title"></div>
           <div class="table-wrap" style="max-height:420px;overflow:auto;border:1px solid var(--gray3);border-radius:8px">
@@ -13421,11 +13421,29 @@ const GIA_OV_FIELD_LABEL = {
   doanhSo: 'Doanh Số',
   maGiamGiaShop: 'Mã Giảm Giá Của Shop',
   duocShopeeTroGia: 'Được Shopee Trợ Giá',
-  maGiamGiaShopee: 'Mã Giảm Giá Của Shopee'
+  maGiamGiaShopee: 'Mã Giảm Giá Của Shopee',
+  phiCoDinh: 'Phí Cố Định',
+  phiDichVu: 'Phí Dịch Vụ',
+  phiXuLyGiaoDich: 'Phí Xử Lý Giao Dịch',
+  tinhThanhPho: 'Tỉnh/Thành Phố',
+  donViVanChuyen: 'Đơn Vị Vận Chuyển'
 };
-const GIA_OV_CARD_IDS = ['gia-ov-card-doanhso', 'gia-ov-card-magiamgiashop', 'gia-ov-card-trogia', 'gia-ov-card-magiamgiashopee'];
+// 3 nhóm field, mỗi nhóm 1 kiểu bảng chi tiết khác nhau (xác nhận Tân 2026-08-09):
+// - money: số tiền cấp-đơn-hàng, tính TB/đơn + %/tổng theo Shop (Doanh Số, 3 loại Phí).
+// - discount: có khái niệm "được áp mã" (Mã giảm giá của Shop/Shopee, Được Shopee trợ giá).
+// - category: KHÔNG nhóm theo Shop mà nhóm theo chính giá trị đó (Tỉnh/Thành, Đơn Vị Vận Chuyển).
+const GIA_OV_FIELD_MODE = {
+  doanhSo: 'money', phiCoDinh: 'money', phiDichVu: 'money', phiXuLyGiaoDich: 'money',
+  maGiamGiaShop: 'discount', duocShopeeTroGia: 'discount', maGiamGiaShopee: 'discount',
+  tinhThanhPho: 'category', donViVanChuyen: 'category'
+};
+const GIA_OV_CARD_IDS = [
+  'gia-ov-card-doanhso', 'gia-ov-card-magiamgiashop', 'gia-ov-card-trogia', 'gia-ov-card-magiamgiashopee',
+  'gia-ov-card-phicodinh', 'gia-ov-card-phidichvu', 'gia-ov-card-phixulygiaodich',
+  'gia-ov-card-tinhthanh', 'gia-ov-card-donvivanchuyen'
+];
 
-// Bấm vào card Doanh Số hoặc 1 trong 3 card giảm giá → hiển thị bảng chi tiết theo Shop cho field đó.
+// Bấm vào 1 trong 9 card ở trên → hiển thị bảng chi tiết cho field đó.
 function giaOverviewShowDetail(field, cardEl) {
   GIA_OV_ACTIVE_FIELD = field;
   GIA_OV_CARD_IDS.forEach(id => {
@@ -13436,9 +13454,9 @@ function giaOverviewShowDetail(field, cardEl) {
   giaOverviewBuildBreakdown(field);
 }
 
-// Nhóm GIA_OV_ORDER_ROWS theo Shop, tính chỉ số cho field đang chọn, render vào bảng chung.
-// Doanh Số dùng bộ cột riêng (Tổng Số Đơn / Tổng Doanh Số / TB mỗi đơn / % trên tổng) vì đây là
-// số tiền thực nhận, không có khái niệm "được áp mã" như 3 field mã giảm giá.
+const GIA_OV_TOTAL_ROW_STYLE = 'font-weight:700;background:#f7f7f9;border-top:2px solid var(--gray3)';
+
+// Render bảng chi tiết cho field đang chọn — rẽ theo GIA_OV_FIELD_MODE, luôn có dòng Tổng cuối bảng.
 function giaOverviewBuildBreakdown(field) {
   const hint = document.getElementById('gia-ov-detail-hint');
   const wrap = document.getElementById('gia-ov-detail-wrap');
@@ -13451,29 +13469,29 @@ function giaOverviewBuildBreakdown(field) {
   wrap.style.display = 'block';
 
   const fmtNumOnly = v => (Number(v) || 0).toLocaleString('vi-VN');
-  const isRevenue = field === 'doanhSo';
+  const label = GIA_OV_FIELD_LABEL[field] || field;
+  const mode = GIA_OV_FIELD_MODE[field] || 'money';
 
-  if (isRevenue) {
+  if (mode === 'money') {
     const byShop = new Map(); // shop -> { totalOrders, totalValue }
-    let grandTotal = 0;
+    let grandTotal = 0, grandOrders = 0;
     GIA_OV_ORDER_ROWS.forEach(r => {
       const shop = String(r.shop || '').trim() || '(Không rõ shop)';
       let g = byShop.get(shop);
       if (!g) { g = { totalOrders: 0, totalValue: 0 }; byShop.set(shop, g); }
-      const val = Number(r.doanhSo) || 0;
-      g.totalOrders++;
-      g.totalValue += val;
-      grandTotal += val;
+      const val = Number(r[field]) || 0;
+      g.totalOrders++; g.totalValue += val;
+      grandOrders++; grandTotal += val;
     });
     const rowsArr = Array.from(byShop.entries()).map(([shop, g]) => ({ shop, ...g }))
       .sort((a, b) => b.totalValue - a.totalValue);
 
     if (colgroup) colgroup.innerHTML = '<col style="width:30%"><col style="width:16%"><col style="width:22%"><col style="width:16%"><col style="width:16%">';
     if (theadRow) theadRow.innerHTML = `
-      <th style="text-align:left">Shop</th><th class="num">Tổng Số Đơn</th><th class="num">Tổng Doanh Số</th>
-      <th class="num">Doanh Số TB / Đơn</th><th class="num">% Doanh Số / Tổng</th>`;
-    if (titleEl) titleEl.textContent = `📊 Chi tiết theo Shop — Doanh Số`;
-    tbody.innerHTML = rowsArr.length ? rowsArr.map(g => `
+      <th style="text-align:left">Shop</th><th class="num">Tổng Số Đơn</th><th class="num">Tổng ${label}</th>
+      <th class="num">${label} TB / Đơn</th><th class="num">% ${label} / Tổng</th>`;
+    if (titleEl) titleEl.textContent = `📊 Chi tiết theo Shop — ${label}`;
+    const bodyRows = rowsArr.length ? rowsArr.map(g => `
       <tr>
         <td>${g.shop}</td>
         <td class="num">${fmtNumOnly(g.totalOrders)}</td>
@@ -13481,17 +13499,56 @@ function giaOverviewBuildBreakdown(field) {
         <td class="num">${fmtNumOnly(g.totalOrders ? Math.round(g.totalValue / g.totalOrders) : 0)}</td>
         <td class="num">${grandTotal ? (g.totalValue / grandTotal * 100).toFixed(1) + '%' : '0%'}</td>
       </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text2)">Không có dữ liệu</td></tr>';
+    const totalRow = `
+      <tr style="${GIA_OV_TOTAL_ROW_STYLE}">
+        <td>Tổng</td>
+        <td class="num">${fmtNumOnly(grandOrders)}</td>
+        <td class="num">${fmtNumOnly(grandTotal)}</td>
+        <td class="num">${fmtNumOnly(grandOrders ? Math.round(grandTotal / grandOrders) : 0)}</td>
+        <td class="num">100%</td>
+      </tr>`;
+    tbody.innerHTML = bodyRows + (rowsArr.length ? totalRow : '');
     return;
   }
 
+  if (mode === 'category') {
+    const byCat = new Map(); // giá trị (tỉnh/đơn vị) -> số đơn
+    let grandOrders = 0;
+    GIA_OV_ORDER_ROWS.forEach(r => {
+      const cat = String(r[field] || '').trim() || '(Không rõ)';
+      byCat.set(cat, (byCat.get(cat) || 0) + 1);
+      grandOrders++;
+    });
+    const rowsArr = Array.from(byCat.entries()).map(([cat, count]) => ({ cat, count }))
+      .sort((a, b) => b.count - a.count);
+
+    if (colgroup) colgroup.innerHTML = '<col style="width:60%"><col style="width:20%"><col style="width:20%">';
+    if (theadRow) theadRow.innerHTML = `<th style="text-align:left">${label}</th><th class="num">Số Đơn</th><th class="num">% Đơn</th>`;
+    if (titleEl) titleEl.textContent = `📊 Chi tiết theo ${label}`;
+    const bodyRows = rowsArr.length ? rowsArr.map(g => `
+      <tr>
+        <td>${g.cat}</td>
+        <td class="num">${fmtNumOnly(g.count)}</td>
+        <td class="num">${grandOrders ? (g.count / grandOrders * 100).toFixed(1) + '%' : '0%'}</td>
+      </tr>`).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--text2)">Không có dữ liệu</td></tr>';
+    const totalRow = `
+      <tr style="${GIA_OV_TOTAL_ROW_STYLE}">
+        <td>Tổng</td><td class="num">${fmtNumOnly(grandOrders)}</td><td class="num">100%</td>
+      </tr>`;
+    tbody.innerHTML = bodyRows + (rowsArr.length ? totalRow : '');
+    return;
+  }
+
+  // mode === 'discount'
   const byShop = new Map(); // shop -> { count, value, totalOrders, appliedOrders }
+  let grandCount = 0, grandValue = 0, grandOrders = 0, grandApplied = 0;
   GIA_OV_ORDER_ROWS.forEach(r => {
     const shop = String(r.shop || '').trim() || '(Không rõ shop)';
     let g = byShop.get(shop);
     if (!g) { g = { count: 0, value: 0, totalOrders: 0, appliedOrders: 0 }; byShop.set(shop, g); }
-    g.totalOrders++;
+    g.totalOrders++; grandOrders++;
     const val = Number(r[field]) || 0;
-    if (val > 0) { g.count++; g.value += val; g.appliedOrders++; }
+    if (val > 0) { g.count++; g.value += val; g.appliedOrders++; grandCount++; grandValue += val; grandApplied++; }
   });
 
   const rowsArr = Array.from(byShop.entries()).map(([shop, g]) => ({ shop, ...g }))
@@ -13501,8 +13558,8 @@ function giaOverviewBuildBreakdown(field) {
   if (theadRow) theadRow.innerHTML = `
     <th style="text-align:left">Shop</th><th class="num">Số Lượng Mã Giảm Giá</th><th class="num">Tổng Giá Trị</th>
     <th class="num">Tổng Số Đơn</th><th class="num">Số Đơn Được Áp Mã</th><th class="num">% Đơn Được Áp Mã</th>`;
-  if (titleEl) titleEl.textContent = `📊 Chi tiết theo Shop — ${GIA_OV_FIELD_LABEL[field] || field}`;
-  tbody.innerHTML = rowsArr.length ? rowsArr.map(g => `
+  if (titleEl) titleEl.textContent = `📊 Chi tiết theo Shop — ${label}`;
+  const bodyRows = rowsArr.length ? rowsArr.map(g => `
     <tr>
       <td>${g.shop}</td>
       <td class="num">${fmtNumOnly(g.count)}</td>
@@ -13511,6 +13568,16 @@ function giaOverviewBuildBreakdown(field) {
       <td class="num">${fmtNumOnly(g.appliedOrders)}</td>
       <td class="num">${g.totalOrders ? (g.appliedOrders / g.totalOrders * 100).toFixed(1) + '%' : '0%'}</td>
     </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--text2)">Không có dữ liệu</td></tr>';
+  const totalRow = `
+    <tr style="${GIA_OV_TOTAL_ROW_STYLE}">
+      <td>Tổng</td>
+      <td class="num">${fmtNumOnly(grandCount)}</td>
+      <td class="num">${fmtNumOnly(grandValue)}</td>
+      <td class="num">${fmtNumOnly(grandOrders)}</td>
+      <td class="num">${fmtNumOnly(grandApplied)}</td>
+      <td class="num">${grandOrders ? (grandApplied / grandOrders * 100).toFixed(1) + '%' : '0%'}</td>
+    </tr>`;
+  tbody.innerHTML = bodyRows + (rowsArr.length ? totalRow : '');
 }
 
 // Đóng picker khi click ra ngoài
