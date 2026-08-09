@@ -1852,6 +1852,42 @@
       </div>
       <div id="giaday-log" class="drive-log" style="margin-top:8px"></div>
     </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-title"><span class="dot" style="background:#8e44ad"></span> ④ Báo Cáo Tổng Quan</div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+        <select id="gia-overview-month-select" class="sw-upload-btn" style="background:white;color:var(--navy);border:1px solid var(--navy);cursor:pointer" onchange="giaOverviewRun()">
+          <option value="Tháng 12 2026">Tháng 12 2026</option>
+          <option value="Tháng 11 2026">Tháng 11 2026</option>
+          <option value="Tháng 10 2026">Tháng 10 2026</option>
+          <option value="Tháng 9 2026">Tháng 9 2026</option>
+          <option value="Tháng 8 2026">Tháng 8 2026</option>
+          <option value="Tháng 7 2026">Tháng 7 2026</option>
+          <option value="Tháng 6 2026">Tháng 6 2026</option>
+          <option value="Tháng 5 2026">Tháng 5 2026</option>
+          <option value="Tháng 4 2026">Tháng 4 2026</option>
+          <option value="Tháng 3 2026">Tháng 3 2026</option>
+          <option value="Tháng 2 2026">Tháng 2 2026</option>
+          <option value="Tháng 1 2026">Tháng 1 2026</option>
+        </select>
+      </div>
+      <div id="gia-overview-log" class="drive-log"></div>
+
+      <div id="gia-overview-report" style="display:none;margin-top:10px">
+        <div class="kpi-grid" style="margin-bottom:16px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+          <div class="kpi-card red"><div class="kpi-label">Mã Giảm Giá Của Shop</div><div class="kpi-value" id="gia-ov-kpi-magiamgiashop">0</div></div>
+          <div class="kpi-card orange"><div class="kpi-label">Được Shopee Trợ Giá</div><div class="kpi-value" id="gia-ov-kpi-troGia">0</div></div>
+          <div class="kpi-card red"><div class="kpi-label">Mã Giảm Giá Của Shopee</div><div class="kpi-value" id="gia-ov-kpi-magiamgiashopee">0</div></div>
+          <div class="kpi-card navy"><div class="kpi-label">Phí Cố Định</div><div class="kpi-value" id="gia-ov-kpi-phicodinh">0</div></div>
+          <div class="kpi-card navy"><div class="kpi-label">Phí Dịch Vụ</div><div class="kpi-value" id="gia-ov-kpi-phidichvu">0</div></div>
+          <div class="kpi-card navy"><div class="kpi-label">Phí Xử Lý Giao Dịch</div><div class="kpi-value" id="gia-ov-kpi-phixulygiaodich">0</div></div>
+          <div class="kpi-card green"><div class="kpi-label">Số Tỉnh Thành Phố</div><div class="kpi-value" id="gia-ov-kpi-tinhthanh">0</div></div>
+        </div>
+
+        <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:8px">🚚 Đơn Vị Vận Chuyển Đã Dùng</div>
+        <div id="gia-ov-donvivanchuyen" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      </div>
+    </div>
   </div>
 
   <div class="page" id="page-gia-lich-su">
@@ -12307,7 +12343,15 @@ async function giaDoSyncOrders(tab) {
       phanTramGiam: header.findIndex(h => h.includes('giảm giá') && h.startsWith('%')),
       shop:         header.findIndex(h => h === 'shop'),
       duocShopeeTroGia: header.findIndex(h => h.includes('được shopee trợ giá')),
-      maGiamGiaShop:    header.findIndex(h => h.includes('mã giảm giá') && h.includes('shop') && !h.includes('shopee'))
+      maGiamGiaShop:    header.findIndex(h => h.includes('mã giảm giá') && h.includes('shop') && !h.includes('shopee')),
+      // 6 cột thêm 2026-08-09 (xác nhận Tân) — trước đây chỉ đẩy lên Google Sheet, giờ đọc thêm
+      // vào dữ liệu lưu hệ thống để phục vụ Card "④ Báo Cáo Tổng Quan".
+      donViVanChuyen:   header.findIndex(h => h.includes('đơn vị vận chuyển')),
+      maGiamGiaShopee:  header.findIndex(h => h.includes('mã giảm giá') && h.includes('shopee')),
+      phiCoDinh:        header.findIndex(h => h.includes('phí cố định')),
+      phiDichVu:        header.findIndex(h => h.includes('phí dịch vụ')),
+      phiXuLyGiaoDich:  header.findIndex(h => h.includes('phí xử lý')),
+      tinhThanhPho:     header.findIndex(h => h.includes('tỉnh'))
     };
     if (idx.sku === -1 || idx.giaUuDai === -1) {
       throw new Error('Không tìm thấy cột "SKU phân loại hàng" hoặc "Giá ưu đãi" trong tab này — kiểm tra lại tiêu đề cột.');
@@ -12333,7 +12377,13 @@ async function giaDoSyncOrders(tab) {
         phanTramGiam: idx.phanTramGiam !== -1 ? (r[idx.phanTramGiam] || '') : '',
         shop: idx.shop !== -1 ? String(r[idx.shop] || '').trim() : '',
         duocShopeeTroGia: idx.duocShopeeTroGia !== -1 ? parseVNNumber(r[idx.duocShopeeTroGia]) : 0,
-        maGiamGiaShop: idx.maGiamGiaShop !== -1 ? parseVNNumber(r[idx.maGiamGiaShop]) : 0
+        maGiamGiaShop: idx.maGiamGiaShop !== -1 ? parseVNNumber(r[idx.maGiamGiaShop]) : 0,
+        donViVanChuyen: idx.donViVanChuyen !== -1 ? String(r[idx.donViVanChuyen] || '').trim() : '',
+        maGiamGiaShopee: idx.maGiamGiaShopee !== -1 ? parseVNNumber(r[idx.maGiamGiaShopee]) : 0,
+        phiCoDinh: idx.phiCoDinh !== -1 ? parseVNNumber(r[idx.phiCoDinh]) : 0,
+        phiDichVu: idx.phiDichVu !== -1 ? parseVNNumber(r[idx.phiDichVu]) : 0,
+        phiXuLyGiaoDich: idx.phiXuLyGiaoDich !== -1 ? parseVNNumber(r[idx.phiXuLyGiaoDich]) : 0,
+        tinhThanhPho: idx.tinhThanhPho !== -1 ? String(r[idx.tinhThanhPho] || '').trim() : ''
       });
     }
     if (!parsed.length) throw new Error('Không đọc được dòng đơn hàng nào (có thể tất cả dòng trống mã đơn)');
@@ -13184,6 +13234,83 @@ function giaDayRender() {
     <td class="num" style="font-weight:700">${r.hcm.toLocaleString('vi-VN')}</td>
     <td class="num" style="font-weight:700">${r.total.toLocaleString('vi-VN')}</td>
   </tr>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+// ④ BÁO CÁO TỔNG QUAN — tổng hợp Mã giảm giá shop/Shopee, Được Shopee trợ giá,
+// Phí cố định/Dịch vụ/Xử lý giao dịch, số Tỉnh Thành, Đơn Vị Vận Chuyển đã dùng
+// trong 1 tháng. Đọc từ GIA.orders[slug] (đã đồng bộ ở mục ①) — cần 6 field mới
+// (donViVanChuyen, maGiamGiaShopee, phiCoDinh, phiDichVu, phiXuLyGiaoDich,
+// tinhThanhPho) nên tháng nào đồng bộ TRƯỚC 2026-08-09 cần bấm Đồng bộ lại.
+// ══════════════════════════════════════════════════════════════
+async function giaOverviewRun() {
+  const tab = document.getElementById('gia-overview-month-select')?.value;
+  if (!tab) return;
+  const logEl = document.getElementById('gia-overview-log');
+  const reportEl = document.getElementById('gia-overview-report');
+  if (logEl) { logEl.innerHTML = ''; logEl.classList.remove('visible'); }
+  const log = (msg, type) => {
+    if (!logEl) return;
+    logEl.classList.add('visible');
+    const color = type === 'err' ? '#e74c3c' : type === 'warn' ? '#f39c12' : type === 'ok' ? '#27ae60' : '#555';
+    logEl.innerHTML = `<div style="color:${color}">${msg}</div>`;
+  };
+  try {
+    const slug = giaSlugMonth(tab);
+    let entry = GIA.orders[slug];
+    if (!entry) {
+      const snap = await db.collection('gia_orders').doc(slug).get();
+      if (snap.exists) {
+        const d = snap.data();
+        const rowsJson = await giaLoadChunkedField('gia_orders_chunks', slug, d.rowsChunkCount || 0);
+        entry = { rows: JSON.parse(rowsJson || '[]'), tab: d.tab, updatedAt: d.updatedAt };
+        GIA.orders[slug] = entry;
+      }
+    }
+    if (!entry || !entry.rows || !entry.rows.length) {
+      if (reportEl) reportEl.style.display = 'none';
+      log(`⚠ Tab "${tab}" chưa được đồng bộ đơn hàng — vào mục ① bấm "Đồng bộ đơn hàng" trước.`, 'warn');
+      return;
+    }
+    let magiamgiashop = 0, troGia = 0, magiamgiashopee = 0, phicodinh = 0, phidichvu = 0, phixulygiaodich = 0;
+    const tinhThanhSet = new Set();
+    const donViSet = new Set();
+    entry.rows.forEach(r => {
+      magiamgiashop += Number(r.maGiamGiaShop) || 0;
+      troGia += Number(r.duocShopeeTroGia) || 0;
+      magiamgiashopee += Number(r.maGiamGiaShopee) || 0;
+      phicodinh += Number(r.phiCoDinh) || 0;
+      phidichvu += Number(r.phiDichVu) || 0;
+      phixulygiaodich += Number(r.phiXuLyGiaoDich) || 0;
+      const tinh = String(r.tinhThanhPho || '').trim();
+      if (tinh) tinhThanhSet.add(tinh);
+      const dv = String(r.donViVanChuyen || '').trim();
+      if (dv) donViSet.add(dv);
+    });
+
+    const setKpi = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    setKpi('gia-ov-kpi-magiamgiashop', fmtMoney(magiamgiashop));
+    setKpi('gia-ov-kpi-troGia', fmtMoney(troGia));
+    setKpi('gia-ov-kpi-magiamgiashopee', fmtMoney(magiamgiashopee));
+    setKpi('gia-ov-kpi-phicodinh', fmtMoney(phicodinh));
+    setKpi('gia-ov-kpi-phidichvu', fmtMoney(phidichvu));
+    setKpi('gia-ov-kpi-phixulygiaodich', fmtMoney(phixulygiaodich));
+    setKpi('gia-ov-kpi-tinhthanh', tinhThanhSet.size.toLocaleString('vi-VN'));
+
+    const dvWrap = document.getElementById('gia-ov-donvivanchuyen');
+    if (dvWrap) {
+      const list = Array.from(donViSet).sort((a, b) => a.localeCompare(b, 'vi'));
+      dvWrap.innerHTML = list.length
+        ? list.map(dv => `<span style="padding:4px 12px;border:1px solid var(--gray3);background:var(--bg2);border-radius:12px;font-size:11px;font-weight:700;color:var(--navy)">${String(dv).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span>`).join('')
+        : '<span style="font-size:12px;color:var(--text2)">Không có dữ liệu Đơn Vị Vận Chuyển trong tháng này</span>';
+    }
+
+    if (reportEl) reportEl.style.display = 'block';
+    log(`✅ Đã tính từ ${entry.rows.length} dòng đơn — tab "${entry.tab || tab}".`, 'ok');
+  } catch (e) {
+    if (reportEl) reportEl.style.display = 'none';
+    log('❌ Lỗi: ' + e.message, 'err');
+  }
 }
 
 // Đóng picker khi click ra ngoài
