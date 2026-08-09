@@ -187,6 +187,10 @@
   .kpi-label { font-size: 11px; color: var(--text2); font-weight: 600; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 10px; }
   .kpi-value { font-size: 28px; font-weight: 800; color: var(--text); line-height: 1; }
   .kpi-sub   { font-size: 11px; color: var(--text2); margin-top: 8px; }
+  /* Card ④ Báo Cáo Tổng Quan — số tiền dài (VD "203.659.501đ") bị tràn khỏi card ở cỡ chữ mặc
+     định 28px. Thu nhỏ + cho phép xuống dòng riêng cho đúng grid này, KHÔNG đụng .kpi-value
+     dùng chung toàn dashboard (xác nhận Tân 2026-08-09). */
+  #gia-overview-report .kpi-value { font-size: 18px; white-space: normal; word-break: break-word; }
   .kpi-icon  { position: absolute; right: 16px; top: 16px; font-size: 28px; opacity: .15; }
 
   /* ── CHARTS ROW ── */
@@ -1874,7 +1878,7 @@
       <div id="gia-overview-log" class="drive-log"></div>
 
       <div id="gia-overview-report" style="display:none;margin-top:10px">
-        <div class="kpi-grid" style="margin-bottom:16px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+        <div class="kpi-grid" style="margin-bottom:16px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
           <div class="kpi-card red"><div class="kpi-label">Mã Giảm Giá Của Shop</div><div class="kpi-value" id="gia-ov-kpi-magiamgiashop">0</div></div>
           <div class="kpi-card orange"><div class="kpi-label">Được Shopee Trợ Giá</div><div class="kpi-value" id="gia-ov-kpi-troGia">0</div></div>
           <div class="kpi-card red"><div class="kpi-label">Mã Giảm Giá Của Shopee</div><div class="kpi-value" id="gia-ov-kpi-magiamgiashopee">0</div></div>
@@ -1882,6 +1886,7 @@
           <div class="kpi-card navy"><div class="kpi-label">Phí Dịch Vụ</div><div class="kpi-value" id="gia-ov-kpi-phidichvu">0</div></div>
           <div class="kpi-card navy"><div class="kpi-label">Phí Xử Lý Giao Dịch</div><div class="kpi-value" id="gia-ov-kpi-phixulygiaodich">0</div></div>
           <div class="kpi-card green"><div class="kpi-label">Số Tỉnh Thành Phố</div><div class="kpi-value" id="gia-ov-kpi-tinhthanh">0</div></div>
+          <div class="kpi-card green"><div class="kpi-label">Đơn Vị Vận Chuyển</div><div class="kpi-value" id="gia-ov-kpi-donvivanchuyen">0</div></div>
         </div>
 
         <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:8px">🚚 Đơn Vị Vận Chuyển Đã Dùng</div>
@@ -13341,6 +13346,7 @@ async function giaOverviewRun() {
     setKpi('gia-ov-kpi-phidichvu', fmtMoney(phidichvu));
     setKpi('gia-ov-kpi-phixulygiaodich', fmtMoney(phixulygiaodich));
     setKpi('gia-ov-kpi-tinhthanh', tinhThanhSet.size.toLocaleString('vi-VN'));
+    setKpi('gia-ov-kpi-donvivanchuyen', donViSet.size.toLocaleString('vi-VN'));
 
     const dvWrap = document.getElementById('gia-ov-donvivanchuyen');
     if (dvWrap) {
