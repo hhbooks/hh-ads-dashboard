@@ -12572,7 +12572,12 @@ const GIA_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxCkxdxBIY5
 // Lưu ý: cột "Voucher/sản phẩm", "Giá bán 1 quyển", "%Giảm giá", "Shop" trong sheet đã có
 // công thức tính sẵn (kéo từ dòng trên xuống) — KHÔNG gửi giá trị cho các cột này, để
 // Apps Script tự copy công thức từ dòng liền trên xuống dòng mới thêm.
-const GIA_IMPORT_HEADERS = ['Mã đơn hàng', 'Ngày đặt hàng', 'Tên sản phẩm', 'Tên kho hàng', 'SKU phân loại hàng', 'Tên phân loại hàng', 'Giá gốc', 'Được Shopee trợ giá', 'Giá ưu đãi', 'Số lượng', 'Mã giảm giá của shop', 'Tổng giá ưu đãi'];
+// 6 cột thêm 2026-08-09 (xác nhận Tân): Đơn Vị Vận Chuyển, Mã giảm giá của Shopee, Phí cố định,
+// Phí Dịch Vụ, Phí xử lý giao dịch, Tỉnh/Thành phố — Apps Script map theo TÊN cột (không theo vị
+// trí), nên Tân cần tự gõ đúng 6 tên này (y hệt, có dấu) vào hàng tiêu đề trong Sheet trước khi dùng,
+// đặt ở cuối cùng (sau cả 4 cột công thức "Voucher/sản phẩm/Giá bán 1 quyển/%Giảm giá/Shop") để
+// không làm lệch cột những công thức tham chiếu tuyệt đối đang có sẵn.
+const GIA_IMPORT_HEADERS = ['Mã đơn hàng', 'Ngày đặt hàng', 'Tên sản phẩm', 'Tên kho hàng', 'SKU phân loại hàng', 'Tên phân loại hàng', 'Giá gốc', 'Được Shopee trợ giá', 'Giá ưu đãi', 'Số lượng', 'Mã giảm giá của shop', 'Tổng giá ưu đãi', 'Đơn Vị Vận Chuyển', 'Mã giảm giá của Shopee', 'Phí cố định', 'Phí Dịch Vụ', 'Phí xử lý giao dịch', 'Tỉnh/Thành phố'];
 let _giaImportPending = null; // { groups: { [tab]: row[][] }, totalRows, cancelledCount, readyRows }
 
 function giaImportLog(msg, type) {
@@ -12630,6 +12635,13 @@ function giaReadOneOrderFile(file) {
           soLuong: exact('số lượng'),
           duocShopeeTroGia: exact('được shopee trợ giá'),
           maGiamGiaShop: header.findIndex(h => h.includes(stripDiacritics('mã giảm giá của shop')) && !h.includes('shopee')),
+          // 6 cột thêm 2026-08-09 (xác nhận Tân) — đọc từ file export Shopee, đẩy thêm vào Sheet
+          donViVanChuyen: exact('đơn vị vận chuyển'),
+          maGiamGiaShopee: exact('mã giảm giá của shopee'),
+          phiCoDinh: exact('phí cố định'),
+          phiDichVu: exact('phí dịch vụ'),
+          phiXuLyGiaoDich: exact('phí xử lý giao dịch'),
+          tinhThanhPho: exact('tỉnh/thành phố'),
         };
         if (idx.maDon === -1 || idx.trangThai === -1 || idx.giaUuDai === -1) {
           const found = rows[0].map((h, i) => `[${i}] ${h}`).join(' | ');
@@ -12660,6 +12672,14 @@ function giaReadOneOrderFile(file) {
           const duocShopeeTroGia = idx.duocShopeeTroGia !== -1 ? parseVNNumber(r[idx.duocShopeeTroGia]) : 0;
           const maGiamGiaShop = idx.maGiamGiaShop !== -1 ? parseVNNumber(r[idx.maGiamGiaShop]) : 0;
 
+          // 6 giá trị thêm 2026-08-09 (xác nhận Tân) — nối đúng thứ tự với GIA_IMPORT_HEADERS
+          const donViVanChuyen  = idx.donViVanChuyen  !== -1 ? (r[idx.donViVanChuyen]  || '') : '';
+          const maGiamGiaShopee = idx.maGiamGiaShopee !== -1 ? parseVNNumber(r[idx.maGiamGiaShopee]) : 0;
+          const phiCoDinh       = idx.phiCoDinh       !== -1 ? parseVNNumber(r[idx.phiCoDinh]) : 0;
+          const phiDichVu       = idx.phiDichVu       !== -1 ? parseVNNumber(r[idx.phiDichVu]) : 0;
+          const phiXuLyGiaoDich = idx.phiXuLyGiaoDich !== -1 ? parseVNNumber(r[idx.phiXuLyGiaoDich]) : 0;
+          const tinhThanhPho    = idx.tinhThanhPho    !== -1 ? (r[idx.tinhThanhPho]    || '') : '';
+
           const row = [
             String(maDon).trim(),
             idx.ngay !== -1 ? (r[idx.ngay] || '') : '',
@@ -12667,7 +12687,8 @@ function giaReadOneOrderFile(file) {
             idx.tenKho !== -1 ? (r[idx.tenKho] || '') : '',
             idx.sku !== -1 ? String(r[idx.sku] || '').trim() : '',
             idx.phanLoai !== -1 ? (r[idx.phanLoai] || '') : '',
-            giaGoc, duocShopeeTroGia, giaUuDai, soLuong, maGiamGiaShop, tongGiaUuDai
+            giaGoc, duocShopeeTroGia, giaUuDai, soLuong, maGiamGiaShop, tongGiaUuDai,
+            donViVanChuyen, maGiamGiaShopee, phiCoDinh, phiDichVu, phiXuLyGiaoDich, tinhThanhPho
           ];
           if (!groups[tab]) groups[tab] = [];
           groups[tab].push(row);
