@@ -13377,6 +13377,23 @@ async function giaOverviewRun() {
       revenueByOrder.set(key, (revenueByOrder.get(key) || 0) + gross);
     });
 
+    // FIX 2026-08-09 (xác nhận Tân, bằng chứng đơn 2608018JBD9ATX): khác với các field tiền
+    // (mã giảm giá, phí...) luôn lặp lại GIỐNG HỆT trên mọi dòng SKU của đơn, Shopee KHÔNG lặp
+    // lại Đơn Vị Vận Chuyển/Tỉnh Thành Phố trên mọi dòng — chỉ ghi ở 1 dòng bất kỳ trong đơn
+    // (có thể là dòng đầu, dòng giữa hay dòng cuối, không cố định). Nếu chỉ lấy từ dòng đầu tiên
+    // gặp (như các field khác) sẽ bị tính nhầm thành "(Không rõ)" khi đúng dòng đầu bị trống.
+    // → Quét toàn bộ dòng của mỗi đơn, lấy giá trị KHÔNG RỖNG đầu tiên tìm thấy.
+    const donViByOrder = new Map();
+    const tinhThanhByOrder = new Map();
+    entry.rows.forEach(r => {
+      const key = String(r.maDon || '').trim();
+      if (!key) return;
+      const dv = String(r.donViVanChuyen || '').trim();
+      if (dv && !donViByOrder.has(key)) donViByOrder.set(key, dv);
+      const tt = String(r.tinhThanhPho || '').trim();
+      if (tt && !tinhThanhByOrder.has(key)) tinhThanhByOrder.set(key, tt);
+    });
+
     const orderRows = [];
     const seenOrders = new Set();
     entry.rows.forEach(r => {
@@ -13384,6 +13401,8 @@ async function giaOverviewRun() {
       if (!key || seenOrders.has(key)) return;
       seenOrders.add(key);
       r.doanhSo = (revenueByOrder.get(key) || 0) - (Number(r.maGiamGiaShop) || 0);
+      r.donViVanChuyen = donViByOrder.get(key) || '';
+      r.tinhThanhPho = tinhThanhByOrder.get(key) || '';
       orderRows.push(r);
     });
     GIA_OV_ORDER_ROWS = orderRows;
