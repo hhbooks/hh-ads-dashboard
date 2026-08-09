@@ -1637,22 +1637,11 @@
       <div id="gia-import-log" class="drive-log"></div>
     </div>
 
+    <!-- Card "① Map Salework" đã bỏ 2026-08-09 (xác nhận Tân): Map Salework giờ chỉ upload 1 lần
+         ở trang "Tổng Quan Tồn Kho" (Card "Tổng Quan Tồn Kho Thật"), trang này tự đọc lại qua
+         sharedLoadSaleworkMap() — xem giaInitPage(). -->
     <div class="card" style="margin-bottom:16px">
-      <div class="card-title"><span class="dot"></span> ① Map Salework (đối chiếu SKU combo)</div>
-      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-        File Excel nhiều sheet (mỗi sheet = 1 shop), dùng để quy đổi <b>combo</b> (dòng đơn hàng không có sẵn SKU chuẩn ở cột "SKU phân loại hàng") sang các SKU thành phần. Chỉ cần upload lại khi có file mới — hệ thống tự lưu và dùng lại lần upload gần nhất.
-      </p>
-      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
-        <label class="sw-upload-btn" style="cursor:pointer">
-          📂 Tải lên file Map Salework
-          <input type="file" accept=".xlsx,.xls" style="display:none" onchange="giaHandleSaleworkMapFile(this)">
-        </label>
-        <span id="gia-map-status" style="font-size:12px;color:var(--text2)">Đang tải trạng thái...</span>
-      </div>
-    </div>
-
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-title"><span class="dot"></span> ② Đồng Bộ Đơn Hàng (Google Sheet "Cập Nhật Đơn Hằng Ngày")</div>
+      <div class="card-title"><span class="dot"></span> ① Đồng Bộ Đơn Hàng (Google Sheet "Cập Nhật Đơn Hằng Ngày")</div>
       <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
         Chọn tháng cần đồng bộ — dữ liệu được đọc trực tiếp từ tab tương ứng trong Google Sheet và lưu vào hệ thống (chỉ đồng bộ khi bạn bấm nút, không tự động).
       </p>
@@ -1914,18 +1903,11 @@
         <span id="tq-catalog-last-sync" style="font-size:12px;color:var(--text2)"></span>
       </div>
       <div id="tq-catalog-log" class="drive-log"></div>
-    </div>
-
-    <div class="card" style="margin-bottom:18px">
-      <div class="card-title"><span class="dot" style="background:var(--navy)"></span> Cập Nhật Tổng Quan Tồn Kho (Chỉ Cần File Tồn Kho)</div>
-      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-        Đây là nơi <b>DUY NHẤT</b> cần upload file Tồn Kho (KiotViet, có thể nhiều file) và file Map Salework. Các mục "Cập Nhật Tồn Kho Deli/Liên Kết/Huy Hoàng" phía dưới sẽ tự lấy lại dữ liệu đã lưu ở đây — không cần upload lại Tồn/Map ở từng mục nữa, chỉ cần nạp File Mass rồi xuất file mới.
-      </p>
-      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
-        <div>
-          <input type="file" id="tqo-ton-input" accept=".xlsx,.xls" multiple style="display:none" onchange="tqoHandleTonFiles(this)">
-          <button class="sw-upload-btn" onclick="document.getElementById('tqo-ton-input').click()">📂 Chọn File Tồn Kho</button>
-        </div>
+      <!-- Map Salework + Map TikTok dồn từ Card "Cập Nhật Tổng Quan Tồn Kho" lên đây 2026-08-09
+           (xác nhận Tân) — đây là nơi DUY NHẤT trong toàn dashboard upload 2 file này, dùng
+           chung cho mọi tính năng khác (Cập Nhật Tồn Kho, Cập Nhật Đơn Hằng Ngày, Trả Hàng,
+           Chương Trình Của Shop, khuyến mãi Shopee...). Hàm xử lý phía sau giữ nguyên, chỉ đổi vị trí hiển thị. -->
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;padding-top:14px;border-top:1px dashed var(--border)">
         <div>
           <input type="file" id="tqo-map-input" accept=".xlsx,.xls" style="display:none" onchange="tqoHandleMapFile(this)">
           <button class="sw-upload-btn" onclick="document.getElementById('tqo-map-input').click()">📂 Tải File Map Salework</button>
@@ -1936,16 +1918,29 @@
           <button class="sw-upload-btn" onclick="document.getElementById('tqo-map-tiktok-input').click()">📂 Tải File MAP TikTok</button>
           <button id="maptk-push-btn" class="sw-upload-btn" style="display:none;background:#010101;color:#fff;border:none" onclick="mapTkPushToSheet()">📤 Đẩy lên SKU Tổng (Tab MAP TIKTOK)</button>
         </div>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Map Salework dùng chung (toàn dashboard): <b id="tqo-status-map">chưa chọn</b></div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Map TikTok đã nạp: <b id="tqo-status-maptk">chưa chọn</b></div>
+      <div id="mapsw-log" class="drive-log"></div>
+      <div id="maptk-log" class="drive-log"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:18px">
+      <div class="card-title"><span class="dot" style="background:var(--navy)"></span> Cập Nhật Tổng Quan Tồn Kho (Chỉ Cần File Tồn Kho)</div>
+      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
+        Đây là nơi <b>DUY NHẤT</b> cần upload file Tồn Kho (KiotViet, có thể nhiều file). Map Salework/Map TikTok đã chuyển lên Card "Tổng Quan Tồn Kho Thật" phía trên. Các mục "Cập Nhật Tồn Kho Deli/Liên Kết/Huy Hoàng" phía dưới sẽ tự lấy lại dữ liệu đã lưu ở đây — không cần upload lại Tồn/Map ở từng mục nữa, chỉ cần nạp File Mass rồi xuất file mới.
+      </p>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+        <div>
+          <input type="file" id="tqo-ton-input" accept=".xlsx,.xls" multiple style="display:none" onchange="tqoHandleTonFiles(this)">
+          <button class="sw-upload-btn" onclick="document.getElementById('tqo-ton-input').click()">📂 Chọn File Tồn Kho</button>
+        </div>
         <div style="display:flex;gap:12px;flex-wrap:wrap">
           <button id="tqo-save-real-btn" class="btn-drive-sync" style="display:none;max-width:320px;background:var(--navy)" onclick="tqoSaveRealStockToStorage()">💾 Lưu Tồn Kho Thật Vào Hệ Thống (Tổng Quan)</button>
           <button onclick="tqoResetAll()" style="padding:6px 14px;border:1px solid var(--red);color:var(--red);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
         </div>
       </div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:6px">File tồn đã nạp: <b id="tqo-status-ton">chưa chọn</b></div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Map Salework dùng chung (Deli/Liên Kết/Huy Hoàng): <b id="tqo-status-map">chưa chọn</b></div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Map TikTok đã nạp: <b id="tqo-status-maptk">chưa chọn</b></div>
-      <div id="mapsw-log" class="drive-log"></div>
-      <div id="maptk-log" class="drive-log"></div>
       <div id="tqo-save-real-status" style="font-size:12px;color:var(--text2)"></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
         <button class="sw-upload-btn" style="background:#1a6b3a;color:#fff;border:none" onclick="misaExportFile('hn')">📥 Xuất File Tồn Misa — HN</button>
@@ -2168,17 +2163,13 @@
           <button class="sw-upload-btn" onclick="document.getElementById('th-mass-input').click()">📂 1. Chọn File Mass</button>
         </div>
         <div>
-          <input type="file" id="th-map-input" accept=".xlsx,.xls" style="display:none" onchange="thHandleMapFile(this)">
-          <button class="sw-upload-btn" onclick="document.getElementById('th-map-input').click()">📂 2. Chọn File Map Salework</button>
-        </div>
-        <div>
           <input type="file" id="th-return-input" accept=".xlsx,.xls" multiple style="display:none" onchange="thHandleReturnFiles(this)">
-          <button class="sw-upload-btn" onclick="document.getElementById('th-return-input').click()">📂 3. Chọn File Trả Hàng (có thể chọn nhiều file)</button>
+          <button class="sw-upload-btn" onclick="document.getElementById('th-return-input').click()">📂 2. Chọn File Trả Hàng (có thể chọn nhiều file)</button>
         </div>
       </div>
       <div id="th-status-bar" style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--text2);margin-bottom:10px">
         <span>Mass: <b id="th-status-mass">chưa chọn</b></span>
-        <span>Map Salework: <b id="th-status-map">chưa chọn</b></span>
+        <span>Map Salework (dùng chung): <b id="th-status-map">chưa chọn</b></span>
         <span>File trả hàng: <b id="th-status-return">chưa chọn</b></span>
         <button onclick="thResetAll()" style="margin-left:auto;padding:6px 14px;border:1px solid var(--red);color:var(--red);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
       </div>
@@ -2437,15 +2428,11 @@
           <input type="file" id="mkt-discount-input" accept=".xlsx,.xls" style="display:none" onchange="mktHandleDiscountFile(this)">
           <button class="sw-upload-btn" onclick="document.getElementById('mkt-discount-input').click()">📂 1. Chọn File Discount Shopee</button>
         </div>
-        <div>
-          <input type="file" id="mkt-map-input" accept=".xlsx,.xls" style="display:none" onchange="mktHandleMapFile(this)">
-          <button class="sw-upload-btn" onclick="document.getElementById('mkt-map-input').click()">📂 2. Chọn File Map Salework</button>
-        </div>
-        <button id="mkt-compare-btn" class="sw-upload-btn" style="display:none;background:var(--navy)" onclick="mktCompare()">🔍 3. Đối Chiếu</button>
+        <button id="mkt-compare-btn" class="sw-upload-btn" style="display:none;background:var(--navy)" onclick="mktCompare()">🔍 2. Đối Chiếu</button>
       </div>
       <div id="mkt-status-bar" style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--text2);margin-bottom:10px">
         <span>File discount: <b id="mkt-status-discount">chưa chọn</b></span>
-        <span>Map Salework: <b id="mkt-status-map">chưa chọn</b></span>
+        <span>Map Salework (dùng chung): <b id="mkt-status-map">chưa chọn</b></span>
         <button onclick="mktResetAll()" style="margin-left:auto;padding:6px 14px;border:1px solid var(--red);color:var(--red);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
       </div>
       <div id="mkt-log" class="drive-log"></div>
@@ -2531,15 +2518,11 @@
           <input type="file" id="shopee-eligible-input" accept=".xlsx,.xls" style="display:none" onchange="shopeeHandleEligibleFile(this)">
           <button class="sw-upload-btn" onclick="document.getElementById('shopee-eligible-input').click()">📂 1. Chọn File Eligible Product List</button>
         </div>
-        <div>
-          <input type="file" id="shopee-map-input" accept=".xlsx,.xls" style="display:none" onchange="shopeeHandleMapFile(this)">
-          <button class="sw-upload-btn" onclick="document.getElementById('shopee-map-input').click()">📂 2. Chọn File Map Salework</button>
-        </div>
-        <button id="shopee-compare-btn" class="sw-upload-btn" style="display:none;background:var(--navy)" onclick="shopeeCompare()">🔍 3. Đối Chiếu</button>
+        <button id="shopee-compare-btn" class="sw-upload-btn" style="display:none;background:var(--navy)" onclick="shopeeCompare()">🔍 2. Đối Chiếu</button>
       </div>
       <div id="shopee-status-bar" style="display:flex;gap:18px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--text2);margin-bottom:10px">
         <span>File Eligible List: <b id="shopee-status-eligible">chưa chọn</b></span>
-        <span>Map Salework: <b id="shopee-status-map">chưa chọn</b></span>
+        <span>Map Salework (dùng chung): <b id="shopee-status-map">chưa chọn</b></span>
         <button onclick="shopeeResetAll()" style="margin-left:auto;padding:6px 14px;border:1px solid var(--red);color:var(--red);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
       </div>
       <div id="shopee-log" class="drive-log"></div>
@@ -4064,11 +4047,15 @@ async function misaExportFile(kho) {
 // Firestore (không cần tự upload file Tồn/Map riêng nữa).
 // ══════════════════════════════════════════════════════════════
 let SHARED = {
-  saleworkMap: null, saleworkByIdSp: null, saleworkFileName: '', saleworkUpdatedAt: null,
+  saleworkMap: null, saleworkByIdSp: null, saleworkByName: null, saleworkFileName: '', saleworkUpdatedAt: null,
   tiktokByIdSp: null,
   tonLookup: null, tonUpdatedAt: null
 };
 
+// saleworkByName = Tầng 3 (thêm 2026-08-09, xác nhận Tân — gộp từ trang "Cập nhật đơn hằng ngày"
+// cũ vào đây để dùng chung 1 nơi duy nhất): Map<"shopChuẩnHoá||tenSpChuẩnHoá", [{tenPhanLoaiNorm,
+// maSalework, comboQty}]> — khớp combo theo Shop + Tên sản phẩm, dùng cho file order Shopee
+// (không có sẵn Mã phân loại/ID SP Shopee như file Tồn Kho).
 async function sharedLoadSaleworkMap(force) {
   if (SHARED.saleworkMap && !force) return SHARED.saleworkMap;
   const snap = await db.collection('map_salework_ton').doc('all').get();
@@ -4076,8 +4063,10 @@ async function sharedLoadSaleworkMap(force) {
   const d = snap.data();
   const mapJson = await giaLoadChunkedField('map_salework_ton_chunks', 'map', d.mapChunkCount || 0);
   const byIdSpJson = await giaLoadChunkedField('map_salework_ton_chunks', 'idsp', d.idSpChunkCount || 0);
+  const byNameJson = await giaLoadChunkedField('map_salework_ton_chunks', 'byname', d.byNameChunkCount || 0);
   SHARED.saleworkMap = new Map(JSON.parse(mapJson || '[]'));
   SHARED.saleworkByIdSp = new Map(JSON.parse(byIdSpJson || '[]'));
+  SHARED.saleworkByName = new Map(JSON.parse(byNameJson || '[]'));
   SHARED.saleworkFileName = d.fileName || '';
   SHARED.saleworkUpdatedAt = d.updatedAt || null;
   return SHARED.saleworkMap;
@@ -4129,6 +4118,7 @@ function tqoHandleMapFile(input) {
       const wb = XLSX.read(e.target.result, { type: 'array' });
       const map = new Map();
       const byIdSp = new Map();
+      const byName = new Map(); // Tầng 3 — xem giải thích ở khai báo SHARED phía trên
       let totalRows = 0;
       wb.SheetNames.forEach(sheetName => {
         const ws = wb.Sheets[sheetName];
@@ -4147,12 +4137,17 @@ function tqoHandleMapFile(input) {
           comboQty:   header.indexOf('Số lượng combo'),
           tenSp:      header.indexOf('Tên sản phẩm'),
           idSp:       header.indexOf('ID SP Shopee'),
+          // Cột phân loại/combo trong file thực tế tên là "Phân loại / Combo" — so khớp qua
+          // giaNormText để không trượt vì hoa/thường hay khoảng trắng (bản vá cũ từ trang
+          // "Cập nhật đơn hằng ngày", gộp về đây 2026-08-09).
           tenPhanLoai: (() => {
-            let i = header.findIndex(h => h === 'Phân loại / Combo');
-            if (i === -1) i = header.findIndex(h => h.toLowerCase().includes('tên phân loại'));
-            if (i === -1) i = header.findIndex(h => h.toLowerCase().includes('phân loại') && !h.toLowerCase().includes('mã'));
+            let i = header.findIndex(h => giaNormText(h) === 'phân loại / combo');
+            if (i === -1) i = header.findIndex(h => giaNormText(h).includes('tên phân loại'));
+            if (i === -1) i = header.findIndex(h => giaNormText(h).includes('phân loại') && !giaNormText(h).includes('mã'));
             return i;
           })(),
+          // Cột Shop tường minh (nếu có) — dùng cho Tầng 3, KHÔNG coi cả sheet thuộc về đúng 1 shop.
+          shop: header.findIndex(h => { const n = giaNormText(h); return n === 'shop' || n === 'tên shop' || n === 'ten shop'; }),
         };
         if (idx.maPhanLoai === -1 || idx.maSalework === -1) return;
         for (let i = headerRow + 1; i < rows.length; i++) {
@@ -4172,6 +4167,17 @@ function tqoHandleMapFile(input) {
             if (!byIdSp.has(idSpVal)) byIdSp.set(idSpVal, []);
             byIdSp.get(idSpVal).push(comp);
           }
+          // Tầng 3 (gộp từ giaHandleSaleworkMapFile cũ, 2026-08-09, xác nhận Tân): khớp theo
+          // Shop + Tên sản phẩm — dùng cho đơn hàng Shopee ở trang "Cập nhật đơn hằng ngày"
+          // (file order không có sẵn Mã phân loại/ID SP Shopee như file Tồn Kho).
+          if (comp.tenSp) {
+            const shopVal = (idx.shop !== -1 && r[idx.shop] != null && String(r[idx.shop]).trim() !== '')
+              ? String(r[idx.shop]).trim()
+              : sheetName;
+            const nameKey = giaNormText(shopVal) + '||' + giaNormText(comp.tenSp);
+            if (!byName.has(nameKey)) byName.set(nameKey, []);
+            byName.get(nameKey).push({ tenPhanLoaiNorm: giaStripBrackets(tenPhanLoaiStr), maSalework: maSaleworkStr, comboQty });
+          }
           totalRows++;
         }
       });
@@ -4179,22 +4185,25 @@ function tqoHandleMapFile(input) {
 
       const mapJson = JSON.stringify(Array.from(map.entries()));
       const byIdSpJson = JSON.stringify(Array.from(byIdSp.entries()));
+      const byNameJson = JSON.stringify(Array.from(byName.entries()));
       const oldSnap = await db.collection('map_salework_ton').doc('all').get();
       const oldData = oldSnap.exists ? oldSnap.data() : {};
       const mapChunkCount = await giaSaveChunkedField('map_salework_ton_chunks', 'map', mapJson);
       const idSpChunkCount = await giaSaveChunkedField('map_salework_ton_chunks', 'idsp', byIdSpJson);
+      const byNameChunkCount = await giaSaveChunkedField('map_salework_ton_chunks', 'byname', byNameJson);
       const cleanupDeletes = [];
       for (let i = mapChunkCount; i < (oldData.mapChunkCount || 0); i++) cleanupDeletes.push(db.collection('map_salework_ton_chunks').doc(`map_${i}`).delete());
       for (let i = idSpChunkCount; i < (oldData.idSpChunkCount || 0); i++) cleanupDeletes.push(db.collection('map_salework_ton_chunks').doc(`idsp_${i}`).delete());
+      for (let i = byNameChunkCount; i < (oldData.byNameChunkCount || 0); i++) cleanupDeletes.push(db.collection('map_salework_ton_chunks').doc(`byname_${i}`).delete());
       if (cleanupDeletes.length) await Promise.all(cleanupDeletes);
 
       const updatedAt = new Date().toISOString();
       await db.collection('map_salework_ton').doc('all').set({
         fileName: file.name, rowCount: totalRows, sheetCount: wb.SheetNames.length,
-        mapChunkCount, idSpChunkCount, updatedAt
+        mapChunkCount, idSpChunkCount, byNameChunkCount, updatedAt
       });
 
-      SHARED.saleworkMap = map; SHARED.saleworkByIdSp = byIdSp;
+      SHARED.saleworkMap = map; SHARED.saleworkByIdSp = byIdSp; SHARED.saleworkByName = byName;
       SHARED.saleworkFileName = file.name; SHARED.saleworkUpdatedAt = updatedAt;
 
       // Lưu raw rows để dùng cho tính năng đẩy lên Google Sheet tab MAP SW
@@ -5858,14 +5867,16 @@ function thResetAll() {
   TH.reportRows = [];
   TH.reportFilter = 'all';
 
-  ['th-mass-input', 'th-map-input', 'th-return-input'].forEach(id => {
+  ['th-mass-input', 'th-return-input'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  ['th-status-mass', 'th-status-map', 'th-status-return'].forEach(id => {
+  ['th-status-mass', 'th-status-return'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = 'chưa chọn';
   });
+  const mapEl = document.getElementById('th-status-map');
+  if (mapEl) mapEl.textContent = 'chưa chọn';
 
   const log = document.getElementById('th-log');
   if (log) { log.innerHTML = ''; log.classList.remove('visible'); }
@@ -5923,60 +5934,24 @@ function thHandleMassFile(input) {
     } catch (err) {
       thLog(`❌ Lỗi đọc file mass: ${err.message}`, 'err');
     }
-    thCheckReady();
+    thEnsureSharedSaleworkMap();
   };
   reader.readAsArrayBuffer(file);
 }
 
-function thHandleMapFile(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const wb = XLSX.read(e.target.result, { type: 'array' });
-      const map = new Map();
-      let totalRows = 0;
-      wb.SheetNames.forEach(sheetName => {
-        const ws = wb.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-        if (!rows.length) return;
-        let headerRow = -1, header = null;
-        for (let i = 0; i < Math.min(rows.length, 5); i++) {
-          if (rows[i] && rows[i].some(c => String(c||'').trim() === 'Mã phân loại')) {
-            headerRow = i; header = rows[i].map(c => String(c||'').trim()); break;
-          }
-        }
-        if (headerRow === -1) return;
-        const idx = {
-          maPhanLoai: header.indexOf('Mã phân loại'),
-          maSalework: header.indexOf('Mã Salework liên kết'),
-          comboQty:   header.indexOf('Số lượng combo'),
-          tenSp:      header.indexOf('Tên sản phẩm'),
-        };
-        if (idx.maPhanLoai === -1 || idx.maSalework === -1) return;
-        for (let i = headerRow + 1; i < rows.length; i++) {
-          const r = rows[i];
-          if (!r) continue;
-          const key = r[idx.maPhanLoai], maSalework = r[idx.maSalework];
-          if (key == null || maSalework == null || String(key).trim() === '' || String(maSalework).trim() === '') continue;
-          const keyStr = String(key).trim();
-          const comboQty = Number(r[idx.comboQty]) || 1;
-          if (!map.has(keyStr)) map.set(keyStr, []);
-          map.get(keyStr).push({ maSalework: String(maSalework).trim(), comboQty, tenSp: r[idx.tenSp] || '', sheet: sheetName });
-          totalRows++;
-        }
-      });
-      if (!map.size) throw new Error('Không tìm thấy dữ liệu hợp lệ ở bất kỳ sheet nào (cần cột "Mã phân loại" và "Mã Salework liên kết")');
-      TH.saleworkMap = map;
-      document.getElementById('th-status-map').textContent = `${file.name} (${map.size} mã phân loại, ${totalRows} dòng, ${wb.SheetNames.length} sheet)`;
-      thLog(`✅ Đọc file map Salework: ${file.name} — ${map.size} mã phân loại từ ${wb.SheetNames.length} sheet`, 'ok');
-    } catch (err) {
-      thLog(`❌ Lỗi đọc file map Salework: ${err.message}`, 'err');
-    }
-    thCheckReady();
-  };
-  reader.readAsArrayBuffer(file);
+// Map Salework giờ dùng chung, nạp 1 lần ở "Tổng Quan Tồn Kho" (xác nhận Tân 2026-08-09) —
+// không tự upload riêng ở đây nữa, chỉ đọc lại từ SHARED qua sharedLoadSaleworkMap().
+async function thEnsureSharedSaleworkMap() {
+  const mapEl = document.getElementById('th-status-map');
+  if (mapEl) mapEl.textContent = 'đang tải...';
+  try {
+    const map = await sharedLoadSaleworkMap(true);
+    TH.saleworkMap = map;
+    if (mapEl) mapEl.textContent = map ? `${SHARED.saleworkFileName || 'đã lưu'} (${map.size} mã phân loại)` : '⚠ chưa có — vào mục Tổng Quan Tồn Kho để tải lên';
+  } catch (err) {
+    thLog('❌ Lỗi tải Map Salework (kho chung): ' + err.message, 'err');
+  }
+  thCheckReady();
 }
 
 // ── Đọc 1 hoặc nhiều file phiếu trả hàng (dạng STT/Mã SKU/Tên hàng hóa/SL,
@@ -11120,72 +11095,25 @@ function mktHandleDiscountFile(input) {
     } catch (err) {
       mktLog(`❌ Lỗi đọc file discount: ${err.message}`, 'err');
     }
-    mktCheckReady();
+    mktEnsureSharedSaleworkMap();
   };
   reader.readAsArrayBuffer(file);
 }
 
-// ── 2. File Map Salework: quét TẤT CẢ sheet (mỗi sheet = 1 shop) — tự dò, không cần chọn shop trước.
-function mktHandleMapFile(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const wb = XLSX.read(e.target.result, { type: 'array' });
-      const map = new Map();
-      const byIdSp = new Map(); // fallback: Map<ID SP Shopee, comp[]> — đối chiếu bằng Mã sản phẩm khi Mã phân loại hàng (D) không khớp được cột "Mã phân loại" (F) — gom tất cả dòng cùng ID SP Shopee
-      let totalRows = 0;
-      wb.SheetNames.forEach(sheetName => {
-        const ws = wb.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-        if (!rows.length) return;
-        let headerRow = -1, header = null;
-        for (let i = 0; i < Math.min(rows.length, 5); i++) {
-          if (rows[i] && rows[i].some(c => String(c||'').trim() === 'Mã phân loại')) {
-            headerRow = i; header = rows[i].map(c => String(c||'').trim()); break;
-          }
-        }
-        if (headerRow === -1) return;
-        const idx = {
-          maPhanLoai: header.indexOf('Mã phân loại'),
-          maSalework: header.indexOf('Mã Salework liên kết'),
-          comboQty:   header.indexOf('Số lượng combo'),
-          tenSp:      header.indexOf('Tên sản phẩm'),
-          skuShopee:  header.indexOf('SKU Shopee'),
-          idSp:       header.indexOf('ID SP Shopee'),
-        };
-        if (idx.maPhanLoai === -1 || idx.maSalework === -1) return;
-        for (let i = headerRow + 1; i < rows.length; i++) {
-          const r = rows[i];
-          if (!r) continue;
-          const key = r[idx.maPhanLoai], maSalework = r[idx.maSalework];
-          if (key == null || maSalework == null || String(key).trim() === '' || String(maSalework).trim() === '') continue;
-          const keyStr = String(key).trim();
-          const comboQty = Number(r[idx.comboQty]) || 1;
-          const skuShopee = (idx.skuShopee !== -1 && r[idx.skuShopee] != null) ? String(r[idx.skuShopee]).trim() : '';
-          const comp = { maSalework: String(maSalework).trim(), comboQty, tenSp: r[idx.tenSp] || '', skuShopee, sheet: sheetName };
-          if (!map.has(keyStr)) map.set(keyStr, []);
-          map.get(keyStr).push(comp);
-          const idSpVal = (idx.idSp !== -1 && r[idx.idSp] != null) ? String(r[idx.idSp]).trim() : '';
-          if (idSpVal) {
-            if (!byIdSp.has(idSpVal)) byIdSp.set(idSpVal, []);
-            byIdSp.get(idSpVal).push(comp);
-          }
-          totalRows++;
-        }
-      });
-      if (!map.size) throw new Error('Không tìm thấy dữ liệu hợp lệ ở bất kỳ sheet nào (cần cột "Mã phân loại" và "Mã Salework liên kết")');
-      MKT.saleworkMap = map;
-      MKT.saleworkByIdSp = byIdSp;
-      document.getElementById('mkt-status-map').textContent = `${file.name} (${map.size} mã phân loại, ${totalRows} dòng, ${wb.SheetNames.length} sheet)`;
-      mktLog(`✅ Đọc file map Salework: ${file.name} — ${map.size} mã phân loại từ ${wb.SheetNames.length} sheet`, 'ok');
-    } catch (err) {
-      mktLog(`❌ Lỗi đọc file map Salework: ${err.message}`, 'err');
-    }
-    mktCheckReady();
-  };
-  reader.readAsArrayBuffer(file);
+// Map Salework giờ dùng chung, nạp 1 lần ở "Tổng Quan Tồn Kho" (xác nhận Tân 2026-08-09) —
+// không tự upload riêng ở đây nữa, chỉ đọc lại từ SHARED qua sharedLoadSaleworkMap().
+async function mktEnsureSharedSaleworkMap() {
+  const mapEl = document.getElementById('mkt-status-map');
+  if (mapEl) mapEl.textContent = 'đang tải...';
+  try {
+    const map = await sharedLoadSaleworkMap(true);
+    MKT.saleworkMap = map;
+    MKT.saleworkByIdSp = SHARED.saleworkByIdSp;
+    if (mapEl) mapEl.textContent = map ? `${SHARED.saleworkFileName || 'đã lưu'} (${map.size} mã phân loại)` : '⚠ chưa có — vào mục Tổng Quan Tồn Kho để tải lên';
+  } catch (err) {
+    mktLog('❌ Lỗi tải Map Salework (kho chung): ' + err.message, 'err');
+  }
+  mktCheckReady();
 }
 
 // ── 3. Đối chiếu: tải Danh Mục SKU (sku_catalog, đồng bộ từ Google Sheet "Trung Tâm Dữ Liệu") rồi với mỗi
@@ -11421,7 +11349,6 @@ function mktResetAll() {
   MKT.saleworkMap = null; MKT.saleworkByIdSp = null; MKT.catalog = null; MKT.rows = []; MKT.filter = 'all';
 
   const di = document.getElementById('mkt-discount-input'); if (di) di.value = '';
-  const mi = document.getElementById('mkt-map-input'); if (mi) mi.value = '';
   const sd = document.getElementById('mkt-status-discount'); if (sd) sd.textContent = 'chưa chọn';
   const sm = document.getElementById('mkt-status-map'); if (sm) sm.textContent = 'chưa chọn';
   const log = document.getElementById('mkt-log'); if (log) { log.innerHTML = ''; log.classList.remove('visible'); }
@@ -11538,78 +11465,25 @@ function shopeeHandleEligibleFile(input) {
     } catch (err) {
       shopeeLog(`❌ Lỗi đọc file Eligible Product List: ${err.message}`, 'err');
     }
-    shopeeCheckReady();
+    shopeeEnsureSharedSaleworkMap();
   };
   reader.readAsArrayBuffer(file);
 }
 
-// ── 2. File Map Salework: quét TẤT CẢ sheet (mỗi sheet = 1 shop) — giống cơ chế ở Đối Chiếu Giảm Giá.
-function shopeeHandleMapFile(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const wb = XLSX.read(e.target.result, { type: 'array' });
-      const map = new Map();
-      const byIdSp = new Map();
-      let totalRows = 0;
-      wb.SheetNames.forEach(sheetName => {
-        const ws = wb.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-        if (!rows.length) return;
-        let headerRow = -1, header = null;
-        // So khớp header không phân biệt hoa/thường + khoảng trắng, tránh bỏ sót cả sheet chỉ vì
-        // header lệch chữ hoa/thường hoặc dư khoảng trắng so với "Mã phân loại".
-        for (let i = 0; i < Math.min(rows.length, 5); i++) {
-          if (rows[i] && rows[i].some(c => String(c||'').trim().toLowerCase() === 'mã phân loại')) {
-            headerRow = i; header = rows[i].map(c => String(c||'').trim()); break;
-          }
-        }
-        if (headerRow === -1) return;
-        const findCol = (name) => header.findIndex(h => h.toLowerCase() === name.toLowerCase());
-        const idx = {
-          maPhanLoai: findCol('Mã phân loại'),
-          maSalework: findCol('Mã Salework liên kết'),
-          comboQty:   findCol('Số lượng combo'),
-          tenSp:      findCol('Tên sản phẩm'),
-          skuShopee:  findCol('SKU Shopee'),
-          idSp:       findCol('ID SP Shopee'),
-        };
-        if (idx.maPhanLoai === -1 || idx.maSalework === -1) return;
-        for (let i = headerRow + 1; i < rows.length; i++) {
-          const r = rows[i];
-          if (!r) continue;
-          const key = r[idx.maPhanLoai], maSalework = r[idx.maSalework];
-          if (key == null || maSalework == null || String(key).trim() === '' || String(maSalework).trim() === '') continue;
-          const keyStr = String(key).trim();
-          const comboQty = Number(r[idx.comboQty]) || 1;
-          const skuShopee = (idx.skuShopee !== -1 && r[idx.skuShopee] != null) ? String(r[idx.skuShopee]).trim() : '';
-          // Lưu kèm maPhanLoai (cột F) trong từng component để Tier 2 (đối chiếu qua Mã sản phẩm/ID SP
-          // Shopee — cột B file 1800 ↔ cột E file Map) có thể tự thu hẹp đúng dòng/đúng combo theo Mã
-          // phân loại trong nhóm cùng Mã sản phẩm, thay vì chỉ dựa vào số lượng dòng tìm được.
-          const comp = { maSalework: String(maSalework).trim(), comboQty, tenSp: r[idx.tenSp] || '', skuShopee, maPhanLoai: keyStr, sheet: sheetName };
-          if (!map.has(keyStr)) map.set(keyStr, []);
-          map.get(keyStr).push(comp);
-          const idSpVal = (idx.idSp !== -1 && r[idx.idSp] != null) ? String(r[idx.idSp]).trim() : '';
-          if (idSpVal) {
-            if (!byIdSp.has(idSpVal)) byIdSp.set(idSpVal, []);
-            byIdSp.get(idSpVal).push(comp);
-          }
-          totalRows++;
-        }
-      });
-      if (!map.size) throw new Error('Không tìm thấy dữ liệu hợp lệ ở bất kỳ sheet nào (cần cột "Mã phân loại" và "Mã Salework liên kết")');
-      SHOPEE_FS.saleworkMap = map;
-      SHOPEE_FS.saleworkByIdSp = byIdSp;
-      document.getElementById('shopee-status-map').textContent = `${file.name} (${map.size} mã phân loại, ${totalRows} dòng, ${wb.SheetNames.length} sheet)`;
-      shopeeLog(`✅ Đọc file map Salework: ${file.name} — ${map.size} mã phân loại từ ${wb.SheetNames.length} sheet`, 'ok');
-    } catch (err) {
-      shopeeLog(`❌ Lỗi đọc file map Salework: ${err.message}`, 'err');
-    }
-    shopeeCheckReady();
-  };
-  reader.readAsArrayBuffer(file);
+// Map Salework giờ dùng chung, nạp 1 lần ở "Tổng Quan Tồn Kho" (xác nhận Tân 2026-08-09) —
+// không tự upload riêng ở đây nữa, chỉ đọc lại từ SHARED qua sharedLoadSaleworkMap().
+async function shopeeEnsureSharedSaleworkMap() {
+  const mapEl = document.getElementById('shopee-status-map');
+  if (mapEl) mapEl.textContent = 'đang tải...';
+  try {
+    const map = await sharedLoadSaleworkMap(true);
+    SHOPEE_FS.saleworkMap = map;
+    SHOPEE_FS.saleworkByIdSp = SHARED.saleworkByIdSp;
+    if (mapEl) mapEl.textContent = map ? `${SHARED.saleworkFileName || 'đã lưu'} (${map.size} mã phân loại)` : '⚠ chưa có — vào mục Tổng Quan Tồn Kho để tải lên';
+  } catch (err) {
+    shopeeLog('❌ Lỗi tải Map Salework (kho chung): ' + err.message, 'err');
+  }
+  shopeeCheckReady();
 }
 
 // ── 3. Đối chiếu: tải Danh Mục SKU (sku_catalog), với mỗi dòng Eligible List: map Mã phân loại hàng
@@ -11842,7 +11716,6 @@ function shopeeResetAll() {
   SHOPEE_FS.saleworkMap = null; SHOPEE_FS.saleworkByIdSp = null; SHOPEE_FS.catalog = null; SHOPEE_FS.rows = []; SHOPEE_FS.filter = 'all';
 
   const ei = document.getElementById('shopee-eligible-input'); if (ei) ei.value = '';
-  const mi = document.getElementById('shopee-map-input'); if (mi) mi.value = '';
   const se = document.getElementById('shopee-status-eligible'); if (se) se.textContent = 'chưa chọn';
   const sm = document.getElementById('shopee-status-map'); if (sm) sm.textContent = 'chưa chọn';
   const log = document.getElementById('shopee-log'); if (log) { log.innerHTML = ''; log.classList.remove('visible'); }
@@ -12328,16 +12201,10 @@ async function blDoBlacklistSync() {
 const GIA_ORDERS_SHEET_ID = '1wNoIOc5ZbKwQd0bPY-CpOevWTIDIdut8q_iYh1SP_Ng';
 const GIA_MONTH_TABS = ['Tháng 12 2026', 'Tháng 11 2026', 'Tháng 10 2026', 'Tháng 9 2026', 'Tháng 8 2026', 'Tháng 7 2026', 'Tháng 6 2026', 'Tháng 5 2026', 'Tháng 4 2026', 'Tháng 3 2026', 'Tháng 2 2026', 'Tháng 1 2026'];
 
+// Map Salework (saleworkMap/saleworkByIdSp/saleworkByName) chuyển sang dùng chung ở SHARED
+// (nạp qua sharedLoadSaleworkMap() trong giaInitPage) — xác nhận Tân 2026-08-09, không còn
+// lưu/tự upload riêng ở trang này nữa.
 const GIA = {
-  saleworkMap: null,      // Map<maPhanLoai, [{maSalework,comboQty,tenSp,sheet}]>
-  saleworkByIdSp: null,   // Map<idSp, [...]> (tầng 2 dự phòng)
-  saleworkByName: null,   // Tầng 3 (dự phòng cho đơn không có Mã phân loại/ID SP Shopee — vd file order):
-                          // Map<"shopChuẩnHoá||tenSpChuẩnHoá", [{tenPhanLoaiNorm, maSalework, comboQty}]>
-                          // shop lấy từ CỘT "Tên Shop"/"Shop" trong file (nếu có) — KHÔNG còn coi
-                          // 1 sheet = 1 shop, vì file Map Salework thật có thể gộp nhiều shop trong
-                          // cùng 1 sheet (đối chiếu theo cách công cụ GAS "Kiểm Soát Giá" của anh Đức làm).
-  saleworkFileName: '',
-  saleworkUpdatedAt: null,
   orders: {},             // { [monthSlug]: { rows:[...], tab, updatedAt } }
   pageLoaded: false
 };
@@ -12392,28 +12259,20 @@ async function giaLoadChunkedField(collectionName, docPrefix, count) {
   return snaps.map(s => (s.exists ? (s.data().data || '') : '')).join('');
 }
 
-// ── Khởi tạo trang Cảnh Báo Giá: nạp lại Map Salework đã lưu + trạng thái đồng bộ đơn hàng ──
+// ── Khởi tạo trang Cảnh Báo Giá: nạp Map Salework từ kho CHUNG (Tổng Quan Tồn Kho) + trạng
+// thái đồng bộ đơn hàng. (Đổi 2026-08-09, xác nhận Tân: bỏ Card ① upload riêng ở trang này —
+// Map Salework giờ chỉ upload 1 lần ở "Tổng Quan Tồn Kho", trang này chỉ đọc lại qua
+// sharedLoadSaleworkMap(). Nếu Tầng 3 (byName) chưa có do file cũ chưa được tải lại sau khi
+// nâng cấp, Tân cần vào "Tổng Quan Tồn Kho" tải lại file Map Salework 1 lần.) ──
 async function giaInitPage() {
   if (!GIA.pageLoaded) {
     GIA.pageLoaded = true;
     try {
-      const mapSnap = await db.collection('map_salework_gia').doc('all').get();
-      if (mapSnap.exists) {
-        const d = mapSnap.data();
-        const mapJson = await giaLoadChunkedField('map_salework_gia_chunks', 'map', d.mapChunkCount || 0);
-        const byIdSpJson = await giaLoadChunkedField('map_salework_gia_chunks', 'idsp', d.idSpChunkCount || 0);
-        const byNameJson = await giaLoadChunkedField('map_salework_gia_chunks', 'byname', d.byNameChunkCount || 0);
-        GIA.saleworkMap = new Map(JSON.parse(mapJson || '[]'));
-        GIA.saleworkByIdSp = new Map(JSON.parse(byIdSpJson || '[]'));
-        GIA.saleworkByName = new Map(JSON.parse(byNameJson || '[]'));
-        GIA.saleworkFileName = d.fileName || '';
-        GIA.saleworkUpdatedAt = d.updatedAt || null;
-      }
+      await sharedLoadSaleworkMap();
     } catch (e) {
-      giaLog('⚠ Không tải được Map Salework đã lưu: ' + e.message, 'warn');
+      giaLog('⚠ Không tải được Map Salework (kho chung ở Tổng Quan Tồn Kho): ' + e.message, 'warn');
     }
   }
-  giaRenderMapStatus();
   giaRefreshOrdersStatus();
   // Auto-chọn tháng hiện tại cho tất cả select tháng
   const _now = new Date();
@@ -12423,146 +12282,6 @@ async function giaInitPage() {
     const opt = [...el.options].find(o => o.value === _curMonthVal);
     if (opt) el.value = _curMonthVal;
   });
-}
-
-function giaRenderMapStatus() {
-  const el = document.getElementById('gia-map-status');
-  if (!el) return;
-  if (!GIA.saleworkMap || !GIA.saleworkMap.size) {
-    el.textContent = 'Chưa có file Map Salework nào được lưu — combo (cột SKU trống) sẽ bị đánh dấu "Thiếu SKU".';
-    return;
-  }
-  const time = GIA.saleworkUpdatedAt ? new Date(GIA.saleworkUpdatedAt).toLocaleString('vi-VN') : '?';
-  el.textContent = `📂 ${GIA.saleworkFileName || '(đã lưu)'} — ${GIA.saleworkMap.size} mã phân loại — lần lưu gần nhất: ${time}`;
-}
-
-// ── Upload + lưu Map Salework vào Firestore (tái dùng lần sau, không cần upload lại mỗi lần) ──
-function giaHandleSaleworkMapFile(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    try {
-      const wb = XLSX.read(e.target.result, { type: 'array' });
-      const map = new Map();
-      const byIdSp = new Map();
-      const byName = new Map(); // Tầng 3: "sheet||tênSpChuẩnHoá" -> [{tenPhanLoaiNorm, maSalework, comboQty}]
-      let totalRows = 0;
-      wb.SheetNames.forEach(sheetName => {
-        const ws = wb.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-        if (!rows.length) return;
-        let headerRow = -1, header = null;
-        for (let i = 0; i < Math.min(rows.length, 5); i++) {
-          if (rows[i] && rows[i].some(c => String(c || '').trim() === 'Mã phân loại')) {
-            headerRow = i; header = rows[i].map(c => String(c || '').trim()); break;
-          }
-        }
-        if (headerRow === -1) return;
-        const idx = {
-          maPhanLoai: header.indexOf('Mã phân loại'),
-          maSalework: header.indexOf('Mã Salework liên kết'),
-          comboQty:   header.indexOf('Số lượng combo'),
-          tenSp:      header.indexOf('Tên sản phẩm'),
-          idSp:       header.indexOf('ID SP Shopee'),
-          // Cột phân loại/combo trong file thực tế tên là "Phân loại / Combo" (KHÔNG phải "Tên phân
-          // loại" như code cũ tìm — do đó luôn ra -1, khiến tenPhanLoaiNorm = '' cho MỌI dòng, làm
-          // distinctGroups gộp tất cả biến thể/combo của 1 sản phẩm thành 1 nhóm duy nhất → khớp
-          // nhầm cả 3-4 phân loại khác nhau (combo cũ + combo mới + tập lẻ) vào cùng 1 đơn hàng.
-          // Ưu tiên "phân loại / combo" (đúng file thật), fallback "tên phân loại" (file khác nếu có),
-          // cuối cùng mới đến "phân loại" chung nhưng loại trừ "mã phân loại".
-          tenPhanLoai: (() => {
-            let i = header.findIndex(h => giaNormText(h) === 'phân loại / combo');
-            if (i === -1) i = header.findIndex(h => giaNormText(h).includes('tên phân loại'));
-            if (i === -1) i = header.findIndex(h => giaNormText(h).includes('phân loại') && !giaNormText(h).includes('mã'));
-            return i;
-          })(),
-          // Cột Shop tường minh (giống file mapping gốc của anh Đức: Col "Tên shop") — nếu có,
-          // dùng để phân biệt 2 sản phẩm/biến thể trùng Tên SP + trùng Tên phân loại nhưng
-          // thuộc 2 shop khác nhau, KHÔNG còn coi cả sheet thuộc về đúng 1 shop duy nhất.
-          shop: header.findIndex(h => { const n = giaNormText(h); return n === 'shop' || n === 'tên shop' || n === 'ten shop'; }),
-        };
-        if (idx.maPhanLoai === -1 || idx.maSalework === -1) return;
-        for (let i = headerRow + 1; i < rows.length; i++) {
-          const r = rows[i];
-          if (!r) continue;
-          const key = r[idx.maPhanLoai], maSalework = r[idx.maSalework];
-          if (key == null || maSalework == null || String(key).trim() === '' || String(maSalework).trim() === '') continue;
-          const keyStr = String(key).trim();
-          const comboQty = Number(r[idx.comboQty]) || 1;
-          const tenSpVal = r[idx.tenSp] || '';
-          // Shop của DÒNG này: ưu tiên cột "Tên Shop"/"Shop" tường minh trong file; nếu file không
-          // có cột này (file cũ, 1 sheet = 1 shop) thì fallback về tên sheet như trước.
-          const shopVal = (idx.shop !== -1 && r[idx.shop] != null && String(r[idx.shop]).trim() !== '')
-            ? String(r[idx.shop]).trim()
-            : sheetName;
-          const comp = { maSalework: String(maSalework).trim(), comboQty, tenSp: tenSpVal, maPhanLoai: keyStr, sheet: shopVal };
-          if (!map.has(keyStr)) map.set(keyStr, []);
-          map.get(keyStr).push(comp);
-          const idSpVal = (idx.idSp !== -1 && r[idx.idSp] != null) ? String(r[idx.idSp]).trim() : '';
-          if (idSpVal) {
-            if (!byIdSp.has(idSpVal)) byIdSp.set(idSpVal, []);
-            byIdSp.get(idSpVal).push(comp);
-          }
-          // Tầng 3 — dùng cho file order Shopee (không có Mã phân loại/ID SP Shopee):
-          // khoá theo Shop (cột tường minh, KHÔNG còn coi cả sheet = 1 shop) + Tên sản phẩm chuẩn
-          // hoá, kèm Tên phân loại để phân biệt biến thể/combo. Đây là điểm đối chiếu với cách
-          // khớp combo chặt hơn của công cụ GAS "Kiểm Soát Giá" (anh Đức) — khoá luôn gồm đủ
-          // Shop + Tên SP + Tên phân loại, tránh 2 sản phẩm khác shop trùng tên/trùng nhãn phân
-          // loại (vd "Bộ 2 Tập- TB mới") bị gộp nhầm thành 1 nhóm.
-          if (tenSpVal) {
-            const nameKey = giaNormText(shopVal) + '||' + giaNormText(tenSpVal);
-            const tenPhanLoaiRaw = idx.tenPhanLoai !== -1 ? (r[idx.tenPhanLoai] || '') : '';
-            if (!byName.has(nameKey)) byName.set(nameKey, []);
-            byName.get(nameKey).push({ tenPhanLoaiNorm: giaStripBrackets(tenPhanLoaiRaw), maSalework: String(maSalework).trim(), comboQty });
-          }
-          totalRows++;
-        }
-      });
-      if (!map.size) throw new Error('Không tìm thấy dữ liệu hợp lệ ở bất kỳ sheet nào (cần cột "Mã phân loại" và "Mã Salework liên kết")');
-
-      giaLog(`📦 Đang lưu ${totalRows} dòng (dữ liệu lớn, có thể chia thành nhiều phần)...`);
-      const mapJson = JSON.stringify(Array.from(map.entries()));
-      const byIdSpJson = JSON.stringify(Array.from(byIdSp.entries()));
-      const byNameJson = JSON.stringify(Array.from(byName.entries()));
-
-      // Đọc số chunk cũ (nếu có) để xoá phần dư khi file mới có ít chunk hơn file cũ
-      const oldSnap = await db.collection('map_salework_gia').doc('all').get();
-      const oldData = oldSnap.exists ? oldSnap.data() : {};
-
-      const mapChunkCount = await giaSaveChunkedField('map_salework_gia_chunks', 'map', mapJson);
-      const idSpChunkCount = await giaSaveChunkedField('map_salework_gia_chunks', 'idsp', byIdSpJson);
-      const byNameChunkCount = await giaSaveChunkedField('map_salework_gia_chunks', 'byname', byNameJson);
-
-      const cleanupDeletes = [];
-      for (let i = mapChunkCount; i < (oldData.mapChunkCount || 0); i++) cleanupDeletes.push(db.collection('map_salework_gia_chunks').doc(`map_${i}`).delete());
-      for (let i = idSpChunkCount; i < (oldData.idSpChunkCount || 0); i++) cleanupDeletes.push(db.collection('map_salework_gia_chunks').doc(`idsp_${i}`).delete());
-      for (let i = byNameChunkCount; i < (oldData.byNameChunkCount || 0); i++) cleanupDeletes.push(db.collection('map_salework_gia_chunks').doc(`byname_${i}`).delete());
-      if (cleanupDeletes.length) await Promise.all(cleanupDeletes);
-
-      const updatedAt = new Date().toISOString();
-      await db.collection('map_salework_gia').doc('all').set({
-        fileName: file.name,
-        rowCount: totalRows,
-        sheetCount: wb.SheetNames.length,
-        mapChunkCount,
-        idSpChunkCount,
-        byNameChunkCount,
-        updatedAt
-      });
-
-      GIA.saleworkMap = map;
-      GIA.saleworkByIdSp = byIdSp;
-      GIA.saleworkByName = byName;
-      GIA.saleworkFileName = file.name;
-      GIA.saleworkUpdatedAt = updatedAt;
-      giaRenderMapStatus();
-      giaLog(`✅ Đã lưu Map Salework: ${file.name} — ${map.size} mã phân loại, ${totalRows} dòng, ${wb.SheetNames.length} sheet`, 'ok');
-    } catch (err) {
-      giaLog('❌ Lỗi đọc/lưu file Map Salework: ' + err.message, 'err');
-    }
-  };
-  reader.readAsArrayBuffer(file);
 }
 
 // ── Nhập đơn hàng từ file Shopee export gốc → tự đẩy vào Google Sheet qua Apps Script ──
@@ -13166,9 +12885,9 @@ async function giaLoadCatalogIfNeeded() {
 // phải khớp tiếp với "Tên phân loại hàng" của đơn — không khớp rõ ràng thì KHÔNG đoán, trả null
 // (giữ trạng thái "Thiếu SKU" để người dùng tự kiểm).
 function giaResolveSkuViaMap(r) {
-  if (!GIA.saleworkByName || !GIA.saleworkByName.size) return null;
+  if (!SHARED.saleworkByName || !SHARED.saleworkByName.size) return null;
   const nameKey = giaNormText(r.shop) + '||' + giaNormText(r.tenSp);
-  const list = GIA.saleworkByName.get(nameKey);
+  const list = SHARED.saleworkByName.get(nameKey);
   if (!list || !list.length) return null;
 
   const distinctGroups = Array.from(new Set(list.map(x => x.tenPhanLoaiNorm)));
