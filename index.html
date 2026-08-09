@@ -1879,6 +1879,7 @@
 
       <div id="gia-overview-report" style="display:none;margin-top:10px">
         <div class="kpi-grid" style="margin-bottom:16px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+          <div class="kpi-card green" id="gia-ov-card-doanhso" style="cursor:pointer" onclick="giaOverviewShowDetail('doanhSo',this)"><div class="kpi-label" style="font-weight:700">💰 Doanh Số</div><div class="kpi-value" id="gia-ov-kpi-doanhso" style="font-size:22px!important;font-weight:800">0</div></div>
           <div class="kpi-card red" id="gia-ov-card-magiamgiashop" style="cursor:pointer" onclick="giaOverviewShowDetail('maGiamGiaShop',this)"><div class="kpi-label">Mã Giảm Giá Của Shop</div><div class="kpi-value" id="gia-ov-kpi-magiamgiashop">0</div></div>
           <div class="kpi-card orange" id="gia-ov-card-trogia" style="cursor:pointer" onclick="giaOverviewShowDetail('duocShopeeTroGia',this)"><div class="kpi-label">Được Shopee Trợ Giá</div><div class="kpi-value" id="gia-ov-kpi-troGia">0</div></div>
           <div class="kpi-card red" id="gia-ov-card-magiamgiashopee" style="cursor:pointer" onclick="giaOverviewShowDetail('maGiamGiaShopee',this)"><div class="kpi-label">Mã Giảm Giá Của Shopee</div><div class="kpi-value" id="gia-ov-kpi-magiamgiashopee">0</div></div>
@@ -1889,17 +1890,17 @@
           <div class="kpi-card green"><div class="kpi-label">Đơn Vị Vận Chuyển</div><div class="kpi-value" id="gia-ov-kpi-donvivanchuyen">0</div></div>
         </div>
 
-        <div id="gia-ov-detail-hint" style="font-size:12px;color:var(--text2);margin-bottom:8px">👆 Bấm vào 1 trong 3 card giảm giá phía trên (Mã Giảm Giá Của Shop / Được Shopee Trợ Giá / Mã Giảm Giá Của Shopee) để xem chi tiết theo từng Shop.</div>
+        <div id="gia-ov-detail-hint" style="font-size:12px;color:var(--text2);margin-bottom:8px">👆 Bấm vào card Doanh Số hoặc 1 trong 3 card giảm giá phía trên (Mã Giảm Giá Của Shop / Được Shopee Trợ Giá / Mã Giảm Giá Của Shopee) để xem chi tiết theo từng Shop.</div>
         <div id="gia-ov-detail-wrap" style="display:none">
           <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:8px" id="gia-ov-detail-title"></div>
           <div class="table-wrap" style="max-height:420px;overflow:auto;border:1px solid var(--gray3);border-radius:8px">
             <table style="table-layout:fixed;width:100%">
-              <colgroup>
+              <colgroup id="gia-ov-detail-colgroup">
                 <col style="width:26%"><col style="width:15%"><col style="width:17%">
                 <col style="width:14%"><col style="width:14%"><col style="width:14%">
               </colgroup>
               <thead>
-                <tr>
+                <tr id="gia-ov-detail-thead-row">
                   <th style="text-align:left">Shop</th><th class="num">Số Lượng Mã Giảm Giá</th><th class="num">Tổng Giá Trị</th>
                   <th class="num">Tổng Số Đơn</th><th class="num">Số Đơn Được Áp Mã</th><th class="num">% Đơn Được Áp Mã</th>
                 </tr>
@@ -13343,20 +13344,35 @@ async function giaOverviewRun() {
     // cấp-đơn-hàng (mã giảm giá, phí...) được Shopee lặp lại GIỐNG HỆT trên mọi dòng của đơn đó.
     // Nếu cộng theo entry.rows trực tiếp sẽ bị nhân đôi/nhân N theo số SKU trong đơn.
     // → Dedupe theo Mã đơn hàng (giữ dòng đầu tiên gặp) trước khi cộng.
+
+    // Doanh Số (thêm 2026-08-09, xác nhận Tân) = (Giá ưu đãi × Số lượng) - Mã giảm giá của Shop,
+    // tính theo TỪNG ĐƠN. "Giá ưu đãi"/"Số lượng" là dữ liệu theo dòng SKU (phải cộng dồn mọi
+    // dòng của cùng 1 đơn), còn "Mã giảm giá của Shop" là dữ liệu cấp đơn hàng (chỉ trừ 1 lần/đơn,
+    // không trừ theo từng dòng SKU — nếu không sẽ bị lỗi nhân đôi y hệt lỗi đã sửa ở 3 field kia).
+    const revenueByOrder = new Map();
+    entry.rows.forEach(r => {
+      const key = String(r.maDon || '').trim();
+      if (!key) return;
+      const gross = (Number(r.giaUuDai) || 0) * (Number(r.soLuong) || 0);
+      revenueByOrder.set(key, (revenueByOrder.get(key) || 0) + gross);
+    });
+
     const orderRows = [];
     const seenOrders = new Set();
     entry.rows.forEach(r => {
       const key = String(r.maDon || '').trim();
       if (!key || seenOrders.has(key)) return;
       seenOrders.add(key);
+      r.doanhSo = (revenueByOrder.get(key) || 0) - (Number(r.maGiamGiaShop) || 0);
       orderRows.push(r);
     });
     GIA_OV_ORDER_ROWS = orderRows;
 
-    let magiamgiashop = 0, troGia = 0, magiamgiashopee = 0, phicodinh = 0, phidichvu = 0, phixulygiaodich = 0;
+    let doanhSo = 0, magiamgiashop = 0, troGia = 0, magiamgiashopee = 0, phicodinh = 0, phidichvu = 0, phixulygiaodich = 0;
     const tinhThanhSet = new Set();
     const donViSet = new Set();
     orderRows.forEach(r => {
+      doanhSo += Number(r.doanhSo) || 0;
       magiamgiashop += Number(r.maGiamGiaShop) || 0;
       troGia += Number(r.duocShopeeTroGia) || 0;
       magiamgiashopee += Number(r.maGiamGiaShopee) || 0;
@@ -13373,6 +13389,7 @@ async function giaOverviewRun() {
     // Không dùng fmtMoney() ở đây — Card ④ hiển thị số tiền KHÔNG kèm chữ "đ" (xác nhận Tân
     // 2026-08-09), khác với fmtMoney() dùng chung toàn dashboard (giữ nguyên không đổi).
     const fmtNumOnly = v => (Number(v) || 0).toLocaleString('vi-VN');
+    setKpi('gia-ov-kpi-doanhso', fmtNumOnly(doanhSo));
     setKpi('gia-ov-kpi-magiamgiashop', fmtNumOnly(magiamgiashop));
     setKpi('gia-ov-kpi-troGia', fmtNumOnly(troGia));
     setKpi('gia-ov-kpi-magiamgiashopee', fmtNumOnly(magiamgiashopee));
@@ -13399,15 +13416,17 @@ let GIA_OV_ORDER_ROWS = [];
 let GIA_OV_ACTIVE_FIELD = null;
 
 const GIA_OV_FIELD_LABEL = {
+  doanhSo: 'Doanh Số',
   maGiamGiaShop: 'Mã Giảm Giá Của Shop',
   duocShopeeTroGia: 'Được Shopee Trợ Giá',
   maGiamGiaShopee: 'Mã Giảm Giá Của Shopee'
 };
+const GIA_OV_CARD_IDS = ['gia-ov-card-doanhso', 'gia-ov-card-magiamgiashop', 'gia-ov-card-trogia', 'gia-ov-card-magiamgiashopee'];
 
-// Bấm vào 1 trong 3 card giảm giá → hiển thị bảng chi tiết theo Shop cho field đó.
+// Bấm vào card Doanh Số hoặc 1 trong 3 card giảm giá → hiển thị bảng chi tiết theo Shop cho field đó.
 function giaOverviewShowDetail(field, cardEl) {
   GIA_OV_ACTIVE_FIELD = field;
-  ['gia-ov-card-magiamgiashop', 'gia-ov-card-trogia', 'gia-ov-card-magiamgiashopee'].forEach(id => {
+  GIA_OV_CARD_IDS.forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.style.boxShadow = ''; el.style.borderColor = ''; }
   });
@@ -13415,15 +13434,53 @@ function giaOverviewShowDetail(field, cardEl) {
   giaOverviewBuildBreakdown(field);
 }
 
-// Nhóm GIA_OV_ORDER_ROWS theo Shop, tính 5 chỉ số cho field đang chọn, render vào bảng chung.
+// Nhóm GIA_OV_ORDER_ROWS theo Shop, tính chỉ số cho field đang chọn, render vào bảng chung.
+// Doanh Số dùng bộ cột riêng (Tổng Số Đơn / Tổng Doanh Số / TB mỗi đơn / % trên tổng) vì đây là
+// số tiền thực nhận, không có khái niệm "được áp mã" như 3 field mã giảm giá.
 function giaOverviewBuildBreakdown(field) {
   const hint = document.getElementById('gia-ov-detail-hint');
   const wrap = document.getElementById('gia-ov-detail-wrap');
   const titleEl = document.getElementById('gia-ov-detail-title');
   const tbody = document.getElementById('gia-ov-detail-tbody');
+  const colgroup = document.getElementById('gia-ov-detail-colgroup');
+  const theadRow = document.getElementById('gia-ov-detail-thead-row');
   if (!wrap || !tbody) return;
   if (hint) hint.style.display = 'none';
   wrap.style.display = 'block';
+
+  const fmtNumOnly = v => (Number(v) || 0).toLocaleString('vi-VN');
+  const isRevenue = field === 'doanhSo';
+
+  if (isRevenue) {
+    const byShop = new Map(); // shop -> { totalOrders, totalValue }
+    let grandTotal = 0;
+    GIA_OV_ORDER_ROWS.forEach(r => {
+      const shop = String(r.shop || '').trim() || '(Không rõ shop)';
+      let g = byShop.get(shop);
+      if (!g) { g = { totalOrders: 0, totalValue: 0 }; byShop.set(shop, g); }
+      const val = Number(r.doanhSo) || 0;
+      g.totalOrders++;
+      g.totalValue += val;
+      grandTotal += val;
+    });
+    const rowsArr = Array.from(byShop.entries()).map(([shop, g]) => ({ shop, ...g }))
+      .sort((a, b) => b.totalValue - a.totalValue);
+
+    if (colgroup) colgroup.innerHTML = '<col style="width:30%"><col style="width:16%"><col style="width:22%"><col style="width:16%"><col style="width:16%">';
+    if (theadRow) theadRow.innerHTML = `
+      <th style="text-align:left">Shop</th><th class="num">Tổng Số Đơn</th><th class="num">Tổng Doanh Số</th>
+      <th class="num">Doanh Số TB / Đơn</th><th class="num">% Doanh Số / Tổng</th>`;
+    if (titleEl) titleEl.textContent = `📊 Chi tiết theo Shop — Doanh Số`;
+    tbody.innerHTML = rowsArr.length ? rowsArr.map(g => `
+      <tr>
+        <td>${g.shop}</td>
+        <td class="num">${fmtNumOnly(g.totalOrders)}</td>
+        <td class="num">${fmtNumOnly(g.totalValue)}</td>
+        <td class="num">${fmtNumOnly(g.totalOrders ? Math.round(g.totalValue / g.totalOrders) : 0)}</td>
+        <td class="num">${grandTotal ? (g.totalValue / grandTotal * 100).toFixed(1) + '%' : '0%'}</td>
+      </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text2)">Không có dữ liệu</td></tr>';
+    return;
+  }
 
   const byShop = new Map(); // shop -> { count, value, totalOrders, appliedOrders }
   GIA_OV_ORDER_ROWS.forEach(r => {
@@ -13435,10 +13492,13 @@ function giaOverviewBuildBreakdown(field) {
     if (val > 0) { g.count++; g.value += val; g.appliedOrders++; }
   });
 
-  const fmtNumOnly = v => (Number(v) || 0).toLocaleString('vi-VN');
   const rowsArr = Array.from(byShop.entries()).map(([shop, g]) => ({ shop, ...g }))
     .sort((a, b) => b.value - a.value);
 
+  if (colgroup) colgroup.innerHTML = '<col style="width:26%"><col style="width:15%"><col style="width:17%"><col style="width:14%"><col style="width:14%"><col style="width:14%">';
+  if (theadRow) theadRow.innerHTML = `
+    <th style="text-align:left">Shop</th><th class="num">Số Lượng Mã Giảm Giá</th><th class="num">Tổng Giá Trị</th>
+    <th class="num">Tổng Số Đơn</th><th class="num">Số Đơn Được Áp Mã</th><th class="num">% Đơn Được Áp Mã</th>`;
   if (titleEl) titleEl.textContent = `📊 Chi tiết theo Shop — ${GIA_OV_FIELD_LABEL[field] || field}`;
   tbody.innerHTML = rowsArr.length ? rowsArr.map(g => `
     <tr>
