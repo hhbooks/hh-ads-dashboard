@@ -1623,7 +1623,7 @@
 
   <div class="page" id="page-gia-canh-bao">
     <div class="card" style="margin-bottom:16px">
-      <div class="card-title"><span class="dot"></span> ⓪ Nhập Đơn Hàng Từ Shopee (tự động đẩy lên Google Sheet)</div>
+      <div class="card-title"><span class="dot"></span> ① Nhập Đơn Hàng Từ Shopee (tự động đẩy lên Google Sheet)</div>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
         <label class="sw-upload-btn" style="cursor:pointer">
           📂 Chọn nhiều file Excel (.xlsx)
@@ -1633,7 +1633,7 @@
       </div>
       <div id="gia-import-log" class="drive-log"></div>
 
-      <!-- Card "① Đồng Bộ Đơn Hàng" gộp chung vào đây 2026-08-09 (xác nhận Tân) -->
+      <!-- Card "Đồng Bộ Đơn Hàng" (cũ) gộp chung vào đây 2026-08-09 (xác nhận Tân) -->
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:14px;margin-bottom:10px;padding-top:14px;border-top:1px dashed var(--border)">
         <select id="gia-month-select" class="sw-upload-btn" style="background:white;color:var(--navy);border:1px solid var(--navy);cursor:pointer" onchange="giaRefreshOrdersStatus()">
           <option value="Tháng 12 2026">Tháng 12 2026</option>
@@ -1657,7 +1657,7 @@
     </div>
 
     <div class="card" style="margin-bottom:16px">
-      <div class="card-title"><span class="dot"></span> ③ Kiểm Tra Giá Bán So Với Trung Tâm Dữ Liệu</div>
+      <div class="card-title"><span class="dot"></span> ② Kiểm Tra Giá Bán So Với Trung Tâm Dữ Liệu</div>
 
       <div style="margin-bottom:22px;padding-bottom:18px;border-bottom:2px dashed var(--gray3)">
         <div style="font-weight:700;color:var(--navy);font-size:14px;margin-bottom:6px">📋 Danh Sách Cần Chỉnh Giá Trên Sàn</div>
@@ -1729,9 +1729,6 @@
           <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Ngưỡng lệch (%)</div>
           <input type="number" id="gia-check-threshold" value="1" min="0" step="0.5" style="width:90px;padding:8px 10px;border:1px solid var(--gray3);border-radius:8px;font-size:13px">
         </div>
-        <div style="font-size:11px;color:var(--text2);align-self:center;padding-bottom:2px">
-          📅 Tự động chạy khi bấm "Kiểm tra" ở mục ③ bên trên
-        </div>
       </div>
       <div id="gia-check-log" class="drive-log"></div>
 
@@ -1799,7 +1796,7 @@
     </div>
 
     <div class="card" style="margin-top:16px">
-      <div class="card-title"><span class="dot" style="background:var(--green)"></span> ④ Lượng Bán Theo Ngày</div>
+      <div class="card-title"><span class="dot" style="background:var(--green)"></span> ③ Lượng Bán Theo Ngày</div>
       <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
         <div style="position:relative">
           <div id="giaday-picker-input" onclick="giaDayTogglePicker()" style="display:flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid var(--gray3);border-radius:8px;cursor:pointer;font-size:13px;background:white;min-width:220px;user-select:none">
@@ -12195,7 +12192,7 @@ async function giaSubmitOrdersImport() {
     }
   }
   if (okTabs.length) {
-    giaImportLog(`🔁 Đã đẩy lên Google Sheet xong. Hãy bấm "Đồng bộ đơn hàng" ở khối ② cho từng tháng (${okTabs.join(', ')}) để cập nhật vào dashboard.`, 'warn');
+    giaImportLog(`🔁 Đã đẩy lên Google Sheet xong. Hãy bấm "Đồng bộ đơn hàng" ở trên cho từng tháng (${okTabs.join(', ')}) để cập nhật vào dashboard.`, 'warn');
   }
   _giaImportPending = null;
   if (submitBtn) submitBtn.disabled = true;
@@ -12369,7 +12366,7 @@ async function giaDoSyncOrders(tab) {
 
 // ══════════════════════════════════════════════════════════════
 // TỰ ĐỘNG TRỪ TỒN KHO THEO ĐƠN HÀNG MỚI ĐỒNG BỘ (xác nhận với Tân 2026-06-27)
-// Sau mỗi lần "Đồng bộ đơn hàng" (mục ② Kiểm Soát Giá) thành công, tự cộng số lượng đã bán
+// Sau mỗi lần "Đồng bộ đơn hàng" (mục ① Kiểm Soát Giá) thành công, tự cộng số lượng đã bán
 // theo SKU (từ ngày SAU mốc chốt tồn — tonkho_thuc.updatedAt — đến hôm nay, dùng lại đúng
 // logic cbComputeSoldSinceSnapshot/cbMonthTabsSince đang chạy ổn ở trang Cảnh Báo Tồn Kho),
 // rồi TRỪ THẲNG vào tonkho_thuc và GHI ĐÈ — đồng thời dời mốc chốt tồn tới thời điểm vừa trừ
@@ -12479,7 +12476,7 @@ async function giaRefreshOrdersStatus() {
   if (el) {
     el.textContent = entry
       ? `🕐 Tab "${entry.tab}" — ${entry.rows.length} dòng — lần đồng bộ cuối: ${new Date(entry.updatedAt).toLocaleString('vi-VN')}`
-      : `⚠ Tab "${tab}" chưa được đồng bộ lần nào`;
+      : '';
   }
   if (previewEl) {
     if (!entry) { previewEl.innerHTML = ''; }
@@ -12525,7 +12522,7 @@ function giaSyncToggleMissing(btn) {
 // ══════════════════════════════════════════════════════════════
 // KHỐI: KIỂM SOÁT GIÁ — Phase 3: Đối chiếu giá bán thực tế so với
 // Danh Mục SKU (sku_catalog, đồng bộ từ Google Sheet "Trung Tâm Dữ Liệu").
-// Nguồn đơn hàng: GIA.orders[monthSlug] đã đồng bộ ở mục ② — KHÔNG đọc lại
+// Nguồn đơn hàng: GIA.orders[monthSlug] đã đồng bộ ở mục ① — KHÔNG đọc lại
 // từ Drive ở bước này (đỡ tốn quota OAuth, dùng đúng dữ liệu đã cache).
 // ══════════════════════════════════════════════════════════════
 GIA.catalog = null;
@@ -12697,17 +12694,17 @@ async function giaComputeCheckRows(tab, thresholdPct, fromDateStr, logFn) {
 
 async function giaRunPriceCheck() {
   const btn = document.getElementById('gia-check-btn');
-  const monthSel = document.getElementById('gia-fix-month-select'); // dùng chung tháng với mục ③
+  const monthSel = document.getElementById('gia-fix-month-select'); // dùng chung tháng với mục ②
   const tab = monthSel ? monthSel.value : GIA_MONTH_TABS[0];
   const thresholdPct = Number(document.getElementById('gia-check-threshold').value) || 0;
-  const fromDateStr = document.getElementById('gia-fix-from-date').value; // dùng chung bộ lọc "Từ ngày" với mục ③
+  const fromDateStr = document.getElementById('gia-fix-from-date').value; // dùng chung bộ lọc "Từ ngày" với mục ②
 
   if (btn) btn.disabled = true;
   giaCheckLog(`🔄 Đang kiểm tra tab "${tab}"...`, 'info');
   try {
     const out = await giaComputeCheckRows(tab, thresholdPct, fromDateStr, giaCheckLog);
     if (out === null) {
-      giaCheckLog(`⚠ Tab "${tab}" chưa được đồng bộ đơn hàng — vào mục ② bấm "Đồng bộ đơn hàng" trước.`, 'warn');
+      giaCheckLog(`⚠ Tab "${tab}" chưa được đồng bộ đơn hàng — vào mục ① bấm "Đồng bộ đơn hàng" trước.`, 'warn');
       return;
     }
 
@@ -12743,7 +12740,7 @@ async function giaRunPriceFixCheck() {
   try {
     const rows = await giaComputeCheckRows(tab, thresholdPct, fromDateStr, giaFixLog);
     if (rows === null) {
-      giaFixLog(`⚠ Tab "${tab}" chưa được đồng bộ đơn hàng — vào mục ② bấm "Đồng bộ đơn hàng" trước.`, 'warn');
+      giaFixLog(`⚠ Tab "${tab}" chưa được đồng bộ đơn hàng — vào mục ① bấm "Đồng bộ đơn hàng" trước.`, 'warn');
       return;
     }
 
@@ -12928,7 +12925,7 @@ function giaRenderPriceTable() {
 }
 
 // ══════════════════════════════════════════════════════
-// ④ LƯỢNG BÁN THEO NGÀY
+// ③ LƯỢNG BÁN THEO NGÀY
 // ══════════════════════════════════════════════════════
 const GIADAY = {
   startDate: null, endDate: null,
@@ -13085,7 +13082,7 @@ async function giaDayRun() {
       cur.setMonth(cur.getMonth() + 1);
     }
     if (!tabsToLoad.size) {
-      giaDayLog('⚠️ Không có dữ liệu đơn hàng cho khoảng ngày này — vui lòng đồng bộ đơn ở mục ② trước.', 'warn');
+      giaDayLog('⚠️ Không có dữ liệu đơn hàng cho khoảng ngày này — vui lòng đồng bộ đơn ở mục ① trước.', 'warn');
       return;
     }
     const allRows = [];
