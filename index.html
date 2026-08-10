@@ -522,6 +522,12 @@
   .th-shop-table td { padding:8px 10px; border-bottom:1px solid var(--border); text-align:right; }
   .th-shop-table td:first-child { text-align:left; font-weight:600; }
   .th-shop-table tr:last-child td { border-bottom:none; font-weight:700; background:#fffbeb; }
+  /* Bảng "So Sánh Từng Shop" đứng riêng full bề ngang — phóng to chữ/khoảng cách cho dễ nhìn
+     (xác nhận Tân 2026-08-10), chỉ áp dụng trong wrapper .th-shop-table-lg, không đụng chỗ khác
+     đang dùng .th-shop-table (VD bảng Phân Tích ROAS Theo Nhóm Hàng). */
+  .th-shop-table-lg .th-shop-table { font-size:15px; }
+  .th-shop-table-lg .th-shop-table th { font-size:13px; padding:12px 16px; }
+  .th-shop-table-lg .th-shop-table td { padding:14px 16px; }
   .th-prod-table { width:100%; border-collapse:collapse; font-size:11px; }
   .th-prod-table th { background:var(--gray2); padding:7px 8px; text-align:right; font-weight:700; color:var(--text2); white-space:nowrap; position:sticky; top:0; z-index:5; box-shadow:0 1px 0 var(--border); }
   .th-prod-table th:nth-child(2) { text-align:left; }
@@ -1556,28 +1562,29 @@
       </div>
     </div>
 
-    <!-- So sánh shop + Chart -->
-    <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-top:16px">
-      <div class="card">
-        <div class="card-title"><span class="dot"></span> So Sánh Từng Shop</div>
-        <div id="th-shop-table-wrap">
-          <div class="th-empty">Chưa có dữ liệu — hãy đồng bộ Drive cho từng shop</div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title"><span class="dot"></span> ROAS Theo Shop</div>
-        <canvas id="th-chart-roas" height="220"></canvas>
+    <!-- So sánh shop — đứng riêng, full bề ngang (xác nhận Tân 2026-08-10) -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-title"><span class="dot"></span> So Sánh Từng Shop</div>
+      <div id="th-shop-table-wrap" class="th-shop-table-lg">
+        <div class="th-empty">Chưa có dữ liệu — hãy đồng bộ Drive cho từng shop</div>
       </div>
     </div>
 
-    <!-- Tỉ trọng doanh thu theo shop -->
+    <!-- ROAS Theo Shop + Tỉ Trọng Doanh Thu Theo Shop — chung 1 card, chia 50:50, không xuống dòng
+         (xác nhận Tân 2026-08-10) -->
     <div class="card" style="margin-top:16px">
-      <div class="card-title"><span class="dot" style="background:#16A085"></span> Tỉ Trọng Doanh Thu Theo Shop</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:center">
-        <div style="max-width:380px;margin:0 auto;width:100%">
-          <canvas id="th-chart-revshare" height="260"></canvas>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">
+        <div>
+          <div class="card-title"><span class="dot"></span> ROAS Theo Shop</div>
+          <canvas id="th-chart-roas" height="220"></canvas>
         </div>
-        <div id="th-revshare-list"><div class="th-empty">Chưa có dữ liệu</div></div>
+        <div>
+          <div class="card-title"><span class="dot" style="background:#16A085"></span> Tỉ Trọng Doanh Thu Theo Shop</div>
+          <div style="max-width:220px;margin:0 auto 12px;width:100%">
+            <canvas id="th-chart-revshare" height="220"></canvas>
+          </div>
+          <div id="th-revshare-list"><div class="th-empty">Chưa có dữ liệu</div></div>
+        </div>
       </div>
     </div>
 
