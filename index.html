@@ -528,6 +528,11 @@
   .th-shop-table-lg .th-shop-table { font-size:15px; }
   .th-shop-table-lg .th-shop-table th { font-size:13px; padding:12px 16px; }
   .th-shop-table-lg .th-shop-table td { padding:14px 16px; }
+  /* Bảng "Chi tiết sản phẩm" trong panel click-mở của card Phân Tích ROAS Theo Nhóm Hàng —
+     phóng to +20% (xác nhận Tân 2026-08-10), chỉ áp dụng trong wrapper .th-cat-prodtable. */
+  .th-cat-prodtable .th-shop-table { font-size:14.5px; }
+  .th-cat-prodtable .th-shop-table th { font-size:13px; padding:9px 11px; }
+  .th-cat-prodtable .th-shop-table td { padding:9px 11px; }
   .th-prod-table { width:100%; border-collapse:collapse; font-size:11px; }
   .th-prod-table th { background:var(--gray2); padding:7px 8px; text-align:right; font-weight:700; color:var(--text2); white-space:nowrap; position:sticky; top:0; z-index:5; box-shadow:0 1px 0 var(--border); }
   .th-prod-table th:nth-child(2) { text-align:left; }
@@ -16243,10 +16248,11 @@ function _thRenderCategoryHtml() {
   if (!wrap || !_thCatDataCache) return;
   const { catMap, activeCats, catColor, UNCLASSIFIED } = _thCatDataCache;
 
-  // Lưới card vuông ROAS theo Nhóm Hàng — xếp 2-3 dòng (nhiều cột/dòng) thay vì 4 cột cố định
-  // như bản cũ, click 1 card để xem chi tiết SP (xác nhận Tân 2026-08-10). Cùng thứ tự với
-  // bảng chi tiết bên dưới (activeCats — Doanh Thu giảm dần, "Chưa phân loại" luôn cuối).
-  let cardsHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px">`;
+  // Lưới card vuông ROAS theo Nhóm Hàng — cố định 6 cột/dòng để chia đều (VD 12 nhóm → đúng
+  // 6+6, không lệch 8+4 như kiểu auto-fill cũ), click 1 card để xem chi tiết SP. Chữ trong card
+  // tăng +20% (xác nhận Tân 2026-08-10). Cùng thứ tự với activeCats — Doanh Thu giảm dần,
+  // "Chưa phân loại" luôn cuối.
+  let cardsHtml = `<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px">`;
   activeCats.forEach((cat, idx) => {
     const d = catMap[cat];
     const roas = d.chi > 0 ? d.rev / d.chi : 0;
@@ -16255,11 +16261,11 @@ function _thRenderCategoryHtml() {
     const accent = roas >= 20 ? 'var(--green)' : roas >= 10 ? 'var(--orange)' : 'var(--red)';
     const roasColor = roas >= 20 ? '#196F3D' : roas >= 10 ? '#b7770d' : '#922B21';
     const icon = cat === UNCLASSIFIED ? '❓' : '🏷️';
-    cardsHtml += `<div onclick="thToggleCatDetail(${idx})" style="cursor:pointer;background:white;border-radius:var(--radius);padding:14px;border:1px solid ${isOpen ? accent : 'var(--gray3)'};border-top:3px solid ${accent};box-shadow:${isOpen ? '0 0 0 2px ' + accent : 'var(--shadow)'};transition:box-shadow .15s,border-color .15s">
-      <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:6px;line-height:1.3;min-height:28px">${icon} ${cat}</div>
-      <div style="font-size:22px;font-weight:800;color:${roasColor};line-height:1">${roas.toFixed(2)}x</div>
-      <div style="font-size:10px;color:var(--text2);margin-top:4px">${d.list.length} SP</div>
-      <div style="font-size:10px;color:var(--text2);margin-top:6px;border-top:1px solid var(--gray3);padding-top:6px">
+    cardsHtml += `<div onclick="thToggleCatDetail(${idx})" style="cursor:pointer;background:white;border-radius:var(--radius);padding:16px;border:1px solid ${isOpen ? accent : 'var(--gray3)'};border-top:3px solid ${accent};box-shadow:${isOpen ? '0 0 0 2px ' + accent : 'var(--shadow)'};transition:box-shadow .15s,border-color .15s">
+      <div style="font-size:13px;color:var(--text2);font-weight:600;margin-bottom:7px;line-height:1.3;min-height:34px">${icon} ${cat}</div>
+      <div style="font-size:26px;font-weight:800;color:${roasColor};line-height:1">${roas.toFixed(2)}x</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:5px">${d.list.length} SP</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:7px;border-top:1px solid var(--gray3);padding-top:7px">
         Duy trì: <strong style="color:#196F3D">${tgt.maintain}</strong> · Mở rộng: <strong style="color:#2980b9">${tgt.scale}</strong>
       </div>
     </div>`;
@@ -16288,15 +16294,15 @@ function _thRenderCategoryHtml() {
       </tr>`;
     }).join('');
 
-    const statBox = (label, value, color) => `<div style="background:white;border-radius:8px;padding:10px;text-align:center;border:1px solid var(--gray3)">
-      <div style="font-size:10px;color:var(--text2);font-weight:600;text-transform:uppercase">${label}</div>
-      <div style="font-size:16px;font-weight:800;color:${color || 'var(--text)'}">${value}</div>
+    const statBox = (label, value, color) => `<div style="background:white;border-radius:8px;padding:12px;text-align:center;border:1px solid var(--gray3)">
+      <div style="font-size:12px;color:var(--text2);font-weight:600;text-transform:uppercase">${label}</div>
+      <div style="font-size:19px;font-weight:800;color:${color || 'var(--text)'}">${value}</div>
     </div>`;
 
     detailHtml = `<div style="background:var(--gray2);border:1px solid var(--gray3);border-radius:var(--radius);padding:16px;margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <div style="font-weight:700;font-size:14px;color:var(--text)">${icon} ${cat} — Chi tiết sản phẩm</div>
-        <span onclick="thToggleCatDetail(${_thCatExpanded})" style="cursor:pointer;font-size:12px;color:var(--text2);font-weight:600">✕ Đóng</span>
+        <div style="font-weight:700;font-size:17px;color:var(--text)">${icon} ${cat} — Chi tiết sản phẩm</div>
+        <span onclick="thToggleCatDetail(${_thCatExpanded})" style="cursor:pointer;font-size:14px;color:var(--text2);font-weight:600">✕ Đóng</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px">
         ${statBox('Số SP', d.list.length)}
@@ -16305,7 +16311,7 @@ function _thRenderCategoryHtml() {
         ${statBox('ROAS', roas.toFixed(2) + 'x', roasColor)}
         ${statBox('ACOS', acos.toFixed(2) + '%')}
       </div>
-      <div style="max-height:360px;overflow-y:auto;border:1px solid var(--gray3);border-radius:8px">
+      <div class="th-cat-prodtable" style="max-height:360px;overflow-y:auto;border:1px solid var(--gray3);border-radius:8px">
         <table class="th-shop-table" style="margin:0">
           <thead><tr>
             <th style="text-align:left">Sản Phẩm</th>
@@ -16321,65 +16327,10 @@ function _thRenderCategoryHtml() {
     </div>`;
   }
 
-  // Bảng tổng hợp theo nhóm hàng
-  let tblHtml = `<table class="th-shop-table">
-    <thead><tr>
-      <th>Nhóm Hàng</th>
-      <th>Số SP</th>
-      <th>Chi Phí ADS</th>
-      <th>Doanh Thu</th>
-      <th>ROAS TB</th>
-      <th>Duy Trì (×150%)</th>
-      <th>Mở Rộng (×120%)</th>
-      <th style="text-align:left;min-width:180px">Lý Do</th>
-    </tr></thead><tbody>`;
-
-  activeCats.forEach(cat => {
-    const d = catMap[cat];
-    const color = catColor[cat];
-    const icon = cat === UNCLASSIFIED ? '❓' : '🏷️';
-    const roas = d.chi > 0 ? d.rev / d.chi : 0;
-    const tgt  = _thCatTargetROAS(roas, d.list.length);
-    const roasColor = roas >= 20 ? '#196F3D' : roas >= 10 ? '#b7770d' : '#922B21';
-    tblHtml += `<tr>
-      <td><strong style="color:${color}">${icon} ${cat}</strong></td>
-      <td style="text-align:center">${d.list.length}</td>
-      <td>${fmtMoney(d.chi)}</td>
-      <td>${fmtMoney(d.rev)}</td>
-      <td style="color:${roasColor};font-weight:700">${roas.toFixed(2)}x</td>
-      <td style="color:#196F3D;font-weight:800;font-size:15px">${tgt.maintain}</td>
-      <td style="color:#2980b9;font-weight:700;font-size:15px">${tgt.scale}</td>
-      <td style="font-size:11px;color:var(--text2);text-align:left">${tgt.note}</td>
-    </tr>`;
-  });
-
-  // Tổng
-  const totalChi = activeCats.reduce((s,c) => s + catMap[c].chi, 0);
-  const totalRev = activeCats.reduce((s,c) => s + catMap[c].rev, 0);
-  const totalRoas = totalChi > 0 ? totalRev / totalChi : 0;
-  const totalSP   = activeCats.reduce((s,c) => s + catMap[c].list.length, 0);
-  tblHtml += `<tr>
-    <td><strong>📊 TỔNG CỘNG</strong></td>
-    <td style="text-align:center;font-weight:700">${totalSP}</td>
-    <td style="font-weight:700">${fmtMoney(totalChi)}</td>
-    <td style="font-weight:700">${fmtMoney(totalRev)}</td>
-    <td style="font-weight:700">${totalRoas.toFixed(2)}x</td>
-    <td>–</td><td>–</td><td></td>
-  </tr></tbody></table>`;
-
-  // Ghi chú
-  const unclassCount = catMap[UNCLASSIFIED] ? catMap[UNCLASSIFIED].list.length : 0;
-  const unclassNote = `<div style="margin-top:10px;padding:10px 14px;background:#fffbea;border-radius:6px;font-size:11px;color:#6b5600;border-left:3px solid #f0c000">
-    <strong>⚙️ Nguyên lý tính ROAS đề xuất:</strong>
-    ROAS thực tế đạt được ≈ 70–80% ROAS mục tiêu cài trên Shopee.
-    Đặt target cao → Shopee lọc đúng tệp convert → hiệu quả hơn.
-    Đặt target thấp → phân phối rộng sai tệp → chi phí cao, chuyển đổi thấp.<br><br>
-    🎯 <strong>Duy trì (×150%):</strong> Giữ hoặc cải thiện ROAS hiện tại của nhóm.&nbsp;&nbsp;
-    📈 <strong>Mở rộng (×120%):</strong> Scale ngân sách, chấp nhận ROAS thực về thấp hơn chút để reach rộng hơn.<br>
-    <em>Ngành Hàng lấy trực tiếp từ cột "Ngành hàng" trong Google Sheet SKU Tổng (qua MAP Salework/TikTok).${unclassCount ? ` ⚠️ ${unclassCount} SP chưa khớp được catalog — bổ sung MAP hoặc cột Ngành hàng trong Sheet rồi bấm Đồng Bộ Danh Mục SKU lại.` : ''}</em>
-  </div>`;
-
-  wrap.innerHTML = cardsHtml + detailHtml + tblHtml + unclassNote;
+  // Bảng tổng hợp theo Nhóm Hàng + ghi chú "Nguyên lý tính ROAS đề xuất" đã bỏ hẳn (xác nhận
+  // Tân 2026-08-10) — thông tin tương đương giờ xem qua click từng card + panel Chi tiết sản
+  // phẩm ở trên, không cần hiển thị trùng lặp nữa.
+  wrap.innerHTML = cardsHtml + detailHtml;
 }
 
 // ══════════════════════════════════════════════════════════════
