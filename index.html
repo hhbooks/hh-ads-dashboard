@@ -16103,11 +16103,17 @@ function _thCatTargetROAS(avgRoas, count) {
 }
 
 let _thChartCatRoas = null;
+// Click 1 card nhóm hàng → mở chi tiết (SP trong nhóm) ngay dưới lưới card, kiểu accordion —
+// chỉ 1 nhóm mở tại 1 thời điểm (xác nhận Tân 2026-08-10). Cache lại data đã tính để việc
+// mở/đóng chỉ dựng lại HTML, không phải gọi lại catalog/MAP Salework-TikTok mỗi lần click.
+let _thCatDataCache = null;
+let _thCatExpanded = null; // index trong activeCats, null = đang đóng
 
 async function renderTHCategorySection() {
   const wrap = document.getElementById('th-category-wrap');
   if (!wrap) return;
   const prods = _thGetAllProductsFull();
+  _thCatExpanded = null; // dữ liệu đổi (đổi filter/tải lại) → thu gọn chi tiết đang mở nếu có
   if (!prods.length) {
     wrap.innerHTML = '<div class="th-empty">Chưa có dữ liệu sản phẩm</div>';
     if (_thChartCatRoas) { _thChartCatRoas.destroy(); _thChartCatRoas = null; }
@@ -16195,19 +16201,38 @@ async function renderTHCategorySection() {
   realCats.forEach((c, i) => catColor[c] = _TH_CAT_PALETTE[i % _TH_CAT_PALETTE.length]);
   catColor[UNCLASSIFIED] = '#7f8c8d';
 
-  // Lưới card vuông ROAS theo Nhóm Hàng — thử biểu đồ cột 2026-08-10 nhưng Tân phản hồi muốn
-  // quay lại dạng card, chỉ đổi cách xếp thành 2-3 dòng (nhiều cột hơn/dòng) thay vì 4 cột cố
-  // định như bản cũ. Cùng thứ tự với bảng chi tiết bên dưới (activeCats — Doanh Thu giảm dần,
-  // "Chưa phân loại" luôn cuối) để card và bảng đối chiếu được theo đúng vị trí.
+  if (myId !== _thCatReqId) return;
+  if (_thChartCatRoas) { _thChartCatRoas.destroy(); _thChartCatRoas = null; }
+  _thCatDataCache = { catMap, activeCats, catColor, UNCLASSIFIED };
+  _thRenderCategoryHtml();
+}
+
+// Toggle mở/đóng chi tiết SP của 1 nhóm hàng — chỉ dựng lại HTML từ cache, không gọi lại
+// catalog/MAP (xác nhận Tân 2026-08-10: click card → hiện Số SP/Chi phí/Doanh thu/ROAS/ACOS +
+// bảng chi tiết từng SP trong nhóm, dạng accordion chỉ mở 1 nhóm tại 1 thời điểm).
+function thToggleCatDetail(idx) {
+  _thCatExpanded = (_thCatExpanded === idx) ? null : idx;
+  _thRenderCategoryHtml();
+}
+
+function _thRenderCategoryHtml() {
+  const wrap = document.getElementById('th-category-wrap');
+  if (!wrap || !_thCatDataCache) return;
+  const { catMap, activeCats, catColor, UNCLASSIFIED } = _thCatDataCache;
+
+  // Lưới card vuông ROAS theo Nhóm Hàng — xếp 2-3 dòng (nhiều cột/dòng) thay vì 4 cột cố định
+  // như bản cũ, click 1 card để xem chi tiết SP (xác nhận Tân 2026-08-10). Cùng thứ tự với
+  // bảng chi tiết bên dưới (activeCats — Doanh Thu giảm dần, "Chưa phân loại" luôn cuối).
   let cardsHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px">`;
-  activeCats.forEach(cat => {
+  activeCats.forEach((cat, idx) => {
     const d = catMap[cat];
     const roas = d.chi > 0 ? d.rev / d.chi : 0;
     const tgt = _thCatTargetROAS(roas, d.list.length);
+    const isOpen = _thCatExpanded === idx;
     const accent = roas >= 20 ? 'var(--green)' : roas >= 10 ? 'var(--orange)' : 'var(--red)';
     const roasColor = roas >= 20 ? '#196F3D' : roas >= 10 ? '#b7770d' : '#922B21';
     const icon = cat === UNCLASSIFIED ? '❓' : '🏷️';
-    cardsHtml += `<div style="background:white;border-radius:var(--radius);padding:14px;border:1px solid var(--gray3);border-top:3px solid ${accent};box-shadow:var(--shadow)">
+    cardsHtml += `<div onclick="thToggleCatDetail(${idx})" style="cursor:pointer;background:white;border-radius:var(--radius);padding:14px;border:1px solid ${isOpen ? accent : 'var(--gray3)'};border-top:3px solid ${accent};box-shadow:${isOpen ? '0 0 0 2px ' + accent : 'var(--shadow)'};transition:box-shadow .15s,border-color .15s">
       <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:6px;line-height:1.3;min-height:28px">${icon} ${cat}</div>
       <div style="font-size:22px;font-weight:800;color:${roasColor};line-height:1">${roas.toFixed(2)}x</div>
       <div style="font-size:10px;color:var(--text2);margin-top:4px">${d.list.length} SP</div>
@@ -16218,7 +16243,62 @@ async function renderTHCategorySection() {
   });
   cardsHtml += `</div>`;
 
-  // Detail table
+  // Panel chi tiết nhóm hàng đang mở — Số SP/Chi Phí ADS/Doanh Thu/ROAS/ACOS + bảng từng SP
+  let detailHtml = '';
+  if (_thCatExpanded !== null && activeCats[_thCatExpanded]) {
+    const cat = activeCats[_thCatExpanded];
+    const d = catMap[cat];
+    const roas = d.chi > 0 ? d.rev / d.chi : 0;
+    const acos = d.rev > 0 ? d.chi / d.rev * 100 : 0;
+    const icon = cat === UNCLASSIFIED ? '❓' : '🏷️';
+    const roasColor = roas >= 20 ? '#196F3D' : roas >= 10 ? '#b7770d' : '#922B21';
+    const sortedProds = [...d.list].sort((a, b) => b.chi_phi - a.chi_phi);
+    const prodRows = sortedProds.map(p => {
+      const pRoasColor = p.roas >= 20 ? '#196F3D' : p.roas >= 10 ? '#b7770d' : '#922B21';
+      return `<tr>
+        <td style="text-align:left">${p.ten || p.ma_sp || '—'}</td>
+        <td style="text-align:left">${p.shopIcon || ''} ${p.shopShort || ''}</td>
+        <td>${fmtMoney(p.chi_phi)}</td>
+        <td>${fmtMoney(p.doanh_so)}</td>
+        <td style="color:${pRoasColor};font-weight:700">${p.roas.toFixed(2)}x</td>
+        <td>${p.acos.toFixed(2)}%</td>
+      </tr>`;
+    }).join('');
+
+    const statBox = (label, value, color) => `<div style="background:white;border-radius:8px;padding:10px;text-align:center;border:1px solid var(--gray3)">
+      <div style="font-size:10px;color:var(--text2);font-weight:600;text-transform:uppercase">${label}</div>
+      <div style="font-size:16px;font-weight:800;color:${color || 'var(--text)'}">${value}</div>
+    </div>`;
+
+    detailHtml = `<div style="background:var(--gray2);border:1px solid var(--gray3);border-radius:var(--radius);padding:16px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-weight:700;font-size:14px;color:var(--text)">${icon} ${cat} — Chi tiết sản phẩm</div>
+        <span onclick="thToggleCatDetail(${_thCatExpanded})" style="cursor:pointer;font-size:12px;color:var(--text2);font-weight:600">✕ Đóng</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px">
+        ${statBox('Số SP', d.list.length)}
+        ${statBox('Chi Phí ADS', fmtMoney(d.chi))}
+        ${statBox('Doanh Thu', fmtMoney(d.rev))}
+        ${statBox('ROAS', roas.toFixed(2) + 'x', roasColor)}
+        ${statBox('ACOS', acos.toFixed(2) + '%')}
+      </div>
+      <div style="max-height:360px;overflow-y:auto;border:1px solid var(--gray3);border-radius:8px">
+        <table class="th-shop-table" style="margin:0">
+          <thead><tr>
+            <th style="text-align:left">Sản Phẩm</th>
+            <th style="text-align:left">Shop</th>
+            <th>Chi Phí ADS</th>
+            <th>Doanh Thu</th>
+            <th>ROAS</th>
+            <th>ACOS</th>
+          </tr></thead>
+          <tbody>${prodRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  // Bảng tổng hợp theo nhóm hàng
   let tblHtml = `<table class="th-shop-table">
     <thead><tr>
       <th>Nhóm Hàng</th>
@@ -16276,9 +16356,7 @@ async function renderTHCategorySection() {
     <em>Ngành Hàng lấy trực tiếp từ cột "Ngành hàng" trong Google Sheet SKU Tổng (qua MAP Salework/TikTok).${unclassCount ? ` ⚠️ ${unclassCount} SP chưa khớp được catalog — bổ sung MAP hoặc cột Ngành hàng trong Sheet rồi bấm Đồng Bộ Danh Mục SKU lại.` : ''}</em>
   </div>`;
 
-  if (myId !== _thCatReqId) return;
-  if (_thChartCatRoas) { _thChartCatRoas.destroy(); _thChartCatRoas = null; }
-  wrap.innerHTML = cardsHtml + tblHtml + unclassNote;
+  wrap.innerHTML = cardsHtml + detailHtml + tblHtml + unclassNote;
 }
 
 // ══════════════════════════════════════════════════════════════
