@@ -16056,6 +16056,7 @@ function _thGetAllProductsFull() {
           roas: chi_phi > 0 ? doanh_so / chi_phi : 0,
           acos: doanh_so > 0 ? chi_phi / doanh_so * 100 : 0,
           shopShort: SHOPS[shopId]?.short || shopId,
+          shopName:  SHOPS[shopId]?.name  || shopId,
           shopIcon:  SHOPS[shopId]?.icon  || '',
         });
       }
@@ -16260,7 +16261,7 @@ function _thRenderCategoryHtml() {
       const pRoasColor = p.roas >= 20 ? '#196F3D' : p.roas >= 10 ? '#b7770d' : '#922B21';
       return `<tr>
         <td style="text-align:left">${p.ten || p.ma_sp || '—'}</td>
-        <td style="text-align:left">${p.shopIcon || ''} ${p.shopShort || ''}</td>
+        <td style="text-align:left">${p.shopIcon || ''} ${p.shopName || p.shopShort || ''}</td>
         <td>${fmtMoney(p.chi_phi)}</td>
         <td>${fmtMoney(p.doanh_so)}</td>
         <td style="color:${pRoasColor};font-weight:700">${p.roas.toFixed(2)}x</td>
@@ -16600,7 +16601,7 @@ function _thRenderContent() {
     _thChartRoas = new Chart(ctx, {
       type: 'bar',
       data: {
-        labels: chartData.map(s => s.icon + ' ' + s.short),
+        labels: chartData.map(s => s.icon + ' ' + s.name),
         datasets: [{
           label: 'ROAS',
           data: chartData.map(s => +s.roas.toFixed(2)),
