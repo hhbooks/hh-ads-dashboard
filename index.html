@@ -16188,22 +16188,28 @@ async function renderTHCategorySection() {
   realCats.forEach((c, i) => catColor[c] = _TH_CAT_PALETTE[i % _TH_CAT_PALETTE.length]);
   catColor[UNCLASSIFIED] = '#7f8c8d';
 
-  // Biểu đồ cột ROAS theo Nhóm Hàng — thay lưới 4 card cũ (Tân phản hồi 2026-08-10: card dàn
-  // trải, khó so sánh/đánh giá qua nhiều nhóm cùng lúc). Sắp theo ROAS giảm dần (không theo
-  // Doanh Thu như bảng chi tiết bên dưới) vì mục tiêu chính ở đây là XẾP HẠNG HIỆU QUẢ, không
-  // phải quy mô — nhóm hiệu quả nhất luôn hiện ở trên cùng, màu theo đúng ngưỡng ROAS dùng
-  // xuyên suốt dashboard (xanh ≥20x / cam 10–20x / đỏ <10x). Số sản phẩm giữ lại ngay trong nhãn
-  // trục để không mất bối cảnh quy mô. Chi tiết Duy trì/Mở rộng/Lý do vẫn đầy đủ ở bảng dưới.
-  const chartCats = [...realCats].sort((a, b) => {
-    const ra = catMap[a].chi > 0 ? catMap[a].rev / catMap[a].chi : 0;
-    const rb = catMap[b].chi > 0 ? catMap[b].rev / catMap[b].chi : 0;
-    return rb - ra;
+  // Lưới card vuông ROAS theo Nhóm Hàng — thử biểu đồ cột 2026-08-10 nhưng Tân phản hồi muốn
+  // quay lại dạng card, chỉ đổi cách xếp thành 2-3 dòng (nhiều cột hơn/dòng) thay vì 4 cột cố
+  // định như bản cũ. Cùng thứ tự với bảng chi tiết bên dưới (activeCats — Doanh Thu giảm dần,
+  // "Chưa phân loại" luôn cuối) để card và bảng đối chiếu được theo đúng vị trí.
+  let cardsHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:16px">`;
+  activeCats.forEach(cat => {
+    const d = catMap[cat];
+    const roas = d.chi > 0 ? d.rev / d.chi : 0;
+    const tgt = _thCatTargetROAS(roas, d.list.length);
+    const accent = roas >= 20 ? 'var(--green)' : roas >= 10 ? 'var(--orange)' : 'var(--red)';
+    const roasColor = roas >= 20 ? '#196F3D' : roas >= 10 ? '#b7770d' : '#922B21';
+    const icon = cat === UNCLASSIFIED ? '❓' : '🏷️';
+    cardsHtml += `<div style="background:white;border-radius:var(--radius);padding:14px;border:1px solid var(--gray3);border-top:3px solid ${accent};box-shadow:var(--shadow)">
+      <div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:6px;line-height:1.3;min-height:28px">${icon} ${cat}</div>
+      <div style="font-size:22px;font-weight:800;color:${roasColor};line-height:1">${roas.toFixed(2)}x</div>
+      <div style="font-size:10px;color:var(--text2);margin-top:4px">${d.list.length} SP</div>
+      <div style="font-size:10px;color:var(--text2);margin-top:6px;border-top:1px solid var(--gray3);padding-top:6px">
+        Duy trì: <strong style="color:#196F3D">${tgt.maintain}</strong> · Mở rộng: <strong style="color:#2980b9">${tgt.scale}</strong>
+      </div>
+    </div>`;
   });
-  const chartCatsFull = catMap[UNCLASSIFIED] ? [...chartCats, UNCLASSIFIED] : chartCats;
-  const catChartHeight = Math.max(220, chartCatsFull.length * 34);
-  let cardsHtml = `<div style="margin-bottom:16px;position:relative;height:${catChartHeight}px">
-    <canvas id="th-chart-cat-roas"></canvas>
-  </div>`;
+  cardsHtml += `</div>`;
 
   // Detail table
   let tblHtml = `<table class="th-shop-table">
@@ -16264,57 +16270,8 @@ async function renderTHCategorySection() {
   </div>`;
 
   if (myId !== _thCatReqId) return;
-  wrap.innerHTML = cardsHtml + tblHtml + unclassNote;
-
-  // Vẽ biểu đồ sau khi canvas đã có trong DOM (innerHTML set ở trên)
   if (_thChartCatRoas) { _thChartCatRoas.destroy(); _thChartCatRoas = null; }
-  const catCtx = document.getElementById('th-chart-cat-roas');
-  if (catCtx) {
-    _thChartCatRoas = new Chart(catCtx, {
-      type: 'bar',
-      data: {
-        labels: chartCatsFull.map(c => `${c === UNCLASSIFIED ? '❓' : '🏷️'} ${c} (${catMap[c].list.length} SP)`),
-        datasets: [{
-          data: chartCatsFull.map(c => {
-            const d = catMap[c];
-            return +(d.chi > 0 ? d.rev / d.chi : 0).toFixed(2);
-          }),
-          backgroundColor: chartCatsFull.map(c => {
-            const d = catMap[c];
-            const roas = d.chi > 0 ? d.rev / d.chi : 0;
-            return roas >= 20 ? '#27AE60' : roas >= 10 ? '#F39C12' : '#E74C3C';
-          }),
-          borderRadius: 6,
-        }]
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          datalabels: {
-            anchor: 'end', align: 'right', color: '#333', font: { size: 11, weight: '700' },
-            formatter: v => v.toFixed(1) + 'x'
-          },
-          tooltip: {
-            callbacks: {
-              label: ctx => {
-                const cat = chartCatsFull[ctx.dataIndex];
-                const d = catMap[cat];
-                const roas = d.chi > 0 ? d.rev / d.chi : 0;
-                const tgt = _thCatTargetROAS(roas, d.list.length);
-                return [' ROAS: ' + roas.toFixed(2) + 'x', ' Duy trì đề xuất: ' + tgt.maintain, ' Mở rộng đề xuất: ' + tgt.scale];
-              }
-            }
-          }
-        },
-        scales: {
-          x: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 11 } } },
-          y: { grid: { display: false }, ticks: { font: { size: 11 } } }
-        }
-      }
-    });
-  }
+  wrap.innerHTML = cardsHtml + tblHtml + unclassNote;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -16546,17 +16503,16 @@ function _thRenderContent() {
   document.getElementById('th-shop-table-wrap').innerHTML = tblHtml;
 
   // ── Chart ROAS ──
-  // Dùng chung thứ tự với bảng "So Sánh Từng Shop" (theo Chi Phí giảm dần, biến `sorted` ở trên)
-  // thay vì tự sắp theo ROAS — để 2 card đối chiếu được theo hàng ngang, không phải dò tên
-  // (xác nhận Tân 2026-08-10). Nhãn cũng đổi sang tên đầy đủ (s.name) khớp với bảng.
+  // Sắp theo ROAS giảm dần (không dùng chung thứ tự Chi Phí với bảng bên cạnh nữa — đã thử
+  // và revert 2026-08-10 vì cột ROAS không đơn điệu giảm dần nhìn giống lỗi hiển thị).
   if (_thChartRoas) { _thChartRoas.destroy(); _thChartRoas = null; }
   const ctx = document.getElementById('th-chart-roas');
   if (ctx) {
-    const chartData = sorted;
+    const chartData = [...shopTotals].sort((a, b) => b.roas - a.roas);
     _thChartRoas = new Chart(ctx, {
       type: 'bar',
       data: {
-        labels: chartData.map(s => s.icon + ' ' + s.name),
+        labels: chartData.map(s => s.icon + ' ' + s.short),
         datasets: [{
           label: 'ROAS',
           data: chartData.map(s => +s.roas.toFixed(2)),
