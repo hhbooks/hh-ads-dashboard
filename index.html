@@ -530,9 +530,18 @@
   .th-shop-table-lg .th-shop-table td { padding:14px 16px; }
   /* Bảng "Chi tiết sản phẩm" trong panel click-mở của card Phân Tích ROAS Theo Nhóm Hàng —
      phóng to +20% (xác nhận Tân 2026-08-10), chỉ áp dụng trong wrapper .th-cat-prodtable. */
-  .th-cat-prodtable .th-shop-table { font-size:14.5px; }
-  .th-cat-prodtable .th-shop-table th { font-size:13px; padding:9px 11px; }
-  .th-cat-prodtable .th-shop-table td { padding:9px 11px; }
+  .th-cat-prodtable { overflow-x:hidden; }
+  .th-cat-prodtable .th-shop-table { font-size:14.5px; table-layout:fixed; width:100%; }
+  .th-cat-prodtable .th-shop-table th { font-size:13px; padding:9px 8px; }
+  .th-cat-prodtable .th-shop-table td { padding:9px 8px; }
+  /* Cột cố định % để vừa đúng 1 màn hình, không tràn ngang phải kéo thanh cuộn (Tân báo
+     2026-08-10) — Sản Phẩm/Shop cho phép xuống dòng thay vì đẩy bảng rộng ra. */
+  .th-cat-prodtable .th-shop-table th:nth-child(1), .th-cat-prodtable .th-shop-table td:nth-child(1) { width:36%; white-space:normal; word-break:break-word; }
+  .th-cat-prodtable .th-shop-table th:nth-child(2), .th-cat-prodtable .th-shop-table td:nth-child(2) { width:16%; white-space:normal; word-break:break-word; }
+  .th-cat-prodtable .th-shop-table th:nth-child(3), .th-cat-prodtable .th-shop-table td:nth-child(3),
+  .th-cat-prodtable .th-shop-table th:nth-child(4), .th-cat-prodtable .th-shop-table td:nth-child(4),
+  .th-cat-prodtable .th-shop-table th:nth-child(5), .th-cat-prodtable .th-shop-table td:nth-child(5),
+  .th-cat-prodtable .th-shop-table th:nth-child(6), .th-cat-prodtable .th-shop-table td:nth-child(6) { width:12%; }
   .th-prod-table { width:100%; border-collapse:collapse; font-size:11px; }
   .th-prod-table th { background:var(--gray2); padding:7px 8px; text-align:right; font-weight:700; color:var(--text2); white-space:nowrap; position:sticky; top:0; z-index:5; box-shadow:0 1px 0 var(--border); }
   .th-prod-table th:nth-child(2) { text-align:left; }
