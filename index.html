@@ -1295,13 +1295,15 @@
               <th style="width:36px">#</th>
               <th>Nhóm Quảng Cáo</th>
               <th>Trạng Thái</th>
+              <!-- 4 chỉ số quan trọng dời lên trước, tô nền nhẹ để nhóm trực quan tách khỏi
+                   chỉ số phụ bên phải (xác nhận Tân 2026-08-10) -->
+              <th class="num" style="border-left:2px solid var(--gray3);background:#fffaf5">Chi Phí</th>
+              <th class="num" style="background:#fffaf5">Doanh Số</th>
+              <th class="num" style="background:#fffaf5">ROAS</th>
+              <th class="num" style="border-right:2px solid var(--gray3);background:#fffaf5">ACOS</th>
               <th class="num">Lượt Xem</th>
               <th class="num">Lượt Click</th>
               <th class="num">CTR</th>
-              <th class="num">Chi Phí</th>
-              <th class="num">Doanh Số</th>
-              <th class="num">ROAS</th>
-              <th class="num">ACOS</th>
               <th class="num">Đơn</th>
             </tr></thead>
             <tbody id="gc-group-tbody"></tbody>
@@ -1485,13 +1487,15 @@
           <thead><tr>
             <th style="width:36px">#</th>
             <th>Sản Phẩm</th>
+            <!-- 4 chỉ số quan trọng dời lên trước, tô nền nhẹ để nhóm trực quan tách khỏi
+                 chỉ số phụ bên phải (xác nhận Tân 2026-08-10) -->
+            <th class="num" style="border-left:2px solid var(--gray3);background:#fffaf5">Chi Phí</th>
+            <th class="num" style="background:#fffaf5">Doanh Số</th>
+            <th class="num" style="background:#fffaf5">ROAS</th>
+            <th class="num" style="border-right:2px solid var(--gray3);background:#fffaf5">ACOS</th>
             <th class="num">Lượt Xem</th>
             <th class="num">Lượt Click</th>
             <th class="num">CTR</th>
-            <th class="num">Chi Phí</th>
-            <th class="num">Doanh Số</th>
-            <th class="num">ROAS</th>
-            <th class="num">ACOS</th>
             <th class="num">Đơn</th>
           </tr></thead>
           <tbody id="ac-prod-tbody"></tbody>
@@ -9680,13 +9684,13 @@ function acRenderProductTable(list, label) {
              title="${(p.item_name||p.ad_name||'').replace(/"/g,'&quot;')}">${p.item_name||p.ad_name||'(không tên)'}</div>
         <div style="font-size:10px;color:var(--text2)">ID: ${p.item_id||p.campaign_id||'—'}</div>
       </td>
+      <td class="num" style="font-size:13px;color:var(--orange);font-weight:700;border-left:2px solid var(--gray3);background:#fffaf5">${fmtMoney(p.expense||0)}</td>
+      <td class="num" style="font-size:13px;color:var(--green);font-weight:700;background:#fffaf5">${fmtMoney(p.broad_gmv||0)}</td>
+      <td class="num" style="font-size:13px;background:#fffaf5"><span class="roas-badge ${roasClass(roasNum)}">${roas}</span></td>
+      <td class="num" style="font-size:13px;border-right:2px solid var(--gray3);background:#fffaf5"><span class="acos-badge ${acosClass(acosNum)}">${acos}</span></td>
       <td class="num" style="font-size:12px">${(p.impression||0).toLocaleString('vi-VN')}</td>
       <td class="num" style="font-size:12px">${(p.clicks||0).toLocaleString('vi-VN')}</td>
       <td class="num" style="font-size:12px">${ctr}</td>
-      <td class="num" style="font-size:12px;color:var(--orange);font-weight:600">${fmtMoney(p.expense||0)}</td>
-      <td class="num" style="font-size:12px;color:var(--green);font-weight:600">${fmtMoney(p.broad_gmv||0)}</td>
-      <td class="num" style="font-size:12px"><span class="roas-badge ${roasClass(roasNum)}">${roas}</span></td>
-      <td class="num" style="font-size:12px"><span class="acos-badge ${acosClass(acosNum)}">${acos}</span></td>
       <td class="num" style="font-size:12px">${p.broad_order||0}</td>
     </tr>`;
   }).join('');
@@ -10587,13 +10591,13 @@ function groupCampRenderContent(rec) {
         <td style="padding:6px 10px;font-size:11px">${i+1}</td>
         <td style="padding:6px 10px;font-size:11.5px;font-weight:600">${g.name}${warnIcon}</td>
         <td style="padding:6px 10px;font-size:11px;color:var(--text2)">${g.status}</td>
+        <td class="num" style="padding:6px 10px;font-size:12.5px;font-weight:700;color:var(--orange);border-left:2px solid var(--gray3);background:#fffaf5">${fmtMoney(g.cost)}</td>
+        <td class="num" style="padding:6px 10px;font-size:12.5px;font-weight:700;color:var(--green);background:#fffaf5">${fmtMoney(g.revenue)}</td>
+        <td class="num" style="padding:6px 10px;font-size:12.5px;font-weight:700;color:${roasColor};background:#fffaf5">${roasStr}</td>
+        <td class="num" style="padding:6px 10px;font-size:12.5px;font-weight:700;color:var(--text);background:#fffaf5;border-right:2px solid var(--gray3)">${g.acos}</td>
         <td class="num" style="padding:6px 10px;font-size:11px">${fmtNum(g.views)}</td>
         <td class="num" style="padding:6px 10px;font-size:11px">${fmtNum(g.clicks)}</td>
         <td class="num" style="padding:6px 10px;font-size:11px">${g.ctr}</td>
-        <td class="num" style="padding:6px 10px;font-size:11px">${fmtMoney(g.cost)}</td>
-        <td class="num" style="padding:6px 10px;font-size:11px">${fmtMoney(g.revenue)}</td>
-        <td class="num" style="padding:6px 10px;font-size:11px;font-weight:700;color:${roasColor}">${roasStr}</td>
-        <td class="num" style="padding:6px 10px;font-size:11px">${g.acos}</td>
         <td class="num" style="padding:6px 10px;font-size:11px">${fmtNum(g.sold)}</td>
       </tr>`;
     }).join('');
