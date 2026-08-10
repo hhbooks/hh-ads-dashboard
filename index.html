@@ -3559,7 +3559,11 @@ async function loadFromStorage() {
       if (!SHOPS[shopId]) return;
       const data = doc.data();
       G.shops[shopId] = {
-        products:    data.products    || [],
+        // Lọc dòng "GMS" trùng lặp do lỗi sync cũ ngay khi đọc từ Firestore — dữ liệu đã tích lũy
+        // từ các lần sync trước (đọc thẳng products đã lưu, KHÔNG qua applyOneCSV nên filter ở đó
+        // không áp dụng cho đường này) vẫn còn dòng trùng, phải lọc riêng ở đây mới hết hẳn
+        // (xác nhận Tân 2026-08-10, xem thêm APPLY_CSV_DUP_GMS_NAME).
+        products:    (data.products || []).filter(p => p.ten !== APPLY_CSV_DUP_GMS_NAME),
         dateBlocks:  data.dateBlocks  || [],
         loaded:      data.loaded      || false,
         filename:    data.filename    || '',
@@ -9459,24 +9463,15 @@ async function sapiSyncPerCampaign() {
           const gmsCost  = Number(report.expense   || 0);
           const gmsGmv   = Number(report.broad_gmv || 0);
           if (gmsCost > 0 || gmsGmv > 0) {
-            _shopGmsCost = gmsCost; _shopGmsGmv = gmsGmv; // lưu GMS aggregate
+            _shopGmsCost = gmsCost; _shopGmsGmv = gmsGmv; // lưu GMS aggregate (chỉ để tham khảo/log)
             const gmsCampaignId = String(gmsResp.campaign_id || '');
-            allCampaigns.push({
-              campaign_id:        gmsCampaignId || '0',
-              ad_name:            '🎯 GMS - Chiến dịch Tự Động Chọn SP (Shop Level)',
-              ad_type:            'gms',
-              impression:         Number(report.impression || 0),
-              clicks:             Number(report.clicks    || 0),
-              ctr:                Number(report.ctr       || 0),
-              expense:            gmsCost,
-              broad_gmv:          gmsGmv,
-              broad_order:        Number(report.broad_order || 0),
-              broad_order_amount: gmsGmv,
-              broad_roi:          Number(report.broad_roi   || 0),
-              broad_cir:          Number(report.broad_cir   || 0),
-              direct_gmv: 0, direct_order: 0, direct_roi: 0, cpc: 0, cr: 0
-            });
-            sapiLog(`  → GMS: +${fmtMoney(gmsCost)} chi phí, +${fmtMoney(gmsGmv)} doanh thu (broad)`, 'ok');
+            // KHÔNG push entry này vào allCampaigns nữa (xác nhận Tân 2026-08-10): đối chiếu với
+            // Seller Center thực tế cho thấy get_gms_campaigns báo THIẾU ~10% so với thật (có thể
+            // do attribution window hẹp hơn), trong khi dòng "⚡ Chiến dịch Tự Động (Shop Level)"
+            // ở Bước 3 (tổng thật trừ campaign có ID) luôn khớp đúng Seller Center. Giữ dòng đó,
+            // bỏ dòng GMS này để tránh 2 dòng trùng nhau đại diện cùng 1 chiến dịch GMS thật.
+            // Vẫn gọi API + lưu campaign_id vì cần cho tính năng khác (trang Chiến Dịch Nhóm SP/GMS).
+            sapiLog(`  → GMS: +${fmtMoney(gmsCost)} chi phí, +${fmtMoney(gmsGmv)} doanh thu (broad) — chỉ log, không thêm dòng riêng (đã gộp vào "Chiến dịch Tự Động (Shop Level)")`, 'ok');
             // Cache campaign_id vào Firestore
             if (gmsCampaignId) {
               await db.collection('shopee_ads').doc(String(shop.id))
@@ -15139,7 +15134,15 @@ function sapiRemoveDateFromShop(shopKey, dateLabel) {
   if (shopRef.dailyTotals) delete shopRef.dailyTotals[dateLabel];
 }
 
+// Tên dòng "GMS" trùng lặp do lỗi sync cũ (xem ghi chú tại Bước 4 sapiSyncPerCampaign) — dòng
+// này luôn thiếu ~10% so với Seller Center thật, trùng với dòng "⚡ Chiến dịch Tự Động (Shop
+// Level)" đã đúng. Lọc bỏ ngay tại điểm nạp chung (applyOneCSV) để các file CSV CŨ đã lỡ lưu
+// trùng trên Drive cũng tự động hết trùng khi đọc lại, không cần đồng bộ lại từng ngày
+// (xác nhận Tân 2026-08-10).
+const APPLY_CSV_DUP_GMS_NAME = '🎯 GMS - Chiến dịch Tự Động Chọn SP (Shop Level)';
+
 function applyOneCSV(csvProducts, dateLabel) {
+  csvProducts = csvProducts.filter(cp => cp.ten !== APPLY_CSV_DUP_GMS_NAME);
   // Ensure shop data exists (CSV-only workflow, no Excel loaded yet)
   if (!G.shops[G.current]) {
     G.shops[G.current] = { products: [], dateBlocks: [], loaded: false, filename: '' };
