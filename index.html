@@ -1559,6 +1559,17 @@
       </div>
     </div>
 
+    <!-- Tỉ trọng doanh thu theo shop -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-title"><span class="dot" style="background:#16A085"></span> Tỉ Trọng Doanh Thu Theo Shop</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:center">
+        <div style="max-width:380px;margin:0 auto;width:100%">
+          <canvas id="th-chart-revshare" height="260"></canvas>
+        </div>
+        <div id="th-revshare-list"><div class="th-empty">Chưa có dữ liệu</div></div>
+      </div>
+    </div>
+
     <!-- Phân tích nhóm hàng -->
     <div class="card" style="margin-top:16px">
       <div class="card-title"><span class="dot" style="background:#8e44ad"></span> Phân Tích ROAS Theo Nhóm Hàng
@@ -15870,7 +15881,8 @@ async function undoDriveSync() {
 // ══════════════════════════════════════════════════════════════
 // TỔNG HỢP HỆ THỐNG
 // ══════════════════════════════════════════════════════════════
-let _thChartRoas  = null;
+let _thChartRoas     = null;
+let _thChartRevShare = null;
 let _thFilterFrom = null;  // 'yyyy-mm-dd' | null
 let _thFilterTo   = null;  // 'yyyy-mm-dd' | null
 
@@ -16409,6 +16421,9 @@ function _thRenderContent() {
     const catWrap = document.getElementById('th-category-wrap');
     if (catWrap) catWrap.innerHTML = '<div class="th-empty">Chưa có dữ liệu</div>';
     if (_thChartRoas) { _thChartRoas.destroy(); _thChartRoas = null; }
+    const revShareList = document.getElementById('th-revshare-list');
+    if (revShareList) revShareList.innerHTML = '<div class="th-empty">Chưa có dữ liệu</div>';
+    if (_thChartRevShare) { _thChartRevShare.destroy(); _thChartRevShare = null; }
     return;
   }
 
@@ -16508,8 +16523,58 @@ function _thRenderContent() {
     });
   }
 
+  // Tỉ trọng doanh thu theo shop
+  _thRenderRevenueShareChart(shopTotals, grandRev);
+
   // Phân tích nhóm hàng
   renderTHCategorySection();
+}
+
+// ── Card "Tỉ Trọng Doanh Thu Theo Shop" — doughnut % doanh thu + list bên cạnh ──
+// (Tân yêu cầu 2026-08-10: chỉ Tên Shop + % Đóng Góp + Doanh Thu, không thêm chỉ số khác)
+function _thRenderRevenueShareChart(shopTotals, grandRev) {
+  const listEl = document.getElementById('th-revshare-list');
+  if (_thChartRevShare) { _thChartRevShare.destroy(); _thChartRevShare = null; }
+  if (!listEl) return;
+  if (!shopTotals.length || grandRev <= 0) {
+    listEl.innerHTML = '<div class="th-empty">Chưa có dữ liệu</div>';
+    return;
+  }
+
+  const sorted = [...shopTotals].sort((a, b) => b.doanh_so - a.doanh_so);
+  const colors = sorted.map((s, i) => _TH_CAT_PALETTE[i % _TH_CAT_PALETTE.length]);
+
+  const ctx = document.getElementById('th-chart-revshare');
+  if (ctx) {
+    _thChartRevShare = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: sorted.map(s => s.icon + ' ' + s.short),
+        datasets: [{ data: sorted.map(s => s.doanh_so), backgroundColor: colors, borderWidth: 2 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '55%',
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            color: '#fff', font: { size: 11, weight: '700' },
+            formatter: (value) => { const pct = value / grandRev * 100; return pct < 4 ? '' : pct.toFixed(1) + '%'; }
+          },
+          tooltip: { callbacks: { label: c => `${c.label}: ${fmtMoney(c.parsed)} (${(c.parsed/grandRev*100).toFixed(1)}%)` } }
+        }
+      }
+    });
+  }
+
+  listEl.innerHTML = sorted.map((s, i) => {
+    const pct = (s.doanh_so / grandRev * 100).toFixed(1);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray1)">
+      <span style="width:11px;height:11px;border-radius:50%;background:${colors[i]};flex-shrink:0"></span>
+      <span style="flex:1;font-size:13px;font-weight:600;color:var(--text1)">${s.icon} ${s.name}</span>
+      <span style="font-size:13px;font-weight:700;color:var(--navy);min-width:48px;text-align:right">${pct}%</span>
+      <span style="font-size:12px;color:var(--text2);min-width:100px;text-align:right">${fmtMoney(s.doanh_so)}</span>
+    </div>`;
+  }).join('');
 }
 
 // ── ACOS Tổng Shop (per shop, dùng trong page-overview) ──
