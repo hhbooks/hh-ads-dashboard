@@ -410,8 +410,8 @@
      lần 2 không bắt được (bug đã gặp thực tế 2026-08-07). */
   .ac-cal-day:not(.ac-cal-day-disabled):not(.ac-cal-day-sel):hover { background: var(--navy3) !important; color: var(--navy) !important; }
 
-  /* Chip lọc Năm/Tháng — dùng ở trang Tổng Hợp Hệ Thống (#th-filter-bar), trước đây không có CSS nên
-     không thấy trạng thái đang chọn. Style giống .tchip để đồng bộ giao diện toàn dashboard. */
+  /* .chip: không còn nơi nào dùng sau khi Tổng Hợp Hệ Thống đổi bộ lọc Năm/Tháng sang lịch
+     dropdown click-click (2026-08-10). Giữ lại CSS phòng khi cần dùng lại. */
   .chip {
     display: inline-block; padding: 4px 12px; border: 1px solid var(--gray3); background: white;
     border-radius: 12px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all .15s;
@@ -1491,18 +1491,42 @@
   <!-- TỔNG HỢP HỆ THỐNG PAGE -->
   <div class="page" id="page-tonghop">
     <!-- Filter bar -->
-    <div class="trend-filter" id="th-filter-bar" style="margin-bottom:16px"></div>
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+      <div style="position:relative">
+        <div id="th-picker-input" onclick="thDayTogglePicker()" style="display:flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid var(--gray3);border-radius:8px;cursor:pointer;font-size:13px;background:white;min-width:220px;user-select:none">
+          <span>📅</span>
+          <span id="th-picker-label" style="flex:1;color:var(--text2)">Tất cả</span>
+          <span style="color:var(--text2);font-size:10px">▾</span>
+        </div>
+        <div id="th-picker-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:999;background:white;border:1px solid var(--gray3);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);overflow:hidden">
+          <div style="display:flex">
+            <div style="border-right:1px solid var(--gray3);padding:8px 0;min-width:130px">
+              <div onclick="thDayShortcut('all')" onmouseover="this.style.background='var(--gray1)'" onmouseout="this.style.background=''" style="padding:9px 16px;font-size:12px;cursor:pointer;font-weight:700">Tất cả</div>
+              <div onclick="thDayShortcut('today')" onmouseover="this.style.background='var(--gray1)'" onmouseout="this.style.background=''" style="padding:9px 16px;font-size:12px;cursor:pointer">Hôm nay</div>
+              <div onclick="thDayShortcut('yesterday')" onmouseover="this.style.background='var(--gray1)'" onmouseout="this.style.background=''" style="padding:9px 16px;font-size:12px;cursor:pointer">Hôm qua</div>
+              <div onclick="thDayShortcut('thisweek')" onmouseover="this.style.background='var(--gray1)'" onmouseout="this.style.background=''" style="padding:9px 16px;font-size:12px;cursor:pointer">Tuần này</div>
+              <div onclick="thDayShortcut('thismonth')" onmouseover="this.style.background='var(--gray1)'" onmouseout="this.style.background=''" style="padding:9px 16px;font-size:12px;cursor:pointer">Tháng này</div>
+              <div onclick="thDayShortcut('lastmonth')" onmouseover="this.style.background='var(--gray1)'" onmouseout="this.style.background=''" style="padding:9px 16px;font-size:12px;cursor:pointer">Tháng trước</div>
+              <div onclick="thDayShortcut('last7days')" onmouseover="this.style.background='var(--gray1)'" onmouseout="this.style.background=''" style="padding:9px 16px;font-size:12px;cursor:pointer">7 ngày qua</div>
+            </div>
+            <div style="padding:12px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px">
+                <button onclick="thDayCalNav(-1);event.stopPropagation()" style="border:none;background:none;cursor:pointer;font-size:18px;padding:2px 8px;border-radius:4px;line-height:1;color:var(--navy)">‹</button>
+                <span id="th-cal-title" style="font-size:13px;font-weight:700;color:var(--navy);min-width:110px;text-align:center"></span>
+                <button onclick="thDayCalNav(1);event.stopPropagation()" style="border:none;background:none;cursor:pointer;font-size:18px;padding:2px 8px;border-radius:4px;line-height:1;color:var(--navy)">›</button>
+              </div>
+              <div id="th-cal-grid" style="display:grid;grid-template-columns:repeat(7,32px);gap:2px;text-align:center"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <!-- KPI tổng -->
     <div class="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-label">💰 Tổng Doanh Thu ADS</div>
         <div class="kpi-value" id="th-rev">–</div>
         <div class="kpi-sub" id="th-rev-sub"></div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">✅ Doanh Thu Thực</div>
-        <div class="kpi-value" id="th-rev-actual">–</div>
-        <div class="kpi-sub" id="th-rev-actual-sub" style="font-size:11px"></div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">💸 Tổng Chi Phí ADS</div>
@@ -1518,16 +1542,6 @@
         <div class="kpi-label">🎯 ACOS</div>
         <div class="kpi-value" id="th-acos">–</div>
         <div class="kpi-sub" id="th-acos-sub"></div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">📈 ROAS + VAT</div>
-        <div class="kpi-value" id="th-roas-vat">–</div>
-        <div class="kpi-sub" id="th-roas-vat-sub"></div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">🎯 ACOS + VAT</div>
-        <div class="kpi-value" id="th-acos-vat">–</div>
-        <div class="kpi-sub" id="th-acos-vat-sub"></div>
       </div>
     </div>
 
@@ -1548,64 +1562,11 @@
     <!-- Phân tích nhóm hàng -->
     <div class="card" style="margin-top:16px">
       <div class="card-title"><span class="dot" style="background:#8e44ad"></span> Phân Tích ROAS Theo Nhóm Hàng
-        <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:8px">— Tự động phân loại từ tên SP</span>
+        <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:8px">— Ngành hàng lấy từ Google Sheet SKU Tổng</span>
       </div>
       <div id="th-category-wrap"><div class="th-empty">Chưa có dữ liệu</div></div>
     </div>
 
-    <!-- ── SALEWORK INTEGRATION ── -->
-    <div class="card" style="margin-top:16px" id="th-sw-card">
-      <div class="card-title"><span class="dot"></span> Đối Soát Doanh Thu Thực Tế — Salework</div>
-
-      <!-- Upload zone (hiện khi chưa có file) -->
-      <div id="th-sw-upload-area" class="sw-upload-zone">
-        <p style="margin-bottom:14px">📊 Upload 2 file để đối soát DT thực vs ADS — ROAS/ACOS thực (loại trừ đơn hoàn/hủy)</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div style="text-align:center">
-            <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px">① THỐNG KÊ SẢN PHẨM (bắt buộc)</div>
-            <input type="file" id="th-sw-file-input" accept=".xlsx,.xls" style="display:none" onchange="parseSaleworkFile(this)">
-            <button class="sw-upload-btn" onclick="document.getElementById('th-sw-file-input').click()">📊 Chọn File Thống Kê (.xlsx)</button>
-          </div>
-          <div style="text-align:center">
-            <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px">② ĐƠN HÀNG — lọc THÀNH CÔNG (tùy chọn)</div>
-            <input type="file" id="th-ord-file-input-init" accept=".xlsx,.xls" style="display:none" onchange="parseSaleworkOrderFile(this)">
-            <button class="sw-upload-btn" style="background:var(--navy)" onclick="document.getElementById('th-ord-file-input-init').click()">📋 Chọn File Đơn Hàng (.xlsx)</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Loaded bar (hiện khi đã có file Salework) -->
-      <div id="th-sw-loaded-bar" class="sw-loaded-bar" style="display:none">
-        <span class="sw-loaded-name">📊 <span id="th-sw-loaded-name-text"></span></span>
-        <span class="sw-loaded-count" id="th-sw-loaded-count-text"></span>
-        <input type="file" id="th-sw-file-input2" accept=".xlsx,.xls" style="display:none" onchange="parseSaleworkFile(this)">
-        <button class="sw-btn-sm neutral" onclick="document.getElementById('th-sw-file-input2').click()">🔄 Đổi file</button>
-        <button class="sw-btn-sm danger" onclick="clearSalework()">✕ Xóa</button>
-      </div>
-
-      <!-- Order file section (tùy chọn, hiện sau khi có file Salework) -->
-      <div id="th-ord-section" style="display:none;margin-top:8px">
-        <div id="th-ord-upload-row" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--gray2);border-radius:8px;border:1.5px dashed var(--gray3)">
-          <span style="font-size:12px;color:var(--text2);flex:1">📋 <strong>File Đơn Hàng</strong> (tùy chọn) — lọc chỉ đơn <strong>THÀNH CÔNG</strong>, loại THẤT THU/hoàn hủy → DT thực chính xác hơn</span>
-          <input type="file" id="th-ord-file-input" accept=".xlsx,.xls" style="display:none" onchange="parseSaleworkOrderFile(this)">
-          <button class="sw-btn-sm neutral" onclick="document.getElementById('th-ord-file-input').click()">📋 Chọn File Đơn Hàng</button>
-        </div>
-        <div id="th-ord-loaded-bar" class="sw-loaded-bar" style="display:none">
-          <span class="sw-loaded-name">📋 <span id="th-ord-loaded-name"></span></span>
-          <span class="sw-loaded-count" id="th-ord-loaded-count"></span>
-          <input type="file" id="th-ord-file-input2" accept=".xlsx,.xls" style="display:none" onchange="parseSaleworkOrderFile(this)">
-          <button class="sw-btn-sm neutral" onclick="document.getElementById('th-ord-file-input2').click()">🔄 Đổi</button>
-          <button class="sw-btn-sm danger" onclick="clearSaleworkOrders()">✕ Xóa</button>
-        </div>
-      </div>
-
-      <!-- KPI cards (Phương án A + B) -->
-      <div id="th-sw-period-warn" style="display:none"></div>
-      <div id="th-sw-kpis" class="sw-kpi-grid" style="display:none"></div>
-
-      <!-- Bảng đối soát theo sản phẩm -->
-      <div id="th-sw-table-wrap" style="display:none;overflow-x:auto"></div>
-    </div>
   </div>
 
   <!-- ══════════════════════════════════════════════════ -->
@@ -15910,20 +15871,33 @@ async function undoDriveSync() {
 // TỔNG HỢP HỆ THỐNG
 // ══════════════════════════════════════════════════════════════
 let _thChartRoas  = null;
-let _thFilterYear  = null;
-let _thFilterMonth = null;
+let _thFilterFrom = null;  // 'yyyy-mm-dd' | null
+let _thFilterTo   = null;  // 'yyyy-mm-dd' | null
 
-// Lấy labels của 1 shop sau khi áp filter năm/tháng
-// parseDateLabelInfo trả về string ("2026","06") → dùng Number() để so sánh đồng nhất
+// Chuyển label dateBlocks ("dd/MM/yyyy") → 'yyyy-mm-dd' để so sánh khoảng ngày.
+// Toàn bộ dữ liệu Tổng Quan/Tổng Hợp Hệ Thống hiện chỉ được nạp qua đường API/Drive theo
+// TỪNG NGÀY (sapiDateToLabel nhận 1 ngày ISO đơn lẻ — xem sapiAutoLoadFromFirestore/
+// sapiAutoLoadFromDrive), nên label luôn là 1 ngày cụ thể, không phải block gộp nhiều ngày.
+// Xác nhận với Tân 2026-08-10.
+function _thLabelToDateStr(label) {
+  const m = String(label || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
+
+// Lấy labels của 1 shop sau khi áp filter khoảng ngày
 function _thShopLabels(shopId) {
   const shop = G.shops[shopId];
   if (!shop || !shop.loaded) return [];
   let labels = (shop.dateBlocks || []).map(b => b.label);
-  if (_thFilterYear) {
-    labels = labels.filter(lbl => Number(parseDateLabelInfo(lbl)?.year) === _thFilterYear);
-  }
-  if (_thFilterMonth) {
-    labels = labels.filter(lbl => Number(parseDateLabelInfo(lbl)?.month) === _thFilterMonth);
+  if (_thFilterFrom || _thFilterTo) {
+    labels = labels.filter(lbl => {
+      const ds = _thLabelToDateStr(lbl);
+      if (!ds) return false;
+      if (_thFilterFrom && ds < _thFilterFrom) return false;
+      if (_thFilterTo && ds > _thFilterTo) return false;
+      return true;
+    });
   }
   return labels;
 }
@@ -15933,9 +15907,9 @@ function _thGetShopTotals(shopId) {
   if (!shop || !shop.loaded || !shop.products.length) return null;
   const labels = _thShopLabels(shopId);
   // Nếu filter đang bật mà không có label nào khớp → bỏ qua shop này
-  if ((_thFilterYear || _thFilterMonth) && !labels.length) return null;
+  if ((_thFilterFrom || _thFilterTo) && !labels.length) return null;
   let chi_phi = 0, doanh_so = 0;
-  if ((_thFilterYear || _thFilterMonth) && labels.length) {
+  if ((_thFilterFrom || _thFilterTo) && labels.length) {
     // Dùng đúng logic giống renderKPIs (Tổng Quan):
     // Nếu shop có dailyTotals → dùng cho tất cả ngày (ngày thiếu cộng 0)
     // Chỉ fallback sang dailyData khi KHÔNG CÓ ngày nào trong dailyTotals
@@ -15957,7 +15931,7 @@ function _thGetShopTotals(shopId) {
         });
       });
     }
-  } else if (!_thFilterYear && !_thFilterMonth) {
+  } else if (!_thFilterFrom && !_thFilterTo) {
     // Không filter → ưu tiên dailyTotals (giống renderKPIs) để bao gồm nhóm DVHT
     let hasAgg = false;
     if (shop.dailyTotals) {
@@ -15991,7 +15965,7 @@ function _thGetAllProducts() {
     const shop = G.shops[shopId];
     if (!shop || !shop.loaded || !shop.products.length) return;
     const labels = _thShopLabels(shopId);
-    if ((_thFilterYear || _thFilterMonth) && !labels.length) return;
+    if ((_thFilterFrom || _thFilterTo) && !labels.length) return;
     shop.products.forEach(p => {
       let chi_phi = 0, doanh_so = 0;
       if (p.dailyData && labels.length) {
@@ -16001,7 +15975,7 @@ function _thGetAllProducts() {
           chi_phi  += Number(d['Chi phí(đ)']) || 0;
           doanh_so += Number(d['Doanh thu'])   || 0;
         });
-      } else if (!_thFilterYear && !_thFilterMonth) {
+      } else if (!_thFilterFrom && !_thFilterTo) {
         chi_phi  = Number(p.chi_phi)  || 0;
         doanh_so = Number(p.doanh_so) || 0;
       }
@@ -16026,7 +16000,7 @@ function _thGetAllProductsFull() {
     const shop = G.shops[shopId];
     if (!shop || !shop.loaded || !shop.products.length) return;
     const labels = _thShopLabels(shopId);
-    if ((_thFilterYear || _thFilterMonth) && !labels.length) return;
+    if ((_thFilterFrom || _thFilterTo) && !labels.length) return;
     shop.products.forEach(p => {
       let chi_phi = 0, doanh_so = 0;
       if (p.dailyData && labels.length) {
@@ -16036,7 +16010,7 @@ function _thGetAllProductsFull() {
           chi_phi  += Number(d['Chi phí(đ)']) || 0;
           doanh_so += Number(d['Doanh thu'])   || 0;
         });
-      } else if (!_thFilterYear && !_thFilterMonth) {
+      } else if (!_thFilterFrom && !_thFilterTo) {
         chi_phi  = Number(p.chi_phi)  || 0;
         doanh_so = Number(p.doanh_so) || 0;
       }
@@ -16055,44 +16029,25 @@ function _thGetAllProductsFull() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// PHÂN TÍCH NHÓM HÀNG
+// PHÂN TÍCH NHÓM HÀNG — tra Ngành Hàng THẬT từ catalog "SKU Tổng" (Google Sheet, xác nhận Tân
+// 2026-08-10), thay vì đoán theo từ khóa trong tên sản phẩm như trước. Dùng lại đúng cơ chế đã
+// chạy ổn ở trang Báo Cáo Sản Lượng (BCDS): catalog (giaLoadCatalogIfNeeded, key = Mã Salework)
+// khớp qua MAP Salework/TikTok (SHARED.saleworkByIdSp/tiktokByIdSp: Mã SP Shopee/TikTok trong dữ
+// liệu ADS Drive → Mã Salework) → catalog[maSalework].nganhHang. SP chưa khớp MAP → fallback so
+// khớp gần đúng theo tên (Dice coefficient, ngưỡng 0.72). Không còn giới hạn 4 nhóm cứng nữa —
+// hiện đúng theo giá trị Ngành hàng Tân đã điền trong Sheet, SP không khớp = "Chưa phân loại".
 // ══════════════════════════════════════════════════════════════
-const _CAT_KW = {
-  'VPP': ['vở', 'sổ tay', 'sổ', 'bút bi', 'bút chì', 'bút dạ', 'bút lông', 'bút highlight',
-          'kẹp giấy', 'kẹp bướm', 'ghim', 'băng keo', 'băng dính', 'nhãn dán', 'nhãn sticker',
-          'bì thư', 'phong bì', 'tẩy', 'chì', 'hộp bút', 'hộp viết', 'mực', 'ruột bút',
-          'folder', 'file đựng', 'bìa file', 'cặp tài liệu', 'giấy note', 'post-it', 'sticky note',
-          'giấy a4', 'giấy in', 'viết bảng', 'phấn viết', 'bảng từ', 'name card', 'card holder',
-          'lịch bàn', 'lịch tường', 'kế hoạch', 'giấy màu', 'bìa nhựa', 'túi đựng tài liệu'],
-  'Tools': ['dao cắt', 'kéo cắt', 'dập ghim', 'bấm lỗ', 'ép plastic', 'máy hủy',
-            'gọt bút chì', 'gọt chì', 'bào chì', 'cắt giấy', 'kim bấm', 'đục lỗ',
-            'máy cắt', 'máy dập', 'dụng cụ văn phòng', 'đinh ghim', 'bút máy nạp mực',
-            'dao rọc giấy', 'cây cắt', 'dụng cụ'],
-  'Sách trẻ em': ['thiếu nhi', 'trẻ em', 'cho bé', 'dành cho bé', 'manga', 'truyện tranh',
-                   'tập tô', 'tranh tô', 'tô màu', 'thần đồng', 'sticker book', 'doraemon',
-                   'đô rê mon', 'conan', 'tiểu học', 'mầm non', 'mẫu giáo', 'nhà trẻ',
-                   'em bé', 'ehon', 'nuôi dạy con', 'dạy con', 'pokemon', 'minecraft',
-                   'naruto', 'one piece', 'trẻ nhỏ', 'hoạt hình', 'disney', 'học vần',
-                   'tập viết', 'tập đọc', 'ô chữ cho bé', 'mê cung', 'ghép hình',
-                   'truyện cổ tích', 'cổ tích', 'thơ thiếu nhi', 'bé học', 'con học',
-                   'đồng dao', 'bé vui', 'luyện viết'],
-};
+const _TH_CAT_PALETTE = ['#1F3864','#2E4D7B','#3D6898','#E67E22','#F39C12','#27AE60','#E74C3C','#8E44AD','#16A085','#D35400','#2980B9','#C0392B'];
+let _thCatReqId = 0;
 
-function classifyProduct(ten) {
-  const name = ten.toLowerCase();
-  for (const kw of _CAT_KW['VPP'])         { if (name.includes(kw)) return 'VPP'; }
-  for (const kw of _CAT_KW['Tools'])        { if (name.includes(kw)) return 'Tools'; }
-  for (const kw of _CAT_KW['Sách trẻ em']) { if (name.includes(kw)) return 'Sách trẻ em'; }
-  return 'Sách người lớn';
+function _thTokenize(s) {
+  s = String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
+  s = s.replace(/[^a-z0-9\s]/g, ' ');
+  const stop = new Set(['sach','deal','combo','tai','ban','2h','books','book','2hbooks','hot','chinh','hang','cua','va','cho','moi','nhat']);
+  const toks = new Set();
+  s.split(/\s+/).forEach(t => { if (t.length >= 2 && !stop.has(t) && !/^\d{4}$/.test(t)) toks.add(t); });
+  return toks;
 }
-
-const _CAT_META = {
-  'Sách người lớn': { icon: '📚', color: '#1a6fb5', bg: '#e8f1fb' },
-  'Sách trẻ em':    { icon: '🧒', color: '#e67e22', bg: '#fef3e2' },
-  'VPP':            { icon: '📝', color: '#27ae60', bg: '#e8f9f0' },
-  'Tools':          { icon: '🔧', color: '#8e44ad', bg: '#f3e8fb' },
-};
-const _CAT_ORDER = ['Sách người lớn', 'Sách trẻ em', 'VPP', 'Tools'];
 
 function _thCatTargetROAS(avgRoas, count) {
   // Nguyên lý thực tế: ROAS thực tế đạt được ≈ 70–80% ROAS mục tiêu cài đặt.
@@ -16114,7 +16069,7 @@ function _thCatTargetROAS(avgRoas, count) {
   };
 }
 
-function renderTHCategorySection() {
+async function renderTHCategorySection() {
   const wrap = document.getElementById('th-category-wrap');
   if (!wrap) return;
   const prods = _thGetAllProductsFull();
@@ -16122,33 +16077,103 @@ function renderTHCategorySection() {
     wrap.innerHTML = '<div class="th-empty">Chưa có dữ liệu sản phẩm</div>';
     return;
   }
+  wrap.innerHTML = '<div class="th-empty">⏳ Đang tải Ngành Hàng từ catalog SKU Tổng...</div>';
+  const myId = ++_thCatReqId;
 
-  // Phân loại
+  let catalog = {};
+  try { catalog = await giaLoadCatalogIfNeeded(); } catch (e) { catalog = {}; }
+  try { await sharedLoadSaleworkMap(); } catch (e) { console.warn('TH: không tải được MAP Salework', e); }
+  try { await sharedLoadTiktokMap(); } catch (e) { console.warn('TH: không tải được MAP TikTok', e); }
+  if (myId !== _thCatReqId) return; // đã đổi filter/rời trang trong lúc đang tải — bỏ kết quả cũ
+
+  const byIdSp = SHARED.saleworkByIdSp, byIdSpTk = SHARED.tiktokByIdSp;
+  const findEntry = ma => {
+    if (catalog[ma]) return catalog[ma];
+    for (const m of [byIdSp, byIdSpTk]) {
+      if (m && m.has(ma)) {
+        const comps = m.get(ma);
+        for (const c of comps) { if (c.maSalework && catalog[c.maSalework]) return catalog[c.maSalework]; }
+      }
+    }
+    return undefined;
+  };
+  const nameIdx = [];
+  {
+    const seen = new Set();
+    [byIdSp, byIdSpTk].forEach(m => {
+      if (!m) return;
+      m.forEach(comps => {
+        for (const c of comps) {
+          if (!c.maSalework || !c.tenSp || !catalog[c.maSalework]) continue;
+          const key = c.tenSp + '|' + c.maSalework;
+          if (!seen.has(key)) {
+            seen.add(key);
+            const toks = _thTokenize(c.tenSp);
+            if (toks.size >= 2) nameIdx.push({ toks, ma: c.maSalework });
+          }
+          break;
+        }
+      });
+    });
+  }
+  const fuzzyCache = new Map();
+  const fuzzyEntry = (ma, ten) => {
+    if (fuzzyCache.has(ma)) return fuzzyCache.get(ma);
+    let out;
+    const toks = _thTokenize(ten);
+    if (toks.size < 2 || !nameIdx.length) out = undefined;
+    else {
+      let best = null, bs = 0;
+      for (const e of nameIdx) {
+        let inter = 0;
+        for (const t of toks) if (e.toks.has(t)) inter++;
+        const dice = 2 * inter / (toks.size + e.toks.size);
+        if (dice > bs) { bs = dice; best = e; }
+      }
+      out = (bs >= 0.72 && best) ? catalog[best.ma] : undefined;
+    }
+    fuzzyCache.set(ma, out);
+    return out;
+  };
+  const findEntry2 = (ma, ten) => findEntry(ma) || fuzzyEntry(ma, ten);
+  const getNganh = (ma, ten) => {
+    const e = findEntry2(ma, ten);
+    return (e && e.nganhHang) ? e.nganhHang.trim() : '';
+  };
+
+  // Phân loại theo Ngành Hàng thật (không còn 4 nhóm cứng)
+  const UNCLASSIFIED = 'Chưa phân loại';
   const catMap = {};
-  _CAT_ORDER.forEach(c => catMap[c] = { list: [], chi: 0, rev: 0 });
   prods.forEach(p => {
-    const cat = classifyProduct(p.ten);
+    const cat = getNganh(p.ma_sp, p.ten) || UNCLASSIFIED;
     if (!catMap[cat]) catMap[cat] = { list: [], chi: 0, rev: 0 };
     catMap[cat].list.push(p);
     catMap[cat].chi += p.chi_phi;
     catMap[cat].rev += p.doanh_so;
   });
 
+  // Sắp theo doanh thu giảm dần, "Chưa phân loại" luôn đẩy xuống cuối để dễ nhận biết SP cần bổ sung
+  const realCats = Object.keys(catMap).filter(c => c !== UNCLASSIFIED).sort((a, b) => catMap[b].rev - catMap[a].rev);
+  const activeCats = catMap[UNCLASSIFIED] ? [...realCats, UNCLASSIFIED] : realCats;
+  const catColor = {};
+  realCats.forEach((c, i) => catColor[c] = _TH_CAT_PALETTE[i % _TH_CAT_PALETTE.length]);
+  catColor[UNCLASSIFIED] = '#7f8c8d';
+
   // Summary cards
-  const activeCats = _CAT_ORDER.filter(c => catMap[c]?.list.length > 0);
   let cardsHtml = `<div style="display:grid;grid-template-columns:repeat(${Math.min(activeCats.length,4)},1fr);gap:10px;margin-bottom:16px">`;
   activeCats.forEach(cat => {
     const d = catMap[cat];
-    const meta = _CAT_META[cat] || { icon: '📦', color: '#555', bg: '#f5f5f5' };
+    const color = catColor[cat];
+    const icon = cat === UNCLASSIFIED ? '❓' : '🏷️';
     const roas = d.chi > 0 ? d.rev / d.chi : 0;
     const tgt  = _thCatTargetROAS(roas, d.list.length);
     const roasColor = roas >= 20 ? '#196F3D' : roas >= 10 ? '#b7770d' : '#922B21';
-    cardsHtml += `<div style="background:${meta.bg};border-radius:10px;padding:12px 14px;border-left:4px solid ${meta.color}">
-      <div style="font-size:13px;font-weight:700;color:${meta.color};margin-bottom:6px">${meta.icon} ${cat}</div>
+    cardsHtml += `<div style="background:${color}15;border-radius:10px;padding:12px 14px;border-left:4px solid ${color}">
+      <div style="font-size:13px;font-weight:700;color:${color};margin-bottom:6px">${icon} ${cat}</div>
       <div style="font-size:11px;color:var(--text2);margin-bottom:2px">${d.list.length} sản phẩm</div>
       <div style="font-size:18px;font-weight:800;color:${roasColor}">${roas.toFixed(1)}x</div>
       <div style="font-size:10px;color:var(--text2)">ROAS trung bình</div>
-      <div style="margin-top:8px;padding-top:8px;border-top:1px solid ${meta.color}33">
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid ${color}33">
         <div style="font-size:10px;color:var(--text2);margin-bottom:4px">🎯 ROAS Cài Đặt Đề Xuất</div>
         <div style="display:flex;gap:8px;align-items:baseline">
           <div>
@@ -16181,12 +16206,13 @@ function renderTHCategorySection() {
 
   activeCats.forEach(cat => {
     const d = catMap[cat];
-    const meta = _CAT_META[cat] || { icon: '📦', color: '#555' };
+    const color = catColor[cat];
+    const icon = cat === UNCLASSIFIED ? '❓' : '🏷️';
     const roas = d.chi > 0 ? d.rev / d.chi : 0;
     const tgt  = _thCatTargetROAS(roas, d.list.length);
     const roasColor = roas >= 20 ? '#196F3D' : roas >= 10 ? '#b7770d' : '#922B21';
     tblHtml += `<tr>
-      <td><strong style="color:${meta.color}">${meta.icon} ${cat}</strong></td>
+      <td><strong style="color:${color}">${icon} ${cat}</strong></td>
       <td style="text-align:center">${d.list.length}</td>
       <td>${fmtMoney(d.chi)}</td>
       <td>${fmtMoney(d.rev)}</td>
@@ -16211,7 +16237,8 @@ function renderTHCategorySection() {
     <td>–</td><td>–</td><td></td>
   </tr></tbody></table>`;
 
-  // Ghi chú phân loại
+  // Ghi chú
+  const unclassCount = catMap[UNCLASSIFIED] ? catMap[UNCLASSIFIED].list.length : 0;
   const unclassNote = `<div style="margin-top:10px;padding:10px 14px;background:#fffbea;border-radius:6px;font-size:11px;color:#6b5600;border-left:3px solid #f0c000">
     <strong>⚙️ Nguyên lý tính ROAS đề xuất:</strong>
     ROAS thực tế đạt được ≈ 70–80% ROAS mục tiêu cài trên Shopee.
@@ -16219,120 +16246,164 @@ function renderTHCategorySection() {
     Đặt target thấp → phân phối rộng sai tệp → chi phí cao, chuyển đổi thấp.<br><br>
     🎯 <strong>Duy trì (×150%):</strong> Giữ hoặc cải thiện ROAS hiện tại của nhóm.&nbsp;&nbsp;
     📈 <strong>Mở rộng (×120%):</strong> Scale ngân sách, chấp nhận ROAS thực về thấp hơn chút để reach rộng hơn.<br>
-    <em>Phân loại tự động theo tên SP — không khớp keyword VPP/Tools/Sách trẻ em → mặc định Sách người lớn.</em>
+    <em>Ngành Hàng lấy trực tiếp từ cột "Ngành hàng" trong Google Sheet SKU Tổng (qua MAP Salework/TikTok).${unclassCount ? ` ⚠️ ${unclassCount} SP chưa khớp được catalog — bổ sung MAP hoặc cột Ngành hàng trong Sheet rồi bấm Đồng Bộ Danh Mục SKU lại.` : ''}</em>
   </div>`;
 
+  if (myId !== _thCatReqId) return;
   wrap.innerHTML = cardsHtml + tblHtml + unclassNote;
 }
 
-function renderTHFilterBar() {
-  const bar = document.getElementById('th-filter-bar');
-  if (!bar) return;
+// ══════════════════════════════════════════════════════════════
+// BỘ LỌC KỲ XEM — lịch dropdown click-click, chọn khoảng ngày tùy ý
+// (thay chip Năm/Tháng cũ — xác nhận Tân 2026-08-10). Cùng pattern với
+// giaday-picker (card ③ Lượng Bán Theo Ngày, xem GIADAY/giaDay*).
+// ══════════════════════════════════════════════════════════════
+const THDAY = {
+  pickerOpen: false,
+  pickStep: 0,       // 0 = chờ click start, 1 = chờ click end
+  firstClick: null,  // 'yyyy-mm-dd'
+  lastClickMs: 0,
+  viewYear: new Date().getFullYear(),
+  viewMonth: new Date().getMonth()  // 0-indexed
+};
 
-  // Thu thập năm/tháng có dữ liệu từ tất cả shop (đều lưu dạng Number)
-  const yearSet = new Set();
-  const monthsByYear = {};
-  Object.keys(SHOPS).forEach(shopId => {
-    const shop = G.shops[shopId];
-    if (!shop || !shop.loaded) return;
-    (shop.dateBlocks || []).forEach(b => {
-      const info = parseDateLabelInfo(b.label);
-      if (!info) return;
-      const y = Number(info.year);
-      const m = Number(info.month);
-      if (!y || !m) return;
-      yearSet.add(y);
-      if (!monthsByYear[y]) monthsByYear[y] = new Set();
-      monthsByYear[y].add(m);
-    });
-  });
-
-  const years = [...yearSet].sort();
-  if (!years.length) { bar.innerHTML = ''; return; }
-
-  const MONTH_VI = ['','T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'];
-  let html = `<span style="font-size:12px;color:var(--text2);font-weight:700;margin-right:6px">📅 Kỳ xem:</span>`;
-
-  // Nút Tất cả
-  const allActive = !_thFilterYear && !_thFilterMonth;
-  html += `<span class="chip${allActive?' active':''}" onclick="_thSetFilter(null,null)">Tất cả</span>`;
-
-  // Nút năm
-  years.forEach(y => {
-    const active = _thFilterYear === y && !_thFilterMonth;
-    html += `<span class="chip${active?' active':''}" onclick="_thSetFilter(${y},null)">${y}</span>`;
-  });
-
-  // Nút tháng nếu đã chọn năm
-  if (_thFilterYear && monthsByYear[_thFilterYear]) {
-    html += `<span style="margin-left:8px;color:var(--text2)">|</span>`;
-    const months = [...monthsByYear[_thFilterYear]].sort((a,b)=>a-b);
-    months.forEach(m => {
-      const active = _thFilterMonth === m;
-      html += `<span class="chip${active?' active':''}" onclick="_thSetFilter(${_thFilterYear},${m})">${MONTH_VI[m]}</span>`;
-    });
-  }
-
-  bar.innerHTML = html;
+function thDayTogglePicker() {
+  if (THDAY.pickerOpen) { thDayClosePicker(); return; }
+  THDAY.pickerOpen = true;
+  THDAY.pickStep = 0;
+  THDAY.firstClick = null;
+  const dd = document.getElementById('th-picker-dropdown');
+  if (dd) dd.style.display = 'block';
+  thDayRenderCalendar();
 }
 
-function _thSetFilter(year, month) {
-  _thFilterYear  = year;
-  _thFilterMonth = month;
-  renderTHFilterBar();
+function thDayClosePicker() {
+  THDAY.pickerOpen = false;
+  THDAY.pickStep = 0;
+  THDAY.firstClick = null;
+  const dd = document.getElementById('th-picker-dropdown');
+  if (dd) dd.style.display = 'none';
+}
+
+function thDayCalNav(dir) {
+  THDAY.viewMonth += dir;
+  if (THDAY.viewMonth > 11) { THDAY.viewMonth = 0; THDAY.viewYear++; }
+  if (THDAY.viewMonth < 0)  { THDAY.viewMonth = 11; THDAY.viewYear--; }
+  thDayRenderCalendar();
+}
+
+function thDayRenderCalendar() {
+  const title = document.getElementById('th-cal-title');
+  const grid  = document.getElementById('th-cal-grid');
+  if (!title || !grid) return;
+  const y = THDAY.viewYear, m = THDAY.viewMonth;
+  const monthNames = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+  title.textContent = `${monthNames[m]} ${y}`;
+  const days = ['T2','T3','T4','T5','T6','T7','CN'];
+  let html = days.map(d => `<div style="font-size:10px;font-weight:700;color:var(--text2);line-height:28px">${d}</div>`).join('');
+  const firstDay = new Date(y, m, 1).getDay();
+  const blanks = firstDay === 0 ? 6 : firstDay - 1;
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  for (let i = 0; i < blanks; i++) html += `<div></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isStart = ds === _thFilterFrom;
+    const isEnd   = ds === _thFilterTo;
+    const isPending = THDAY.pickStep === 1 && ds === THDAY.firstClick;
+    const inRange = _thFilterFrom && _thFilterTo && ds > _thFilterFrom && ds < _thFilterTo;
+    let bg = 'transparent', color = ds === todayStr ? 'var(--navy)' : 'var(--text1)', fw = ds === todayStr ? '700' : '400';
+    if (isStart || isEnd || isPending) { bg = 'var(--navy)'; color = 'white'; fw = '700'; }
+    else if (inRange) { bg = 'rgba(13,71,161,0.12)'; }
+    html += `<div onclick="thDayClickDay('${ds}');event.stopPropagation()" style="line-height:28px;font-size:12px;cursor:pointer;background:${bg};color:${color};font-weight:${fw};border-radius:50%">${d}</div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function thDayClickDay(ds) {
+  const now = Date.now();
+  if (THDAY.pickStep === 0) {
+    THDAY.firstClick = ds;
+    THDAY.lastClickMs = now;
+    THDAY.pickStep = 1;
+    thDayRenderCalendar();
+  } else {
+    const isDblClick = ds === THDAY.firstClick && (now - THDAY.lastClickMs) < 400;
+    if (isDblClick || ds === THDAY.firstClick) {
+      thDaySetRange(ds, ds);
+    } else {
+      const start = ds < THDAY.firstClick ? ds : THDAY.firstClick;
+      const end   = ds < THDAY.firstClick ? THDAY.firstClick : ds;
+      thDaySetRange(start, end);
+    }
+  }
+}
+
+function thDayShortcut(type) {
+  if (type === 'all') { thDaySetRange(null, null); return; }
+  const now = new Date();
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  let start, end;
+  if (type === 'today') {
+    start = end = fmt(now);
+  } else if (type === 'yesterday') {
+    const y = new Date(now); y.setDate(now.getDate() - 1);
+    start = end = fmt(y);
+  } else if (type === 'thisweek') {
+    const day = now.getDay() || 7;
+    const mon = new Date(now); mon.setDate(now.getDate() - day + 1);
+    start = fmt(mon); end = fmt(now);
+  } else if (type === 'thismonth') {
+    start = fmt(new Date(now.getFullYear(), now.getMonth(), 1));
+    end = fmt(now);
+  } else if (type === 'lastmonth') {
+    start = fmt(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+    end = fmt(new Date(now.getFullYear(), now.getMonth(), 0));
+  } else if (type === 'last7days') {
+    const s = new Date(now); s.setDate(now.getDate() - 6);
+    start = fmt(s); end = fmt(now);
+  }
+  thDaySetRange(start, end);
+}
+
+function thDaySetRange(start, end) {
+  _thFilterFrom = start;
+  _thFilterTo   = end;
+  const fmtLabel = ds => ds.split('-').reverse().join('/');
+  const label = document.getElementById('th-picker-label');
+  if (label) {
+    if (!start || !end) {
+      label.textContent = 'Tất cả';
+      label.style.color = 'var(--text2)';
+    } else {
+      label.textContent = start === end ? fmtLabel(start) : `${fmtLabel(start)} - ${fmtLabel(end)}`;
+      label.style.color = 'var(--text1)';
+    }
+  }
+  thDayClosePicker();
   _thRenderContent();
 }
+
+// Đóng picker khi click ra ngoài
+document.addEventListener('click', function(e) {
+  if (!THDAY.pickerOpen) return;
+  const input = document.getElementById('th-picker-input');
+  const dd    = document.getElementById('th-picker-dropdown');
+  if (input && !input.contains(e.target) && dd && !dd.contains(e.target)) thDayClosePicker();
+}, true);
 
 function initTongHopPage() {
-  renderTHFilterBar();
   _thRenderContent();
-}
-
-// ── Doanh Thu Thực: cộng dồn số "Tổng Doanh Thu Shop kỳ này" mà từng shop đã nhập ở trang Tổng Quan
-// (key 'ov_acos_rev_<shopId>_<năm>_<tháng>' — xem _ovAcosShopKey). Chỉ ĐỌC, không ghi vào key đó.
-// Khớp đúng kỳ Năm/Tháng đang chọn ở Tổng Hợp với kỳ đã nhập ở từng shop thì mới cộng đúng.
-function _thComputeRevActual(shopTotals) {
-  const valEl = document.getElementById('th-rev-actual');
-  const subEl = document.getElementById('th-rev-actual-sub');
-  if (!valEl) return 0;
-  let sum = 0;
-  const missing = [];
-  shopTotals.forEach(s => {
-    // ovFilterMonth (lưu lúc bấm "Lưu" ở trang Tổng Quan) lấy từ parseDateLabelInfo, là string
-    // 2 chữ số có số 0 đứng đầu (ví dụ "05"), trong khi _thFilterMonth ở đây là Number (ví dụ 5).
-    // Phải thử cả 2 dạng key thì mới khớp được dữ liệu đã lưu trước đó.
-    const yearPart = _thFilterYear || 'all';
-    const monthCandidates = _thFilterMonth
-      ? [_thFilterMonth, String(_thFilterMonth).padStart(2, '0')]
-      : ['all'];
-    let raw = null;
-    for (const mPart of monthCandidates) {
-      const key = 'ov_acos_rev_' + s.shopId + '_' + yearPart + '_' + mPart;
-      raw = localStorage.getItem(key);
-      if (raw) break;
-    }
-    const num = raw ? Number(raw) : 0;
-    if (raw && num > 0) sum += num;
-    else missing.push(s.short);
-  });
-  valEl.textContent = sum > 0 ? fmtMoney(sum) : '– (chưa có shop nào nhập)';
-  if (subEl) {
-    subEl.textContent = missing.length
-      ? `⚠️ Thiếu ${missing.length}/${shopTotals.length} shop: ${missing.join(', ')}`
-      : `✅ Đủ DT thực ${shopTotals.length}/${shopTotals.length} shop`;
-    subEl.style.color = missing.length ? 'var(--red)' : 'var(--green)';
-  }
-  return sum;
 }
 
 function _thRenderContent() {
   const shopTotals = Object.keys(SHOPS).map(id => _thGetShopTotals(id)).filter(Boolean);
 
   if (!shopTotals.length) {
-    ['th-cost','th-rev','th-roas','th-acos','th-roas-vat','th-acos-vat','th-rev-actual'].forEach(id => {
+    ['th-cost','th-rev','th-roas','th-acos'].forEach(id => {
       const el = document.getElementById(id); if (el) el.textContent = '–';
     });
-    const subEl0 = document.getElementById('th-rev-actual-sub'); if (subEl0) subEl0.textContent = '';
     document.getElementById('th-shop-table-wrap').innerHTML =
       '<div class="th-empty">Chưa có dữ liệu — hãy đồng bộ Drive cho từng shop trước</div>';
     const catWrap = document.getElementById('th-category-wrap');
@@ -16346,9 +16417,9 @@ function _thRenderContent() {
   const grandRev = shopTotals.reduce((s, x) => s + x.doanh_so, 0);
   const grandRoas = grandChi > 0 ? grandRev / grandChi : 0;
   const grandAcos = grandRev > 0 ? grandChi / grandRev * 100 : 0;
-  // Chi phí + VAT 8% — ROAS/ACOS quy đổi theo chi phí đã gồm VAT (giống cột "ACOS + VAT" trong bảng So Sánh Từng Shop)
+  // Chi phí + VAT 8% — vẫn giữ để tính cột "Chi Phí + VAT 8%" / "ACOS + VAT" trong bảng So Sánh
+  // Từng Shop bên dưới (KPI card ROAS+VAT/ACOS+VAT ở trên đã xóa theo yêu cầu Tân 2026-08-10).
   const grandChiVat  = grandChi * 1.08;
-  const grandRoasVat = grandChiVat > 0 ? grandRev / grandChiVat : 0;
   const grandAcosVat = grandRev > 0 ? grandChiVat / grandRev * 100 : 0;
   const totalProds = shopTotals.reduce((s, x) => s + x.productCount, 0);
 
@@ -16356,17 +16427,10 @@ function _thRenderContent() {
   document.getElementById('th-rev').textContent   = fmtMoney(grandRev);
   document.getElementById('th-roas').textContent  = grandRoas.toFixed(2) + 'x';
   document.getElementById('th-acos').textContent  = grandAcos.toFixed(2) + '%';
-  document.getElementById('th-roas-vat').textContent = grandRoasVat.toFixed(2) + 'x';
-  document.getElementById('th-acos-vat').textContent = grandAcosVat.toFixed(2) + '%';
   document.getElementById('th-cost-sub').textContent = shopTotals.length + ' shop có dữ liệu';
   document.getElementById('th-rev-sub').textContent  = 'Lợi nhuận ADS: ' + fmtMoney(grandRev - grandChi);
   document.getElementById('th-roas-sub').textContent = grandRoas >= 20 ? '✅ Hiệu quả' : grandRoas >= 10 ? '⚠️ Trung bình' : '❌ Cần tối ưu';
   document.getElementById('th-acos-sub').textContent = grandAcos <= 5 ? '✅ Hiệu quả' : grandAcos <= 10 ? '⚠️ Trung bình' : '❌ Cần tối ưu';
-  document.getElementById('th-roas-vat-sub').textContent = grandRoasVat >= 20 ? '✅ Hiệu quả' : grandRoasVat >= 10 ? '⚠️ Trung bình' : '❌ Cần tối ưu';
-  document.getElementById('th-acos-vat-sub').textContent = grandAcosVat <= 5 ? '✅ Hiệu quả' : grandAcosVat <= 10 ? '⚠️ Trung bình' : '❌ Cần tối ưu';
-
-  // ── Doanh Thu Thực = tổng "Tổng Doanh Thu Shop kỳ này" mà từng shop đã nhập ở trang Tổng Quan ──
-  const revActual = _thComputeRevActual(shopTotals);
 
   // ── Shop table ──
   const sorted = [...shopTotals].sort((a, b) => b.chi_phi - a.chi_phi);
@@ -16399,7 +16463,7 @@ function _thRenderContent() {
       <td>${pctCost}%</td>
     </tr>`;
   });
-  // Tổng cộng (grandChiVat/grandAcosVat đã tính ở trên cùng KPI ROAS+VAT/ACOS+VAT)
+  // Tổng cộng (grandChiVat/grandAcosVat đã tính ở trên, dùng riêng cho bảng này)
   const grandAcosVatColor = grandAcosVat <= 5 ? '#196F3D' : grandAcosVat <= 10 ? '#7D6608' : '#922B21';
   tblHtml += `<tr>
     <td>📊 TỔNG CỘNG</td>
@@ -16446,16 +16510,8 @@ function _thRenderContent() {
 
   // Phân tích nhóm hàng
   renderTHCategorySection();
-
-  // Re-render Salework section nếu đã upload file
-  if (G_salework) renderTHSaleworkSection();
 }
 
-// ══════════════════════════════════════════════════════════════
-// SALEWORK INTEGRATION — Phương án A + B
-// ══════════════════════════════════════════════════════════════
-let G_salework = null;        // { products: Map<ma_sp_str, {ten,so_luong,gia_von_tong,doanh_thu_thuc}>, filename, count }
-let G_salework_orders = null; // { revMap: Map<ma_sp, {tcRev,tcCount,skipCount}>, filename, tcCount, skipCount }
 // ── ACOS Tổng Shop (per shop, dùng trong page-overview) ──
 let _ovAcosShopCost = 0; // chi phí ADS kỳ hiện tại của shop đang xem
 
@@ -16519,389 +16575,8 @@ function _renderOvAcosShop() {
   if (vatCardEl) vatCardEl.style.borderLeftColor = borderColorVat;
 }
 
-function parseSaleworkFile(input) {
-  const file = input.files[0];
-  if (!file) return;
-  input.value = '';
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const wb = XLSX.read(e.target.result, { type: 'array' });
-      // Tìm sheet chứa "Thống kê" hoặc lấy sheet đầu tiên
-      const sheetName = wb.SheetNames.find(s => s.includes('Th') && s.includes('ng k')) || wb.SheetNames[0];
-      const ws  = wb.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-
-      const products = new Map();
-      // Bỏ qua header (row 0), chỉ lấy rows có col 0 (Mã sản phẩm) không null
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-        if (row[0] == null || row[0] === '') continue; // dòng biến thể
-        const ma_sp         = String(row[0]).trim();
-        const ten           = String(row[1] || '').trim();
-        const so_luong      = Number(row[2]) || 0;
-        const gia_von_tong  = Number(row[7]) || 0;
-        const doanh_thu_thuc = Number(row[9]) || 0;
-        if (ma_sp) products.set(ma_sp, { ten, so_luong, gia_von_tong, doanh_thu_thuc });
-      }
-
-      G_salework = { products, filename: file.name, count: products.size };
-      G_salework.uploadYear  = _thFilterYear;
-      G_salework.uploadMonth = _thFilterMonth;
-      _thSaveSaleworkSnapshot();
-      renderTHSaleworkSection();
-    } catch(err) {
-      alert('Lỗi đọc file Salework: ' + err.message);
-    }
-  };
-  reader.readAsArrayBuffer(file);
-}
-
-function clearSalework() {
-  G_salework = null;
-  G_salework_orders = null;
-  document.getElementById('th-sw-upload-area').style.display = 'block';
-  document.getElementById('th-sw-loaded-bar').style.display  = 'none';
-  document.getElementById('th-sw-kpis').style.display        = 'none';
-  document.getElementById('th-sw-table-wrap').style.display  = 'none';
-  const swWarnEl = document.getElementById('th-sw-period-warn');
-  if (swWarnEl) { swWarnEl.style.display = 'none'; swWarnEl.innerHTML = ''; }
-  const ordSec = document.getElementById('th-ord-section');
-  if (ordSec) ordSec.style.display = 'none';
-}
-
-function parseSaleworkOrderFile(input) {
-  const file = input.files[0];
-  if (!file) return;
-  input.value = '';
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const wb = XLSX.read(e.target.result, { type: 'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-      // Cấu trúc: row 0 = header chính, row 1 = sub-header, data từ row 2
-      // col 1 = Trạng thái, col 7 = Mã sản phẩm (Shopee ID), col 13 = Tổng giá trị SP
-      const revMap = new Map();
-      let tcCount = 0, skipCount = 0;
-      for (let i = 2; i < rows.length; i++) {
-        const row = rows[i];
-        const ma_sp = String(row[7] || '').trim();
-        if (!ma_sp) continue;
-        const status = String(row[1] || '').trim().toUpperCase();
-        if (!revMap.has(ma_sp)) revMap.set(ma_sp, { tcRev: 0, tcCount: 0, skipCount: 0 });
-        const d = revMap.get(ma_sp);
-        if (status === 'THÀNH CÔNG') {
-          d.tcRev   += Number(row[13]) || 0;
-          d.tcCount++;
-          tcCount++;
-        } else {
-          d.skipCount++;
-          skipCount++;
-        }
-      }
-      G_salework_orders = { revMap, filename: file.name, tcCount, skipCount };
-      G_salework_orders.uploadYear  = _thFilterYear;
-      G_salework_orders.uploadMonth = _thFilterMonth;
-      _updateOrdLoadedBar();
-      renderTHSaleworkSection();
-    } catch(err) {
-      alert('Lỗi đọc file đơn hàng: ' + err.message);
-    }
-  };
-  reader.readAsArrayBuffer(file);
-}
-
-function clearSaleworkOrders() {
-  G_salework_orders = null;
-  _updateOrdLoadedBar();
-  if (G_salework) renderTHSaleworkSection();
-}
-
-function _updateOrdLoadedBar() {
-  const uploadRow = document.getElementById('th-ord-upload-row');
-  const loadedBar = document.getElementById('th-ord-loaded-bar');
-  if (!uploadRow || !loadedBar) return;
-  if (!G_salework_orders) {
-    uploadRow.style.display = 'flex';
-    loadedBar.style.display = 'none';
-  } else {
-    uploadRow.style.display = 'none';
-    loadedBar.style.display = 'flex';
-    const nameEl = document.getElementById('th-ord-loaded-name');
-    const cntEl  = document.getElementById('th-ord-loaded-count');
-    if (nameEl) nameEl.textContent = G_salework_orders.filename;
-    if (cntEl)  cntEl.textContent  = `✅ ${G_salework_orders.tcCount.toLocaleString()} TC · ⚠️ ${G_salework_orders.skipCount.toLocaleString()} bỏ qua`;
-  }
-}
-
-function renderTHSaleworkSection() {
-  if (!G_salework) return;
-
-  // Hiện loaded bar
-  document.getElementById('th-sw-upload-area').style.display      = 'none';
-  document.getElementById('th-sw-loaded-bar').style.display       = 'flex';
-  document.getElementById('th-sw-loaded-name-text').textContent   = G_salework.filename;
-  document.getElementById('th-sw-loaded-count-text').textContent  = G_salework.count + ' sản phẩm';
-
-  // Hiện order file section
-  const ordSec = document.getElementById('th-ord-section');
-  if (ordSec) ordSec.style.display = 'block';
-  _updateOrdLoadedBar();
-
-  const swMap = G_salework.products;
-  const ordMap = G_salework_orders ? G_salework_orders.revMap : null;
-
-  // Cảnh báo lệch kỳ: file Salework không có cột ngày nên Doanh Thu Thực
-  // không tự refresh theo kỳ filter — cảnh báo nếu kỳ đang xem khác kỳ lúc upload.
-  const swWarnEl = document.getElementById('th-sw-period-warn');
-  if (swWarnEl) {
-    const activeSrc = ordMap ? G_salework_orders : G_salework;
-    const srcLabel  = ordMap ? 'File đơn hàng (THÀNH CÔNG)' : 'File Thống kê sản phẩm';
-    const upYear  = activeSrc.uploadYear  || null;
-    const upMonth = activeSrc.uploadMonth || null;
-    const mismatch = upYear !== (_thFilterYear || null) || upMonth !== (_thFilterMonth || null);
-    if (mismatch) {
-      const fmtKy = (y, m) => (y || m) ? (m ? 'Tháng ' + m : '') + (y ? (m ? '/' : '') + y : '') : 'Toàn thời gian';
-      swWarnEl.style.display = 'block';
-      swWarnEl.innerHTML = `<div style="background:#FCF3CF;border-left:4px solid #F1C40F;padding:10px 14px;border-radius:6px;font-size:13px;color:#7D6608;margin-bottom:10px">
-        ⚠️ <b>Lệch kỳ dữ liệu Doanh Thu Thực:</b> ${srcLabel} được tải lên cho kỳ <b>${fmtKy(upYear, upMonth)}</b>,
-        nhưng đang xem kỳ <b>${fmtKy(_thFilterYear, _thFilterMonth)}</b>. File này không có cột ngày nên không tự cập nhật theo kỳ —
-        "Doanh Thu Thực / ROAS Thực / ACOS Thực / Lợi Nhuận Thực" dưới đây vẫn là số liệu của kỳ tải lên.
-        Vui lòng tải lại đúng file của kỳ đang xem để có số liệu chính xác.
-      </div>`;
-    } else {
-      swWarnEl.style.display = 'none';
-      swWarnEl.innerHTML = '';
-    }
-  }
-
-  // Tổng hợp: khớp ma_sp giữa ADS và Salework
-  let totalAdsCost = 0, totalAdsRev = 0, totalActualRev = 0, totalGiaVon = 0;
-  const matched = [];
-  let unmatchedAds = 0; // SP có ADS nhưng không có trong Salework
-
-  Object.keys(SHOPS).forEach(shopId => {
-    const shop = G.shops[shopId];
-    if (!shop || !shop.loaded || !shop.products.length) return;
-    const labels = _thShopLabels(shopId);
-    if ((_thFilterYear || _thFilterMonth) && !labels.length) return;
-
-    shop.products.forEach(p => {
-      const key = String(p.ma_sp || '').trim();
-      const sw  = swMap.get(key);
-
-      // Lấy chi phí + doanh thu ADS theo filter đang áp dụng
-      let adsCost = 0, adsRev = 0;
-      if (p.dailyData && labels.length) {
-        labels.forEach(lbl => {
-          const d = p.dailyData[lbl]; if (!d) return;
-          adsCost += Number(d['Chi phí(đ)']) || 0;
-          adsRev  += Number(d['Doanh thu'])   || 0;
-        });
-      } else if (!_thFilterYear && !_thFilterMonth) {
-        adsCost = Number(p.chi_phi)  || 0;
-        adsRev  = Number(p.doanh_so) || 0;
-      }
-
-      if (adsCost === 0 && adsRev === 0) return;
-
-      if (!sw) { unmatchedAds++; return; } // có ADS nhưng không có Salework
-
-      // Nếu có file đơn hàng → dùng DT từ đơn THÀNH CÔNG (loại trừ THẤT THU/hoàn hủy)
-      // Không có → dùng DT thực từ Salework Thống kê sản phẩm
-      const ordData    = ordMap ? ordMap.get(key) : null;
-      const actualRev  = ordMap ? (ordData ? ordData.tcRev : 0) : sw.doanh_thu_thuc;
-      const giaVon     = sw.gia_von_tong;
-      const loiNhuan   = actualRev - giaVon - adsCost;
-      const roasAds    = adsCost > 0 ? adsRev    / adsCost : 0;
-      const roasThuc   = adsCost > 0 ? actualRev / adsCost : 0;
-      const acosAds    = adsRev    > 0 ? adsCost / adsRev    * 100 : 0;
-      const acosThuc   = actualRev > 0 ? adsCost / actualRev * 100 : 0;
-      const chenhLech  = actualRev - adsRev;
-      const chenhLechPct = adsRev > 0 ? chenhLech / adsRev * 100 : 0;
-
-      totalAdsCost   += adsCost;
-      totalAdsRev    += adsRev;
-      totalActualRev += actualRev;
-      totalGiaVon    += giaVon;
-
-      matched.push({
-        ten: p.ten || sw.ten, ma_sp: key,
-        shopShort: SHOPS[shopId]?.short || shopId,
-        shopIcon:  SHOPS[shopId]?.icon  || '',
-        adsCost, adsRev, actualRev, giaVon,
-        roasAds, roasThuc, acosAds, acosThuc,
-        loiNhuan, chenhLech, chenhLechPct,
-      });
-    });
-  });
-
-  matched.sort((a, b) => b.adsCost - a.adsCost);
-
-  const totalLoiNhuan = totalActualRev - totalGiaVon - totalAdsCost;
-  const totalRoasAds  = totalAdsCost > 0 ? totalAdsRev    / totalAdsCost : 0;
-  const totalRoasThuc = totalAdsCost > 0 ? totalActualRev / totalAdsCost : 0;
-  const totalAcosAds  = totalAdsRev    > 0 ? totalAdsCost / totalAdsRev    * 100 : 0;
-  const totalAcosThuc = totalActualRev > 0 ? totalAdsCost / totalActualRev * 100 : 0;
-  const loiNhuanColor = totalLoiNhuan >= 0 ? 'var(--green)' : 'var(--red)';
-  const roasThucColor = totalRoasThuc >= 20 ? '#196F3D' : totalRoasThuc >= 10 ? '#7D6608' : '#922B21';
-  const acosThucColor = totalAcosThuc <= 5  ? '#196F3D' : totalAcosThuc <= 10 ? '#7D6608' : '#922B21';
-
-  // ── KPI cards ──
-  const kpisEl = document.getElementById('th-sw-kpis');
-  kpisEl.style.display = 'grid';
-  kpisEl.innerHTML = `
-    <div class="sw-kpi-card" style="border-left-color:var(--green)">
-      <div class="sw-kpi-label">💰 Doanh Thu Thực</div>
-      <div class="sw-kpi-value">${fmtMoney(totalActualRev)}</div>
-      <div class="sw-kpi-sub">ADS ghi nhận: ${fmtMoney(totalAdsRev)}</div>
-      <div class="sw-kpi-sub" style="color:${totalActualRev < totalAdsRev ? 'var(--red)' : 'var(--green)'}">
-        Chênh: ${totalActualRev < totalAdsRev ? '' : '+'}${fmtMoney(totalActualRev - totalAdsRev)}
-        (${((totalActualRev - totalAdsRev) / (totalAdsRev || 1) * 100).toFixed(2)}%)
-      </div>
-    </div>
-    <div class="sw-kpi-card" style="border-left-color:var(--orange)">
-      <div class="sw-kpi-label">📈 ROAS Thực (Salework)</div>
-      <div class="sw-kpi-value" style="color:${roasThucColor}">${totalRoasThuc.toFixed(2)}x</div>
-      <div class="sw-kpi-sub">ROAS ADS báo cáo: ${totalRoasAds.toFixed(2)}x</div>
-      <div class="sw-kpi-sub" style="color:${roasThucColor}">${totalRoasThuc >= 20 ? '✅ Hiệu quả' : totalRoasThuc >= 10 ? '⚠️ Trung bình' : '❌ Cần tối ưu'}</div>
-    </div>
-    <div class="sw-kpi-card" style="border-left-color:var(--orange2)">
-      <div class="sw-kpi-label">🎯 ACOS Thực (Salework)</div>
-      <div class="sw-kpi-value" style="color:${acosThucColor}">${totalAcosThuc.toFixed(2)}%</div>
-      <div class="sw-kpi-sub">ACOS ADS báo cáo: ${totalAcosAds.toFixed(2)}%</div>
-      <div class="sw-kpi-sub" style="color:${acosThucColor}">${totalAcosThuc <= 5 ? '✅ Hiệu quả' : totalAcosThuc <= 10 ? '⚠️ Trung bình' : '❌ Cần tối ưu'}</div>
-    </div>
-    <div class="sw-kpi-card" style="border-left-color:${totalLoiNhuan >= 0 ? 'var(--green)' : 'var(--red)'}">
-      <div class="sw-kpi-label">💵 Lợi Nhuận Thực</div>
-      <div class="sw-kpi-value" style="color:${loiNhuanColor}">${fmtMoney(totalLoiNhuan)}</div>
-      <div class="sw-kpi-sub">Tổng giá vốn: ${fmtMoney(totalGiaVon)}</div>
-      <div class="sw-kpi-sub">Chi phí ADS: ${fmtMoney(totalAdsCost)}</div>
-    </div>
-  `;
-
-  // ── Bảng đối soát sản phẩm ──
-  const tableWrap = document.getElementById('th-sw-table-wrap');
-  tableWrap.style.display = 'block';
-
-  if (!matched.length) {
-    tableWrap.innerHTML = `<div class="sw-note" style="color:var(--red);margin-top:8px">
-      ⚠️ Không tìm thấy sản phẩm nào khớp giữa ADS và Salework (kiểm tra Mã sản phẩm có trùng không).<br>
-      ${unmatchedAds > 0 ? unmatchedAds + ' sản phẩm ADS không có trong Salework.' : ''}
-    </div>`;
-    return;
-  }
-
-  const top = matched.slice(0, 50);
-  const srcBadge = ordMap
-    ? `<span style="background:#196F3D;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;margin-left:6px">📋 DT từ đơn THÀNH CÔNG</span>`
-    : `<span style="background:var(--navy);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;margin-left:6px">📊 DT từ Salework thống kê</span>`;
-  const ordNote = ordMap
-    ? ` · ✅ ${G_salework_orders.tcCount.toLocaleString()} TC · ⚠️ ${G_salework_orders.skipCount} bỏ qua`
-    : '';
-  const matchInfo = `Khớp được ${matched.length} sản phẩm` +
-    (unmatchedAds > 0 ? ` · ${unmatchedAds} SP ADS không có trong Salework` : '') + ordNote;
-
-  let tbl = `<div class="sw-match-info">📌 ${matchInfo}${srcBadge} · Hiển thị top ${top.length} theo chi phí ADS</div>
-  <table class="th-prod-table">
-    <thead><tr>
-      <th style="text-align:left">#</th>
-      <th style="text-align:left">Sản Phẩm</th>
-      <th>Shop</th>
-      <th>Chi Phí ADS</th>
-      <th>DT ADS</th>
-      <th>DT Thực</th>
-      <th>Chênh Lệch</th>
-      <th>ROAS ADS</th>
-      <th>ROAS Thực</th>
-      <th>ACOS ADS</th>
-      <th>ACOS Thực</th>
-    </tr></thead><tbody>`;
-
-  top.forEach((p, i) => {
-    const diffColor  = p.chenhLech < 0 ? '#922B21' : '#196F3D';
-    const loiColor   = p.loiNhuan >= 0 ? '#196F3D' : '#922B21';
-    const roasColor  = p.roasThuc >= 20 ? '#196F3D' : p.roasThuc >= 10 ? '#7D6608' : '#922B21';
-    const sign       = p.chenhLech >= 0 ? '+' : '';
-    tbl += `<tr>
-      <td style="text-align:left;color:var(--text2)">${i+1}</td>
-      <td title="${p.ten}">${p.ten}</td>
-      <td><span class="th-shop-tag">${p.shopIcon} ${p.shopShort}</span></td>
-      <td>${fmtMoney(p.adsCost)}</td>
-      <td>${fmtMoney(p.adsRev)}</td>
-      <td>${fmtMoney(p.actualRev)}</td>
-      <td style="color:${diffColor};font-weight:700">${sign}${fmtMoney(p.chenhLech)}<br><small>${sign}${p.chenhLechPct.toFixed(2)}%</small></td>
-      <td>${p.roasAds.toFixed(2)}x</td>
-      <td style="color:${roasColor};font-weight:700">${p.roasThuc.toFixed(2)}x</td>
-      <td>${p.acosAds.toFixed(2)}%</td>
-      <td style="color:${roasColor};font-weight:700">${p.acosThuc.toFixed(2)}%</td>
-    </tr>`;
-  });
-
-  // Dòng tổng
-  const totRoasAdsColor  = totalRoasAds  >= 20 ? '#196F3D' : totalRoasAds  >= 10 ? '#7D6608' : '#922B21';
-  const totRoasThucColor = totalRoasThuc >= 20 ? '#196F3D' : totalRoasThuc >= 10 ? '#7D6608' : '#922B21';
-  const totLoiColor      = totalLoiNhuan >= 0 ? '#196F3D' : '#922B21';
-  const totDiffColor     = (totalActualRev-totalAdsRev) < 0 ? '#922B21' : '#196F3D';
-  const totSign          = (totalActualRev-totalAdsRev) >= 0 ? '+' : '';
-  tbl += `<tr style="background:#fffbeb;font-weight:700">
-    <td colspan="3" style="text-align:left">📊 TỔNG (${matched.length} SP khớp)</td>
-    <td>${fmtMoney(totalAdsCost)}</td>
-    <td>${fmtMoney(totalAdsRev)}</td>
-    <td>${fmtMoney(totalActualRev)}</td>
-    <td style="color:${totDiffColor}">${totSign}${fmtMoney(totalActualRev-totalAdsRev)}</td>
-    <td style="color:${totRoasAdsColor}">${totalRoasAds.toFixed(2)}x</td>
-    <td style="color:${totRoasThucColor}">${totalRoasThuc.toFixed(2)}x</td>
-    <td>${totalAcosAds.toFixed(2)}%</td>
-    <td style="color:${totRoasThucColor};font-weight:700">${totalAcosThuc.toFixed(2)}%</td>
-  </tr>`;
-  tbl += '</tbody></table>';
-  tableWrap.innerHTML = tbl;
-}
-
-// ══════════════════════════════════════════════════════════════
-// Snapshot lịch sử Salework theo kỳ (năm-tháng) — nền tảng cho xu hướng tháng-qua-tháng.
-// Không ghi đè G_salework hiện tại, chỉ lưu một bản tóm tắt số liệu vào localStorage.
-// ══════════════════════════════════════════════════════════════
-function _thSaveSaleworkSnapshot() {
-  if (!G_salework) return;
-  const year  = G_salework.uploadYear  || 'all';
-  const month = G_salework.uploadMonth || 'all';
-  const list = [];
-  G_salework.products.forEach(p => list.push(p));
-
-  const totalRev  = list.reduce((s, x) => s + (x.doanh_thu_thuc || 0), 0);
-  const totalCost = list.reduce((s, x) => s + (x.gia_von_tong   || 0), 0);
-  const totalQty  = list.reduce((s, x) => s + (x.so_luong       || 0), 0);
-  const marginPct = totalRev > 0 ? (totalRev - totalCost) / totalRev * 100 : 0;
-  const sortedByRev = [...list].sort((a, b) => (b.doanh_thu_thuc || 0) - (a.doanh_thu_thuc || 0));
-  const top20Rev  = sortedByRev.slice(0, 20).reduce((s, x) => s + (x.doanh_thu_thuc || 0), 0);
-  const top20Pct  = totalRev > 0 ? top20Rev / totalRev * 100 : 0;
-  const negCount  = list.filter(x => {
-    const r = x.doanh_thu_thuc || 0, c = x.gia_von_tong || 0;
-    return r > 0 && (r - c) < 0;
-  }).length;
-
-  const snapshot = {
-    year, month, savedAt: new Date().toISOString(),
-    filename: G_salework.filename, skuCount: list.length,
-    totalRev, totalCost, totalQty, marginPct, top20Pct, negCount,
-  };
-  const key = 'sw_snapshot_' + year + '_' + month;
-  localStorage.setItem(key, JSON.stringify(snapshot));
-
-  let idx = [];
-  try { idx = JSON.parse(localStorage.getItem('sw_snapshot_index') || '[]'); } catch(e) { idx = []; }
-  idx = idx.filter(k => k !== key);
-  idx.push(key);
-  localStorage.setItem('sw_snapshot_index', JSON.stringify(idx));
-}
-
 // ══════════════════════════════════════════════════════════════
 // BÁO CÁO SẢN LƯỢNG — Mục 1: Tổng Quan Theo Sản Phẩm (File 1, mã Shopee)
-// Hoàn toàn độc lập với G_salework / card "Đối Soát Doanh Thu Thực Tế — Salework".
 // Có upload riêng, state riêng (BCSL), không chia sẻ dữ liệu với phần ADS.
 // ══════════════════════════════════════════════════════════════
 let BCSL = null; // { products: Map, filename, count }
