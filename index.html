@@ -1586,6 +1586,18 @@
       </div>
     </div>
 
+    <!-- Tỉ Trọng Chi Phí — làm y hệt card Tỉ Trọng Doanh Thu, chỉ đổi dữ liệu Chi Phí thay Doanh
+         Thu (xác nhận Tân 2026-08-10) -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-title"><span class="dot" style="background:#E67E22"></span> Tỉ Trọng Chi Phí</div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center;margin-top:8px">
+        <div style="height:336px;position:relative">
+          <canvas id="th-chart-costshare"></canvas>
+        </div>
+        <div id="th-costshare-list"><div class="th-empty">Chưa có dữ liệu</div></div>
+      </div>
+    </div>
+
     <!-- Phân tích nhóm hàng -->
     <div class="card" style="margin-top:16px">
       <div class="card-title"><span class="dot" style="background:#8e44ad"></span> Phân Tích ROAS Theo Nhóm Hàng
@@ -15912,7 +15924,8 @@ async function undoDriveSync() {
 // ══════════════════════════════════════════════════════════════
 // TỔNG HỢP HỆ THỐNG
 // ══════════════════════════════════════════════════════════════
-let _thChartRevShare = null;
+let _thChartRevShare  = null;
+let _thChartCostShare = null;
 let _thFilterFrom = null;  // 'yyyy-mm-dd' | null
 let _thFilterTo   = null;  // 'yyyy-mm-dd' | null
 
@@ -16528,6 +16541,9 @@ function _thRenderContent() {
     const revShareList = document.getElementById('th-revshare-list');
     if (revShareList) revShareList.innerHTML = '<div class="th-empty">Chưa có dữ liệu</div>';
     if (_thChartRevShare) { _thChartRevShare.destroy(); _thChartRevShare = null; }
+    const costShareList = document.getElementById('th-costshare-list');
+    if (costShareList) costShareList.innerHTML = '<div class="th-empty">Chưa có dữ liệu</div>';
+    if (_thChartCostShare) { _thChartCostShare.destroy(); _thChartCostShare = null; }
     return;
   }
 
@@ -16598,6 +16614,8 @@ function _thRenderContent() {
 
   // Tỉ trọng doanh thu theo shop (card "ROAS Theo Shop" đã bỏ hẳn — xác nhận Tân 2026-08-10)
   _thRenderRevenueShareChart(shopTotals, grandRev);
+  // Tỉ trọng chi phí theo shop — card mới, làm y hệt Tỉ Trọng Doanh Thu (xác nhận Tân 2026-08-10)
+  _thRenderCostShareChart(shopTotals, grandChi);
 
   // Phân tích nhóm hàng
   renderTHCategorySection();
@@ -16677,6 +16695,58 @@ function _thRenderRevenueShareChart(shopTotals, grandRev) {
       <span style="flex:1;font-size:16px;font-weight:600;color:var(--text1)">${s.icon} ${s.name}</span>
       <span style="font-size:16px;font-weight:700;color:var(--navy);min-width:56px;text-align:right">${pct}%</span>
       <span style="font-size:14px;color:var(--text2);min-width:112px;text-align:right">${fmtMoney(s.doanh_so)}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── Card "Tỉ Trọng Chi Phí" — làm y hệt "Tỉ Trọng Doanh Thu" ở trên, chỉ đổi dữ liệu Chi Phí
+// thay Doanh Thu (xác nhận Tân 2026-08-10) ──
+function _thRenderCostShareChart(shopTotals, grandChi) {
+  const listEl = document.getElementById('th-costshare-list');
+  if (_thChartCostShare) { _thChartCostShare.destroy(); _thChartCostShare = null; }
+  if (!listEl) return;
+  if (!shopTotals.length || grandChi <= 0) {
+    listEl.innerHTML = '<div class="th-empty">Chưa có dữ liệu</div>';
+    return;
+  }
+
+  const sorted = [...shopTotals].sort((a, b) => b.chi_phi - a.chi_phi);
+  const colors = sorted.map(s => SHOPS[s.shopId]?.color || _TH_CAT_PALETTE[0]);
+
+  const ctx = document.getElementById('th-chart-costshare');
+  if (ctx) {
+    _thChartCostShare = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: sorted.map(s => _thWrapLabel(s.icon + ' ' + s.name)),
+        datasets: [{ data: sorted.map(s => s.chi_phi), backgroundColor: colors, borderRadius: 6 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 24 } },
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            anchor: 'end', align: 'top', color: '#333', font: { size: 12.5, weight: '700' },
+            formatter: (value) => { const pct = value / grandChi * 100; return pct.toFixed(1) + '%'; }
+          },
+          tooltip: { callbacks: { label: c => `${fmtMoney(c.parsed.y)} (${(c.parsed.y/grandChi*100).toFixed(1)}%)` } }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 12.5 } } },
+          y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 12 }, callback: v => _thCompactMoney(v) } }
+        }
+      }
+    });
+  }
+
+  listEl.innerHTML = sorted.map((s, i) => {
+    const pct = (s.chi_phi / grandChi * 100).toFixed(1);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray3)">
+      <span style="width:13px;height:13px;border-radius:50%;background:${colors[i]};flex-shrink:0"></span>
+      <span style="flex:1;font-size:16px;font-weight:600;color:var(--text1)">${s.icon} ${s.name}</span>
+      <span style="font-size:16px;font-weight:700;color:var(--navy);min-width:56px;text-align:right">${pct}%</span>
+      <span style="font-size:14px;color:var(--text2);min-width:112px;text-align:right">${fmtMoney(s.chi_phi)}</span>
     </div>`;
   }).join('');
 }
