@@ -1618,35 +1618,83 @@
          GMS, cùng khoảng ngày Bộ Lọc Kỳ Xem (xác nhận Tân 2026-08-11). Nhóm SP & GMS lấy theo
          FILE Tân tải thủ công từ Shopee (mỗi file = 1 kỳ cố định, không chia theo ngày được) —
          ưu tiên kỳ khớp/giao với khoảng đang lọc, không khớp thì dùng kỳ gần nhất đã cập nhật
-         (nhãn ⚠️ + khoảng ngày thực tế hiển thị ngay trong bảng để Tân tự đối chiếu). -->
+         (nhãn ⚠️ + khoảng ngày thực tế hiển thị ngay trong bảng để Tân tự đối chiếu).
+         Mỗi loại lặp lại đúng layout đầu trang: 4 KPI (Doanh Thu/Chi Phí/ROAS/ACOS) + bảng So
+         Sánh Từng Shop bên dưới — KHÔNG dùng biểu đồ cột nữa (xác nhận Tân 2026-08-11, đổi từ
+         bản chart+list trước đó). -->
     <div class="card" style="margin-top:16px">
-      <div class="card-title"><span class="dot" style="background:#2980B9"></span> Chiến Dịch Nhóm Sản Phẩm — Theo Shop</div>
-      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center;margin-top:8px">
-        <div style="height:336px;position:relative">
-          <canvas id="th-chart-camp-nhom"></canvas>
+      <div class="card-title"><span class="dot" style="background:#2980B9"></span> Chiến Dịch Nhóm Sản Phẩm</div>
+      <div class="kpi-grid" style="margin-top:8px;margin-bottom:0">
+        <div class="kpi-card">
+          <div class="kpi-label">💰 Tổng Doanh Thu</div>
+          <div class="kpi-value" id="th-camp-nhom-rev">–</div>
         </div>
-        <div id="th-camp-nhom-list"><div class="th-empty">Chưa có dữ liệu</div></div>
+        <div class="kpi-card">
+          <div class="kpi-label">💸 Tổng Chi Phí</div>
+          <div class="kpi-value" id="th-camp-nhom-cost">–</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">📈 ROAS</div>
+          <div class="kpi-value" id="th-camp-nhom-roas">–</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">🎯 ACOS</div>
+          <div class="kpi-value" id="th-camp-nhom-acos">–</div>
+        </div>
+      </div>
+      <div id="th-camp-nhom-table-wrap" class="th-shop-table-lg" style="margin-top:16px">
+        <div class="th-empty">Chưa có dữ liệu</div>
       </div>
     </div>
 
     <div class="card" style="margin-top:16px">
-      <div class="card-title"><span class="dot" style="background:#F39C12"></span> Chiến Dịch Tự Động GMS — Theo Shop</div>
-      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center;margin-top:8px">
-        <div style="height:336px;position:relative">
-          <canvas id="th-chart-camp-gms"></canvas>
+      <div class="card-title"><span class="dot" style="background:#F39C12"></span> Chiến Dịch Tự Động GMS</div>
+      <div class="kpi-grid" style="margin-top:8px;margin-bottom:0">
+        <div class="kpi-card">
+          <div class="kpi-label">💰 Tổng Doanh Thu</div>
+          <div class="kpi-value" id="th-camp-gms-rev">–</div>
         </div>
-        <div id="th-camp-gms-list"><div class="th-empty">Chưa có dữ liệu</div></div>
+        <div class="kpi-card">
+          <div class="kpi-label">💸 Tổng Chi Phí</div>
+          <div class="kpi-value" id="th-camp-gms-cost">–</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">📈 ROAS</div>
+          <div class="kpi-value" id="th-camp-gms-roas">–</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">🎯 ACOS</div>
+          <div class="kpi-value" id="th-camp-gms-acos">–</div>
+        </div>
+      </div>
+      <div id="th-camp-gms-table-wrap" class="th-shop-table-lg" style="margin-top:16px">
+        <div class="th-empty">Chưa có dữ liệu</div>
       </div>
     </div>
 
     <div class="card" style="margin-top:16px">
-      <div class="card-title"><span class="dot" style="background:#27AE60"></span> Chiến Dịch Đơn — Theo Shop</div>
+      <div class="card-title"><span class="dot" style="background:#27AE60"></span> Chiến Dịch Đơn</div>
       <div style="font-size:11.5px;color:var(--text2);margin-top:2px">= Tổng Quan − Chiến Dịch Nhóm Sản Phẩm − Chiến Dịch Tự Động GMS</div>
-      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center;margin-top:8px">
-        <div style="height:336px;position:relative">
-          <canvas id="th-chart-camp-don"></canvas>
+      <div class="kpi-grid" style="margin-top:8px;margin-bottom:0">
+        <div class="kpi-card">
+          <div class="kpi-label">💰 Tổng Doanh Thu</div>
+          <div class="kpi-value" id="th-camp-don-rev">–</div>
         </div>
-        <div id="th-camp-don-list"><div class="th-empty">Chưa có dữ liệu</div></div>
+        <div class="kpi-card">
+          <div class="kpi-label">💸 Tổng Chi Phí</div>
+          <div class="kpi-value" id="th-camp-don-cost">–</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">📈 ROAS</div>
+          <div class="kpi-value" id="th-camp-don-roas">–</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">🎯 ACOS</div>
+          <div class="kpi-value" id="th-camp-don-acos">–</div>
+        </div>
+      </div>
+      <div id="th-camp-don-table-wrap" class="th-shop-table-lg" style="margin-top:16px">
+        <div class="th-empty">Chưa có dữ liệu</div>
       </div>
     </div>
 
@@ -16916,74 +16964,89 @@ function _thRenderCostShareChart(shopTotals, grandChi) {
   }).join('');
 }
 
-// ── 3 card "Chiến Dịch Nhóm Sản Phẩm / Tự Động GMS / Đơn — Theo Shop" (xác nhận Tân 2026-08-11)
-// Cùng phong cách biểu đồ cột với Tỉ Trọng Doanh Thu/Chi Phí ở trên, chỉ khác panel bên phải là
-// bảng Chi Phí/Doanh Thu/ROAS/ACOS (+ nhãn Kỳ cho Nhóm SP/GMS) thay vì list % tỉ trọng. ──
-let _thCampChart = { nhom: null, gms: null, don: null };
-
-function _thCampListRow(s, type) {
-  const d = s[type];
-  const roasColor = d.roas >= 20 ? '#196F3D' : d.roas >= 10 ? '#7D6608' : '#922B21';
-  const acosColor = d.acos > 0 && d.acos <= 5 ? '#196F3D' : d.acos <= 10 ? '#7D6608' : '#922B21';
-  let periodBadge = '';
-  if (type !== 'don' && d.period) {
-    const warn = d.period.matched === false;
-    const label = `${gcFmtDate(d.period.dateFrom)}–${gcFmtDate(d.period.dateTo)}`;
-    periodBadge = `<span style="font-size:10.5px;font-weight:600;color:${warn ? '#c0392b' : 'var(--text2)'}">${warn ? '⚠️ Lệch kỳ — ' : 'Kỳ: '}${label}</span>`;
-  } else if (type !== 'don' && !d.period) {
-    periodBadge = `<span style="font-size:10.5px;color:var(--text2)">Chưa có dữ liệu</span>`;
-  }
-  return `<div style="padding:9px 0;border-bottom:1px solid var(--gray3)">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-      <span style="font-size:14px;font-weight:600;color:var(--text1)">${s.icon} ${s.name}</span>
-      ${periodBadge}
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:12px;color:var(--text2);gap:6px">
-      <span>CP: <strong style="color:var(--text1)">${fmtMoney(d.chi)}</strong></span>
-      <span>DT: <strong style="color:var(--text1)">${fmtMoney(d.rev)}</strong></span>
-      <span style="color:${roasColor};font-weight:700">${d.roas.toFixed(2)}x</span>
-      <span style="color:${acosColor};font-weight:700">${d.acos.toFixed(2)}%</span>
-    </div>
-  </div>`;
-}
-
-function _thRenderCampaignTypeSingleChart(canvasId, rows, type, chartKey) {
-  if (_thCampChart[chartKey]) { _thCampChart[chartKey].destroy(); _thCampChart[chartKey] = null; }
-  const ctx = document.getElementById(canvasId);
-  if (!ctx) return;
+// ── 3 card "Chiến Dịch Nhóm Sản Phẩm / Tự Động GMS / Đơn" (xác nhận Tân 2026-08-11, đổi từ bản
+// biểu đồ cột trước đó): mỗi card lặp lại đúng layout đầu trang Tổng Hợp Hệ Thống — 4 KPI (Tổng
+// Doanh Thu/Tổng Chi Phí/ROAS/ACOS, cộng dồn tất cả shop cho riêng loại chiến dịch đó) + bảng So
+// Sánh Từng Shop bên dưới (Shop/Chi Phí/Doanh Thu/ROAS/ACOS/%CP, có dòng TỔNG CỘNG). Nhóm SP/GMS
+// có thêm cột Kỳ (⚠️ nếu lệch với khoảng đang lọc) để Tân tự đối chiếu độ tin cậy số liệu. ──
+function _thCampBuildTable(rows, type) {
   const withData = rows.filter(s => s[type].chi > 0 || s[type].rev > 0);
-  if (!withData.length) return;
+  const grandChi = withData.reduce((s, x) => s + x[type].chi, 0);
+  const grandRev = withData.reduce((s, x) => s + x[type].rev, 0);
+  const grandRoas = grandChi > 0 ? grandRev / grandChi : 0;
+  const grandAcos = grandRev > 0 ? grandChi / grandRev * 100 : 0;
+  const showPeriod = type !== 'don';
+
+  if (!withData.length) {
+    return { html: '<div class="th-empty">Chưa có dữ liệu</div>', grandChi, grandRev, grandRoas, grandAcos };
+  }
+
   const sorted = [...withData].sort((a, b) => b[type].chi - a[type].chi);
-  const colors = sorted.map(s => s.color || _TH_CAT_PALETTE[0]);
-  const grandChi = sorted.reduce((s, x) => s + x[type].chi, 0);
-  _thCampChart[chartKey] = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: sorted.map(s => _thWrapLabel(s.icon + ' ' + s.name)),
-      datasets: [{ data: sorted.map(s => s[type].chi), backgroundColor: colors, borderRadius: 6 }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      layout: { padding: { top: 24 } },
-      plugins: {
-        legend: { display: false },
-        datalabels: {
-          anchor: 'end', align: 'top', color: '#333', font: { size: 12, weight: '700' },
-          formatter: (value) => _thCompactMoney(value)
-        },
-        tooltip: { callbacks: { label: c => `${fmtMoney(c.parsed.y)}${grandChi > 0 ? ' (' + (c.parsed.y / grandChi * 100).toFixed(1) + '%)' : ''}` } }
-      },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 12 } } },
-        y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 12 }, callback: v => _thCompactMoney(v) } }
+  let html = `<table class="th-shop-table">
+    <thead><tr>
+      <th>Shop</th>
+      <th>Chi Phí</th>
+      <th>Doanh Thu</th>
+      <th>ROAS</th>
+      <th>ACOS</th>
+      <th>%CP</th>
+      ${showPeriod ? '<th>Kỳ</th>' : ''}
+    </tr></thead><tbody>`;
+  sorted.forEach(s => {
+    const d = s[type];
+    const pctCost = grandChi > 0 ? (d.chi / grandChi * 100).toFixed(2) : '0';
+    const roasColor = d.roas >= 20 ? '#196F3D' : d.roas >= 10 ? '#7D6608' : '#922B21';
+    const acosColor = d.acos > 0 && d.acos <= 5 ? '#196F3D' : d.acos <= 10 ? '#7D6608' : '#922B21';
+    let periodCell = '';
+    if (showPeriod) {
+      if (d.period) {
+        const warn = d.period.matched === false;
+        const label = `${gcFmtDate(d.period.dateFrom)}–${gcFmtDate(d.period.dateTo)}`;
+        periodCell = `<td style="text-align:left;white-space:nowrap;font-size:12px;color:${warn ? '#c0392b' : 'var(--text2)'};font-weight:${warn ? '700' : '400'}">${warn ? '⚠️ ' : ''}${label}</td>`;
+      } else {
+        periodCell = `<td style="text-align:left;white-space:nowrap;font-size:12px;color:var(--text2)">—</td>`;
       }
     }
+    html += `<tr>
+      <td>${s.icon} ${s.name}</td>
+      <td>${fmtMoney(d.chi)}</td>
+      <td>${fmtMoney(d.rev)}</td>
+      <td style="color:${roasColor};font-weight:700">${d.roas.toFixed(2)}x</td>
+      <td style="color:${acosColor};font-weight:700">${d.acos.toFixed(2)}%</td>
+      <td>${pctCost}%</td>
+      ${periodCell}
+    </tr>`;
   });
+  html += `<tr>
+    <td>📊 TỔNG CỘNG</td>
+    <td>${fmtMoney(grandChi)}</td>
+    <td>${fmtMoney(grandRev)}</td>
+    <td style="font-weight:700">${grandRoas.toFixed(2)}x</td>
+    <td style="font-weight:700">${grandAcos.toFixed(2)}%</td>
+    <td>100%</td>
+    ${showPeriod ? '<td></td>' : ''}
+  </tr></tbody></table>`;
+
+  return { html, grandChi, grandRev, grandRoas, grandAcos };
+}
+
+function _thCampRenderCard(type, rows) {
+  const { html, grandChi, grandRev, grandRoas, grandAcos } = _thCampBuildTable(rows, type);
+  const wrap = document.getElementById(`th-camp-${type}-table-wrap`);
+  if (wrap) wrap.innerHTML = html;
+  const revEl  = document.getElementById(`th-camp-${type}-rev`);
+  const costEl = document.getElementById(`th-camp-${type}-cost`);
+  const roasEl = document.getElementById(`th-camp-${type}-roas`);
+  const acosEl = document.getElementById(`th-camp-${type}-acos`);
+  if (revEl)  revEl.textContent  = fmtMoney(grandRev);
+  if (costEl) costEl.textContent = fmtMoney(grandChi);
+  if (roasEl) roasEl.textContent = grandRoas.toFixed(2) + 'x';
+  if (acosEl) acosEl.textContent = grandAcos.toFixed(2) + '%';
 }
 
 async function renderTHCampaignTypeSection() {
-  const listIds = ['th-camp-nhom-list', 'th-camp-gms-list', 'th-camp-don-list'];
-  listIds.forEach(id => {
+  const wrapIds = ['th-camp-nhom-table-wrap', 'th-camp-gms-table-wrap', 'th-camp-don-table-wrap'];
+  wrapIds.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = '<div class="th-empty">⏳ Đang tải dữ liệu Nhóm SP/GMS từ Drive...</div>';
   });
@@ -16991,22 +17054,22 @@ async function renderTHCampaignTypeSection() {
   const rows = await _thComputeCampaignTypeBreakdown();
 
   if (!rows.length) {
-    listIds.forEach(id => {
+    wrapIds.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.innerHTML = '<div class="th-empty">Chưa có dữ liệu</div>';
     });
-    Object.keys(_thCampChart).forEach(k => { if (_thCampChart[k]) { _thCampChart[k].destroy(); _thCampChart[k] = null; } });
+    ['nhom', 'gms', 'don'].forEach(type => {
+      ['rev', 'cost', 'roas', 'acos'].forEach(k => {
+        const el = document.getElementById(`th-camp-${type}-${k}`);
+        if (el) el.textContent = '–';
+      });
+    });
     return;
   }
 
-  const sorted = [...rows].sort((a, b) => b.tong.chi_phi - a.tong.chi_phi);
-  document.getElementById('th-camp-nhom-list').innerHTML = sorted.map(s => _thCampListRow(s, 'nhom')).join('');
-  document.getElementById('th-camp-gms-list').innerHTML  = sorted.map(s => _thCampListRow(s, 'gms')).join('');
-  document.getElementById('th-camp-don-list').innerHTML  = sorted.map(s => _thCampListRow(s, 'don')).join('');
-
-  _thRenderCampaignTypeSingleChart('th-chart-camp-nhom', rows, 'nhom', 'nhom');
-  _thRenderCampaignTypeSingleChart('th-chart-camp-gms',  rows, 'gms',  'gms');
-  _thRenderCampaignTypeSingleChart('th-chart-camp-don',  rows, 'don',  'don');
+  _thCampRenderCard('nhom', rows);
+  _thCampRenderCard('gms',  rows);
+  _thCampRenderCard('don',  rows);
 }
 
 // ── ACOS Tổng Shop (per shop, dùng trong page-overview) ──
