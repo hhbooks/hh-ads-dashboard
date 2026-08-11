@@ -1608,6 +1608,51 @@
       </div>
     </div>
 
+    <!-- So Sánh Các Loại Chiến Dịch — tổng hợp CẢ 6 SHOP cho từng loại (Nhóm SP/GMS/Đơn) rồi so
+         3 loại với nhau, nằm giữa "Tổng Quan Toàn Hệ Thống" và 3 card chi tiết từng loại theo
+         shop bên dưới (xác nhận Tân 2026-08-11). Cùng cấu trúc 4 phần: KPI tổng, bảng So Sánh
+         Từng Loại Chiến Dịch, Tỉ Trọng Doanh Thu, Tỉ Trọng Chi Phí — tái dùng dữ liệu đã tính ở
+         _thComputeCampaignTypeBreakdown() và hàm biểu đồ chung _thRenderGenericShareChart, không
+         gọi lại Drive/API. -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-title"><span class="dot" style="background:#8E44AD"></span> So Sánh Các Loại Chiến Dịch</div>
+      <div class="kpi-grid" style="margin-top:8px;margin-bottom:0">
+        <div class="kpi-card">
+          <div class="kpi-label">💰 Tổng Doanh Thu</div>
+          <div class="kpi-value" id="th-camptype-rev">–</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">💸 Tổng Chi Phí</div>
+          <div class="kpi-value" id="th-camptype-cost">–</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">📈 ROAS</div>
+          <div class="kpi-value" id="th-camptype-roas">–</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">🎯 ACOS</div>
+          <div class="kpi-value" id="th-camptype-acos">–</div>
+        </div>
+      </div>
+
+      <div class="card-title" style="margin-top:24px"><span class="dot"></span> So Sánh Từng Loại Chiến Dịch</div>
+      <div id="th-camptype-table-wrap" class="th-shop-table-lg">
+        <div class="th-empty">Chưa có dữ liệu</div>
+      </div>
+
+      <div class="card-title" style="margin-top:24px"><span class="dot" style="background:#16A085"></span> Tỉ Trọng Doanh Thu</div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center">
+        <div style="height:300px;position:relative"><canvas id="th-camptype-chart-rev"></canvas></div>
+        <div id="th-camptype-revshare-list"><div class="th-empty">Chưa có dữ liệu</div></div>
+      </div>
+
+      <div class="card-title" style="margin-top:24px"><span class="dot" style="background:#E67E22"></span> Tỉ Trọng Chi Phí</div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center">
+        <div style="height:300px;position:relative"><canvas id="th-camptype-chart-cost"></canvas></div>
+        <div id="th-camptype-costshare-list"><div class="th-empty">Chưa có dữ liệu</div></div>
+      </div>
+    </div>
+
     <!-- Phân Tích Theo Loại Chiến Dịch: Nhóm SP / GMS / Đơn — Đơn = Tổng Quan trừ Nhóm SP trừ
          GMS, cùng khoảng ngày Bộ Lọc Kỳ Xem (xác nhận Tân 2026-08-11). Nhóm SP & GMS lấy theo
          FILE Tân tải thủ công từ Shopee (mỗi file = 1 kỳ cố định, không chia theo ngày được) —
@@ -17133,8 +17178,88 @@ function _thCampRenderCard(type, rows) {
   _thRenderGenericShareChart(`th-camp-${type}-chart-cost`, `th-camp-${type}-costshare-list`, costItems, grandChi);
 }
 
+// ── Card "So Sánh Các Loại Chiến Dịch" — tổng hợp CẢ 6 shop cho từng loại rồi so 3 loại với
+// nhau (xác nhận Tân 2026-08-11). Dùng lại đúng dữ liệu rows từ _thComputeCampaignTypeBreakdown,
+// KHÔNG gọi lại Drive/API. Icon/màu khớp đúng dot màu của 3 card chi tiết bên dưới để dễ đối
+// chiếu: Nhóm SP = 🧩 #2980B9, GMS = ⚡ #F39C12, Đơn = 📦 #27AE60. ──
+const _TH_CAMPTYPE_META = {
+  nhom: { label: 'Chiến Dịch Nhóm Sản Phẩm', icon: '🧩', color: '#2980B9' },
+  gms:  { label: 'Chiến Dịch Tự Động GMS',   icon: '⚡', color: '#F39C12' },
+  don:  { label: 'Chiến Dịch Đơn',           icon: '📦', color: '#27AE60' },
+};
+
+function _thComputeCampaignTypeAgg(rows) {
+  const agg = {};
+  ['nhom', 'gms', 'don'].forEach(type => {
+    const chi = rows.reduce((s, r) => s + (r[type].chi || 0), 0);
+    const rev = rows.reduce((s, r) => s + (r[type].rev || 0), 0);
+    agg[type] = { chi, rev, roas: chi > 0 ? rev / chi : 0, acos: rev > 0 ? chi / rev * 100 : 0 };
+  });
+  return agg;
+}
+
+function _thRenderCampaignTypeCompareCard(rows) {
+  const agg = _thComputeCampaignTypeAgg(rows);
+  const types = ['nhom', 'gms', 'don'];
+  const grandChi = types.reduce((s, t) => s + agg[t].chi, 0);
+  const grandRev = types.reduce((s, t) => s + agg[t].rev, 0);
+  const grandRoas = grandChi > 0 ? grandRev / grandChi : 0;
+  const grandAcos = grandRev > 0 ? grandChi / grandRev * 100 : 0;
+
+  const revEl  = document.getElementById('th-camptype-rev');
+  const costEl = document.getElementById('th-camptype-cost');
+  const roasEl = document.getElementById('th-camptype-roas');
+  const acosEl = document.getElementById('th-camptype-acos');
+  if (revEl)  revEl.textContent  = fmtMoney(grandRev);
+  if (costEl) costEl.textContent = fmtMoney(grandChi);
+  if (roasEl) roasEl.textContent = grandRoas.toFixed(2) + 'x';
+  if (acosEl) acosEl.textContent = grandAcos.toFixed(2) + '%';
+
+  const wrap = document.getElementById('th-camptype-table-wrap');
+  if (wrap) {
+    const sorted = [...types].sort((a, b) => agg[b].chi - agg[a].chi);
+    let html = `<table class="th-shop-table">
+      <thead><tr>
+        <th>Loại Chiến Dịch</th>
+        <th>Chi Phí</th>
+        <th>Doanh Thu</th>
+        <th>ROAS</th>
+        <th>ACOS</th>
+        <th>%CP</th>
+      </tr></thead><tbody>`;
+    sorted.forEach(type => {
+      const d = agg[type], meta = _TH_CAMPTYPE_META[type];
+      const pctCost = grandChi > 0 ? (d.chi / grandChi * 100).toFixed(2) : '0';
+      const roasColor = d.roas >= 20 ? '#196F3D' : d.roas >= 10 ? '#7D6608' : '#922B21';
+      const acosColor = d.acos > 0 && d.acos <= 5 ? '#196F3D' : d.acos <= 10 ? '#7D6608' : '#922B21';
+      html += `<tr>
+        <td>${meta.icon} ${meta.label}</td>
+        <td>${fmtMoney(d.chi)}</td>
+        <td>${fmtMoney(d.rev)}</td>
+        <td style="color:${roasColor};font-weight:700">${d.roas.toFixed(2)}x</td>
+        <td style="color:${acosColor};font-weight:700">${d.acos.toFixed(2)}%</td>
+        <td>${pctCost}%</td>
+      </tr>`;
+    });
+    html += `<tr>
+      <td>📊 TỔNG CỘNG</td>
+      <td>${fmtMoney(grandChi)}</td>
+      <td>${fmtMoney(grandRev)}</td>
+      <td style="font-weight:700">${grandRoas.toFixed(2)}x</td>
+      <td style="font-weight:700">${grandAcos.toFixed(2)}%</td>
+      <td>100%</td>
+    </tr></tbody></table>`;
+    wrap.innerHTML = html;
+  }
+
+  const revItems  = types.map(t => ({ name: _TH_CAMPTYPE_META[t].label, icon: _TH_CAMPTYPE_META[t].icon, color: _TH_CAMPTYPE_META[t].color, value: agg[t].rev }));
+  const costItems = types.map(t => ({ name: _TH_CAMPTYPE_META[t].label, icon: _TH_CAMPTYPE_META[t].icon, color: _TH_CAMPTYPE_META[t].color, value: agg[t].chi }));
+  _thRenderGenericShareChart('th-camptype-chart-rev',  'th-camptype-revshare-list',  revItems,  grandRev);
+  _thRenderGenericShareChart('th-camptype-chart-cost', 'th-camptype-costshare-list', costItems, grandChi);
+}
+
 async function renderTHCampaignTypeSection() {
-  const wrapIds = ['th-camp-nhom-table-wrap', 'th-camp-gms-table-wrap', 'th-camp-don-table-wrap'];
+  const wrapIds = ['th-camptype-table-wrap', 'th-camp-nhom-table-wrap', 'th-camp-gms-table-wrap', 'th-camp-don-table-wrap'];
   wrapIds.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = '<div class="th-empty">⏳ Đang tải dữ liệu Nhóm SP/GMS từ Drive...</div>';
@@ -17147,23 +17272,26 @@ async function renderTHCampaignTypeSection() {
       const el = document.getElementById(id);
       if (el) el.innerHTML = '<div class="th-empty">Chưa có dữ liệu</div>';
     });
-    ['nhom', 'gms', 'don'].forEach(type => {
+    ['camptype', 'camp-nhom', 'camp-gms', 'camp-don'].forEach(prefix => {
       ['rev', 'cost', 'roas', 'acos'].forEach(k => {
-        const el = document.getElementById(`th-camp-${type}-${k}`);
+        const el = document.getElementById(`th-${prefix}-${k}`);
         if (el) el.textContent = '–';
       });
+    });
+    ['camptype', 'camp-nhom', 'camp-gms', 'camp-don'].forEach(prefix => {
       ['revshare-list', 'costshare-list'].forEach(suffix => {
-        const el = document.getElementById(`th-camp-${type}-${suffix}`);
+        const el = document.getElementById(`th-${prefix}-${suffix}`);
         if (el) el.innerHTML = '<div class="th-empty">Chưa có dữ liệu</div>';
       });
       ['chart-rev', 'chart-cost'].forEach(suffix => {
-        const canvasId = `th-camp-${type}-${suffix}`;
+        const canvasId = `th-${prefix}-${suffix}`;
         if (_thCampShareCharts[canvasId]) { _thCampShareCharts[canvasId].destroy(); _thCampShareCharts[canvasId] = null; }
       });
     });
     return;
   }
 
+  _thRenderCampaignTypeCompareCard(rows);
   _thCampRenderCard('nhom', rows);
   _thCampRenderCard('gms',  rows);
   _thCampRenderCard('don',  rows);
