@@ -1614,6 +1614,42 @@
       </div>
     </div>
 
+    <!-- Phân Tích Theo Loại Chiến Dịch: Nhóm SP / GMS / Đơn — Đơn = Tổng Quan trừ Nhóm SP trừ
+         GMS, cùng khoảng ngày Bộ Lọc Kỳ Xem (xác nhận Tân 2026-08-11). Nhóm SP & GMS lấy theo
+         FILE Tân tải thủ công từ Shopee (mỗi file = 1 kỳ cố định, không chia theo ngày được) —
+         ưu tiên kỳ khớp/giao với khoảng đang lọc, không khớp thì dùng kỳ gần nhất đã cập nhật
+         (nhãn ⚠️ + khoảng ngày thực tế hiển thị ngay trong bảng để Tân tự đối chiếu). -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-title"><span class="dot" style="background:#2980B9"></span> Chiến Dịch Nhóm Sản Phẩm — Theo Shop</div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center;margin-top:8px">
+        <div style="height:336px;position:relative">
+          <canvas id="th-chart-camp-nhom"></canvas>
+        </div>
+        <div id="th-camp-nhom-list"><div class="th-empty">Chưa có dữ liệu</div></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-title"><span class="dot" style="background:#F39C12"></span> Chiến Dịch Tự Động GMS — Theo Shop</div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center;margin-top:8px">
+        <div style="height:336px;position:relative">
+          <canvas id="th-chart-camp-gms"></canvas>
+        </div>
+        <div id="th-camp-gms-list"><div class="th-empty">Chưa có dữ liệu</div></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-title"><span class="dot" style="background:#27AE60"></span> Chiến Dịch Đơn — Theo Shop</div>
+      <div style="font-size:11.5px;color:var(--text2);margin-top:2px">= Tổng Quan − Chiến Dịch Nhóm Sản Phẩm − Chiến Dịch Tự Động GMS</div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center;margin-top:8px">
+        <div style="height:336px;position:relative">
+          <canvas id="th-chart-camp-don"></canvas>
+        </div>
+        <div id="th-camp-don-list"><div class="th-empty">Chưa có dữ liệu</div></div>
+      </div>
+    </div>
+
     <!-- Chi Tiết Nhóm (đổi tên từ "Phân Tích ROAS Theo Nhóm Hàng", ẩn dòng nguồn Ngành hàng —
          xác nhận Tân 2026-08-10) -->
     <div class="card" style="margin-top:16px">
@@ -16042,6 +16078,109 @@ function _thGetShopTotals(shopId) {
   };
 }
 
+// ══════════════════════════════════════════════════════════════
+// PHÂN TÍCH THEO LOẠI CHIẾN DỊCH — Nhóm SP / GMS / Đơn (xác nhận Tân 2026-08-11)
+// Chiến dịch Đơn = Tổng Quan − Nhóm SP − GMS (cùng khoảng ngày Bộ Lọc Kỳ Xem _thFilterFrom/To).
+// Nhóm SP & GMS đọc theo FILE Tân tải thủ công từ Shopee Seller Centre (mỗi file = 1 kỳ cố định,
+// KHÔNG có breakdown theo từng ngày để cắt đúng khoảng đang lọc) — khác hẳn Tổng Quan vốn có dữ
+// liệu theo từng ngày. Vì vậy: ưu tiên chọn kỳ giao/khớp với _thFilterFrom/_thFilterTo, không có
+// kỳ nào khớp thì dùng kỳ gần nhất đã cập nhật (_thPickPeriod trả matched:false để UI cảnh báo).
+// ══════════════════════════════════════════════════════════════
+let _thGmsAllData = [];   // TẤT CẢ 6 shop (không giới hạn 2 shop như trang "Chiến Dịch Tự Động
+                          // GMS" gốc — trang đó hard-code KNOWN_GMS_SHOPS chỉ 2hbooks/huyhoanh,
+                          // ở đây đọc thẳng từ Drive + resolve qua SAPI_SHOP_MAP để không phụ
+                          // thuộc giới hạn UI của trang GMS, sẵn sàng khi 4 shop còn lại bắt đầu
+                          // chạy GMS trong tương lai — Tân xác nhận "sắp tới sẽ chạy" 2026-08-11).
+let _thGmsLoaded  = false;
+
+async function _thLoadGmsAllShops() {
+  if (_thGmsLoaded) return;
+  try {
+    const listResp = await sapiCall('list_gms_drive_files', {});
+    const allFiles = (listResp.files || []).filter(f => f.name && f.name.toLowerCase().endsWith('.csv'));
+    const byKey = new Map();
+    for (const file of allFiles) {
+      const contentResp = await sapiCall('read_gms_drive_file', { file_id: file.id });
+      const csvText = contentResp.content || '';
+      const { shopSellerId, dateFrom, dateTo, items } = parseShopeeGmsCsvText(csvText);
+      if (!dateFrom || !dateTo || !shopSellerId) continue;
+      const key = `${shopSellerId}_${dateFrom}_${dateTo}`;
+      let cost = 0, rev = 0;
+      items.forEach(p => { cost += (p.expense || 0); rev += (p.broad_gmv || 0); });
+      byKey.set(key, { dateFrom, dateTo, shopApiId: Number(shopSellerId), cost, rev }); // trùng kỳ → giữ bản đọc sau cùng
+    }
+    _thGmsAllData = [...byKey.values()];
+  } catch (e) {
+    console.warn('[_thLoadGmsAllShops]', e.message);
+  }
+  _thGmsLoaded = true;
+}
+
+// Chọn 1 kỳ phù hợp nhất trong các kỳ đã có của 1 shop — ưu tiên kỳ trùng/giao với khoảng đang
+// lọc ở Bộ Lọc Kỳ Xem, không có thì lấy kỳ gần nhất (dateTo mới nhất). matched: true = khớp/giao
+// đúng khoảng đang lọc, false = lệch (dùng kỳ gần nhất thay thế, cần cảnh báo), null = đang xem
+// "Tất cả" nên không có khung để so khớp — dùng kỳ mới nhất theo mặc định, không phải cảnh báo.
+function _thPickPeriod(periods) {
+  if (!periods.length) return null;
+  const sorted = [...periods].sort((a, b) => String(b.dateTo || '').localeCompare(String(a.dateTo || '')));
+  if (_thFilterFrom || _thFilterTo) {
+    const overlap = sorted.filter(p => {
+      if (!p.dateFrom || !p.dateTo) return false;
+      if (_thFilterTo   && p.dateFrom > _thFilterTo)   return false;
+      if (_thFilterFrom && p.dateTo   < _thFilterFrom) return false;
+      return true;
+    });
+    if (overlap.length) {
+      const exact = overlap.find(p => p.dateFrom === _thFilterFrom && p.dateTo === _thFilterTo);
+      return { ...(exact || overlap[0]), matched: true };
+    }
+    return { ...sorted[0], matched: false };
+  }
+  return { ...sorted[0], matched: null };
+}
+
+async function _thComputeCampaignTypeBreakdown() {
+  await Promise.all([
+    _groupCampData.length ? Promise.resolve() : groupCampSyncFromDrive(),
+    _thLoadGmsAllShops(),
+  ]);
+
+  const out = [];
+  Object.keys(SHOPS).forEach(shopId => {
+    const apiId = SAPI_SHOP_MAP_INV[shopId];
+    const tong = _thGetShopTotals(shopId);
+    if (!tong) return; // Không có dữ liệu Tổng Quan trong kỳ đang lọc → không tính được Đơn, bỏ qua shop
+
+    const nhomPeriods = _groupCampData.filter(d => d.shopApiId === apiId).map(d => ({
+      dateFrom: d.dateFrom, dateTo: d.dateTo,
+      chi: d.groups.reduce((s, g) => s + (g.cost || 0), 0),
+      rev: d.groups.reduce((s, g) => s + (g.revenue || 0), 0),
+    }));
+    const nhomPick = _thPickPeriod(nhomPeriods);
+
+    const gmsPeriods = _thGmsAllData.filter(d => d.shopApiId === apiId).map(d => ({
+      dateFrom: d.dateFrom, dateTo: d.dateTo, chi: d.cost, rev: d.rev,
+    }));
+    const gmsPick = _thPickPeriod(gmsPeriods);
+
+    const nhomChi = nhomPick ? nhomPick.chi : 0, nhomRev = nhomPick ? nhomPick.rev : 0;
+    const gmsChi  = gmsPick  ? gmsPick.chi  : 0, gmsRev  = gmsPick  ? gmsPick.rev  : 0;
+    // Không âm — chênh lệch âm chỉ có thể do Nhóm SP/GMS đang lấy nhầm kỳ có chi phí cao hơn cả
+    // kỳ Tổng Quan đang lọc (lệch ngày), kẹp về 0 để tránh hiện số âm gây hiểu lầm.
+    const donChi = Math.max(0, tong.chi_phi - nhomChi - gmsChi);
+    const donRev = Math.max(0, tong.doanh_so - nhomRev - gmsRev);
+
+    out.push({
+      shopId, name: SHOPS[shopId].name, icon: SHOPS[shopId].icon, color: SHOPS[shopId].color,
+      tong,
+      nhom: { chi: nhomChi, rev: nhomRev, roas: nhomChi > 0 ? nhomRev / nhomChi : 0, acos: nhomRev > 0 ? nhomChi / nhomRev * 100 : 0, period: nhomPick },
+      gms:  { chi: gmsChi,  rev: gmsRev,  roas: gmsChi  > 0 ? gmsRev  / gmsChi  : 0, acos: gmsRev  > 0 ? gmsChi  / gmsRev  * 100 : 0, period: gmsPick },
+      don:  { chi: donChi,  rev: donRev,  roas: donChi  > 0 ? donRev  / donChi  : 0, acos: donRev  > 0 ? donChi  / donRev  * 100 : 0 },
+    });
+  });
+  return out;
+}
+
 function _thGetAllProducts() {
   const all = [];
   Object.keys(SHOPS).forEach(shopId => {
@@ -16643,6 +16782,8 @@ function _thRenderContent() {
 
   // Phân tích nhóm hàng
   renderTHCategorySection();
+  // Phân tích theo Loại Chiến Dịch (Nhóm SP / GMS / Đơn) — async, không chặn phần render còn lại
+  renderTHCampaignTypeSection();
 }
 
 // Bẻ dòng nhãn trục biểu đồ cột theo từ, mỗi dòng tối đa ~maxLen ký tự — dùng cho tên shop dài
@@ -16773,6 +16914,99 @@ function _thRenderCostShareChart(shopTotals, grandChi) {
       <span style="font-size:14px;color:var(--text2);min-width:112px;text-align:right">${fmtMoney(s.chi_phi)}</span>
     </div>`;
   }).join('');
+}
+
+// ── 3 card "Chiến Dịch Nhóm Sản Phẩm / Tự Động GMS / Đơn — Theo Shop" (xác nhận Tân 2026-08-11)
+// Cùng phong cách biểu đồ cột với Tỉ Trọng Doanh Thu/Chi Phí ở trên, chỉ khác panel bên phải là
+// bảng Chi Phí/Doanh Thu/ROAS/ACOS (+ nhãn Kỳ cho Nhóm SP/GMS) thay vì list % tỉ trọng. ──
+let _thCampChart = { nhom: null, gms: null, don: null };
+
+function _thCampListRow(s, type) {
+  const d = s[type];
+  const roasColor = d.roas >= 20 ? '#196F3D' : d.roas >= 10 ? '#7D6608' : '#922B21';
+  const acosColor = d.acos > 0 && d.acos <= 5 ? '#196F3D' : d.acos <= 10 ? '#7D6608' : '#922B21';
+  let periodBadge = '';
+  if (type !== 'don' && d.period) {
+    const warn = d.period.matched === false;
+    const label = `${gcFmtDate(d.period.dateFrom)}–${gcFmtDate(d.period.dateTo)}`;
+    periodBadge = `<span style="font-size:10.5px;font-weight:600;color:${warn ? '#c0392b' : 'var(--text2)'}">${warn ? '⚠️ Lệch kỳ — ' : 'Kỳ: '}${label}</span>`;
+  } else if (type !== 'don' && !d.period) {
+    periodBadge = `<span style="font-size:10.5px;color:var(--text2)">Chưa có dữ liệu</span>`;
+  }
+  return `<div style="padding:9px 0;border-bottom:1px solid var(--gray3)">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <span style="font-size:14px;font-weight:600;color:var(--text1)">${s.icon} ${s.name}</span>
+      ${periodBadge}
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:12px;color:var(--text2);gap:6px">
+      <span>CP: <strong style="color:var(--text1)">${fmtMoney(d.chi)}</strong></span>
+      <span>DT: <strong style="color:var(--text1)">${fmtMoney(d.rev)}</strong></span>
+      <span style="color:${roasColor};font-weight:700">${d.roas.toFixed(2)}x</span>
+      <span style="color:${acosColor};font-weight:700">${d.acos.toFixed(2)}%</span>
+    </div>
+  </div>`;
+}
+
+function _thRenderCampaignTypeSingleChart(canvasId, rows, type, chartKey) {
+  if (_thCampChart[chartKey]) { _thCampChart[chartKey].destroy(); _thCampChart[chartKey] = null; }
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  const withData = rows.filter(s => s[type].chi > 0 || s[type].rev > 0);
+  if (!withData.length) return;
+  const sorted = [...withData].sort((a, b) => b[type].chi - a[type].chi);
+  const colors = sorted.map(s => s.color || _TH_CAT_PALETTE[0]);
+  const grandChi = sorted.reduce((s, x) => s + x[type].chi, 0);
+  _thCampChart[chartKey] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: sorted.map(s => _thWrapLabel(s.icon + ' ' + s.name)),
+      datasets: [{ data: sorted.map(s => s[type].chi), backgroundColor: colors, borderRadius: 6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 24 } },
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          anchor: 'end', align: 'top', color: '#333', font: { size: 12, weight: '700' },
+          formatter: (value) => _thCompactMoney(value)
+        },
+        tooltip: { callbacks: { label: c => `${fmtMoney(c.parsed.y)}${grandChi > 0 ? ' (' + (c.parsed.y / grandChi * 100).toFixed(1) + '%)' : ''}` } }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 12 } } },
+        y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 12 }, callback: v => _thCompactMoney(v) } }
+      }
+    }
+  });
+}
+
+async function renderTHCampaignTypeSection() {
+  const listIds = ['th-camp-nhom-list', 'th-camp-gms-list', 'th-camp-don-list'];
+  listIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<div class="th-empty">⏳ Đang tải dữ liệu Nhóm SP/GMS từ Drive...</div>';
+  });
+
+  const rows = await _thComputeCampaignTypeBreakdown();
+
+  if (!rows.length) {
+    listIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '<div class="th-empty">Chưa có dữ liệu</div>';
+    });
+    Object.keys(_thCampChart).forEach(k => { if (_thCampChart[k]) { _thCampChart[k].destroy(); _thCampChart[k] = null; } });
+    return;
+  }
+
+  const sorted = [...rows].sort((a, b) => b.tong.chi_phi - a.tong.chi_phi);
+  document.getElementById('th-camp-nhom-list').innerHTML = sorted.map(s => _thCampListRow(s, 'nhom')).join('');
+  document.getElementById('th-camp-gms-list').innerHTML  = sorted.map(s => _thCampListRow(s, 'gms')).join('');
+  document.getElementById('th-camp-don-list').innerHTML  = sorted.map(s => _thCampListRow(s, 'don')).join('');
+
+  _thRenderCampaignTypeSingleChart('th-chart-camp-nhom', rows, 'nhom', 'nhom');
+  _thRenderCampaignTypeSingleChart('th-chart-camp-gms',  rows, 'gms',  'gms');
+  _thRenderCampaignTypeSingleChart('th-chart-camp-don',  rows, 'don',  'don');
 }
 
 // ── ACOS Tổng Shop (per shop, dùng trong page-overview) ──
