@@ -1558,55 +1558,49 @@
         </div>
       </div>
     </div>
-    <!-- KPI tổng -->
-    <div class="kpi-grid">
-      <div class="kpi-card">
-        <div class="kpi-label">💰 Tổng Doanh Thu ADS</div>
-        <div class="kpi-value" id="th-rev">–</div>
-        <div class="kpi-sub" id="th-rev-sub"></div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">💸 Tổng Chi Phí ADS</div>
-        <div class="kpi-value" id="th-cost">–</div>
-        <div class="kpi-sub" id="th-cost-sub"></div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">📈 ROAS</div>
-        <div class="kpi-value" id="th-roas">–</div>
-        <div class="kpi-sub" id="th-roas-sub"></div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">🎯 ACOS</div>
-        <div class="kpi-value" id="th-acos">–</div>
-        <div class="kpi-sub" id="th-acos-sub"></div>
-      </div>
-    </div>
-
-    <!-- So sánh shop — đứng riêng, full bề ngang (xác nhận Tân 2026-08-10) -->
+    <!-- Tổng Quan Toàn Hệ Thống — gộp 4 phần (KPI/So Sánh Từng Shop/Tỉ Trọng Doanh Thu/Tỉ Trọng
+         Chi Phí) vào 1 card duy nhất, không còn viền/bóng ngăn cách giữa từng phần con — chỉ
+         cách nhau bằng tiêu đề phụ (xác nhận Tân 2026-08-11, đổi từ 4 card riêng trước đó). -->
     <div class="card" style="margin-top:16px">
-      <div class="card-title"><span class="dot"></span> So Sánh Từng Shop</div>
+      <div class="card-title"><span class="dot"></span> Tổng Quan Toàn Hệ Thống</div>
+      <div class="kpi-grid" style="margin-bottom:0">
+        <div class="kpi-card">
+          <div class="kpi-label">💰 Tổng Doanh Thu ADS</div>
+          <div class="kpi-value" id="th-rev">–</div>
+          <div class="kpi-sub" id="th-rev-sub"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">💸 Tổng Chi Phí ADS</div>
+          <div class="kpi-value" id="th-cost">–</div>
+          <div class="kpi-sub" id="th-cost-sub"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">📈 ROAS</div>
+          <div class="kpi-value" id="th-roas">–</div>
+          <div class="kpi-sub" id="th-roas-sub"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">🎯 ACOS</div>
+          <div class="kpi-value" id="th-acos">–</div>
+          <div class="kpi-sub" id="th-acos-sub"></div>
+        </div>
+      </div>
+
+      <div class="card-title" style="margin-top:24px"><span class="dot"></span> So Sánh Từng Shop</div>
       <div id="th-shop-table-wrap" class="th-shop-table-lg">
         <div class="th-empty">Chưa có dữ liệu — hãy đồng bộ Drive cho từng shop</div>
       </div>
-    </div>
 
-    <!-- Tỉ Trọng Doanh Thu — đứng riêng full bề ngang, biểu đồ cột đứng thay doughnut, bỏ hẳn
-         card "ROAS Theo Shop" (xác nhận Tân 2026-08-10) -->
-    <div class="card" style="margin-top:16px">
-      <div class="card-title"><span class="dot" style="background:#16A085"></span> Tỉ Trọng Doanh Thu</div>
-      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center;margin-top:8px">
+      <div class="card-title" style="margin-top:24px"><span class="dot" style="background:#16A085"></span> Tỉ Trọng Doanh Thu</div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center">
         <div style="height:336px;position:relative">
           <canvas id="th-chart-revshare"></canvas>
         </div>
         <div id="th-revshare-list"><div class="th-empty">Chưa có dữ liệu</div></div>
       </div>
-    </div>
 
-    <!-- Tỉ Trọng Chi Phí — làm y hệt card Tỉ Trọng Doanh Thu, chỉ đổi dữ liệu Chi Phí thay Doanh
-         Thu (xác nhận Tân 2026-08-10) -->
-    <div class="card" style="margin-top:16px">
-      <div class="card-title"><span class="dot" style="background:#E67E22"></span> Tỉ Trọng Chi Phí</div>
-      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center;margin-top:8px">
+      <div class="card-title" style="margin-top:24px"><span class="dot" style="background:#E67E22"></span> Tỉ Trọng Chi Phí</div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center">
         <div style="height:336px;position:relative">
           <canvas id="th-chart-costshare"></canvas>
         </div>
@@ -1645,6 +1639,18 @@
       <div id="th-camp-nhom-table-wrap" class="th-shop-table-lg" style="margin-top:16px">
         <div class="th-empty">Chưa có dữ liệu</div>
       </div>
+
+      <div class="card-title" style="margin-top:24px"><span class="dot" style="background:#16A085"></span> Tỉ Trọng Doanh Thu</div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center">
+        <div style="height:300px;position:relative"><canvas id="th-camp-nhom-chart-rev"></canvas></div>
+        <div id="th-camp-nhom-revshare-list"><div class="th-empty">Chưa có dữ liệu</div></div>
+      </div>
+
+      <div class="card-title" style="margin-top:24px"><span class="dot" style="background:#E67E22"></span> Tỉ Trọng Chi Phí</div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center">
+        <div style="height:300px;position:relative"><canvas id="th-camp-nhom-chart-cost"></canvas></div>
+        <div id="th-camp-nhom-costshare-list"><div class="th-empty">Chưa có dữ liệu</div></div>
+      </div>
     </div>
 
     <div class="card" style="margin-top:16px">
@@ -1669,6 +1675,18 @@
       </div>
       <div id="th-camp-gms-table-wrap" class="th-shop-table-lg" style="margin-top:16px">
         <div class="th-empty">Chưa có dữ liệu</div>
+      </div>
+
+      <div class="card-title" style="margin-top:24px"><span class="dot" style="background:#16A085"></span> Tỉ Trọng Doanh Thu</div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center">
+        <div style="height:300px;position:relative"><canvas id="th-camp-gms-chart-rev"></canvas></div>
+        <div id="th-camp-gms-revshare-list"><div class="th-empty">Chưa có dữ liệu</div></div>
+      </div>
+
+      <div class="card-title" style="margin-top:24px"><span class="dot" style="background:#E67E22"></span> Tỉ Trọng Chi Phí</div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center">
+        <div style="height:300px;position:relative"><canvas id="th-camp-gms-chart-cost"></canvas></div>
+        <div id="th-camp-gms-costshare-list"><div class="th-empty">Chưa có dữ liệu</div></div>
       </div>
     </div>
 
@@ -1695,6 +1713,18 @@
       </div>
       <div id="th-camp-don-table-wrap" class="th-shop-table-lg" style="margin-top:16px">
         <div class="th-empty">Chưa có dữ liệu</div>
+      </div>
+
+      <div class="card-title" style="margin-top:24px"><span class="dot" style="background:#16A085"></span> Tỉ Trọng Doanh Thu</div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center">
+        <div style="height:300px;position:relative"><canvas id="th-camp-don-chart-rev"></canvas></div>
+        <div id="th-camp-don-revshare-list"><div class="th-empty">Chưa có dữ liệu</div></div>
+      </div>
+
+      <div class="card-title" style="margin-top:24px"><span class="dot" style="background:#E67E22"></span> Tỉ Trọng Chi Phí</div>
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center">
+        <div style="height:300px;position:relative"><canvas id="th-camp-don-chart-cost"></canvas></div>
+        <div id="th-camp-don-costshare-list"><div class="th-empty">Chưa có dữ liệu</div></div>
       </div>
     </div>
 
@@ -17030,6 +17060,60 @@ function _thCampBuildTable(rows, type) {
   return { html, grandChi, grandRev, grandRoas, grandAcos };
 }
 
+// Biểu đồ Tỉ Trọng Doanh Thu/Chi Phí DÙNG CHUNG cho 3 card Chiến Dịch (xác nhận Tân 2026-08-11)
+// — cùng kiểu cột đứng + list % với _thRenderRevenueShareChart/_thRenderCostShareChart ở phần
+// "Tổng Quan Toàn Hệ Thống", chỉ tổng quát hóa để nhận items {name,icon,color,value} bất kỳ thay
+// vì gắn cứng shopTotals. KHÔNG đụng 2 hàm gốc đó — giữ nguyên để không ảnh hưởng phần đã chạy ổn.
+let _thCampShareCharts = {}; // { [canvasId]: Chart instance }
+function _thRenderGenericShareChart(canvasId, listElId, items, grandTotal) {
+  if (_thCampShareCharts[canvasId]) { _thCampShareCharts[canvasId].destroy(); _thCampShareCharts[canvasId] = null; }
+  const listEl = document.getElementById(listElId);
+  const ctx = document.getElementById(canvasId);
+  const withData = items.filter(s => s.value > 0);
+  if (!withData.length || grandTotal <= 0) {
+    if (listEl) listEl.innerHTML = '<div class="th-empty">Chưa có dữ liệu</div>';
+    return;
+  }
+  const sorted = [...withData].sort((a, b) => b.value - a.value);
+  const colors = sorted.map(s => s.color || _TH_CAT_PALETTE[0]);
+  if (ctx) {
+    _thCampShareCharts[canvasId] = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: sorted.map(s => _thWrapLabel(s.icon + ' ' + s.name)),
+        datasets: [{ data: sorted.map(s => s.value), backgroundColor: colors, borderRadius: 6 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 24 } },
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            anchor: 'end', align: 'top', color: '#333', font: { size: 12, weight: '700' },
+            formatter: (value) => (value / grandTotal * 100).toFixed(1) + '%'
+          },
+          tooltip: { callbacks: { label: c => `${fmtMoney(c.parsed.y)} (${(c.parsed.y / grandTotal * 100).toFixed(1)}%)` } }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 12 } } },
+          y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 12 }, callback: v => _thCompactMoney(v) } }
+        }
+      }
+    });
+  }
+  if (listEl) {
+    listEl.innerHTML = sorted.map((s, i) => {
+      const pct = (s.value / grandTotal * 100).toFixed(1);
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--gray3)">
+        <span style="width:12px;height:12px;border-radius:50%;background:${colors[i]};flex-shrink:0"></span>
+        <span style="flex:1;font-size:14px;font-weight:600;color:var(--text1)">${s.icon} ${s.name}</span>
+        <span style="font-size:14px;font-weight:700;color:var(--navy);min-width:50px;text-align:right">${pct}%</span>
+        <span style="font-size:12.5px;color:var(--text2);min-width:100px;text-align:right">${fmtMoney(s.value)}</span>
+      </div>`;
+    }).join('');
+  }
+}
+
 function _thCampRenderCard(type, rows) {
   const { html, grandChi, grandRev, grandRoas, grandAcos } = _thCampBuildTable(rows, type);
   const wrap = document.getElementById(`th-camp-${type}-table-wrap`);
@@ -17042,6 +17126,11 @@ function _thCampRenderCard(type, rows) {
   if (costEl) costEl.textContent = fmtMoney(grandChi);
   if (roasEl) roasEl.textContent = grandRoas.toFixed(2) + 'x';
   if (acosEl) acosEl.textContent = grandAcos.toFixed(2) + '%';
+
+  const revItems  = rows.map(s => ({ name: s.name, icon: s.icon, color: s.color, value: s[type].rev }));
+  const costItems = rows.map(s => ({ name: s.name, icon: s.icon, color: s.color, value: s[type].chi }));
+  _thRenderGenericShareChart(`th-camp-${type}-chart-rev`,  `th-camp-${type}-revshare-list`,  revItems,  grandRev);
+  _thRenderGenericShareChart(`th-camp-${type}-chart-cost`, `th-camp-${type}-costshare-list`, costItems, grandChi);
 }
 
 async function renderTHCampaignTypeSection() {
@@ -17062,6 +17151,14 @@ async function renderTHCampaignTypeSection() {
       ['rev', 'cost', 'roas', 'acos'].forEach(k => {
         const el = document.getElementById(`th-camp-${type}-${k}`);
         if (el) el.textContent = '–';
+      });
+      ['revshare-list', 'costshare-list'].forEach(suffix => {
+        const el = document.getElementById(`th-camp-${type}-${suffix}`);
+        if (el) el.innerHTML = '<div class="th-empty">Chưa có dữ liệu</div>';
+      });
+      ['chart-rev', 'chart-cost'].forEach(suffix => {
+        const canvasId = `th-camp-${type}-${suffix}`;
+        if (_thCampShareCharts[canvasId]) { _thCampShareCharts[canvasId].destroy(); _thCampShareCharts[canvasId] = null; }
       });
     });
     return;
