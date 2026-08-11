@@ -498,7 +498,9 @@
   .btn-drive-sync:hover { opacity: 0.88; }
   .btn-drive-sync:disabled { opacity: 0.5; cursor: not-allowed; }
   .drive-last-sync { font-size: 11px; color: var(--text2); margin-top: 6px; text-align: center; min-height: 16px; }
-  .drive-log { margin-top: 12px; max-height: 160px; overflow-y: auto; font-size: 11px; font-family: 'Courier New', monospace; background: #f4f4f8; border-radius: 6px; padding: 8px 10px; display: none; line-height: 1.6; }
+  /* overflow-wrap/word-break: dòng log dài (VD URL lỗi API) tự xuống dòng thay vì đẩy tràn
+     bề ngang cả trang, gây thanh cuộn ngang khó chịu ở Tổng Quan (Tân báo 2026-08-11). */
+  .drive-log { margin-top: 12px; max-height: 160px; overflow-y: auto; overflow-x: hidden; font-size: 11px; font-family: 'Courier New', monospace; background: #f4f4f8; border-radius: 6px; padding: 8px 10px; display: none; line-height: 1.6; overflow-wrap: anywhere; word-break: break-word; }
   .drive-log.visible { display: block; }
   .dlog-ok   { color: #1a7a3e; }
   .dlog-err  { color: var(--red); font-weight: 600; }
@@ -1047,8 +1049,8 @@
             <th class="sortable num" data-col="7">Chi Phí<span class="sort-icon"></span></th>
             <th class="sortable num" data-col="8">ROAS<span class="sort-icon"></span></th>
             <th class="sortable num" data-col="9">ACOS<span class="sort-icon"></span></th>
-            <th class="sortable num" data-col="10">Add to Cart<span class="sort-icon"></span></th>
-            <th class="sortable num" data-col="11">Add to Cart Rate<span class="sort-icon"></span></th>
+            <th class="sortable num" data-col="10">SP Đã Bán<span class="sort-icon"></span></th>
+            <th class="sortable num" data-col="11">Tỷ Lệ Chuyển Đổi<span class="sort-icon"></span></th>
           </tr></thead>
           <tbody id="tbody-all"></tbody>
         </table>
@@ -3364,7 +3366,7 @@ function ovProducts() {
   }
 
   return cData().products.map(p => {
-    let views=0, conv=0, doanh_so=0, chi_phi=0, clicks=0, atc=0;
+    let views=0, conv=0, doanh_so=0, chi_phi=0, clicks=0, atc=0, sp_ban=0;
     labels.forEach(lbl => {
       const d = p.dailyData?.[lbl];
       if (!d) return;
@@ -3374,12 +3376,15 @@ function ovProducts() {
       chi_phi  += Number(d['Chi phí(đ)']) || 0;
       clicks   += Number(d['Lượt Click'])  || 0;
       atc      += Number(d['Add to Cart']) || 0;
+      sp_ban   += Number(d['SP Bán'])      || 0;
     });
     const roas = chi_phi>0 ? doanh_so/chi_phi : 0;
     const acos = doanh_so>0 ? chi_phi/doanh_so*100 : 0;
     // Add to Cart Rate = tổng Add to Cart / tổng Lượt Click trong khoảng đã lọc (giống cách tính CTR)
     const atc_rate = clicks>0 ? atc/clicks*100 : 0;
-    return { ...p, views, conv, doanh_so, chi_phi, roas, acos, clicks, atc, atc_rate };
+    // Tỷ Lệ Chuyển Đổi = tổng Conv. / tổng Lượt Click trong khoảng đã lọc (xác nhận Tân 2026-08-11)
+    const conv_rate = clicks>0 ? conv/clicks*100 : 0;
+    return { ...p, views, conv, doanh_so, chi_phi, roas, acos, clicks, atc, atc_rate, sp_ban, conv_rate };
   }).filter(p => p.doanh_so>0 || p.chi_phi>0);
 }
 
@@ -10743,7 +10748,10 @@ function gcRenderBestWorst(groups) {
       // Loại các SP đã nằm trong "best" trước khi chọn "worst" → 2 danh sách không trùng nhau
       // (xác nhận Tân 2026-08-10)
       const remaining = byRoasDesc.filter(p => !bestNames.has(p.name));
-      const worst = [...remaining].sort((a, b) => a._roas - b._roas).slice(0, 10);
+      // Chỉ đề xuất loại SP có ROAS < 10 (thực sự kém, đồng bộ ngưỡng đỏ dùng chung toàn dashboard)
+      // — không lấy đủ 10 con bất kể tốt/xấu như bản cũ (xác nhận Tân 2026-08-11: SP còn lãi tốt
+      // (VD ROAS 16-24) không nên bị gắn nhãn "loại khỏi nhóm" chỉ vì đứng ngoài top 5).
+      const worst = remaining.filter(p => p._roas < 10).sort((a, b) => a._roas - b._roas).slice(0, 10);
       bodyHtml = `<div style="display:flex;gap:20px;flex-wrap:wrap">
         <div style="flex:1 1 45%;min-width:320px;max-width:100%;box-sizing:border-box;overflow-x:auto">
           <div style="font-size:11px;font-weight:700;color:#27ae60;margin-bottom:4px">🏆 Đề Xuất Tách Chạy QC Đơn (${best.length})</div>
@@ -10751,7 +10759,7 @@ function gcRenderBestWorst(groups) {
         </div>
         <div style="flex:1 1 45%;min-width:320px;max-width:100%;box-sizing:border-box;overflow-x:auto">
           <div style="font-size:11px;font-weight:700;color:#e74c3c;margin-bottom:4px">⚠️ Đề Xuất Loại Khỏi Nhóm (${worst.length})</div>
-          ${worst.length ? miniTable(worst) : '<div style="font-size:11px;color:#999;padding:6px 0">Không còn SP nào ngoài nhóm Tốt Nhất.</div>'}
+          ${worst.length ? miniTable(worst) : '<div style="font-size:11px;color:#999;padding:6px 0">Không có SP nào ROAS dưới 10 — chưa cần loại SP nào khỏi nhóm.</div>'}
         </div>
       </div>`;
     }
@@ -14326,7 +14334,10 @@ let ovHasPrevPeriod = false;
 // dòng sản phẩm hiện doanh thu/chi phí LỚN HƠN CẢ tổng toàn shop trong kỳ đang xem.
 // Đổi sang dùng ovProducts() để bảng luôn khớp đúng khoảng ngày đang lọc.
 function renderAllTable() {
-  allRows = [...ovProducts()];
+  // conv_rate tính lại ở đây (không chỉ trong ovProducts()) để đảm bảo luôn có giá trị đúng cho
+  // CẢ 2 nhánh của ovProducts() — kể cả nhánh "không lọc gì" trả thẳng cData().products chưa qua
+  // map tính conv_rate (xác nhận Tân 2026-08-11: thay cột Add to Cart Rate bằng Tỷ Lệ Chuyển Đổi).
+  allRows = ovProducts().map(p => ({ ...p, conv_rate: p.clicks > 0 ? (p.conv || 0) / p.clicks * 100 : 0 }));
   const prevLabels = getOvPrevPeriodLabels();
   ovHasPrevPeriod = prevLabels.length > 0;
   ovPrevMap = ovHasPrevPeriod ? ovProductsPrevMap(prevLabels) : {};
@@ -14348,7 +14359,7 @@ function renderAllTable() {
 function sortRows() {
   const col = sortState.col;
   const dir = sortState.dir === 'asc' ? 1 : -1;
-  const keys = ['stt','ten','ngay','views','ctr','conv','doanh_so','chi_phi','roas','acos','atc','atc_rate'];
+  const keys = ['stt','ten','ngay','views','ctr','conv','doanh_so','chi_phi','roas','acos','sp_ban','conv_rate'];
   allRows.sort((a,b)=>{
     const va = a[keys[col]], vb = b[keys[col]];
     if (typeof va === 'number') return (va-vb)*dir;
@@ -14387,8 +14398,8 @@ function displayAllTable() {
       <td class="num">${fmtMoneyFull(p.chi_phi)}${cpDelta ? '<br>'+cpDelta : ''}</td>
       <td class="num"><span class="roas-badge ${roasClass(p.roas)}">${p.roas.toFixed(2)}</span>${roasDelta ? '<br>'+roasDelta : ''}</td>
       <td class="num"><span class="acos-badge ${acosClass(p.acos)}">${p.acos.toFixed(2)}%</span></td>
-      <td class="num">${fmtNum(p.atc||0)}</td>
-      <td class="num">${(p.atc_rate||0).toFixed(2)}%</td>
+      <td class="num">${fmtNum(p.sp_ban||0)}</td>
+      <td class="num">${(p.conv_rate||0).toFixed(2)}%</td>
     </tr>`;
   }).join('') || '<tr><td colspan="12" class="empty">Không có sản phẩm phù hợp</td></tr>';
 }
@@ -15261,7 +15272,11 @@ function buildDailyEntry(cp) {
     'Lượt Xem': cp.views, 'ROAS': cp.roas, 'Doanh thu': cp.doanh_so,
     'ACOS': cp.acos, 'Conv.': cp.conv, 'Chi phí(đ)': cp.chi_phi,
     'CP/lượt xem': cp.views>0 ? Math.round(cp.chi_phi/cp.views) : 0,
-    'Lượt Click': cp.clicks, 'Add to Cart': cp.atc
+    'Lượt Click': cp.clicks, 'Add to Cart': cp.atc,
+    // Thêm 'SP Bán' để bảng "Tất Cả Sản Phẩm ADS" cộng dồn đúng theo từng ngày khi lọc Kỳ Xem
+    // (xác nhận Tân 2026-08-11 — thay cột Add to Cart bằng SP Đã Bán). Dữ liệu ngày cũ trước khi
+    // thêm dòng này sẽ không có field này, cộng dồn coi như 0 cho đúng những ngày đó.
+    'SP Bán': cp.sp_ban
   };
 }
 
