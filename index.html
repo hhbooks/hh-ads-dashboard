@@ -260,11 +260,13 @@
   }
   .search-box:focus { border-color: #1a56db; outline: none; box-shadow: 0 0 0 3px rgba(26,86,219,0.08); }
   .filter-btn {
-    padding: 7px 14px; border: 1px solid var(--gray3); background: white;
+    padding: 7px 14px; border: 1.5px solid var(--text); background: white; color: var(--text);
     border-radius: 8px; font-size: 12px; cursor: pointer; transition: all .15s;
   }
-  .filter-btn.active { background: var(--navy2); color: white; border-color: var(--navy2); }
-  .filter-btn:hover:not(.active) { border-color: var(--navy2); }
+  .filter-btn.active { background: white; color: var(--red); border-color: var(--text); font-weight: 700; }
+  .filter-btn:hover:not(.active) { border-color: var(--red); }
+  /* Nút bấm (click) tạm thời tô đỏ chữ, tự trả về đen khi kết quả đã hiện (xác nhận Tân 2026-08-11) */
+  .btn-th-clicked { color: var(--red) !important; }
 
   /* ── TKX REPORT STATUS PILL ── */
   .tkx-pill { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }
@@ -494,8 +496,8 @@
   .drive-client-input:focus { outline: none; border-color: #4285F4; }
   .drive-btn-save { padding: 7px 14px; background: var(--gray3); border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
   .drive-btn-save:hover { background: #d0d0d0; }
-  .btn-drive-sync { width: 100%; padding: 11px; background: linear-gradient(135deg,#4285F4,#34A853); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity .2s; }
-  .btn-drive-sync:hover { opacity: 0.88; }
+  .btn-drive-sync { width: 100%; padding: 11px; background: white; color: var(--text); border: 1.5px solid var(--text); border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all .2s; }
+  .btn-drive-sync:hover { background: #f4f4f6; }
   .btn-drive-sync:disabled { opacity: 0.5; cursor: not-allowed; }
   .drive-last-sync { font-size: 11px; color: var(--text2); margin-top: 6px; text-align: center; min-height: 16px; }
   /* overflow-wrap/word-break: dòng log dài (VD URL lỗi API) tự xuống dòng thay vì đẩy tràn
@@ -558,10 +560,10 @@
   }
   .sw-upload-zone p { color: var(--text2); font-size: 12px; margin-bottom: 12px; line-height: 1.6; }
   .sw-upload-btn {
-    background: var(--navy2); color: white; border: none; border-radius: 8px;
-    padding: 9px 20px; font-size: 13px; cursor: pointer; font-weight: 600; transition: background .2s;
+    background: white; color: var(--text); border: 1.5px solid var(--text); border-radius: 8px;
+    padding: 9px 20px; font-size: 13px; cursor: pointer; font-weight: 600; transition: all .2s;
   }
-  .sw-upload-btn:hover { background: var(--navy); }
+  .sw-upload-btn:hover { background: #f4f4f6; }
   .sw-loaded-bar {
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     background: var(--green2); border: 1px solid #A9DFBF; border-radius: 8px;
@@ -2089,8 +2091,8 @@
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px;flex-wrap:wrap">
               <div style="font-weight:700;color:var(--navy);font-size:13px" id="gia-ov-orderlist-title"></div>
               <div style="display:flex;gap:8px">
-                <button onclick="giaOvCopyOrderList()" style="padding:4px 10px;font-size:12px;cursor:pointer;border:1px solid var(--navy2);border-radius:6px;background:var(--navy2);color:#fff">📋 Sao chép</button>
-                <button onclick="giaOvCloseOrderList()" style="padding:4px 10px;font-size:12px;cursor:pointer;border:1px solid var(--gray3);border-radius:6px;background:#fff">✕ Đóng</button>
+                <button onclick="giaOvCopyOrderList()" style="padding:4px 10px;font-size:12px;cursor:pointer;border:1px solid var(--text);border-radius:6px;background:white;color:var(--text)">📋 Sao chép</button>
+                <button onclick="giaOvCloseOrderList()" style="padding:4px 10px;font-size:12px;cursor:pointer;border:1px solid var(--text);border-radius:6px;background:#fff;color:var(--text)">✕ Đóng</button>
               </div>
             </div>
             <textarea id="gia-ov-orderlist-text" readonly style="width:100%;height:120px;font-size:12px;font-family:monospace;border:1px solid var(--gray3);border-radius:6px;padding:8px;resize:vertical;box-sizing:border-box"></textarea>
@@ -2150,12 +2152,12 @@
         <div>
           <input type="file" id="tqo-map-input" accept=".xlsx,.xls" style="display:none" onchange="tqoHandleMapFile(this)">
           <button class="sw-upload-btn" onclick="document.getElementById('tqo-map-input').click()">📂 Tải file MAP Shopee</button>
-          <button id="mapsw-push-btn" class="sw-upload-btn" style="display:none;background:#1a73e8;color:#fff;border:none" onclick="mapSwPushToSheet()">📤 Đẩy lên SKU Tổng (Tab MAP SW)</button>
+          <button id="mapsw-push-btn" class="sw-upload-btn" style="display:none" onclick="mapSwPushToSheet()">📤 Đẩy lên SKU Tổng (Tab MAP SW)</button>
         </div>
         <div>
           <input type="file" id="tqo-map-tiktok-input" accept=".xlsx,.xls" style="display:none" onchange="mapTkHandleFile(this)">
           <button class="sw-upload-btn" onclick="document.getElementById('tqo-map-tiktok-input').click()">📂 Tải File MAP TikTok</button>
-          <button id="maptk-push-btn" class="sw-upload-btn" style="display:none;background:#010101;color:#fff;border:none" onclick="mapTkPushToSheet()">📤 Đẩy lên SKU Tổng (Tab MAP TIKTOK)</button>
+          <button id="maptk-push-btn" class="sw-upload-btn" style="display:none" onclick="mapTkPushToSheet()">📤 Đẩy lên SKU Tổng (Tab MAP TIKTOK)</button>
         </div>
       </div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Map Salework — cập nhật lúc: <b id="tqo-status-map">chưa có dữ liệu</b></div>
@@ -2163,7 +2165,7 @@
       <div id="mapsw-log" class="drive-log"></div>
       <div id="maptk-log" class="drive-log"></div>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:14px;padding-top:14px;border-top:1px dashed var(--border)">
-        <button class="sw-upload-btn" style="background:#fde8e8;color:#c0392b;border:1px solid #c0392b" onclick="blSyncBlacklist()" id="bl-sync-btn">🚫 Đồng Bộ Black List (Google Sheet)</button>
+        <button class="sw-upload-btn" onclick="blSyncBlacklist()" id="bl-sync-btn">🚫 Đồng Bộ Black List (Google Sheet)</button>
       </div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:6px"><span id="bl-last-sync"></span></div>
       <div id="bl-log" class="drive-log"></div>
@@ -2184,7 +2186,7 @@
         <span>Mass: <b id="ton-status-mass">chưa chọn</b></span>
         <span>Map Salework (chung): <b id="ton-status-map">chưa chọn</b></span>
         <span>Tồn Kho Thật (chung): <b id="ton-status-ton">chưa chọn</b></span>
-        <button onclick="tonResetAll()" style="margin-left:auto;padding:6px 14px;border:1px solid var(--red);color:var(--red);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
+        <button onclick="tonResetAll()" style="margin-left:auto;padding:6px 14px;border:1px solid var(--text);color:var(--text);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
       </div>
       <div id="ton-log" class="drive-log"></div>
 
@@ -2261,14 +2263,14 @@
           <input type="file" id="tfm-mass-input" accept=".xlsx,.xls" style="display:none" onchange="tfmHandleMassFile(this)">
           <button class="sw-upload-btn" onclick="document.getElementById('tfm-mass-input').click()">📂 2. Chọn File Mass</button>
         </div>
-        <button onclick="tfmResetAll()" style="padding:6px 14px;border:1px solid var(--red);color:var(--red);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
+        <button onclick="tfmResetAll()" style="padding:6px 14px;border:1px solid var(--text);color:var(--text);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
       </div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:4px">File tồn: <b id="tfm-status-ton">chưa chọn</b></div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:10px">File mass: <b id="tfm-status-mass">chưa chọn</b></div>
       <div id="tfm-preview" style="display:none;background:#f8f4fd;border:1px solid #d5b8f0;border-radius:8px;padding:10px 14px;margin-bottom:10px"></div>
       <div id="tfm-log" class="drive-log"></div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
-        <button id="tfm-export-btn" class="btn-drive-sync" style="display:none;max-width:380px;background:#8e44ad" onclick="tfmExportFile()">📤 Xuất File Mass</button>
+        <button id="tfm-export-btn" class="btn-drive-sync" style="display:none;max-width:380px" onclick="tfmExportFile()">📤 Xuất File Mass</button>
       </div>
     </div>
 
@@ -2288,7 +2290,7 @@
           <input type="file" id="nhm-mass-input" accept=".xlsx,.xls" style="display:none" onchange="nhmHandleMassFile(this)">
           <button class="sw-upload-btn" onclick="document.getElementById('nhm-mass-input').click()">📂 Chọn File Mass</button>
         </div>
-        <button onclick="nhResetAll()" style="padding:6px 14px;border:1px solid var(--red);color:var(--red);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
+        <button onclick="nhResetAll()" style="padding:6px 14px;border:1px solid var(--text);color:var(--text);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
       </div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Nguồn hàng: <b id="nh-status-file">chưa chọn</b></div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:10px">File mass: <b id="nhm-status-mass">chưa chọn</b></div>
@@ -2349,11 +2351,11 @@
           </table>
         </div>
         <div id="nhm-export-deli-btns" style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn-drive-sync" style="background:var(--navy2)" onclick="nhmExportMassFile('hn')">📤 Xuất Mass — Cộng Thêm Kho HN</button>
-          <button class="btn-drive-sync" style="background:#27ae60" onclick="nhmExportMassFile('hcm')">📤 Xuất Mass — Cộng Thêm Kho HCM</button>
+          <button class="btn-drive-sync" onclick="nhmExportMassFile('hn')">📤 Xuất Mass — Cộng Thêm Kho HN</button>
+          <button class="btn-drive-sync" onclick="nhmExportMassFile('hcm')">📤 Xuất Mass — Cộng Thêm Kho HCM</button>
         </div>
         <div id="nhm-export-bose-btns" style="display:none;gap:10px;flex-wrap:wrap">
-          <button class="btn-drive-sync" style="background:#8e44ad" onclick="nhmExportMassFileBose()">📤 Xuất Mass — Cộng Thêm Bose (HN + HCM)</button>
+          <button class="btn-drive-sync" onclick="nhmExportMassFileBose()">📤 Xuất Mass — Cộng Thêm Bose (HN + HCM)</button>
         </div>
       </div>
 
@@ -2376,7 +2378,7 @@
         <span>Mass: <b id="th-status-mass">chưa chọn</b></span>
         <span>Map Salework (dùng chung): <b id="th-status-map">chưa chọn</b></span>
         <span>File trả hàng: <b id="th-status-return">chưa chọn</b></span>
-        <button onclick="thResetAll()" style="margin-left:auto;padding:6px 14px;border:1px solid var(--red);color:var(--red);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
+        <button onclick="thResetAll()" style="margin-left:auto;padding:6px 14px;border:1px solid var(--text);color:var(--text);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
       </div>
       <div id="th-log" class="drive-log"></div>
 
@@ -2429,7 +2431,7 @@
       </div>
 
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
-        <button id="th-export-btn" class="btn-drive-sync" style="display:none;max-width:320px;background:var(--red)" onclick="thExportNewMassFile()">📤 Xuất File Mass Mới (Đã Trừ Trả Hàng)</button>
+        <button id="th-export-btn" class="btn-drive-sync" style="display:none;max-width:320px" onclick="thExportNewMassFile()">📤 Xuất File Mass Mới (Đã Trừ Trả Hàng)</button>
       </div>
     </div>
 
@@ -2914,6 +2916,28 @@
 // ══════════════════════════════════════════════════════════════
 // ── Google Drive OAuth constant – phải khai báo trước mọi hàm gọi nó ──
 const GDRIVE_CLIENT_ID_DEFAULT = '721774063019-fqaf28sn5lkt66nj2dc2d9e68hogpa5a.apps.googleusercontent.com';
+
+// ── Nút bấm toàn dashboard: nền trắng/chữ đen mặc định, chữ đỏ tạm thời khi bấm cho tới khi
+//    kết quả (log/report/bảng quanh nút) đã hiện ra, tối đa 15s là tự trả về đen (xác nhận Tân
+//    2026-08-11). Dùng 1 listener chung (event delegation), KHÔNG sửa từng hàm xử lý riêng lẻ
+//    để tránh rủi ro sót/ảnh hưởng logic hiện có.
+document.addEventListener('click', function(e) {
+  const btn = e.target.closest('button');
+  if (!btn || btn.disabled) return;
+  btn.classList.add('btn-th-clicked');
+  const container = btn.closest('.card') || btn.parentElement || document.body;
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    btn.classList.remove('btn-th-clicked');
+    obs.disconnect();
+    clearTimeout(safety);
+  };
+  const obs = new MutationObserver(() => finish());
+  obs.observe(container, { childList: true, subtree: true, characterData: true, attributes: true });
+  const safety = setTimeout(finish, 15000);
+}, true);
 
 // Mỗi shop có 1 màu cố định riêng (color) — dùng chung cho MỌI biểu đồ liên quan tới shop trong
 // dashboard (vd: pie "Tỉ Trọng Doanh Thu Theo Shop" ở Tổng Hợp Hệ Thống), để 1 shop luôn hiện
