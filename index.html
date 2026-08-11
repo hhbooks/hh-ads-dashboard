@@ -1775,10 +1775,12 @@
       </div>
     </div>
 
-    <!-- Chi Tiết Nhóm (đổi tên từ "Phân Tích ROAS Theo Nhóm Hàng", ẩn dòng nguồn Ngành hàng —
-         xác nhận Tân 2026-08-10) -->
+    <!-- Chi Tiết ADS Ngành Hàng (đổi tên từ "Chi Tiết Nhóm", trước nữa là "Phân Tích ROAS Theo
+         Nhóm Hàng" — xác nhận Tân 2026-08-11. Nội dung: lưới ROAS theo Ngành Hàng + Tỉ Trọng
+         Doanh Thu/Chi Phí theo Ngành Hàng + panel chi tiết SP khi bấm vào 1/nhiều ngành hàng,
+         tất cả render động trong #th-category-wrap bởi _thRenderCategoryHtml(). -->
     <div class="card" style="margin-top:16px">
-      <div class="card-title"><span class="dot" style="background:#8e44ad"></span> Chi Tiết Nhóm</div>
+      <div class="card-title"><span class="dot" style="background:#8e44ad"></span> Chi Tiết ADS Ngành Hàng</div>
       <div id="th-category-wrap"><div class="th-empty">Chưa có dữ liệu</div></div>
     </div>
 
@@ -16601,6 +16603,30 @@ function _thRenderCategoryHtml() {
   });
   cardsHtml += `</div>`;
 
+  // Tỉ Trọng Doanh Thu / Tỉ Trọng Chi Phí theo Ngành Hàng — xác nhận Tân 2026-08-11. Dùng lại
+  // đúng chi/rev đã tính sẵn trong catMap (không tính lại), gồm cả "Chưa phân loại" để % khớp
+  // đúng 100% với Tổng Quan toàn trang. Tái dùng hàm biểu đồ dùng chung _thRenderGenericShareChart
+  // (đã viết cho card "So Sánh Các Loại Chiến Dịch") để đồng bộ kiểu biểu đồ + màu catColor.
+  const shareRevItems = activeCats.map(cat => ({
+    name: cat, icon: cat === UNCLASSIFIED ? '❓' : '🏷️', color: catColor[cat], value: catMap[cat].rev
+  }));
+  const shareCostItems = activeCats.map(cat => ({
+    name: cat, icon: cat === UNCLASSIFIED ? '❓' : '🏷️', color: catColor[cat], value: catMap[cat].chi
+  }));
+  const catGrandRev = shareRevItems.reduce((s, x) => s + x.value, 0);
+  const catGrandChi = shareCostItems.reduce((s, x) => s + x.value, 0);
+  const shareHtml = `
+    <div class="card-title" style="margin-top:8px"><span class="dot" style="background:#16A085"></span> Tỉ Trọng Doanh Thu</div>
+    <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center;margin-bottom:20px">
+      <div style="height:300px;position:relative"><canvas id="th-cat-chart-rev"></canvas></div>
+      <div id="th-cat-revshare-list"><div class="th-empty">Chưa có dữ liệu</div></div>
+    </div>
+    <div class="card-title"><span class="dot" style="background:#E67E22"></span> Tỉ Trọng Chi Phí</div>
+    <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center;margin-bottom:20px">
+      <div style="height:300px;position:relative"><canvas id="th-cat-chart-cost"></canvas></div>
+      <div id="th-cat-costshare-list"><div class="th-empty">Chưa có dữ liệu</div></div>
+    </div>`;
+
   // Panel chi tiết — gộp SP từ TẤT CẢ nhóm hàng đang chọn (không còn giới hạn 1 nhóm), có thêm
   // bộ lọc Shop bên trong (xác nhận Tân 2026-08-10). Số SP/Chi Phí ADS/Doanh Thu/ROAS/ACOS được
   // tính lại theo đúng tập SP sau khi đã áp bộ lọc Shop.
@@ -16689,7 +16715,9 @@ function _thRenderCategoryHtml() {
   // Bảng tổng hợp theo Nhóm Hàng + ghi chú "Nguyên lý tính ROAS đề xuất" đã bỏ hẳn (xác nhận
   // Tân 2026-08-10) — thông tin tương đương giờ xem qua click từng card + panel Chi tiết sản
   // phẩm ở trên, không cần hiển thị trùng lặp nữa.
-  wrap.innerHTML = cardsHtml + detailHtml;
+  wrap.innerHTML = cardsHtml + shareHtml + detailHtml;
+  _thRenderGenericShareChart('th-cat-chart-rev',  'th-cat-revshare-list',  shareRevItems,  catGrandRev);
+  _thRenderGenericShareChart('th-cat-chart-cost', 'th-cat-costshare-list', shareCostItems, catGrandChi);
 }
 
 // ══════════════════════════════════════════════════════════════
