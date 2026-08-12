@@ -202,6 +202,12 @@
      định 28px. Thu nhỏ + cho phép xuống dòng riêng cho đúng grid này, KHÔNG đụng .kpi-value
      dùng chung toàn dashboard (xác nhận Tân 2026-08-09). */
   #gia-overview-report .kpi-value { font-size: 18px; white-space: normal; word-break: break-word; }
+  /* Thống Kê Đơn Hàng — 9 card gọn trong đúng 1 hàng ngang (Tân yêu cầu 2026-08-12), card hẹp
+     hơn nhiều so với lưới 4 cột mặc định nên thu nhỏ chữ + cho xuống dòng để số dài không bị
+     cắt ngang (cùng kỹ thuật đã dùng cho Card ④, KHÔNG đụng .kpi-value dùng chung). */
+  #bcord-kpi-grid .kpi-card  { padding: 12px 10px; }
+  #bcord-kpi-grid .kpi-label { font-size: 10px; margin-bottom: 6px; }
+  #bcord-kpi-grid .kpi-value { font-size: 16px; white-space: normal; word-break: break-word; }
   .kpi-icon  { position: absolute; right: 16px; top: 16px; font-size: 28px; opacity: .15; }
 
   /* ── CHARTS ROW ── */
@@ -2512,7 +2518,7 @@
         </div>
 
         <div id="bcord-content" style="display:none">
-          <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:14px">
+          <div class="kpi-grid" id="bcord-kpi-grid" style="grid-template-columns:repeat(9,minmax(0,1fr));gap:10px;margin-bottom:14px">
             <div class="kpi-card navy" id="bcord-card-doanhso" style="cursor:pointer" onclick="bcordShowDetail('doanhSo',this)"><div class="kpi-label">Doanh Số</div><div class="kpi-value" id="bcord-kpi-doanhso">0</div></div>
             <div class="kpi-card red" id="bcord-card-magiamgiashop" style="cursor:pointer" onclick="bcordShowDetail('maGiamGiaShop',this)"><div class="kpi-label">Mã Giảm Giá Của Shop</div><div class="kpi-value" id="bcord-kpi-magiamgiashop">0</div></div>
             <div class="kpi-card orange" id="bcord-card-trogia" style="cursor:pointer" onclick="bcordShowDetail('duocShopeeTroGia',this)"><div class="kpi-label">Được Shopee Trợ Giá</div><div class="kpi-value" id="bcord-kpi-trogia">0</div></div>
@@ -17924,48 +17930,65 @@ async function _bcordDriveDownload(token, fileId) {
 
 // Parse 1 file "Order.all" gốc Shopee → mảng đơn đã DEDUPE theo Mã đơn hàng (đủ 9 field cần).
 // Công thức giống hệt giaOverviewRun() (card ④, trang Cập Nhật Đơn Hằng Ngày).
+// Chuẩn hoá Unicode (NFC) cho tên cột — file "Order.all" gốc Shopee lưu MỘT SỐ tên cột ở dạng
+// NFD (dấu thanh tách rời khỏi chữ cái, ví dụ "Giá ưu đãi"/"Được Shopee trợ giá"), khác với đa số
+// cột còn lại ở dạng NFC — tra cứu bằng chuỗi literal thường (NFC) sẽ ra "undefined" dù cột vẫn
+// có dữ liệu thật, làm Doanh Số/Được Shopee Trợ Giá tính sai (Tân báo Doanh Số âm bất thường,
+// xác nhận nguyên nhân 2026-08-12). Luôn build lại key map theo NFC trước khi đọc field.
+function _bcordNormKey(s) { return String(s == null ? '' : s).normalize('NFC').trim(); }
+
+function _bcordBuildRowGetter(sampleRow) {
+  const map = {};
+  Object.keys(sampleRow || {}).forEach(k => { map[_bcordNormKey(k)] = k; });
+  return (row, name) => {
+    const realKey = map[name];
+    return realKey === undefined ? undefined : row[realKey];
+  };
+}
+
 function _bcordParseAB(arrayBuffer) {
   const wb = XLSX.read(arrayBuffer, { type: 'array' });
   const sn = wb.SheetNames.find(s => s === 'orders') || wb.SheetNames[0];
   const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { defval: null });
   if (!rows.length) return [];
+  const get = _bcordBuildRowGetter(rows[0]);
 
   const revenueByOrder = new Map();
   rows.forEach(r => {
-    const key = String(r['Mã đơn hàng'] || '').trim();
+    const key = String(get(r, 'Mã đơn hàng') || '').trim();
     if (!key) return;
-    const gross = (Number(r['Giá ưu đãi']) || 0) * (Number(r['Số lượng']) || 0);
+    const gross = (Number(get(r, 'Giá ưu đãi')) || 0) * (Number(get(r, 'Số lượng')) || 0);
     revenueByOrder.set(key, (revenueByOrder.get(key) || 0) + gross);
   });
   const donViByOrder = new Map(), tinhThanhByOrder = new Map();
   rows.forEach(r => {
-    const key = String(r['Mã đơn hàng'] || '').trim();
+    const key = String(get(r, 'Mã đơn hàng') || '').trim();
     if (!key) return;
-    const dv = String(r['Đơn Vị Vận Chuyển'] || '').trim();
+    const dv = String(get(r, 'Đơn Vị Vận Chuyển') || '').trim();
     if (dv && !donViByOrder.has(key)) donViByOrder.set(key, dv);
-    const tt = String(r['Tỉnh/Thành phố'] || '').trim();
+    const tt = String(get(r, 'Tỉnh/Thành phố') || '').trim();
     if (tt && !tinhThanhByOrder.has(key)) tinhThanhByOrder.set(key, tt);
   });
 
   const out = [];
   const seen = new Set();
   rows.forEach(r => {
-    const key = String(r['Mã đơn hàng'] || '').trim();
+    const key = String(get(r, 'Mã đơn hàng') || '').trim();
     if (!key || seen.has(key)) return;
     seen.add(key);
-    const khoRaw = String(r['Tên kho hàng'] || '').trim();
+    const khoRaw = String(get(r, 'Tên kho hàng') || '').trim();
     const shopKey = BCORD_KHO_TO_SHOP[khoRaw] || '_unknown';
-    const ngay = String(r['Ngày đặt hàng'] || '').trim(); // "YYYY-MM-DD HH:MM"
+    const ngay = String(get(r, 'Ngày đặt hàng') || '').trim(); // "YYYY-MM-DD HH:MM"
     const monthKey = ngay.slice(0, 7); // "YYYY-MM"
     out.push({
       maDon: key, shopKey, kho: khoRaw, monthKey,
-      doanhSo: (revenueByOrder.get(key) || 0) - (Number(r['Mã giảm giá của Shop']) || 0),
-      maGiamGiaShop: Number(r['Mã giảm giá của Shop']) || 0,
-      duocShopeeTroGia: Number(r['Được Shopee trợ giá']) || 0,
-      maGiamGiaShopee: Number(r['Mã giảm giá của Shopee']) || 0,
-      phiCoDinh: Number(r['Phí cố định']) || 0,
-      phiDichVu: Number(r['Phí Dịch Vụ']) || 0,
-      phiXuLyGiaoDich: Number(r['Phí xử lý giao dịch']) || 0,
+      doanhSo: (revenueByOrder.get(key) || 0) - (Number(get(r, 'Mã giảm giá của Shop')) || 0),
+      maGiamGiaShop: Number(get(r, 'Mã giảm giá của Shop')) || 0,
+      duocShopeeTroGia: Number(get(r, 'Được Shopee trợ giá')) || 0,
+      maGiamGiaShopee: Number(get(r, 'Mã giảm giá của Shopee')) || 0,
+      phiCoDinh: Number(get(r, 'Phí cố định')) || 0,
+      phiDichVu: Number(get(r, 'Phí Dịch Vụ')) || 0,
+      phiXuLyGiaoDich: Number(get(r, 'Phí xử lý giao dịch')) || 0,
       donViVanChuyen: donViByOrder.get(key) || '',
       tinhThanhPho: tinhThanhByOrder.get(key) || ''
     });
