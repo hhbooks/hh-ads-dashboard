@@ -1253,10 +1253,8 @@
         <span style="font-size:12px;color:var(--text2)">Bấm 📂 Đồng Bộ Từ Drive để tải dữ liệu</span>
       </div>
       <span style="width:1px;height:18px;background:var(--gray3)"></span>
-      <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">📅 Kỳ:</span>
-      <select id="gc-period-select" onchange="groupCampSelectPeriod(this.value)" style="padding:5px 10px;border-radius:6px;border:1px solid var(--gray3);font-size:12px;font-weight:600;color:var(--text1)">
-        <option value="">—</option>
-      </select>
+      <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">📅 Kỳ <span style="color:var(--navy2);font-size:10px;font-weight:400">(click chọn nhiều — số liệu sẽ cộng dồn)</span>:</span>
+      <div id="gc-period-pills" style="display:flex;gap:4px;flex-wrap:wrap"></div>
     </div>
 
     <div id="gc-empty" style="color:#999;font-size:12px;padding:28px;text-align:center">
@@ -10529,6 +10527,7 @@ function sapiShowShopCampaigns(idx) {
 
 let _groupCampData  = []; // [{ fileName, shopApiId, shopKey, shopName, dateFrom, dateTo, dateLabel, groups:[...] }]
 let _groupCampShop  = null; // shopKey (hoặc 'unknown_<id>') đang xem
+let _gcSelectedPeriods = new Set(); // fileName các kỳ đang được chọn (multi-select, chọn nhiều = cộng dồn — xác nhận Tân 2026-08-12)
 let gcRevPieChart    = null; // Chart.js instance — pie tỷ trọng doanh số theo nhóm (Card 3)
 
 function parseShopeeAdGroupCsvText(csvText) {
@@ -10728,31 +10727,123 @@ function groupCampSelectShop(shopKey) {
   groupCampRenderPeriodOptions();
 }
 
+// Multi-select kỳ (pill kiểu .tchip, tái dùng pattern "chọn nhiều ngày" của trang Tổng Quan) —
+// chọn nhiều kỳ = cộng dồn số liệu theo tên nhóm QC, KHÔNG gộp chéo shop (xác nhận Tân 2026-08-12).
 function groupCampRenderPeriodOptions() {
-  const sel = document.getElementById('gc-period-select');
-  if (!sel) return;
+  const wrap = document.getElementById('gc-period-pills');
+  if (!wrap) return;
   const files = _groupCampData.filter(d => (d.shopKey || ('unknown_' + d.shopApiId)) === _groupCampShop);
-  if (!files.length) { sel.innerHTML = '<option value="">—</option>'; groupCampSelectPeriod(''); return; }
+  if (!files.length) {
+    wrap.innerHTML = '';
+    _gcSelectedPeriods = new Set();
+    gcApplyPeriodSelection();
+    return;
+  }
   const sorted = [...files].sort((a, b) => (b.dateFrom || '').localeCompare(a.dateFrom || ''));
-  sel.innerHTML = sorted.map(f => `<option value="${f.fileName}">${f.dateLabel}</option>`).join('');
-  sel.value = sorted[0].fileName;
-  groupCampSelectPeriod(sorted[0].fileName);
+  // Nếu Set hiện tại rỗng hoặc không còn kỳ nào thuộc shop đang xem (vừa đổi shop) → mặc định
+  // quay về đúng 1 kỳ gần nhất, giữ hành vi mặc định như dropdown cũ.
+  const stillValid = [..._gcSelectedPeriods].filter(fn => files.some(f => f.fileName === fn));
+  _gcSelectedPeriods = new Set(stillValid.length ? stillValid : [sorted[0].fileName]);
+
+  const allSelected = sorted.every(f => _gcSelectedPeriods.has(f.fileName));
+  let html = `<span class="tchip ${allSelected ? 'active' : ''}" onclick="gcToggleAllPeriods()">✓ Tất cả</span>`;
+  html += sorted.map(f =>
+    `<span class="tchip ${_gcSelectedPeriods.has(f.fileName) ? 'active' : ''}" onclick="gcTogglePeriod('${f.fileName.replace(/'/g, "\\'")}')">${f.dateLabel}</span>`
+  ).join('');
+  wrap.innerHTML = html;
+
+  gcApplyPeriodSelection();
 }
 
-function groupCampSelectPeriod(fileName) {
-  const sel = document.getElementById('gc-period-select');
-  if (sel && sel.value !== fileName) sel.value = fileName;
-  const rec = _groupCampData.find(d => d.fileName === fileName);
+function gcTogglePeriod(fileName) {
+  if (_gcSelectedPeriods.has(fileName)) {
+    if (_gcSelectedPeriods.size > 1) _gcSelectedPeriods.delete(fileName); // luôn giữ ít nhất 1 kỳ được chọn
+  } else {
+    _gcSelectedPeriods.add(fileName);
+  }
+  groupCampRenderPeriodOptions();
+}
+
+function gcToggleAllPeriods() {
+  const files = _groupCampData.filter(d => (d.shopKey || ('unknown_' + d.shopApiId)) === _groupCampShop);
+  if (!files.length) return;
+  const allSelected = files.every(f => _gcSelectedPeriods.has(f.fileName));
+  if (allSelected) {
+    const sorted = [...files].sort((a, b) => (b.dateFrom || '').localeCompare(a.dateFrom || ''));
+    _gcSelectedPeriods = new Set([sorted[0].fileName]); // bỏ chọn tất cả trừ kỳ gần nhất — không cho trống hẳn
+  } else {
+    _gcSelectedPeriods = new Set(files.map(f => f.fileName));
+  }
+  groupCampRenderPeriodOptions();
+}
+
+function gcApplyPeriodSelection() {
+  const records = _groupCampData.filter(d => _gcSelectedPeriods.has(d.fileName));
   const emptyEl = document.getElementById('gc-empty');
   const contentEl = document.getElementById('gc-content');
-  if (!rec) {
+  if (!records.length) {
     if (contentEl) contentEl.style.display = 'none';
     if (emptyEl) emptyEl.style.display = '';
     return;
   }
   if (emptyEl) emptyEl.style.display = 'none';
   if (contentEl) contentEl.style.display = '';
-  groupCampRenderContent(rec);
+  groupCampRenderContent(gcMergeRecords(records));
+}
+
+// Gộp nhiều kỳ (file) thành 1 "record" giả để tái dùng nguyên groupCampRenderContent/gcRenderRevPie/
+// gcRenderBestWorst không sửa gì thêm — cộng dồn theo TÊN nhóm QC (và tên/mã SP con trong từng nhóm)
+// qua các kỳ đã chọn; ROAS/ACOS/CTR tính lại từ tổng, KHÔNG lấy trung bình cộng từng kỳ
+// (xác nhận Tân 2026-08-12). status/adType lấy theo kỳ gần nhất có dữ liệu nhóm đó.
+function gcMergeRecords(records) {
+  if (records.length === 1) return records[0];
+  const sorted = [...records].sort((a, b) => (a.dateFrom || '').localeCompare(b.dateFrom || ''));
+  const groupMap = new Map();
+  sorted.forEach(rec => {
+    (rec.groups || []).forEach(g => {
+      let m = groupMap.get(g.name);
+      if (!m) {
+        m = {
+          name: g.name, status: g.status, adType: g.adType,
+          views: 0, clicks: 0, conv: 0, convDirect: 0, sold: 0, soldDirect: 0,
+          revenue: 0, revenueDirect: 0, cost: 0, voucherAmount: 0, voucheredSales: 0,
+          _productMap: new Map()
+        };
+        groupMap.set(g.name, m);
+      }
+      // sorted tăng dần theo dateFrom → ghi đè status/adType ở lượt sau cùng là kỳ mới nhất
+      m.status = g.status; m.adType = g.adType || m.adType;
+      m.views += g.views; m.clicks += g.clicks; m.conv += g.conv; m.convDirect += g.convDirect;
+      m.sold += g.sold; m.soldDirect += g.soldDirect;
+      m.revenue += g.revenue; m.revenueDirect += g.revenueDirect; m.cost += g.cost;
+      m.voucherAmount += g.voucherAmount; m.voucheredSales += g.voucheredSales;
+      (g.products || []).forEach(p => {
+        const key = (p.itemId && p.itemId !== '-') ? p.itemId : p.name;
+        let mp = m._productMap.get(key);
+        if (!mp) { mp = { name: p.name, itemId: p.itemId, views: 0, clicks: 0, sold: 0, revenue: 0, cost: 0 }; m._productMap.set(key, mp); }
+        mp.views += p.views; mp.clicks += p.clicks; mp.sold += p.sold; mp.revenue += p.revenue; mp.cost += p.cost;
+      });
+    });
+  });
+  const groups = [...groupMap.values()].map(m => {
+    const roas = m.cost > 0 ? m.revenue / m.cost : 0;
+    const acos = m.revenue > 0 ? (m.cost / m.revenue * 100).toFixed(2) + '%' : '—';
+    const ctr  = m.views > 0 ? (m.clicks / m.views * 100).toFixed(2) + '%' : '—';
+    const products = [...m._productMap.values()];
+    return {
+      name: m.name, status: m.status, adType: m.adType,
+      views: m.views, clicks: m.clicks, ctr, conv: m.conv, convDirect: m.convDirect,
+      sold: m.sold, soldDirect: m.soldDirect, revenue: m.revenue, revenueDirect: m.revenueDirect,
+      cost: m.cost, roas, roasDirect: roas, acos, acosDirect: acos,
+      voucherAmount: m.voucherAmount, voucheredSales: m.voucheredSales, products
+    };
+  });
+  const first = sorted[0], last = sorted[sorted.length - 1];
+  const dateLabel = `${sorted.length} kỳ gộp (${gcFmtDate(first.dateFrom)} → ${gcFmtDate(last.dateTo || last.dateFrom)})`;
+  return {
+    fileName: '__merged__', shopKey: first.shopKey, shopApiId: first.shopApiId, shopName: first.shopName,
+    dateFrom: first.dateFrom, dateTo: last.dateTo, dateLabel, groups
+  };
 }
 
 function groupCampRenderContent(rec) {
