@@ -9951,9 +9951,14 @@ function parseShopeeGmsCsvText(csvText) {
     const cols = parseLine(line);
     if (cols.length < 17) continue;
     const item_name = (cols[1] || '').replace(/^"|"$/g,'');
-    if (!item_name || item_name === 'Tên sản phẩm' || item_name === 'Shop GMV Max') continue;
+    const item_id_raw = String(cols[2] || '').replace(/^"|"$/g,'');
+    // Bỏ dòng TỔNG của cả chiến dịch (không phải 1 SP thật) — nhận diện qua Mã sản phẩm = "-",
+    // KHÔNG so tên nữa vì Shopee đổi tên report giữa các lần xuất (từng thấy "Shop GMV Max" và
+    // "Chiến dịch Tự Động Chọn Sản phẩm (cấp độ Shop)" cho CÙNG 1 dòng tổng) — so tên bị sót sẽ
+    // tính trùng tiền dòng tổng thành 1 "SP" ảo (xác nhận Tân 2026-08-12, đối chiếu file thật).
+    if (!item_name || item_name === 'Tên sản phẩm' || item_id_raw === '-' || !item_id_raw) continue;
     items.push({
-      item_id:     String(cols[2] || '').replace(/^"|"$/g,''),
+      item_id:     item_id_raw,
       item_name,
       impression:  parseNum(cols[3]),
       clicks:      parseNum(cols[4]),
@@ -16256,7 +16261,9 @@ async function _thLoadGmsAllShops() {
       const key = `${shopSellerId}_${dateFrom}_${dateTo}`;
       let cost = 0, rev = 0;
       items.forEach(p => { cost += (p.expense || 0); rev += (p.broad_gmv || 0); });
-      byKey.set(key, { dateFrom, dateTo, shopApiId: Number(shopSellerId), cost, rev }); // trùng kỳ → giữ bản đọc sau cùng
+      // Giữ nguyên items[] (không chỉ cộng tổng rồi vứt) — cần cho phần map Ngành Hàng theo từng
+      // SP thật trong GMS thay vì gộp 1 cục "Chưa phân loại" (xác nhận Tân 2026-08-12).
+      byKey.set(key, { dateFrom, dateTo, shopApiId: Number(shopSellerId), cost, rev, items }); // trùng kỳ → giữ bản đọc sau cùng
     }
     _thGmsAllData = [...byKey.values()];
   } catch (e) {
@@ -16451,13 +16458,75 @@ let _thCatDataCache = null;
 let _thCatExpandedSet = new Set(); // các index trong activeCats đang được chọn
 let _thCatShopFilter  = new Set(); // shopId đang lọc trong panel Chi tiết sản phẩm — rỗng = tất cả
 
+// Chuẩn hóa 1 dòng SP thật (dù đến từ Tổng Quan, Nhóm SP hay GMS) về cùng 1 hình dạng để
+// renderTHCategorySection()/_thRenderCategoryHtml() dùng chung, không cần biết SP đó đến từ
+// nguồn nào (xác nhận Tân 2026-08-12).
+function _thMakeCatItem(shopId, ten, ma_sp, chi_phi, doanh_so) {
+  const s = SHOPS[shopId] || {};
+  chi_phi = Number(chi_phi) || 0;
+  doanh_so = Number(doanh_so) || 0;
+  return {
+    ten, ma_sp: String(ma_sp || ''), chi_phi, doanh_so,
+    roas: chi_phi > 0 ? doanh_so / chi_phi : 0,
+    acos: doanh_so > 0 ? chi_phi / doanh_so * 100 : 0,
+    shopId, shopIcon: s.icon || '', shopName: s.name || shopId, shopShort: s.short || shopId,
+  };
+}
+
+// Gộp SP thật từ CẢ 3 nguồn chiến dịch — Đơn (Tổng Quan) + Nhóm Sản Phẩm + GMS — để map Ngành
+// Hàng theo đúng SP thật đang chạy, thay vì gộp cả cụm Nhóm/GMS thành 1 dòng "Chưa phân loại"
+// (xác nhận Tân 2026-08-12, đối chiếu file Shopee thật cho thấy Nhóm SP + GMS đều đã có breakdown
+// từng SP sẵn — đọc trực tiếp từ đó, không cần dò ngược từ Tổng Quan).
+async function _thGetCategorySourceProducts() {
+  await Promise.all([
+    _groupCampData.length ? Promise.resolve() : groupCampSyncFromDrive(),
+    _thLoadGmsAllShops(),
+  ]);
+
+  // Tên các dòng "giả" đại diện cả 1 Nhóm/GMS (không phải 1 SP thật) trong Tổng Quan — loại ra
+  // trước khi gộp để không đếm trùng tiền đã lấy riêng theo từng SP thật ở bước (2)+(3).
+  const pseudoNames = new Set(['⚡ Chiến dịch Tự Động (Shop Level)']);
+  _groupCampData.forEach(d => (d.groups || []).forEach(g => pseudoNames.add(g.name)));
+
+  const out = [];
+
+  // 1) Chiến Dịch Đơn — SP thật còn lại trong Tổng Quan sau khi loại dòng giả ở trên
+  _thGetAllProductsFull().forEach(p => {
+    if (pseudoNames.has(p.ten)) return;
+    out.push(_thMakeCatItem(p.shopId, p.ten, p.ma_sp, p.chi_phi, p.doanh_so));
+  });
+
+  // 2) Chiến Dịch Nhóm Sản Phẩm — dùng thẳng products[] có sẵn theo từng nhóm (đã lưu từ trước
+  //    cho card "SP Tốt Nhất/Yếu Nhất"), đúng shop + kỳ khớp Bộ Lọc Kỳ Xem (dùng lại _thPickPeriod).
+  Object.keys(SHOPS).forEach(shopId => {
+    const apiId = SAPI_SHOP_MAP_INV[shopId];
+    const entries = _groupCampData.filter(d => d.shopApiId === apiId);
+    const pick = _thPickPeriod(entries.map(d => ({ dateFrom: d.dateFrom, dateTo: d.dateTo, _entry: d })));
+    if (!pick) return;
+    (pick._entry.groups || []).forEach(g => {
+      (g.products || []).forEach(sp => out.push(_thMakeCatItem(shopId, sp.name, sp.itemId, sp.cost, sp.revenue)));
+    });
+  });
+
+  // 3) Chiến Dịch Tự Động GMS — dùng items[] đã giữ lại (xem _thLoadGmsAllShops), cùng nguyên
+  //    tắc khớp kỳ như Nhóm SP.
+  Object.keys(SHOPS).forEach(shopId => {
+    const apiId = SAPI_SHOP_MAP_INV[shopId];
+    const entries = _thGmsAllData.filter(d => d.shopApiId === apiId);
+    const pick = _thPickPeriod(entries.map(d => ({ dateFrom: d.dateFrom, dateTo: d.dateTo, _entry: d })));
+    if (!pick) return;
+    (pick._entry.items || []).forEach(sp => out.push(_thMakeCatItem(shopId, sp.item_name, sp.item_id, sp.expense, sp.broad_gmv)));
+  });
+
+  return out.filter(p => p.doanh_so > 0 || p.chi_phi > 0);
+}
+
 async function renderTHCategorySection() {
   const wrap = document.getElementById('th-category-wrap');
   if (!wrap) return;
-  const prods = _thGetAllProductsFull();
   _thCatExpandedSet = new Set(); // dữ liệu đổi (đổi filter/tải lại) → thu gọn chi tiết đang mở nếu có
   _thCatShopFilter = new Set();
-  if (!prods.length) {
+  if (!_thGetAllProductsFull().length) {
     wrap.innerHTML = '<div class="th-empty">Chưa có dữ liệu sản phẩm</div>';
     if (_thChartCatRoas) { _thChartCatRoas.destroy(); _thChartCatRoas = null; }
     return;
@@ -16469,6 +16538,9 @@ async function renderTHCategorySection() {
   try { catalog = await giaLoadCatalogIfNeeded(); } catch (e) { catalog = {}; }
   try { await sharedLoadSaleworkMap(); } catch (e) { console.warn('TH: không tải được MAP Salework', e); }
   try { await sharedLoadTiktokMap(); } catch (e) { console.warn('TH: không tải được MAP TikTok', e); }
+  let prods = [];
+  try { prods = await _thGetCategorySourceProducts(); }
+  catch (e) { console.warn('TH: không gộp được Đơn/Nhóm SP/GMS, dùng tạm Tổng Quan', e); prods = _thGetAllProductsFull(); }
   if (myId !== _thCatReqId) return; // đã đổi filter/rời trang trong lúc đang tải — bỏ kết quả cũ
 
   const byIdSp = SHARED.saleworkByIdSp, byIdSpTk = SHARED.tiktokByIdSp;
