@@ -1422,9 +1422,11 @@
          Chỉ đọc dữ liệu đã tải, không gọi lại Shopee/Firestore. -->
     <div id="ac-filter-bar" style="margin-bottom:16px;padding:10px 14px;background:var(--surface);border-radius:10px;border:1px solid var(--gray3);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">🏪 Shop:</span>
-      <div style="display:flex;gap:4px">
-        <button id="ac-view-shop-2hbooks" onclick="setAcViewShop('2hbooks')" style="padding:5px 12px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;border:none;background:var(--navy2);color:white">🏪 Nhà Sách 2HBooks</button>
-        <button id="ac-view-shop-huyhoanh" onclick="setAcViewShop('huyhoanh')" style="padding:5px 12px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;border:none;background:var(--gray2);color:var(--text1)">📚 Huy Hoàng</button>
+      <!-- Giai đoạn 5 (17/08, xác nhận Tân): đổi từ 2 nút cố định sang pill động — tự hiện đúng
+           các shop thực sự có dữ liệu đã đồng bộ (giống pattern trang "Chiến Dịch Nhóm Sản Phẩm",
+           #gc-shop-pills), để thêm shop mới sau này không cần sửa HTML/JS nữa. -->
+      <div id="ac-shop-pills" style="display:flex;gap:4px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--text2)">Bấm 📂 Đồng Bộ Từ Drive để tải dữ liệu</span>
       </div>
       <span style="width:1px;height:18px;background:var(--gray3)"></span>
       <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">📅 Kỳ Xem:</span>
@@ -9802,9 +9804,14 @@ async function sapiSyncPerCampaign() {
 // đè tiếp bảng sản phẩm — 2 hệ thống chạy song song, giẫm lên nhau. Giờ chỉ còn 1 luồng
 // render duy nhất (Drive CSV / _acDriveData, mỗi entry 1 kỳ).
 function renderAutoCampPage() {
-  // Mặc định hiện shop 2HBooks khi vào trang — chỉ hiện dữ liệu đã đồng bộ từ Drive trong
-  // phiên làm việc này (nếu có), chưa có thì hiện trống chờ đồng bộ.
-  setAcViewShop('2hbooks');
+  // Giai đoạn 5 (17/08): không còn ép cứng về shop '2hbooks' — giữ nguyên shop đang chọn nếu
+  // vẫn còn dữ liệu (đã đồng bộ Drive trong phiên này), mặc định sang shop đầu tiên có dữ liệu
+  // nếu chưa chọn gì hoặc shop cũ không còn dữ liệu. Chưa đồng bộ lần nào thì render trống
+  // (acRenderShopPills/acRenderPeriodOptions tự hiện nhắc "Bấm Đồng Bộ Từ Drive").
+  if (!_acDriveData.some(d => (d.shopKey || ('unknown_' + d.shopApiId)) === _acViewShop)) {
+    _acViewShop = _acDriveData.length ? (_acDriveData[0].shopKey || ('unknown_' + _acDriveData[0].shopApiId)) : '';
+  }
+  acSelectShop(_acViewShop);
 }
 
 function acShowEmpty(msg) {
@@ -9967,20 +9974,23 @@ function parseShopeeGmsCsvText(csvText) {
 
 // ★ Drive GMS data store — mỗi entry là 1 KỲ (khoảng thời gian), KHÔNG phải 1 ngày — xác
 // nhận Tân 2026-08-08 (lần 5): Shopee giờ xuất báo cáo theo khoảng thời gian (dòng "Khoảng
-// thời gian" trong file), không còn theo từng ngày như trước. GỘP CẢ 2 SHOP cùng lúc (mỗi
-// entry gắn shopApiId). KHÔNG lưu Firestore — chỉ tồn tại trong bộ nhớ trong phiên làm
-// việc, đọc lại từ Drive mỗi lần bấm Đồng Bộ.
-let _acDriveData = []; // [{key, dateFrom, dateTo, label, shopApiId, cost, rev, imp, clk, ord, items:[]}]
+// thời gian" trong file), không còn theo từng ngày như trước. GỘP TẤT CẢ SHOP tìm thấy trong
+// folder Drive cùng lúc (mỗi entry gắn shopApiId/shopKey/shopName). KHÔNG lưu Firestore — chỉ
+// tồn tại trong bộ nhớ trong phiên làm việc, đọc lại từ Drive mỗi lần bấm Đồng Bộ.
+let _acDriveData = []; // [{key, dateFrom, dateTo, label, shopApiId, shopKey, shopName, cost, rev, imp, clk, ord, items:[]}]
 
-let _acViewShop = '2hbooks'; // '2hbooks' | 'huyhoanh' — quyết định dữ liệu hiển thị bên dưới
+// Giai đoạn 5 (17/08, xác nhận Tân): đổi từ '2hbooks'|'huyhoanh' cố định sang khoá động —
+// shopKey (SHOPS) nếu shop nằm trong SAPI_SHOPS, hoặc 'unknown_<shopApiId>' nếu là shop lạ
+// chưa cấu hình (vẫn hiện được, không bị bỏ qua) — vì sau này có thể có thêm nhiều shop chạy
+// GMS mà không cần sửa code nữa (trước đây hardcode đúng 2 shop khiến file shop mới, VD 2H
+// Home Living, bị âm thầm bỏ qua). Xem thêm groupCampResolveShop (dùng chung với trang
+// "Chiến Dịch Nhóm Sản Phẩm") và acRenderShopPills/acSelectShop bên dưới.
+let _acViewShop = ''; // khoá shop đang xem, xem acRenderShopPills()
 let _acSelectedPeriodKey = ''; // key của kỳ đang chọn để xem KPI + bảng sản phẩm
 
-function acCurrentViewShopId() {
-  return _acViewShop === 'huyhoanh' ? 371873832 : 1289235612;
-}
 // Tất cả các kỳ đã đồng bộ khớp đúng shop đang XEM, mới nhất lên trước
 function acCurrentShopPeriods() {
-  return _acDriveData.filter(d => d.shopApiId === acCurrentViewShopId())
+  return _acDriveData.filter(d => (d.shopKey || ('unknown_' + d.shopApiId)) === _acViewShop)
     .sort((a,b) => b.dateFrom.localeCompare(a.dateFrom));
 }
 
@@ -10091,23 +10101,40 @@ function acToggleSyncCard() {
   if (icon) icon.textContent = opening ? '▾ Bấm để đóng' : '▸ Bấm để mở';
 }
 
-// Cập nhật style 2 nút chọn shop ở bộ lọc "Kỳ Xem"
-function acViewShopSetStyle(mode) {
-  ['2hbooks','huyhoanh'].forEach(m => {
-    const btn = document.getElementById('ac-view-shop-' + m);
-    if (!btn) return;
-    btn.style.background = mode === m ? 'var(--navy2)' : 'var(--gray2)';
-    btn.style.color = mode === m ? 'white' : 'var(--text1)';
+// ★ Render pill chọn shop ở bộ lọc "Kỳ Xem" — Giai đoạn 5 (17/08): thay 2 nút cố định
+// (acViewShopSetStyle cũ) bằng danh sách ĐỘNG, chỉ hiện đúng các shop thực sự có dữ liệu đã
+// đồng bộ trong _acDriveData (giống hệt groupCampRenderShopPills bên trang "Chiến Dịch Nhóm
+// Sản Phẩm" — dùng chung pattern để nhất quán và dễ bảo trì).
+function acRenderShopPills() {
+  const wrap = document.getElementById('ac-shop-pills');
+  if (!wrap) return;
+  if (!_acDriveData.length) {
+    wrap.innerHTML = '<span style="font-size:12px;color:var(--text2)">Bấm 📂 Đồng Bộ Từ Drive để tải dữ liệu</span>';
+    return;
+  }
+  const seen = new Set();
+  const shopList = [];
+  _acDriveData.forEach(d => {
+    const key = d.shopKey || ('unknown_' + d.shopApiId);
+    if (seen.has(key)) return;
+    seen.add(key);
+    shopList.push({ key, name: d.shopName, icon: (d.shopKey && SHOPS[d.shopKey]) ? SHOPS[d.shopKey].icon : '🏪' });
   });
+  wrap.innerHTML = shopList.map(s => {
+    const active = s.key === _acViewShop;
+    return `<button onclick="acSelectShop('${s.key}')" style="padding:5px 12px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;border:none;background:${active?'var(--navy2)':'var(--gray2)'};color:${active?'white':'var(--text1)'}">${s.icon} ${s.name}</button>`;
+  }).join('');
 }
 
 // ★ Đổi shop ĐANG XEM (bộ lọc Kỳ Xem) — xác nhận Tân 2026-08-08: KHÔNG còn Firestore để tải
 // lại, CHỈ lọc dữ liệu đang có sẵn trong bộ nhớ (đã đồng bộ từ Drive trong phiên làm việc
-// này — 1 lần Đồng Bộ nạp CẢ 2 shop cùng lúc nên chuyển qua lại giữa 2 shop KHÔNG mất dữ
-// liệu, không cần đồng bộ lại). Nếu chưa đồng bộ lần nào trong phiên này → hiện trống.
-function setAcViewShop(mode) {
-  _acViewShop = mode;
-  acViewShopSetStyle(mode);
+// này — 1 lần Đồng Bộ nạp TẤT CẢ shop tìm thấy cùng lúc nên chuyển qua lại giữa các shop
+// KHÔNG mất dữ liệu, không cần đồng bộ lại). Nếu chưa đồng bộ lần nào trong phiên này → hiện
+// trống. Thay cho setAcViewShop cũ (chỉ nhận '2hbooks'/'huyhoanh') — giờ nhận bất kỳ shopKey
+// nào đang có trong _acDriveData (xem acRenderShopPills).
+function acSelectShop(shopKey) {
+  _acViewShop = shopKey;
+  acRenderShopPills();
   const sv = document.getElementById('ac-single-view');
   if (sv) sv.style.display = '';
   _acSelectedPeriodKey = ''; // đổi shop → về mặc định kỳ mới nhất của shop đó
@@ -10115,9 +10142,16 @@ function setAcViewShop(mode) {
 }
 
 // ★ Đồng bộ GMS từ Drive — xác nhận Tân 2026-08-08 (lần 3): KHÔNG lưu Firestore, KHÔNG cần
-// chọn shop trước — 2HBooks + Huy Hoàng cùng nằm 1 folder "Dữ Liệu GMS 2H", mỗi file tự có
-// "Mã Người Bán" riêng trong nội dung CSV để nhận diện. 1 nút đọc hết file, tự nạp CẢ 2 shop
-// vào bộ nhớ cùng lúc — đổi "Kỳ Xem" giữa 2 shop sau đó chỉ lọc, không mất dữ liệu.
+// chọn shop trước — mỗi file tự có "Mã Người Bán" riêng trong nội dung CSV để nhận diện.
+// 1 nút đọc hết file, tự nạp TẤT CẢ shop tìm thấy vào bộ nhớ cùng lúc — đổi "Kỳ Xem" giữa
+// các shop sau đó chỉ lọc, không mất dữ liệu.
+//
+// Giai đoạn 5 (17/08, xác nhận Tân): bỏ whitelist cứng KNOWN_GMS_SHOPS (trước chỉ nhận đúng
+// 2HBooks + Huy Hoàng, khiến file shop mới như 2H Home Living bị âm thầm bỏ qua khi Tân thêm
+// shop chạy GMS). Giờ nhận diện qua groupCampResolveShop() — hàm dùng chung với trang "Chiến
+// Dịch Nhóm Sản Phẩm" — chấp nhận BẤT KỲ shop nào đọc được Mã Người Bán hợp lệ từ file, kể cả
+// shop chưa có trong SAPI_SHOPS (hiện tên "Shop <id>" + icon mặc định), vì Tân xác nhận sau
+// này có thể có thêm nhiều shop khác chạy GMS mà không muốn phải sửa code mỗi lần.
 async function gmsLoadFromDriveManual() {
   const logEl = document.getElementById('ac-prod-log');
   if (logEl) { logEl.innerHTML = ''; logEl.classList.add('visible'); }
@@ -10130,9 +10164,6 @@ async function gmsLoadFromDriveManual() {
     logEl.scrollTop = logEl.scrollHeight;
   };
 
-  // 2 shop GMS đã biết — file nào khớp Mã Người Bán khác 2 shop này sẽ bị bỏ qua + cảnh báo
-  const KNOWN_GMS_SHOPS = { '1289235612': 'Nhà Sách 2HBooks', '371873832': 'Huy Hoàng Bookstore' };
-
   acLog('📂 Đang lấy danh sách file từ Drive "Dữ Liệu GMS 2H"...');
   try {
     const listResp = await sapiCall('list_gms_drive_files', {});
@@ -10140,7 +10171,9 @@ async function gmsLoadFromDriveManual() {
     if (!allFiles.length) {
       acLog('Folder "Dữ Liệu GMS 2H" đang trống.', 'warn');
       _acDriveData = [];
+      _acViewShop = '';
       _acSelectedPeriodKey = '';
+      acRenderShopPills();
       acRenderPeriodOptions();
       return;
     }
@@ -10155,10 +10188,10 @@ async function gmsLoadFromDriveManual() {
       const csvText = contentResp.content || '';
       const { shopSellerId, dateFrom, dateTo, items } = parseShopeeGmsCsvText(csvText);
 
-      const shopName = KNOWN_GMS_SHOPS[String(shopSellerId)];
-      if (!shopName) {
+      const shopInfo = groupCampResolveShop(shopSellerId);
+      if (!shopInfo.shopApiId) {
         unknownCount++;
-        acLog(`  → ${file.name}: shop ${shopSellerId || '?'} không thuộc 2HBooks/Huy Hoàng, bỏ qua`, 'warn');
+        acLog(`  → ${file.name}: không đọc được Mã Người Bán trong file, bỏ qua`, 'warn');
         continue;
       }
       if (!dateFrom || !dateTo) {
@@ -10172,8 +10205,12 @@ async function gmsLoadFromDriveManual() {
         : `${gmsFmtDateVN(dateFrom)} → ${gmsFmtDateVN(dateTo)}`;
       const key = `${shopSellerId}_${dateFrom}_${dateTo}`;
 
-      // Tổng cả kỳ = cộng dồn toàn bộ sản phẩm trong file (khớp đúng dòng "Shop GMV Max" Shopee tự tính)
-      const periodData = { key, dateFrom, dateTo, label, shopApiId: Number(shopSellerId), cost:0, rev:0, imp:0, clk:0, ord:0, items };
+      // Tổng cả kỳ = cộng dồn toàn bộ sản phẩm trong file (khớp đúng dòng tổng Shopee tự tính)
+      const periodData = {
+        key, dateFrom, dateTo, label,
+        shopApiId: shopInfo.shopApiId, shopKey: shopInfo.shopKey, shopName: shopInfo.displayName,
+        cost:0, rev:0, imp:0, clk:0, ord:0, items
+      };
       items.forEach(p => {
         periodData.cost += (p.expense     || 0);
         periodData.rev  += (p.broad_gmv   || 0);
@@ -10181,23 +10218,32 @@ async function gmsLoadFromDriveManual() {
         periodData.clk  += (p.clicks      || 0);
         periodData.ord  += (p.broad_order || 0);
       });
-      if (byKey.has(key)) acLog(`  → ${shopName} — ${label}: trùng kỳ đã đọc trước đó, dùng bản mới nhất (${file.name})`, 'warn');
+      if (byKey.has(key)) acLog(`  → ${shopInfo.displayName} — ${label}: trùng kỳ đã đọc trước đó, dùng bản mới nhất (${file.name})`, 'warn');
       byKey.set(key, periodData);
-      acLog(`  → ${shopName} — ${label} (${items.length} SP)`, 'ok');
+      acLog(`  → ${shopInfo.displayName} — ${label} (${items.length} SP)`, 'ok');
     }
 
     const newData = [...byKey.values()];
     _acDriveData = newData;
+
+    // Giữ nguyên shop đang xem nếu vẫn còn dữ liệu sau lần đồng bộ này; nếu không (lần đầu,
+    // hoặc shop cũ không còn file) → mặc định sang shop của kỳ mới nhất vừa đọc được.
+    const stillHasCurrentShop = newData.some(d => (d.shopKey || ('unknown_' + d.shopApiId)) === _acViewShop);
+    if (!stillHasCurrentShop) {
+      const latest = [...newData].sort((a,b) => b.dateFrom.localeCompare(a.dateFrom))[0];
+      _acViewShop = latest ? (latest.shopKey || ('unknown_' + latest.shopApiId)) : '';
+    }
     _acSelectedPeriodKey = '';
+    acRenderShopPills();
     acRenderPeriodOptions();
 
-    const shopCount = new Set(newData.map(d => d.shopApiId)).size;
+    const shopCount = new Set(newData.map(d => d.shopKey || ('unknown_' + d.shopApiId))).size;
     const noteParts = [];
     if (unknownCount) noteParts.push(`${unknownCount} file không rõ shop`);
     if (skippedCount) noteParts.push(`${skippedCount} file thiếu Khoảng thời gian`);
     const noteStr = noteParts.length ? ` (đã bỏ qua ${noteParts.join(', ')})` : '';
     if (!newData.length) {
-      acLog(`❌ Không có file nào khớp 2 shop GMS${noteStr}.`, 'err');
+      acLog(`❌ Không đọc được file nào hợp lệ${noteStr}.`, 'err');
     } else {
       acLog(`✅ Xong: ${newData.length} kỳ, ${shopCount} shop${noteStr}`, 'ok');
     }
