@@ -7504,8 +7504,9 @@ function tfmRenderPreviewTable() {
   </div>`;
 
   // Table header — dynamic kho columns
+  const thStickyStyle = 'padding:6px 10px;white-space:nowrap;font-weight:600;background:#8e44ad;color:white;position:sticky;top:0;z-index:1;';
   const colHeaders = rows.length > 0 ? rows[0].colResults.map(c =>
-    `<th style="padding:6px 10px;white-space:nowrap;font-weight:600">${c.whName}${!c.update ? ' <span style="font-size:9px;font-weight:400;opacity:.7">(giữ)</span>' : ''}</th>`
+    `<th style="${thStickyStyle}">${c.whName}${!c.update ? ' <span style="font-size:9px;font-weight:400;opacity:.7">(giữ)</span>' : ''}</th>`
   ).join('') : '';
 
   const badge = (s) => ({
@@ -7545,13 +7546,13 @@ function tfmRenderPreviewTable() {
 
   const table = `<div style="overflow-x:auto;max-height:420px;overflow-y:auto;border:1px solid #e0d0f0;border-radius:8px">
     <table style="font-size:12px;border-collapse:collapse;width:100%">
-      <thead><tr style="background:#8e44ad;color:white;position:sticky;top:0;z-index:1">
-        <th style="padding:6px 10px">#</th>
-        <th style="padding:6px 10px;text-align:left">Tên Sản Phẩm</th>
-        <th style="padding:6px 10px;text-align:left">Mã Phân Loại</th>
-        <th style="padding:6px 10px;text-align:left">SKU / Mã Liên Kết</th>
+      <thead><tr>
+        <th style="${thStickyStyle}">#</th>
+        <th style="${thStickyStyle}text-align:left">Tên Sản Phẩm</th>
+        <th style="${thStickyStyle}text-align:left">Mã Phân Loại</th>
+        <th style="${thStickyStyle}text-align:left">SKU / Mã Liên Kết</th>
         ${colHeaders}
-        <th style="padding:6px 10px">Trạng Thái</th>
+        <th style="${thStickyStyle}">Trạng Thái</th>
       </tr></thead>
       <tbody>${trs}${moreNote}</tbody>
     </table>
@@ -7761,8 +7762,8 @@ async function tfmExportFile() {
     });
   }
 
-  const khoLabel = isDual ? 'HN+HCM' : TFM.kho.toUpperCase();
-  const outName = TFM.massFileName.replace(/\.xlsx$/i, '') + `_TON_${khoLabel}_DA_CAP_NHAT.xlsx`;
+  const khoLabel = isDual ? 'HN_HCM' : TFM.kho.toUpperCase();
+  const outName = `mass_Final_${khoLabel}.xlsx`;
   XLSX.writeFile(TFM.massWb, outName);
   tfmLog(`📤 Đã xuất "${outName}" — Kho ${khoLabel}: ${matched} khớp Map SW, ${fallback} khớp dự phòng SKU, ${skipped} không có trong file tồn (giữ nguyên), ${notInMap} không tìm thấy mã SW (giữ nguyên).`, 'ok');
 }
