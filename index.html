@@ -2282,6 +2282,30 @@
       </div>
     </div>
 
+    <!-- SKU BỊ SHOPEE TỪ CHỐI (LỆCH GIÁ) → GOM DANH SÁCH SET QUA BOT SETTON — ĐỘC LẬP,
+         không lưu Firestore, không dùng chung state với TFM/TON, không ảnh hưởng luồng khác -->
+    <div class="card" style="margin-top:18px;border-top:3px solid #d35400">
+      <div class="card-title"><span class="dot" style="background:#d35400"></span> SKU Bị Shopee Từ Chối → SetTon</div>
+      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
+        Dùng khi Shopee từ chối cập nhật tồn qua file mass (thường do lệch tỷ lệ giá biến thể &gt;5 lần, báo trong file Result). Tải lên các file <b>Result_shopee_mass_update...xlsx</b> (Shopee tự xuất sau khi xử lý file mass, có thể chọn nhiều file — nhiều shop cùng lúc) + file <b>tồn kho thật</b> (HN/SG, có thể chọn nhiều file). Hệ thống gom danh sách SKU bị lỗi (loại trùng giữa các shop), tra đúng số lượng theo kho, chia thành từng đợt để bạn copy dán vào chat bot SetTon.
+      </p>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
+        <div>
+          <input type="file" id="skuloi-result-input" accept=".xlsx,.xls" multiple style="display:none" onchange="skuloiHandleResultFiles(this)">
+          <button class="sw-upload-btn" onclick="document.getElementById('skuloi-result-input').click()">📂 1. Chọn File Result Shopee (nhiều file)</button>
+        </div>
+        <div>
+          <input type="file" id="skuloi-ton-input" accept=".xlsx,.xls" multiple style="display:none" onchange="skuloiHandleTonFiles(this)">
+          <button class="sw-upload-btn" onclick="document.getElementById('skuloi-ton-input').click()">📂 2. Chọn File Tồn Kho Thật (nhiều file)</button>
+        </div>
+        <button onclick="skuloiResetAll()" style="padding:6px 14px;border:1px solid var(--text);color:var(--text);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">File Result: <b id="skuloi-status-result">chưa chọn</b></div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">File tồn: <b id="skuloi-status-ton">chưa chọn</b></div>
+      <div id="skuloi-log" class="drive-log"></div>
+      <div id="skuloi-preview" style="display:none;margin-top:14px"></div>
+    </div>
+
     <!-- NHẬP HÀNG TỪ PHIẾU XUẤT KHO DELI / LIÊN KẾT -->
     <div class="card" style="margin-top:18px">
       <div class="card-title"><span class="dot" style="background:#27ae60"></span> Hàng Về Thêm (Deli / Bose)</div>
@@ -7781,6 +7805,291 @@ function tfmResetAll() {
   if (prevEl) { prevEl.innerHTML = ''; prevEl.style.display = 'none'; }
   const btn = document.getElementById('tfm-export-btn');
   if (btn) btn.style.display = 'none';
+}
+
+// ══════════════════════════════════════════════════════════════
+// SKULOI — SKU bị Shopee từ chối (lệch giá) → gom danh sách set qua bot SetTon.
+// ĐỘC LẬP hoàn toàn với TFM/TON — không share state, không lưu Firestore, chỉ tính
+// toán trong trình duyệt rồi xuất text để copy tay, không ghi/gọi API gì cả.
+// ══════════════════════════════════════════════════════════════
+
+const SKULOI = {
+  resultFileNames: [],
+  failedMap: new Map(),   // key: SKU viết hoa -> { sku, tenSp, reasons:Set }
+  tonFileNames: [],
+  tonHn: new Map(),       // key: SKU viết hoa -> { sku, qty, tenHang, fileName }
+  tonSg: new Map(),
+  rows: [],                // ket qua tinh: [{ kho, sku, tenSp, qty, source }]
+  notFound: [],             // SKU loi nhung khong co trong file ton da chon
+  batchSize: 10,
+};
+
+function skuloiLog(msg, type) {
+  const el = document.getElementById('skuloi-log');
+  if (!el) return;
+  el.classList.add('visible');
+  const color = type === 'err' ? '#e74c3c' : type === 'warn' ? '#f39c12' : type === 'ok' ? '#27ae60' : '#555';
+  const time = new Date().toLocaleTimeString('vi-VN');
+  el.innerHTML += `<div style="color:${color}">[${time}] ${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+// Doc 1 sheet file "Result_shopee_mass_update...xlsx" — do cot theo TEN HEADER (khong theo vi
+// tri co dinh), vi cac shop khac nhau co the co them/bot cot (VD shop co "So Luong Mua Toi Da"
+// chen truoc cot "Ly do that bai"). Tra ve null neu khong nhan dien duoc = khong phai file Result.
+function skuloiParseResultSheet(ws) {
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+  let headerRow = -1, header = null;
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    const r = rows[i]; if (!r) continue;
+    if (r.some(c => String(c || '').trim() === 'Mã Sản phẩm')) { headerRow = i; header = r.map(c => String(c || '').trim()); break; }
+  }
+  if (headerRow === -1) return null;
+
+  const skuCol = header.findIndex(h => h === 'SKU');
+  const skuParentCol = header.findIndex(h => h === 'SKU Sản phẩm');
+  const tenSpCol = header.findIndex(h => h === 'Tên Sản phẩm');
+  let reasonCol = header.findIndex(h => h === 'Lý do thất bại');
+  if (reasonCol === -1) reasonCol = header.findIndex(h => h.toLowerCase().includes('thất bại'));
+  if (reasonCol === -1) return null; // khong co cot ly do that bai -> khong phai file Result hop le
+
+  const failed = [];
+  for (let i = headerRow + 1; i < rows.length; i++) {
+    const r = rows[i]; if (!r) continue;
+    const reason = reasonCol < r.length ? r[reasonCol] : null;
+    if (reason == null || String(reason).trim() === '') continue; // chi lay dong THAT BAI
+    const skuRaw = (skuCol !== -1 ? r[skuCol] : null) || (skuParentCol !== -1 ? r[skuParentCol] : null);
+    const sku = hhFormatSku(skuRaw);
+    if (!sku) continue;
+    const tenSp = tenSpCol !== -1 ? String(r[tenSpCol] || '').trim() : '';
+    failed.push({ sku, tenSp, reason: String(reason).trim() });
+  }
+  return failed;
+}
+
+function skuloiHandleResultFiles(input) {
+  const files = [...input.files];
+  if (!files.length) return;
+  let doneCount = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const failed = skuloiParseResultSheet(ws);
+        if (failed === null) throw new Error('Không nhận diện được cột "Lý do thất bại" — có đúng là file Result Shopee không?');
+        let added = 0;
+        failed.forEach(f => {
+          const key = f.sku.toUpperCase();
+          if (!SKULOI.failedMap.has(key)) { SKULOI.failedMap.set(key, { sku: f.sku, tenSp: f.tenSp, reasons: new Set() }); added++; }
+          const entry = SKULOI.failedMap.get(key);
+          if (!entry.tenSp && f.tenSp) entry.tenSp = f.tenSp;
+          entry.reasons.add(f.reason);
+        });
+        SKULOI.resultFileNames.push(file.name);
+        skuloiLog(`✅ Đọc file Result: ${file.name} — ${failed.length} dòng lỗi (${added} SKU mới, ${failed.length - added} trùng SKU đã có)`, 'ok');
+      } catch (err) {
+        skuloiLog(`❌ Lỗi đọc file Result (${file.name}): ${err.message}`, 'err');
+      }
+      doneCount++;
+      if (doneCount === files.length) {
+        const el = document.getElementById('skuloi-status-result');
+        if (el) el.textContent = `${SKULOI.resultFileNames.length} file — ${SKULOI.failedMap.size} SKU lỗi (đã loại trùng)`;
+        skuloiCheckReady();
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function skuloiHandleTonFiles(input) {
+  const files = [...input.files];
+  if (!files.length) return;
+  let doneCount = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        // Tai dung ham do cot da duoc kiem chung o "Update Tồn Theo File" (hn/hcm/dual),
+        // khong viet lai tu dau de tranh sai khac logic voi phan da chay on dinh.
+        const { kho, products, productsHn, productsHcm, meta } = tkxParseTonkhoThatSheet(ws);
+        if (!kho) throw new Error('Không nhận diện được kho (HN/HCM) trong file này');
+        if (kho === 'hangar') throw new Error('File tồn Hangar không hỗ trợ ở tính năng này');
+
+        const putInto = (targetMap, srcMap, metaMap) => {
+          srcMap.forEach((qty, sku) => {
+            const key = String(sku).toUpperCase();
+            const m = metaMap && metaMap.get(sku);
+            targetMap.set(key, { sku: String(sku), qty, tenHang: m ? m.tenHang : '', fileName: file.name });
+          });
+        };
+        if (kho === 'hn') putInto(SKULOI.tonHn, products, meta);
+        else if (kho === 'hcm') putInto(SKULOI.tonSg, products, meta);
+        else if (kho === 'dual') { putInto(SKULOI.tonHn, productsHn, meta); putInto(SKULOI.tonSg, productsHcm, meta); }
+
+        SKULOI.tonFileNames.push(file.name);
+        const khoLabel = kho === 'dual' ? 'HN+SG' : (kho === 'hcm' ? 'SG' : 'HN');
+        skuloiLog(`✅ Đọc file tồn: ${file.name} — kho ${khoLabel}`, 'ok');
+      } catch (err) {
+        skuloiLog(`❌ Lỗi đọc file tồn (${file.name}): ${err.message}`, 'err');
+      }
+      doneCount++;
+      if (doneCount === files.length) {
+        const el = document.getElementById('skuloi-status-ton');
+        if (el) el.textContent = `${SKULOI.tonFileNames.length} file — HN: ${SKULOI.tonHn.size} SKU, SG: ${SKULOI.tonSg.size} SKU`;
+        skuloiCheckReady();
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function skuloiCheckReady() {
+  if (SKULOI.failedMap.size > 0 && (SKULOI.tonHn.size > 0 || SKULOI.tonSg.size > 0)) {
+    skuloiCompute();
+  }
+}
+
+function skuloiCompute() {
+  const rows = [];
+  const notFound = [];
+  const skusSorted = [...SKULOI.failedMap.keys()].sort();
+  skusSorted.forEach(key => {
+    const f = SKULOI.failedMap.get(key);
+    let found = false;
+    if (SKULOI.tonHn.has(key)) {
+      const t = SKULOI.tonHn.get(key);
+      rows.push({ kho: 'HN', sku: t.sku, tenSp: f.tenSp || t.tenHang || '', qty: t.qty, source: t.fileName });
+      found = true;
+    }
+    if (SKULOI.tonSg.has(key)) {
+      const t = SKULOI.tonSg.get(key);
+      rows.push({ kho: 'SG', sku: t.sku, tenSp: f.tenSp || t.tenHang || '', qty: t.qty, source: t.fileName });
+      found = true;
+    }
+    if (!found) notFound.push({ sku: f.sku, tenSp: f.tenSp });
+  });
+  SKULOI.rows = rows;
+  SKULOI.notFound = notFound;
+  skuloiRenderPreview();
+}
+
+function skuloiRenderPreview() {
+  const el = document.getElementById('skuloi-preview');
+  if (!el) return;
+  el.style.display = 'block';
+
+  const totalSku = SKULOI.failedMap.size;
+  const totalRows = SKULOI.rows.length;
+  const totalNotFound = SKULOI.notFound.length;
+
+  const card = (label, val, color) => `<div style="background:white;border:2px solid ${color};border-radius:10px;padding:8px 14px;min-width:150px;text-align:center">
+    <div style="font-size:10px;color:#777;font-weight:700;margin-bottom:2px">${label}</div>
+    <div style="font-size:24px;font-weight:800;color:${color}">${val}</div>
+  </div>`;
+  const cards = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+    ${card('SKU LỖI (ĐÃ LOẠI TRÙNG)', totalSku, '#d35400')}
+    ${card('DÒNG KHO/SL TRA ĐƯỢC', totalRows, '#27ae60')}
+    ${card('SKU CHƯA CÓ TRONG FILE TỒN', totalNotFound, '#e74c3c')}
+  </div>`;
+
+  const batchInput = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+    <label style="font-size:12px;font-weight:600;color:var(--text2)">Số dòng mỗi đợt:</label>
+    <input id="skuloi-batch-size" type="number" min="1" max="500" value="${SKULOI.batchSize}"
+      oninput="skuloiSetBatchSize(this.value)"
+      style="width:70px;padding:5px 8px;border:1px solid #ccc;border-radius:6px;font-size:12px">
+  </div>`;
+
+  const rowsHtml = SKULOI.rows.map((r, i) => `<tr style="border-bottom:1px solid #f5e2cf">
+    <td style="padding:5px 10px;color:#999;text-align:center;font-size:11px">${i + 1}</td>
+    <td style="padding:5px 10px;font-size:11px;font-weight:700;color:#d35400">${r.kho}</td>
+    <td style="padding:5px 10px;font-size:11px">${r.sku}</td>
+    <td style="padding:5px 10px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px" title="${(r.tenSp || '').replace(/"/g, '&quot;')}">${r.tenSp || '—'}</td>
+    <td style="padding:5px 10px;text-align:center;font-size:11px;font-weight:700">${r.qty}</td>
+    <td style="padding:5px 10px;font-size:10px;color:#999">${r.source}</td>
+  </tr>`).join('');
+
+  const notFoundHtml = SKULOI.notFound.length > 0 ? `<div style="margin-top:14px;border:1px solid #e74c3c;border-radius:8px;padding:10px 14px;background:#fdf0ef">
+    <div style="font-size:12px;font-weight:700;color:#c0392b;margin-bottom:6px">⚠ ${SKULOI.notFound.length} SKU không có trong file tồn đã chọn (cần bổ sung file tồn):</div>
+    <div style="font-size:11px;color:#555;line-height:1.8">${SKULOI.notFound.map(f => f.sku + (f.tenSp ? ' — ' + f.tenSp : '')).join('<br>')}</div>
+  </div>` : '';
+
+  const thStyle = 'padding:6px 10px;position:sticky;top:0;z-index:1;background:#d35400;color:white';
+  const table = `<div class="table-wrap" style="max-height:340px;overflow-y:auto;border:1px solid #f0d0a8;border-radius:8px;margin-bottom:16px">
+    <table style="font-size:12px;border-collapse:collapse;width:100%">
+      <thead><tr>
+        <th style="${thStyle}">#</th>
+        <th style="${thStyle}">Kho</th>
+        <th style="${thStyle}text-align:left">SKU</th>
+        <th style="${thStyle}text-align:left">Tên SP</th>
+        <th style="${thStyle}">Số Lượng</th>
+        <th style="${thStyle}text-align:left">Nguồn File Tồn</th>
+      </tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+  </div>`;
+
+  el.innerHTML = cards + batchInput + table + notFoundHtml + `<div id="skuloi-batches" style="margin-top:16px"></div>`;
+  skuloiRenderBatches();
+}
+
+function skuloiRenderBatches() {
+  const el = document.getElementById('skuloi-batches');
+  if (!el) return;
+  const lines = SKULOI.rows.map(r => `${r.kho} ${r.sku} ${r.qty}`);
+  if (lines.length === 0) { el.innerHTML = ''; return; }
+  const size = SKULOI.batchSize > 0 ? SKULOI.batchSize : 10;
+  const batches = [];
+  for (let i = 0; i < lines.length; i += size) batches.push(lines.slice(i, i + size));
+
+  el.innerHTML = batches.map((batch, i) => `
+    <div style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="font-size:12px;font-weight:700;color:#d35400">Đợt ${i + 1}/${batches.length} (${batch.length} dòng)</span>
+        <button onclick="skuloiCopyBatch(${i})" style="padding:4px 12px;border:1px solid #d35400;color:#d35400;background:white;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">📋 Copy Đợt ${i + 1}</button>
+      </div>
+      <textarea id="skuloi-batch-text-${i}" readonly style="width:100%;box-sizing:border-box;min-height:${Math.min(batch.length, 12) * 20 + 16}px;font-family:monospace;font-size:12px;padding:8px;border:1px solid #e0c19a;border-radius:6px;background:#fffaf3">${batch.join('\n')}</textarea>
+    </div>
+  `).join('');
+}
+
+function skuloiSetBatchSize(val) {
+  const n = parseInt(val, 10);
+  SKULOI.batchSize = (Number.isFinite(n) && n > 0) ? n : 10;
+  skuloiRenderBatches();
+}
+
+function skuloiCopyBatch(i) {
+  const el = document.getElementById(`skuloi-batch-text-${i}`);
+  if (!el) return;
+  el.select();
+  const count = el.value.split('\n').filter(Boolean).length;
+  const doAlert = () => alert(`✅ Đã sao chép ${count} dòng (Đợt ${i + 1}) vào clipboard.`);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(el.value).then(doAlert).catch(() => { document.execCommand('copy'); doAlert(); });
+  } else {
+    document.execCommand('copy'); doAlert();
+  }
+}
+
+function skuloiResetAll() {
+  SKULOI.resultFileNames = [];
+  SKULOI.failedMap = new Map();
+  SKULOI.tonFileNames = [];
+  SKULOI.tonHn = new Map();
+  SKULOI.tonSg = new Map();
+  SKULOI.rows = [];
+  SKULOI.notFound = [];
+  ['skuloi-status-result', 'skuloi-status-ton'].forEach(id => {
+    const e = document.getElementById(id); if (e) e.textContent = 'chưa chọn';
+  });
+  const logEl = document.getElementById('skuloi-log');
+  if (logEl) { logEl.innerHTML = ''; logEl.classList.remove('visible'); }
+  const prevEl = document.getElementById('skuloi-preview');
+  if (prevEl) { prevEl.innerHTML = ''; prevEl.style.display = 'none'; }
 }
 
 // ══════════════════════════════════════════════════════════════
