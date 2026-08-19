@@ -3006,6 +3006,14 @@ let ovDriveLoadPromise = null; // gán thật trong DOMContentLoaded, tồn tạ
 let ovFilterYear  = null;  // '2026'
 let ovFilterMonth = null;  // '06'
 let ovFilterDays  = new Set(); // Set of selected day labels (multi-select)
+// ★ Cờ phân biệt "chưa từng chọn khoảng ngày qua lịch" với "đã chọn nhưng khớp 0 ngày dữ liệu"
+// (xác nhận Tân 2026-08-19, bug thật: chọn 1 khoảng ngày shop không có đơn nào → KPI hiện số cộng
+// dồn TOÀN BỘ lịch sử thay vì 0, vì trước đây getOvLabels()/ovProducts() chỉ dựa vào
+// ovFilterDays.size để quyết định lọc hay trả về all-time, không phân biệt được 2 trường hợp trên).
+// true = đã chốt 1 khoảng ngày cụ thể qua ovpicker/switchShop/setLastNDays — dù rỗng cũng phải lọc
+// ra rỗng, KHÔNG được rơi về all-time. false = chưa chọn gì / đã bấm "Tất cả" / đang lọc theo
+// năm-tháng — các trường hợp này vẫn hợp lệ để trả về all-time (hoặc lọc theo năm/tháng).
+let ovFilterDaysApplied = false;
 let _ovQuickMode  = null;  // 'lastweek' | 'thismonth' | 'lastmonth' | null
 
 // ── GATE: chỉ hiện dữ liệu Tổng Quan khi đã chọn ĐỦ Shop + khoảng ngày (xác nhận Tân 2026-08-05) ──
@@ -3045,11 +3053,11 @@ function _clearOvQuick() {
   });
 }
 function setOverviewAll() {
-  ovFilterYear = null; ovFilterMonth = null; ovFilterDays = new Set(); _clearOvQuick();
+  ovFilterYear = null; ovFilterMonth = null; ovFilterDays = new Set(); ovFilterDaysApplied = false; _clearOvQuick();
   renderOverviewChips(); renderOverviewAll();
 }
-function setOvYear(y)  { ovFilterYear = ovFilterYear===y?null:y; ovFilterMonth=null; ovFilterDays=new Set(); _clearOvQuick(); renderOverviewChips(); renderOverviewAll(); }
-function setOvMonth(m) { ovFilterMonth = ovFilterMonth===m?null:m; ovFilterDays=new Set(); _clearOvQuick(); renderOverviewChips(); renderOverviewAll(); }
+function setOvYear(y)  { ovFilterYear = ovFilterYear===y?null:y; ovFilterMonth=null; ovFilterDays=new Set(); ovFilterDaysApplied = false; _clearOvQuick(); renderOverviewChips(); renderOverviewAll(); }
+function setOvMonth(m) { ovFilterMonth = ovFilterMonth===m?null:m; ovFilterDays=new Set(); ovFilterDaysApplied = false; _clearOvQuick(); renderOverviewChips(); renderOverviewAll(); }
 function setOvDay(lbl) {
   ovFilterDays.has(lbl) ? ovFilterDays.delete(lbl) : ovFilterDays.add(lbl);
   _clearOvQuick();
@@ -3061,6 +3069,7 @@ function setLastNDays(n) {
   ovFilterYear = null; ovFilterMonth = null; _clearOvQuick();
   const sorted = [...cData().dateBlocks].sort((a,b)=>parseDateLabel(a.label)-parseDateLabel(b.label));
   ovFilterDays = new Set(sorted.slice(-n).map(b=>b.label));
+  ovFilterDaysApplied = true; // đã chọn "N ngày gần nhất" cụ thể — dù shop không có ngày nào cũng phải lọc ra rỗng
   _ovQuickMode = 'lastweek';
   const el = document.getElementById('ochip-lastweek'); if(el) el.classList.add('active');
   const elA = document.getElementById('ochip-lastweek-alerts'); if(elA) elA.classList.add('active');
@@ -3079,7 +3088,7 @@ function toggleMonthDd(e) {
 }
 function setOvMonthDd(m) {
   ovFilterMonth = ovFilterMonth===m ? null : m;
-  ovFilterDays = new Set(); _clearOvQuick();
+  ovFilterDays = new Set(); ovFilterDaysApplied = false; _clearOvQuick();
   renderOverviewChips(); renderOverviewAll();
 }
 function toggleYearDd(e) {
@@ -3093,7 +3102,7 @@ function toggleYearDd(e) {
 }
 function setOvYearDd(y) {
   ovFilterYear  = ovFilterYear===y ? null : y;
-  ovFilterMonth = null; ovFilterDays = new Set(); _clearOvQuick();
+  ovFilterMonth = null; ovFilterDays = new Set(); ovFilterDaysApplied = false; _clearOvQuick();
   renderOverviewChips(); renderOverviewAll();
 }
 
@@ -3362,6 +3371,7 @@ function ovPickerSetRange(start, end) {
     return ds >= start && ds <= end;
   });
   ovFilterDays = new Set(matching.map(b => b.label));
+  ovFilterDaysApplied = true; // đã chốt khoảng ngày qua lịch — dù khớp 0 ngày cũng phải lọc ra rỗng, không rơi về all-time
   ovPickerClose();
   ovDateSelected = true;
   renderOverviewChips(); // giữ nguyên để mirror vẫn cập nhật Cần Tối Ưu
@@ -3386,7 +3396,10 @@ document.addEventListener('click', function(e) {
 // Trả về các dateBlock labels cần tính cho overview filter
 function getOvLabels() {
   let blocks = cData().dateBlocks;
-  if (ovFilterDays.size) return blocks.filter(b => ovFilterDays.has(b.label)).map(b => b.label);
+  // ovFilterDaysApplied=true nghĩa là đã chốt 1 khoảng ngày cụ thể qua lịch — PHẢI lọc theo đúng
+  // Set đó dù rỗng (trả về []), không được coi rỗng = "chưa lọc gì" rồi rơi xuống nhánh year/month
+  // hay trả nguyên blocks (bug all-time đã xác nhận với Tân 2026-08-19).
+  if (ovFilterDaysApplied) return blocks.filter(b => ovFilterDays.has(b.label)).map(b => b.label);
   if (ovFilterYear)  blocks = blocks.filter(b => parseDateLabelInfo(b.label)?.year  === ovFilterYear);
   if (ovFilterMonth) blocks = blocks.filter(b => parseDateLabelInfo(b.label)?.month === ovFilterMonth);
   return blocks.map(b => b.label);
@@ -3582,8 +3595,13 @@ function selectAllDaysInMonth() {
 
 // Tính stats sản phẩm cho các label được lọc
 function ovProducts() {
-  if (!ovFilterYear && !ovFilterMonth && !ovFilterDays.size) return cData().products;
+  if (!ovFilterYear && !ovFilterMonth && !ovFilterDaysApplied) return cData().products;
   const labels = getOvLabels();
+
+  // ★ Rà soát 2026-08-19: đã chốt khoảng ngày cụ thể mà khớp 0 ngày (labels rỗng) — không được rơi
+  // xuống nhánh dự phòng !hasDailyData bên dưới (nó bỏ qua bộ lọc, trả nguyên all-time). Chặn ở đây
+  // trước để không tái hiện đúng bug all-time đã sửa, qua đường vòng "thiếu dailyData".
+  if (ovFilterDaysApplied && !labels.length) return [];
 
   // Khi load từ Firestore, dailyData bị strip để tiết kiệm dung lượng.
   // Nếu không có dailyData → không thể lọc per-product per-day.
@@ -3652,7 +3670,7 @@ function ovDailySeries() {
 // "Tất cả" (không lọc gì) không có kỳ trước xác định → trả về [] và ẩn hẳn cột %.
 // Xác nhận với Tân 2026-08-05.
 function getOvPrevPeriodLabels() {
-  if (!ovFilterYear && !ovFilterMonth && !ovFilterDays.size) return [];
+  if (!ovFilterYear && !ovFilterMonth && !ovFilterDaysApplied) return [];
   const curLabels = getOvLabels();
   if (!curLabels.length) return [];
   const allBlocks = [...cData().dateBlocks].sort((a,b)=>parseDateLabel(a.label)-parseDateLabel(b.label));
@@ -3774,6 +3792,7 @@ window.addEventListener('DOMContentLoaded', () => {
           return ds >= OVPICKER.startDate && ds <= OVPICKER.endDate;
         });
         ovFilterDays = new Set(matching.map(b => b.label));
+        ovFilterDaysApplied = true;
       }
       // Render lại 1 lần sau khi đọc xong, để trang không kẹt mãi ở trạng thái "đang tải" nếu
       // người dùng đã mở Tổng Quan/Tổng Hợp Hệ Thống từ trước khi Drive đọc xong.
@@ -14637,9 +14656,11 @@ function switchShop(shopId, btn) {
       return ds >= OVPICKER.startDate && ds <= OVPICKER.endDate;
     });
     ovFilterDays = new Set(matching.map(b => b.label));
+    ovFilterDaysApplied = true;
     ovDateSelected = true;
   } else {
     ovFilterYear = null; ovFilterMonth = null; ovFilterDays = new Set();
+    ovFilterDaysApplied = false;
     ovDateSelected = false;
   }
   swTKData = null; swOrderData = null; swSelectedDates = new Set();
@@ -16021,8 +16042,9 @@ function initDoSuatPage() {
   const chips = document.getElementById('dosuat-date-chips');
   if (!chips) return;
   let blocks = cData().dateBlocks;
-  // Lọc theo bộ lọc Tổng Quan
-  if (ovFilterDays.size) {
+  // Lọc theo bộ lọc Tổng Quan — dùng ovFilterDaysApplied (không phải .size) để không rơi về
+  // "hiện tất cả ngày" khi Tổng Quan đã chốt 1 khoảng ngày nhưng khớp 0 ngày (xác nhận Tân 2026-08-19).
+  if (ovFilterDaysApplied) {
     blocks = blocks.filter(b => ovFilterDays.has(b.label));
   } else {
     if (ovFilterYear)  blocks = blocks.filter(b => parseDateLabelInfo(b.label)?.year  === ovFilterYear);
