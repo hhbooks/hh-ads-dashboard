@@ -13512,6 +13512,17 @@ async function giaComputeCheckRows(tab, thresholdPct, fromDateStr, logFn) {
     });
   });
 
+  // ★ Log chẩn đoán tạm (2026-08-19) — dropdown Shop rỗng với 1 số khoảng ngày cụ thể dù cột Shop
+  // đã dò đúng ở giaDoSyncOrders. Đếm xem trong kết quả vừa lọc theo ngày, có bao nhiêu dòng bị
+  // thiếu shop, kèm vài mã đơn mẫu, để xác định đây là do DỮ LIỆU GỐC thiếu Shop cho các đơn gần
+  // đây hay do lỗi logic. Xoá đoạn này sau khi xác định xong nguyên nhân.
+  const missingShop = out.filter(o => !String(o.shop || '').trim());
+  if (logFn) {
+    logFn(`🔍 [Debug] ${out.length} dòng sau lọc — ${missingShop.length} dòng KHÔNG có Shop.` +
+      (missingShop.length ? ` Mẫu mã đơn thiếu Shop: ${missingShop.slice(0, 5).map(o => o.maDon).join(', ')}` : ''),
+      missingShop.length ? 'warn' : 'ok');
+  }
+
   return out;
 }
 
