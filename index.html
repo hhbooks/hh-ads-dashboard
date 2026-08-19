@@ -13089,6 +13089,10 @@ async function giaDoSyncOrders(tab) {
 
     const norm = s => String(s || '').trim().toLowerCase();
     const header = rows[0].map(norm);
+    // ★ Log chẩn đoán tạm (2026-08-19) — dò cột Shop đã sửa 2 lần vẫn không ra, cần xem NGUYÊN VĂN
+    // header thật để biết chính xác tên cột thay vì đoán tiếp. Hiện ra ngay trong log mục ① khi
+    // Tân bấm "Đồng bộ đơn hàng" — không cần mở DevTools. Xoá đoạn này sau khi xác định xong nguyên nhân.
+    giaLog(`🔍 [Debug] Header gốc (chưa chuẩn hoá): ${JSON.stringify(rows[0])}`, 'info');
     const idx = {
       maDon:        header.findIndex(h => h.includes('mã đơn')),
       ngay:         header.findIndex(h => h.includes('ngày đặt')),
@@ -13117,6 +13121,8 @@ async function giaDoSyncOrders(tab) {
       phiXuLyGiaoDich:  header.findIndex(h => h.includes('phí xử lý')),
       tinhThanhPho:     header.findIndex(h => h.includes('tỉnh'))
     };
+    // ★ Log chẩn đoán tạm (2026-08-19) — xem cùng khối trên. Xoá cùng lúc với log header ở trên.
+    giaLog(`🔍 [Debug] Cột Shop: index=${idx.shop}` + (idx.shop !== -1 ? ` → khớp tên cột "${rows[0][idx.shop]}"` : ' → KHÔNG khớp được cột nào, kiểm tra lại tên cột Shop thật trong Sheet ở log header phía trên'), idx.shop === -1 ? 'warn' : 'ok');
     if (idx.sku === -1 || idx.giaUuDai === -1) {
       throw new Error('Không tìm thấy cột "SKU phân loại hàng" hoặc "Giá ưu đãi" trong tab này — kiểm tra lại tiêu đề cột.');
     }
