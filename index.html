@@ -13101,7 +13101,11 @@ async function giaDoSyncOrders(tab) {
       soLuong:      header.findIndex(h => h.includes('số lượng')),
       tongGiaUuDai: header.findIndex(h => h.includes('tổng giá ưu đãi')),
       phanTramGiam: header.findIndex(h => h.includes('giảm giá') && h.startsWith('%')),
-      shop:         header.findIndex(h => h === 'shop'),
+      // Nới rộng dò cột Shop (trước chỉ khớp đúng y hệt "shop", bỏ sót biến thể "Tên Shop" khiến
+      // mọi dòng bị để trống shop → dropdown lọc Shop ở mục ② chỉ còn "Tất cả Shop", không lọc
+      // được — xác nhận Tân 2026-08-19). Dùng đúng 3 biến thể đã chứng minh đúng ở chỗ đọc file
+      // Map Salework (dòng ~4171: "shop" / "tên shop" / "ten shop", không phân biệt hoa/thường).
+      shop:         header.findIndex(h => h === 'shop' || h === 'tên shop' || h === 'ten shop'),
       duocShopeeTroGia: header.findIndex(h => h.includes('được shopee trợ giá')),
       maGiamGiaShop:    header.findIndex(h => h.includes('mã giảm giá') && h.includes('shop') && !h.includes('shopee')),
       // 6 cột thêm 2026-08-09 (xác nhận Tân) — trước đây chỉ đẩy lên Google Sheet, giờ đọc thêm
