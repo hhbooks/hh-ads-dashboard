@@ -870,6 +870,16 @@
         <button id="sapi-sync-detail-btn" onclick="sapiSyncPerCampaign()" style="display:none;padding:10px 22px;background:#c0392b;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">
           📋 Chi Tiết Campaigns
         </button>
+        <!-- Nút đồng bộ lại từ Drive vào dashboard NGAY (xác nhận Tân 2026-08-19) — Chi Tiết
+             Campaigns giờ chỉ lưu Drive (không còn Firestore), nhưng trước đây chỉ có
+             sapiAutoLoadFromDrive() tự chạy 1 LẦN DUY NHẤT lúc mở trang (2s sau DOMContentLoaded).
+             Sau khi bấm "Chi Tiết Campaigns" xong, muốn thấy số mới ở Tổng Quan/Tổng Hợp Hệ Thống
+             phải F5 lại cả trang — gây hiểu lầm là lỗi. Nút này gọi lại đúng hàm đó thủ công, giống
+             pattern "📂 Đồng Bộ Từ Drive" của Nhóm Sản Phẩm/GMS, dùng chung khung log #sapi-log. -->
+        <button id="sapi-drive-sync-btn" onclick="sapiSyncFromDriveClick()" style="padding:10px 22px;background:#1a73e8;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">
+          🔄 Đồng Bộ Từ Drive
+        </button>
+        <span id="sapi-drive-last-sync" style="font-size:11px;color:var(--text2)">Chưa đồng bộ lần nào</span>
         <!-- Inputs ẩn — giữ nguyên để sapiSyncAll/sapiSyncPerCampaign đọc như cũ -->
         <input type="date" id="sapi-sync-date" style="display:none">
         <input type="date" id="sapi-sync-date-to" style="display:none">
@@ -9510,12 +9520,17 @@ async function sapiForceReloadFromDrive() {
 }
 
 // ── Auto-load từ Google Drive khi mở Dashboard (toàn bộ lịch sử ADS) ──
-async function sapiAutoLoadFromDrive() {
+// `logFn` tuỳ chọn (xác nhận Tân 2026-08-19) — truyền `sapiLog` khi gọi thủ công từ nút
+// "🔄 Đồng Bộ Từ Drive" để Tân thấy tiến trình ngay trên UI; để trống khi gọi tự động lúc mở
+// trang (như cũ, chỉ console.log, không làm phiền UI).
+async function sapiAutoLoadFromDrive(logFn) {
   if (!SAPI_PROXY) return;
   try {
+    if (logFn) logFn('📂 Đang lấy danh sách file Chi Tiết Campaigns từ Drive...');
     const resp = await sapiCall('list_drive_files', {});
     const files = resp.files || [];
-    if (!files.length) return;
+    if (!files.length) { if (logFn) logFn('Chưa có file Chi Tiết Campaigns nào trên Drive — bấm "📋 Chi Tiết Campaigns" trước.', 'warn'); return; }
+    if (logFn) logFn(`  → ${files.length} file CSV trên Drive`);
 
     // Parse tên file: ADS_{shopId}_{YYYYMMDD}_{syncTs}.csv
     // Với mỗi cặp shopId+ngày → chỉ lấy file có syncTs mới nhất
@@ -9601,9 +9616,28 @@ async function sapiAutoLoadFromDrive() {
       renderAll();
       refreshDatesPanel();
       console.log(`✅ Drive load: ${loadedCount} ngày ADS đã load từ Google Drive`);
+      if (logFn) logFn(`✅ Đã tải ${loadedCount} ngày dữ liệu mới vào Tổng Quan/Tổng Hợp Hệ Thống.`, 'ok');
+    } else if (logFn) {
+      logFn('Không có ngày dữ liệu mới nào cần tải (đã đủ trong bộ nhớ).', 'info');
     }
   } catch(e) {
     console.warn('[sapiAutoLoadFromDrive]', e.message);
+    if (logFn) logFn('❌ Lỗi: ' + e.message, 'err');
+  }
+}
+
+// ── Bấm nút "🔄 Đồng Bộ Từ Drive" (xác nhận Tân 2026-08-19) — gọi thủ công lại đúng
+// sapiAutoLoadFromDrive() để đọc lại Drive vào Tổng Quan/Tổng Hợp Hệ Thống ngay, không cần F5
+// cả trang. Dùng chung khung log #sapi-log với "📋 Chi Tiết Campaigns" (qua hàm sapiLog có sẵn).
+async function sapiSyncFromDriveClick() {
+  const btn = document.getElementById('sapi-drive-sync-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Đang đồng bộ...'; }
+  try {
+    await sapiAutoLoadFromDrive(sapiLog);
+    const lastSyncEl = document.getElementById('sapi-drive-last-sync');
+    if (lastSyncEl) lastSyncEl.textContent = `Đồng bộ lúc ${new Date().toLocaleString('vi-VN')}`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Đồng Bộ Từ Drive'; }
   }
 }
 
@@ -13089,10 +13123,6 @@ async function giaDoSyncOrders(tab) {
 
     const norm = s => String(s || '').trim().toLowerCase();
     const header = rows[0].map(norm);
-    // ★ Log chẩn đoán tạm (2026-08-19) — dò cột Shop đã sửa 2 lần vẫn không ra, cần xem NGUYÊN VĂN
-    // header thật để biết chính xác tên cột thay vì đoán tiếp. Hiện ra ngay trong log mục ① khi
-    // Tân bấm "Đồng bộ đơn hàng" — không cần mở DevTools. Xoá đoạn này sau khi xác định xong nguyên nhân.
-    giaLog(`🔍 [Debug] Header gốc (chưa chuẩn hoá): ${JSON.stringify(rows[0])}`, 'info');
     const idx = {
       maDon:        header.findIndex(h => h.includes('mã đơn')),
       ngay:         header.findIndex(h => h.includes('ngày đặt')),
@@ -13121,8 +13151,6 @@ async function giaDoSyncOrders(tab) {
       phiXuLyGiaoDich:  header.findIndex(h => h.includes('phí xử lý')),
       tinhThanhPho:     header.findIndex(h => h.includes('tỉnh'))
     };
-    // ★ Log chẩn đoán tạm (2026-08-19) — xem cùng khối trên. Xoá cùng lúc với log header ở trên.
-    giaLog(`🔍 [Debug] Cột Shop: index=${idx.shop}` + (idx.shop !== -1 ? ` → khớp tên cột "${rows[0][idx.shop]}"` : ' → KHÔNG khớp được cột nào, kiểm tra lại tên cột Shop thật trong Sheet ở log header phía trên'), idx.shop === -1 ? 'warn' : 'ok');
     if (idx.sku === -1 || idx.giaUuDai === -1) {
       throw new Error('Không tìm thấy cột "SKU phân loại hàng" hoặc "Giá ưu đãi" trong tab này — kiểm tra lại tiêu đề cột.');
     }
@@ -13511,17 +13539,6 @@ async function giaComputeCheckRows(tab, thresholdPct, fromDateStr, logFn) {
       maGiamGiaShop: Number(r.maGiamGiaShop) || 0
     });
   });
-
-  // ★ Log chẩn đoán tạm (2026-08-19) — dropdown Shop rỗng với 1 số khoảng ngày cụ thể dù cột Shop
-  // đã dò đúng ở giaDoSyncOrders. Đếm xem trong kết quả vừa lọc theo ngày, có bao nhiêu dòng bị
-  // thiếu shop, kèm vài mã đơn mẫu, để xác định đây là do DỮ LIỆU GỐC thiếu Shop cho các đơn gần
-  // đây hay do lỗi logic. Xoá đoạn này sau khi xác định xong nguyên nhân.
-  const missingShop = out.filter(o => !String(o.shop || '').trim());
-  if (logFn) {
-    logFn(`🔍 [Debug] ${out.length} dòng sau lọc — ${missingShop.length} dòng KHÔNG có Shop.` +
-      (missingShop.length ? ` Mẫu mã đơn thiếu Shop: ${missingShop.slice(0, 5).map(o => o.maDon).join(', ')}` : ''),
-      missingShop.length ? 'warn' : 'ok');
-  }
 
   return out;
 }
