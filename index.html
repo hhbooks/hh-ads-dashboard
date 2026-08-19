@@ -2985,6 +2985,13 @@ let filterState = 'all';
 let chartTopRoas, chartCostPie, chartTrend, chartRevCost, chartOvTrend, chartAdsh;
 let chartAdshBest = {};
 
+// ── DRIVE LOAD GATE: renderKPIs()/_thRenderContent() phải "await ovDriveLoadPromise" trước khi
+// tính số, để không hiện tạm số sai (all-time fallback) trong lúc dữ liệu Drive chưa đọc xong —
+// xác nhận Tân 2026-08-19, xem chi tiết ở DOMContentLoaded bên dưới. ──
+let ovDriveLoaded = false;
+let ovDriveLoadPromise = null; // gán thật trong DOMContentLoaded, tồn tại từ rất sớm nên chỗ nào
+                                // cũng await được kể cả trước khi setTimeout bên trong chạy xong
+
 // ── OVERVIEW FILTER STATE ──
 let ovFilterYear  = null;  // '2026'
 let ovFilterMonth = null;  // '06'
@@ -2998,10 +3005,18 @@ function ovUpdateGate() {
   const notice  = document.getElementById('ov-gate-notice');
   const content = document.getElementById('ov-content');
   if (!notice || !content) return true; // DOM chưa sẵn sàng — không chặn gọi hàm render phía sau
+  const hint = document.getElementById('ov-gate-hint');
+  // Chờ đọc xong Google Drive trước khi tính bất kỳ số nào (xác nhận Tân 2026-08-19) — tránh hiện
+  // tạm số sai (rơi vào nhánh dự phòng all-time do dailyData chưa kịp nạp) rồi mới tự sửa lại.
+  if (!ovDriveLoaded) {
+    notice.style.display  = '';
+    content.style.display = 'none';
+    if (hint) hint.textContent = '⏳ Đang tải dữ liệu từ Google Drive... (chỉ mất vài giây khi vừa mở trang)';
+    return false;
+  }
   const ready = ovShopSelected && ovDateSelected;
   notice.style.display  = ready ? 'none' : '';
   content.style.display = ready ? '' : 'none';
-  const hint = document.getElementById('ov-gate-hint');
   if (hint && !ready) {
     hint.textContent = !ovShopSelected && !ovDateSelected
       ? 'Bấm chọn 1 Shop và 1 khoảng ngày ở thanh lọc phía trên — dữ liệu toàn trang sẽ hiển thị theo đúng bộ lọc đó.'
@@ -3722,15 +3737,41 @@ window.addEventListener('DOMContentLoaded', () => {
   if (typeof blLoadIfNeeded === 'function') blLoadIfNeeded();
   // Xử lý OAuth callback từ Shopee (nếu URL có ?code=xxx&shop_id=yyy)
   if (typeof sapiHandleCallback === 'function') sapiHandleCallback();
-  // Tự load data ADS từ Firestore nếu Apps Script đã sync lúc 9h sáng
-  setTimeout(async () => {
-    // Load data hôm qua từ Firestore (Apps Script auto-sync 9h sáng)
-    if (typeof sapiAutoLoadFromFirestore === 'function') await sapiAutoLoadFromFirestore();
-    // Load lịch sử ADS từ Google Drive (data đã sync qua Chi Tiết Campaigns)
-    if (typeof sapiAutoLoadFromDrive === 'function') await sapiAutoLoadFromDrive();
-    // Load GMS data từ Google Drive (Chiến Dịch Tự Động GMS)
-    if (typeof gmsAutoLoadFromDrive === 'function') await gmsAutoLoadFromDrive();
-  }, 2000);
+  // Tự load data ADS Tổng Quan/Tổng Hợp Hệ Thống — CHỈ còn từ Google Drive (xác nhận Tân
+  // 2026-08-19, bỏ hẳn Firestore cho luồng Chi Tiết Campaigns: đã bỏ trigger 9h sáng, không còn
+  // ai ghi vào shopee_ads/{shop}/campaigns/{ngày} nữa nên bỏ luôn bước đọc sapiAutoLoadFromFirestore
+  // cũ). ovDriveLoadPromise được tạo NGAY (đồng bộ) dù việc đọc thật sự chỉ bắt đầu sau 2s — nhờ
+  // vậy renderKPIs()/_thRenderContent() có thể "await ovDriveLoadPromise" bất cứ lúc nào (kể cả
+  // gọi trước khi setTimeout bên trong chạy) mà vẫn đợi đúng lúc dữ liệu Drive đọc xong. Tránh
+  // đúng bug cũ: render chạy trước khi đọc Drive xong, hiện tạm số sai (all-time) rồi mới tự sửa
+  // lại, trông như "chập chờn".
+  ovDriveLoadPromise = new Promise((resolve) => {
+    setTimeout(async () => {
+      // Load lịch sử ADS từ Google Drive (data đã sync qua Chi Tiết Campaigns)
+      if (typeof sapiAutoLoadFromDrive === 'function') await sapiAutoLoadFromDrive();
+      // Load GMS data từ Google Drive (Chiến Dịch Tự Động GMS)
+      if (typeof gmsAutoLoadFromDrive === 'function') await gmsAutoLoadFromDrive();
+      ovDriveLoaded = true;
+      // Nếu người dùng đã lỡ chọn khoảng ngày TRƯỚC KHI Drive đọc xong (ví dụ bấm lịch ngay khi
+      // vừa mở trang), lúc đó ovFilterDays được khớp với cData().dateBlocks lúc đó CHƯA ĐẦY ĐỦ —
+      // có thể ra 0 hoặc thiếu ngày. Khớp lại 1 lần nữa ở đây cho chắc, giống hệt cách switchShop()
+      // đang làm (xác nhận Tân 2026-08-19, vá race-condition gốc rễ gây bug số liệu sai hôm qua).
+      if (typeof OVPICKER !== 'undefined' && OVPICKER.startDate && OVPICKER.endDate) {
+        const matching = cData().dateBlocks.filter(b => {
+          const p = b.label.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+          if (!p) return false;
+          const ds = `${p[3]}-${p[2]}-${p[1]}`;
+          return ds >= OVPICKER.startDate && ds <= OVPICKER.endDate;
+        });
+        ovFilterDays = new Set(matching.map(b => b.label));
+      }
+      // Render lại 1 lần sau khi đọc xong, để trang không kẹt mãi ở trạng thái "đang tải" nếu
+      // người dùng đã mở Tổng Quan/Tổng Hợp Hệ Thống từ trước khi Drive đọc xong.
+      if (document.getElementById('page-overview')?.classList.contains('active')) renderAll();
+      if (document.getElementById('page-tonghop')?.classList.contains('active') && typeof _thRenderContent === 'function') _thRenderContent();
+      resolve();
+    }, 2000);
+  });
 });
 
 // Lưu 1 shop lên Firestore (chỉ lưu shop hiện tại để tiết kiệm write)
@@ -9439,48 +9480,11 @@ async function sapiSyncAll() {
   }
 }
 
-// ── Auto-load từ Firestore khi mở Dashboard (Apps Script đã sync lúc 9h sáng) ──
-async function sapiAutoLoadFromFirestore() {
-  // Lấy ngày hôm qua (Apps Script sync data của hôm qua)
-  const d = new Date(); d.setDate(d.getDate() - 1);
-  const targetDate = d.toISOString().slice(0, 10);
-  const dateKey    = targetDate.replace(/-/g, '');
-  const dateLabel  = sapiDateToLabel(targetDate);
-
-  let loadedCount = 0;
-  for (const [shopApiId, shopKey] of Object.entries(SAPI_SHOP_MAP)) {
-    try {
-      if (G.shops[shopKey]?.dateBlocks?.find(b => b.label === dateLabel)) continue;
-      const snap = await db.collection('shopee_ads').doc(shopApiId)
-        .collection('campaigns').doc(dateKey).get();
-      if (!snap.exists) continue;
-      const data = snap.data();
-      const campaigns = data.list || [];
-      const products = sapiApiToProducts(campaigns);
-      if (!products.length) continue;
-      if (!G.shops[shopKey]) G.shops[shopKey] = { products: [], dateBlocks: [], loaded: false, filename: '', dailyTotals: {} };
-      if (!G.shops[shopKey].dailyTotals) G.shops[shopKey].dailyTotals = {};
-      const aggCost = Number(data.agg_cost || 0);
-      const aggGmv  = Number(data.agg_gmv  || 0);
-      if (aggCost > 0 || aggGmv > 0) {
-        G.shops[shopKey].dailyTotals[dateLabel] = { doanh_so: aggGmv, chi_phi: aggCost };
-      }
-      const savedCurrent = G.current;
-      G.current = shopKey;
-      applyOneCSV(products, dateLabel);
-      G.shops[shopKey].loaded = true;
-      G.shops[shopKey].filename = dateLabel;
-      updateShopStatus(shopKey, dateLabel);
-      G.current = savedCurrent;
-      loadedCount++;
-    } catch(e) {}
-  }
-  if (loadedCount > 0) {
-    renderAll();
-    refreshDatesPanel();
-    console.log(`✅ Auto-load từ Firestore: ${loadedCount} shop đã cập nhật (${dateLabel})`);
-  }
-}
+// ── ĐÃ BỎ sapiAutoLoadFromFirestore() (xác nhận Tân 2026-08-19) ──
+// Hàm cũ đọc doc shopee_ads/{shop}/campaigns/{ngày} do trigger 9h sáng ghi — trigger đó đã bị
+// Tân xóa thủ công (không còn ai ghi Firestore cho luồng Chi Tiết Campaigns nữa), nên hàm này
+// luôn no-op. Toàn bộ việc auto-load ADS khi mở Dashboard giờ chỉ còn qua sapiAutoLoadFromDrive()
+// (đọc thẳng file CSV trên Drive, không qua Firestore) — xem DOMContentLoaded phía trên.
 
 // ── Force reload: xóa data CSV hiện tại của shop, tải lại toàn bộ từ Drive ──
 async function sapiForceReloadFromDrive() {
@@ -10011,12 +10015,10 @@ async function sapiSyncPerCampaign() {
       // Sort theo chi phí giảm dần
       allCampaigns.sort((a, b) => b.expense - a.expense);
 
-      // Lưu Firestore: shopee_ads/{shopId}/campaigns/{dateKey}
-      await db.collection('shopee_ads').doc(String(shop.id))
-        .collection('campaigns').doc(dateKey)
-        .set({ list: allCampaigns, date: targetDate, synced_at: new Date().toISOString(), shop_name: shop.name,
-               agg_cost: _shopAggCost, agg_gmv: _shopAggGmv,
-               gms_cost: _shopGmsCost, gms_gmv: _shopGmsGmv });
+      // KHÔNG lưu Firestore nữa (xác nhận Tân 2026-08-19) — chỉ lưu Drive, đọc lại từ Drive khi
+      // cần xem (giống "Chiến Dịch Nhóm Sản Phẩm"). Lý do: doc Firestore giới hạn 1MB, càng nhiều
+      // ngày/shop càng dễ đầy — đây chính là nguyên nhân bug KPI Tổng Quan tính nhầm sang tổng
+      // cộng dồn toàn bộ lịch sử (đã xác nhận với Tân 2026-08-19).
 
       // ★ Lưu Google Drive — tên file: ADS_{shopId}_{YYYYMMDD}_{timestamp}.csv
       try {
@@ -16590,7 +16592,7 @@ let _thFilterTo   = null;  // 'yyyy-mm-dd' | null
 
 // Chuyển label dateBlocks ("dd/MM/yyyy") → 'yyyy-mm-dd' để so sánh khoảng ngày.
 // Toàn bộ dữ liệu Tổng Quan/Tổng Hợp Hệ Thống hiện chỉ được nạp qua đường API/Drive theo
-// TỪNG NGÀY (sapiDateToLabel nhận 1 ngày ISO đơn lẻ — xem sapiAutoLoadFromFirestore/
+// TỪNG NGÀY (sapiDateToLabel nhận 1 ngày ISO đơn lẻ — xem sapiSyncPerCampaign/
 // sapiAutoLoadFromDrive), nên label luôn là 1 ngày cụ thể, không phải block gộp nhiều ngày.
 // Xác nhận với Tân 2026-08-10.
 function _thLabelToDateStr(label) {
@@ -17378,6 +17380,18 @@ function initTongHopPage() {
 }
 
 function _thRenderContent() {
+  // Chờ đọc xong Google Drive trước khi tính — cùng nguyên tắc với Tổng Quan (xác nhận Tân
+  // 2026-08-19). Không thì có thể hiện nhầm "Chưa có dữ liệu" trong lúc Drive vẫn đang đọc.
+  if (!ovDriveLoaded) {
+    ['th-cost','th-rev','th-roas','th-acos'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.textContent = '…';
+    });
+    const loadingHtml = '<div class="th-empty">⏳ Đang tải dữ liệu từ Google Drive...</div>';
+    const wrap = document.getElementById('th-shop-table-wrap');
+    if (wrap) wrap.innerHTML = loadingHtml;
+    return;
+  }
+
   const shopTotals = Object.keys(SHOPS).map(id => _thGetShopTotals(id)).filter(Boolean);
 
   if (!shopTotals.length) {
@@ -17385,7 +17399,7 @@ function _thRenderContent() {
       const el = document.getElementById(id); if (el) el.textContent = '–';
     });
     document.getElementById('th-shop-table-wrap').innerHTML =
-      '<div class="th-empty">Chưa có dữ liệu — hãy đồng bộ Drive cho từng shop trước</div>';
+      '<div class="th-empty">Chưa có dữ liệu cho khoảng ngày đang lọc — kiểm tra lại bộ lọc kỳ xem, hoặc shop chưa đồng bộ đủ lịch sử cho khoảng này</div>';
     const catWrap = document.getElementById('th-category-wrap');
     if (catWrap) catWrap.innerHTML = '<div class="th-empty">Chưa có dữ liệu</div>';
     if (_thChartCatRoas) { _thChartCatRoas.destroy(); _thChartCatRoas = null; }
