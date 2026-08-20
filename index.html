@@ -5179,10 +5179,10 @@ function tkxComputeStockForRow(maPhanLoaiKey, kho, fallbackSku, maSpKey, tenPhan
     // Case 1 (1 SKU) hoặc Case 2 (combo nhiều SKU)
     const computed = [];
     for (const c of comps) {
-      if (!blHas(lookup, c.maSalework)) {
+      if (!blHas(lookup, c.maSalework, kho)) {
         return { value: null, status: 'missing-component' };
       }
-      computed.push(Math.floor(blGet(lookup, c.maSalework) / (c.comboQty || 1)));
+      computed.push(Math.floor(blGet(lookup, c.maSalework, kho) / (c.comboQty || 1)));
     }
     return { value: Math.min(...computed), status: 'matched' };
   };
@@ -5293,10 +5293,12 @@ async function tkxSaveRealStockToStorage() {
       else if (Number(prev?.hcm) > 0) newEntry.hcm = Number(prev.hcm);
       if (Number(prev?.hangar) > 0) newEntry.hangar = Number(prev.hangar);
       stock[sku] = newEntry;
-      // Black List: ghi đè số lượng chuẩn cho TẤT CẢ kho (luôn thắng), áp dụng sau khi gộp.
+      // Black List: ghi đè số lượng chuẩn CHỈ cho kho có khoá trong Black List (HN/SG tách riêng,
+      // không đụng Hangar) — áp dụng sau khi gộp. Xác nhận Tân 2026-08-20.
       if (BL.lookup.has(sku)) {
-        const v = BL.lookup.get(sku);
-        stock[sku] = { hn: v, hcm: v, hangar: v };
+        const bl = BL.lookup.get(sku);
+        if (bl.hn !== null && bl.hn !== undefined) newEntry.hn = bl.hn;
+        if (bl.hcm !== null && bl.hcm !== undefined) newEntry.hcm = bl.hcm;
         blOverrideCount++;
       }
     });
@@ -5380,7 +5382,7 @@ function lkComputeStockForRow(maPhanLoaiKey, kho, fallbackSku) {
   const lookup = LK.tonLookup[kho];
   const trySkuFallback = () => {
     const sk = fallbackSku != null ? String(fallbackSku).trim() : '';
-    if (sk && blHas(lookup, sk)) return { value: blGet(lookup, sk), status: 'matched-fallback' };
+    if (sk && blHas(lookup, sk, kho)) return { value: blGet(lookup, sk, kho), status: 'matched-fallback' };
     return null;
   };
 
@@ -5395,12 +5397,12 @@ function lkComputeStockForRow(maPhanLoaiKey, kho, fallbackSku) {
       const computed = [];
       let fb = null, hasMissing = false;
       for (const c of comps) {
-        if (!blHas(lookup, c.maSalework)) {
+        if (!blHas(lookup, c.maSalework, kho)) {
           if (comps.length === 1) fb = trySkuFallback();
           if (fb) break;
           hasMissing = true; break;
         }
-        computed.push(Math.floor(blGet(lookup, c.maSalework) / (c.comboQty || 1)));
+        computed.push(Math.floor(blGet(lookup, c.maSalework, kho) / (c.comboQty || 1)));
       }
       res = fb ? fb : (hasMissing ? { value: null, status: 'missing-component' } : { value: Math.min(...computed), status: 'matched' });
     }
@@ -6237,10 +6239,15 @@ async function nhConfirmAdd(kho) {
       added++;
     });
 
-    // Áp Black List override
+    // Áp Black List override — CHỈ kho có khoá trong Black List (HN/SG tách riêng, không đụng
+    // Hangar). Xác nhận Tân 2026-08-20.
     let blCount = 0;
-    BL.lookup.forEach((v, sku) => {
-      if (stock[sku]) { stock[sku] = { hn: v, hcm: v, hangar: v }; blCount++; }
+    BL.lookup.forEach((bl, sku) => {
+      if (!stock[sku]) return;
+      let touched = false;
+      if (bl.hn !== null && bl.hn !== undefined) { stock[sku].hn = bl.hn; touched = true; }
+      if (bl.hcm !== null && bl.hcm !== undefined) { stock[sku].hcm = bl.hcm; touched = true; }
+      if (touched) blCount++;
     });
 
     await db.collection('tonkho_thuc').doc('all').set({
@@ -6846,7 +6853,7 @@ function hhComputeStockForRow(maPhanLoaiKey, kho, fallbackSku) {
   const lookup = HH.tonLookup[kho];
   const trySkuFallback = () => {
     const sk = fallbackSku != null ? hhFormatSku(fallbackSku) : '';
-    if (sk && blHas(lookup, sk)) return { value: blGet(lookup, sk), status: 'matched-fallback' };
+    if (sk && blHas(lookup, sk, kho)) return { value: blGet(lookup, sk, kho), status: 'matched-fallback' };
     return null;
   };
   if (maPhanLoaiKey == null || String(maPhanLoaiKey).trim() === '') {
@@ -6860,12 +6867,12 @@ function hhComputeStockForRow(maPhanLoaiKey, kho, fallbackSku) {
   let fb = null, hasMissing = false;
   for (const c of comps) {
     const csku = hhFormatSku(c.maSalework);
-    if (!blHas(lookup, csku)) {
+    if (!blHas(lookup, csku, kho)) {
       if (comps.length === 1) fb = trySkuFallback();
       if (fb) break;
       hasMissing = true; break;
     }
-    computed.push(Math.floor(blGet(lookup, csku) / (c.comboQty || 1)));
+    computed.push(Math.floor(blGet(lookup, csku, kho) / (c.comboQty || 1)));
   }
   return fb ? fb : (hasMissing ? { value: null, status: 'missing-component' } : { value: Math.min(...computed), status: 'matched' });
 }
@@ -7183,21 +7190,21 @@ function tonComputeStockForRow(maPhanLoaiKey, kho, fallbackSku, maSpKey) {
   const lookup = TON.tonLookup[kho];
   const trySkuFallback = () => {
     const sk = fallbackSku != null ? hhFormatSku(fallbackSku) : '';
-    if (sk && blHas(lookup, sk)) return { value: blGet(lookup, sk), status: 'matched-fallback' };
+    if (sk && blHas(lookup, sk, kho)) return { value: blGet(lookup, sk, kho), status: 'matched-fallback' };
     return null;
   };
   const tryComps = (comps) => {
     const computed = [];
     for (const c of comps) {
       const csku = hhFormatSku(c.maSalework);
-      if (!blHas(lookup, csku)) {
+      if (!blHas(lookup, csku, kho)) {
         if (comps.length === 1) {
           const fb = trySkuFallback();
           if (fb) return fb;
         }
         return { value: null, status: 'missing-component' };
       }
-      computed.push(Math.floor(blGet(lookup, csku) / (c.comboQty || 1)));
+      computed.push(Math.floor(blGet(lookup, csku, kho) / (c.comboQty || 1)));
     }
     return { value: Math.min(...computed), status: 'matched' };
   };
@@ -7533,7 +7540,7 @@ async function tfmRunPreview() {
     for (const kc of targetCols) {
       const savedMap = TFM.tonMap;
       if (isDual) TFM.tonMap = kc.kho === 'hn' ? TFM.tonMapHn : TFM.tonMapHcm;
-      const res = tfmComputeStockForRow(lookupKey, sku, maSp, tenPhanLoaiVal);
+      const res = tfmComputeStockForRow(lookupKey, sku, maSp, tenPhanLoaiVal, kc.kho);
       TFM.tonMap = savedMap;
       const oldAddr = XLSX.utils.encode_cell({ r: i, c: kc.col });
       const oldVal = ws[oldAddr]?.v ?? 0;
@@ -7772,11 +7779,11 @@ function tfmHandleTonFile(input) {
 // Tính tồn cho 1 dòng mass dựa trên TFM.tonMap (không phải Firestore).
 // BL luôn thắng: SKU có trong BL sẽ được update kể cả khi không có trong file tồn.
 // SKU không có trong tonMap VÀ không có trong BL → missing-component → giữ nguyên.
-function tfmComputeStockForRow(maPhanLoaiKey, fallbackSku, maSpKey, tenPhanLoai) {
+function tfmComputeStockForRow(maPhanLoaiKey, fallbackSku, maSpKey, tenPhanLoai, kho) {
   const lookup = TFM.tonMap;
   const trySkuFallback = () => {
     const sk = fallbackSku != null ? hhFormatSku(String(fallbackSku)) : '';
-    if (sk && blHas(lookup, sk)) return { value: blGet(lookup, sk), status: 'matched-fallback' };
+    if (sk && blHas(lookup, sk, kho)) return { value: blGet(lookup, sk, kho), status: 'matched-fallback' };
     return null;
   };
   const tryComps = (comps) => {
@@ -7784,11 +7791,11 @@ function tfmComputeStockForRow(maPhanLoaiKey, fallbackSku, maSpKey, tenPhanLoai)
     for (const c of comps) {
       if (!c.maSalework || !String(c.maSalework).trim()) return { value: null, status: 'unmatched' };
       const csku = hhFormatSku(c.maSalework);
-      if (!blHas(lookup, csku)) {
+      if (!blHas(lookup, csku, kho)) {
         if (comps.length === 1) { const fb = trySkuFallback(); if (fb) return fb; }
         return { value: null, status: 'missing-component' };
       }
-      computed.push(Math.floor(blGet(lookup, csku) / (c.comboQty || 1)));
+      computed.push(Math.floor(blGet(lookup, csku, kho) / (c.comboQty || 1)));
     }
     return { value: Math.min(...computed), status: 'matched' };
   };
@@ -7846,7 +7853,7 @@ async function tfmExportFile() {
       // Dual-kho: mỗi cột dùng đúng tonMap của kho đó để tính đúng số lượng
       const savedMap = TFM.tonMap;
       if (isDual) TFM.tonMap = kc.kho === 'hn' ? TFM.tonMapHn : TFM.tonMapHcm;
-      const res = tfmComputeStockForRow(lookupKey, sku, r[idx.maSp], tenPhanLoaiVal);
+      const res = tfmComputeStockForRow(lookupKey, sku, r[idx.maSp], tenPhanLoaiVal, kc.kho);
       TFM.tonMap = savedMap;
       if (res.status === 'matched' || res.status === 'matched-fallback') {
         ws[XLSX.utils.encode_cell({ r: i, c: kc.col })] = { t: 'n', v: res.value };
@@ -12335,11 +12342,14 @@ function tqBuildRows() {
     let hcm = Number(s.hcm) || 0;
     let hangar = Number(s.hangar) || 0;
     // Black List: SKU có số liệu file nguồn bị lệch so với tồn vật lý thật — ghi đè số lượng
-    // chuẩn cho TẤT CẢ kho, luôn thắng (giống logic áp dụng ở Cập Nhật Tổng Quan/Deli/Liên Kết/Huy Hoàng).
+    // chuẩn CHỈ cho kho có khoá (HN/SG tách riêng, không đụng Hangar), giống logic áp dụng ở
+    // Cập Nhật Tổng Quan/Deli/Liên Kết/Huy Hoàng. Xác nhận Tân 2026-08-20.
     if (BL.lookup && BL.lookup.has(sku)) {
-      const v = BL.lookup.get(sku);
-      hn = v; hcm = v; hangar = v;
-      blOverrideCount++;
+      const bl = BL.lookup.get(sku);
+      let touched = false;
+      if (bl.hn !== null && bl.hn !== undefined) { hn = bl.hn; touched = true; }
+      if (bl.hcm !== null && bl.hcm !== undefined) { hcm = bl.hcm; touched = true; }
+      if (touched) blOverrideCount++;
     }
     const cat = TQ.catalog[sku];
     const hhCat = !cat ? (TQ.hhCatalog || {})[sku] : null;
@@ -12532,8 +12542,17 @@ let _blTokenClient = null;
 // Helper dùng trong các hàm tính tồn cho 1 dòng Mass (đọc trực tiếp Map tồn của phiên upload,
 // KHÔNG qua Firestore tonkho_thuc) — Black List luôn thắng nếu có, kể cả khi SKU đó không xuất
 // hiện trong file tồn vừa upload lần này (blHas trả true để không rơi vào nhánh "thiếu dữ liệu").
-function blHas(lookup, sku) { return BL.lookup.has(sku) || lookup.has(sku); }
-function blGet(lookup, sku) { return BL.lookup.has(sku) ? BL.lookup.get(sku) : lookup.get(sku); }
+// ★ Tách riêng 2 kho HN/SG (xác nhận Tân 2026-08-20) — BL.lookup giờ lưu {hn, hcm} thay vì 1 số
+// chung. `kho` truyền vào phải là 'hn' hoặc 'hcm' (đúng key BL.lookup đang dùng, khớp quy ước
+// `TKX.tonLookup[kho]`/`kc.kho` đang dùng ở mọi nơi gọi hàm này). Nếu không truyền `kho` (code cũ
+// lỡ quên sửa), coi như KHÔNG khoá kho nào — an toàn hơn là lỡ khoá nhầm.
+function blIsLockedForKho_(sku, kho) {
+  if (!kho) return false;
+  const bl = BL.lookup.get(sku);
+  return !!(bl && bl[kho] !== null && bl[kho] !== undefined);
+}
+function blHas(lookup, sku, kho) { return blIsLockedForKho_(sku, kho) || lookup.has(sku); }
+function blGet(lookup, sku, kho) { return blIsLockedForKho_(sku, kho) ? BL.lookup.get(sku)[kho] : lookup.get(sku); }
 
 function blLog(msg, type) {
   const el = document.getElementById('bl-log');
@@ -12560,7 +12579,21 @@ async function blLoadIfNeeded() {
         if (d.itemsJson) {
           let items = {};
           try { items = JSON.parse(d.itemsJson); } catch (e) { items = {}; }
-          Object.keys(items).forEach(sku => lookup.set(sku, Number(items[sku]) || 0));
+          // ★ Tách riêng 2 kho HN/SG (xác nhận Tân 2026-08-20) — mỗi SKU giờ lưu {hn, hcm}, mỗi
+          // field là số nếu kho đó bị khoá, hoặc null nếu kho đó KHÔNG bị khoá (giữ nguyên tồn
+          // thật). Không còn 1 số chung áp cho mọi kho như trước. Tương thích ngược: nếu dữ liệu
+          // cũ (đã đồng bộ trước khi đổi Sheet) còn ở dạng số đơn, coi như khoá cả HN lẫn HCM
+          // bằng đúng số đó — để không vỡ nếu ai đó chưa kịp Đồng Bộ lại sau khi đổi Sheet.
+          Object.keys(items).forEach(sku => {
+            const v = items[sku];
+            if (v && typeof v === 'object') {
+              lookup.set(sku, { hn: (v.hn === null || v.hn === undefined) ? null : Number(v.hn) || 0,
+                                 hcm: (v.hcm === null || v.hcm === undefined) ? null : Number(v.hcm) || 0 });
+            } else {
+              const n = Number(v) || 0;
+              lookup.set(sku, { hn: n, hcm: n });
+            }
+          });
         }
       }
       BL.lookup = lookup;
@@ -12652,18 +12685,21 @@ async function blDoBlacklistSync() {
     const rows = data.values || [];
     if (!rows.length) throw new Error('Tab "Black List" trống hoặc không đọc được dữ liệu');
 
+    // ★ Tách riêng 2 cột "Số Lượng HN" / "Số Lượng SG" (xác nhận Tân 2026-08-20) — không còn 1
+    // cột "Số Lượng" chung áp cho mọi kho nữa.
     let headerRow = -1, idx = {};
     for (let i = 0; i < Math.min(rows.length, 10); i++) {
       const r = (rows[i] || []).map(c => String(c || '').trim().toLowerCase());
       const skuC = r.findIndex(c => c.includes('mã sku'));
-      const slC = r.findIndex(c => c.includes('số lượng') || c.includes('so luong'));
-      if (skuC !== -1 && slC !== -1) {
+      const hnC  = r.findIndex(c => c.includes('số lượng hn') || c.includes('so luong hn'));
+      const sgC  = r.findIndex(c => c.includes('số lượng sg') || c.includes('so luong sg'));
+      if (skuC !== -1 && hnC !== -1 && sgC !== -1) {
         headerRow = i;
-        idx = { sku: skuC, ten: r.findIndex(c => c.includes('tên hàng hóa') || c.includes('tên hàng hoá')), sl: slC };
+        idx = { sku: skuC, ten: r.findIndex(c => c.includes('tên hàng hóa') || c.includes('tên hàng hoá')), hn: hnC, sg: sgC };
         break;
       }
     }
-    if (headerRow === -1) throw new Error('Không tìm thấy cột "Mã SKU" / "Số Lượng" trong tab Black List');
+    if (headerRow === -1) throw new Error('Không tìm thấy cột "Mã SKU" / "Số Lượng HN" / "Số Lượng SG" trong tab Black List — kiểm tra lại tên cột trên Sheet.');
 
     const items = {};
     let count = 0;
@@ -12672,7 +12708,12 @@ async function blDoBlacklistSync() {
       if (!r) continue;
       const sku = r[idx.sku];
       if (sku == null || String(sku).trim() === '') continue;
-      items[String(sku).trim()] = parseVNNumber(r[idx.sl]);
+      const hnCell = r[idx.hn];
+      const sgCell = r[idx.sg];
+      const hnEmpty = hnCell == null || String(hnCell).trim() === '';
+      const sgEmpty = sgCell == null || String(sgCell).trim() === '';
+      if (hnEmpty && sgEmpty) continue; // cả 2 kho đều để trống — dòng này không khoá kho nào, bỏ qua
+      items[String(sku).trim()] = { hn: hnEmpty ? null : parseVNNumber(hnCell), hcm: sgEmpty ? null : parseVNNumber(sgCell) };
       count++;
     }
     if (!count) throw new Error('Không đọc được dòng SKU nào từ tab Black List');
@@ -13269,10 +13310,13 @@ async function tonAutoDeductSoldAfterSync() {
       if ('hcm' in prev) newEntry.hcm = Math.max(0, (Number(prev.hcm) || 0) - (s.hcm || 0));
       if ('hangar' in prev) newEntry.hangar = Number(prev.hangar) || 0;
       stock[sku] = newEntry;
+      // Black List: CHỈ ghi đè kho có khoá (HN/SG tách riêng, không đụng Hangar). Xác nhận Tân 2026-08-20.
       if (BL.lookup.has(sku)) {
-        const v = BL.lookup.get(sku);
-        stock[sku] = { hn: v, hcm: v, hangar: v };
-        blOverrideCount++;
+        const bl = BL.lookup.get(sku);
+        let touched = false;
+        if (bl.hn !== null && bl.hn !== undefined) { newEntry.hn = bl.hn; touched = true; }
+        if (bl.hcm !== null && bl.hcm !== undefined) { newEntry.hcm = bl.hcm; touched = true; }
+        if (touched) blOverrideCount++;
       }
       changed++;
     });
