@@ -2027,6 +2027,9 @@
         <select id="giaday-shop-select" onchange="giaDayBuildRows();giaDayRender()" style="height:36px;border:1px solid var(--gray3);border-radius:6px;padding:0 8px;font-size:12px">
           <option value="all">Tất cả Shop</option>
         </select>
+        <button class="sw-upload-btn" id="giaday-export-btn" style="background:var(--green);color:#fff;display:none" onclick="giaDayExport()">
+          📤 Xuất Excel
+        </button>
       </div>
 
       <div id="giaday-report" style="display:none">
@@ -14046,6 +14049,8 @@ async function giaDayRun() {
     giaDayLog(`✅ ${rangeLabel} — ${GIADAY.rows.length} SKU bán ra từ ${totalDong} dòng đơn.`, 'ok');
     const reportEl = document.getElementById('giaday-report');
     if (reportEl) reportEl.style.display = 'block';
+    const exportBtn = document.getElementById('giaday-export-btn');
+    if (exportBtn) exportBtn.style.display = '';
     giaDayRender();
   } catch(e) {
     giaDayLog('❌ Lỗi: ' + e.message, 'err');
@@ -14095,6 +14100,36 @@ function giaDayRender() {
     <td class="num" style="font-weight:700">${r.hcm.toLocaleString('vi-VN')}</td>
     <td class="num" style="font-weight:700">${r.total.toLocaleString('vi-VN')}</td>
   </tr>`).join('');
+}
+
+// Xuất Excel bảng ③ Lượng Bán Theo Ngày — xuất ĐÚNG những dòng đang hiển thị trên bảng (áp
+// dụng cùng bộ lọc Tìm theo Tên SP/SKU và bộ lọc Shop hiện tại), không xuất toàn bộ GIADAY.rows
+// chưa lọc — để khớp với những gì Tân đang nhìn thấy trên màn hình lúc bấm xuất.
+function giaDayExport() {
+  const rows = GIADAY.rows || [];
+  const search = (document.getElementById('giaday-search')?.value || '').trim().toLowerCase();
+  const filtered = search ? rows.filter(r => r.sku.toLowerCase().includes(search) || r.tenSp.toLowerCase().includes(search)) : rows;
+  if (!filtered.length) { alert('Không có dữ liệu để xuất!'); return; }
+
+  const headers = ['SKU', 'Tên Sản Phẩm', 'SL HN', 'SL HCM', 'Tổng'];
+  const wsData = [headers];
+  filtered.forEach(r => wsData.push([r.sku, r.tenSp, r.hn, r.hcm, r.total]));
+  const totalHn  = filtered.reduce((s, r) => s + r.hn, 0);
+  const totalHcm = filtered.reduce((s, r) => s + r.hcm, 0);
+  const totalAll = filtered.reduce((s, r) => s + r.total, 0);
+  wsData.push(['TỔNG CỘNG', '', totalHn, totalHcm, totalAll]);
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{ wch: 20 }, { wch: 55 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Luong Ban Theo Ngay');
+
+  const fmtTag = ds => (ds || '').split('-').join('');
+  const rangeTag = (GIADAY.startDate && GIADAY.endDate)
+    ? (GIADAY.startDate === GIADAY.endDate ? fmtTag(GIADAY.startDate) : `${fmtTag(GIADAY.startDate)}-${fmtTag(GIADAY.endDate)}`)
+    : '';
+  XLSX.writeFile(wb, `LuongBanTheoNgay_${rangeTag}.xlsx`);
 }
 
 // ══════════════════════════════════════════════════════════════
