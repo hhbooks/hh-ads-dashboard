@@ -2939,6 +2939,113 @@
       </div>
     </div>
     </div><!-- end bcsku wrapper -->
+
+    <!-- ── BÁO CÁO ĐƠN LỖI THEO THÁNG ── -->
+    <div style="margin-top:24px;border-top:2px solid var(--gray3);padding-top:20px">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><span class="dot"></span> Báo Cáo Đơn Lỗi Theo Tháng</div>
+      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
+        Upload file <b>"Xử lý đơn hàng lỗi.xlsx"</b> (đọc 2 tab <b>Đơn Hà Nội</b> / <b>Đơn Sài Gòn</b>).
+        Hệ thống tự lọc theo tháng + kho, tổng hợp số đơn lỗi theo loại vấn đề và theo nhân viên đóng đơn (tab Hà Nội).
+      </p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <input type="file" id="bcdl-file-input" accept=".xlsx,.xls" style="display:none"
+               onchange="bcdlHandleFile(this)">
+        <button class="sw-upload-btn" onclick="document.getElementById('bcdl-file-input').click()">
+          📂 Chọn File
+        </button>
+        <button class="sw-upload-btn" style="background:var(--green);color:#fff;display:none"
+                id="bcdl-export-btn" onclick="bcdlExport()">
+          📤 Xuất Excel
+        </button>
+        <button id="bcdl-reset-btn" onclick="bcdlReset()"
+                style="padding:8px 16px;border:1px solid var(--red);color:var(--red);background:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:none">
+          🔄 Reset
+        </button>
+      </div>
+      <div id="bcdl-warn-box" style="display:none;margin-top:10px;background:#fff8e1;border:1px solid #f39c12;border-radius:8px;padding:8px 14px;font-size:12px;color:#7d5b00"></div>
+    </div>
+
+    <!-- Bộ lọc Kho + Tháng -->
+    <div id="bcdl-filter-card" style="display:none;margin-bottom:16px" class="card">
+      <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:center">
+        <div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:600">Kho</div>
+          <div id="bcdl-kho-filter" style="display:flex;gap:8px">
+            <button class="filter-btn active" data-kho="ALL" onclick="bcdlSetKho('ALL',this)">Cả 2 kho</button>
+            <button class="filter-btn" data-kho="HN" onclick="bcdlSetKho('HN',this)">Hà Nội</button>
+            <button class="filter-btn" data-kho="SG" onclick="bcdlSetKho('SG',this)">Sài Gòn</button>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:600">Tháng</div>
+          <select id="bcdl-month-select" onchange="bcdlSetMonth(this.value)"
+                  style="padding:7px 12px;border:1px solid var(--gray3);border-radius:8px;font-size:13px;min-width:140px"></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div id="bcdl-kpi-card" style="display:none;margin-bottom:16px" class="card">
+      <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center">
+        <div><div style="font-size:12px;color:var(--text2)">Tổng đơn lỗi (tháng đã chọn)</div>
+          <div id="bcdl-stat-total" style="font-size:24px;font-weight:700;color:var(--navy)">0</div></div>
+        <div><div style="font-size:12px;color:var(--text2)">Đã xác định nhân viên</div>
+          <div id="bcdl-stat-xacdinh" style="font-size:24px;font-weight:700;color:var(--green)">0</div></div>
+        <div><div style="font-size:12px;color:var(--text2)">Chưa xác định nhân viên</div>
+          <div id="bcdl-stat-chuaxacdinh" style="font-size:24px;font-weight:700;color:var(--text2)">0</div></div>
+        <div><div style="font-size:12px;color:var(--text2)">Cần xác minh lại ngày</div>
+          <div id="bcdl-stat-canxacminh" style="font-size:24px;font-weight:700;color:#f39c12">0</div></div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);margin-top:10px;line-height:1.6">
+        ⚠ Cột "Nhân viên đóng đơn" trong file gốc đôi khi bị ghi ghi chú/nguyên nhân thay vì tên, và tab Đơn Sài Gòn
+        hiện không có cột này — nên số liệu theo nhân viên chỉ phản ánh phần xác định được, không đại diện đầy đủ.
+      </div>
+    </div>
+
+    <!-- Bảng theo nhân viên + theo vấn đề -->
+    <div id="bcdl-tables-card" style="display:none;margin-bottom:16px;gap:16px;flex-wrap:wrap">
+      <div class="card" style="flex:1;min-width:260px">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">👤 Theo Nhân Viên Đóng Đơn</div>
+        <div style="overflow-x:auto;border:1px solid var(--gray3);border-radius:8px">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead id="bcdl-emp-thead"></thead>
+            <tbody id="bcdl-emp-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card" style="flex:1;min-width:260px">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">📋 Theo Loại Vấn Đề</div>
+        <div style="overflow-x:auto;border:1px solid var(--gray3);border-radius:8px">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead id="bcdl-issue-thead"></thead>
+            <tbody id="bcdl-issue-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Danh sách cần xác minh -->
+    <div id="bcdl-verify-card" style="display:none" class="card">
+      <div style="font-size:13px;font-weight:600;color:#b45309;margin-bottom:10px">
+        ⚠ Đơn cần xác minh lại ngày (ngày ghi gốc không đọc rõ được tháng)
+      </div>
+      <div style="overflow-x:auto;border:1px solid var(--gray3);border-radius:8px">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:500px">
+          <thead>
+            <tr style="background:#fff3cd">
+              <th style="padding:7px 10px;text-align:left">Kho</th>
+              <th style="padding:7px 10px;text-align:left">Ngày ghi gốc</th>
+              <th style="padding:7px 10px;text-align:left">ID đơn hàng</th>
+              <th style="padding:7px 10px;text-align:left">Vấn đề</th>
+              <th style="padding:7px 10px;text-align:left">Cột NV đóng đơn (gốc)</th>
+            </tr>
+          </thead>
+          <tbody id="bcdl-verify-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    </div><!-- end bcdl wrapper -->
   </div><!-- end page-nghiep-vu-gop-file -->
 
 </main>
@@ -20023,6 +20130,342 @@ function bcskuReset() {
   const th = document.getElementById('bcsku-thead'); if (th) th.innerHTML = '';
   const tb = document.getElementById('bcsku-tbody'); if (tb) tb.innerHTML = '';
   const wb = document.getElementById('bcsku-warn-box'); if (wb) wb.style.display = 'none';
+}
+
+// ══════════════════════════════════════════════════════════════
+// NGHIỆP VỤ — BÁO CÁO ĐƠN LỖI THEO THÁNG (xác nhận Tân 2026-09-07)
+// ══════════════════════════════════════════════════════════════
+// Upload 1 file "Xử lý đơn hàng lỗi.xlsx" (2 tab Đơn Hà Nội / Đơn Sài Gòn). Đọc theo TÊN cột
+// (không dùng vị trí cụ thể) vì 2 tab có số cột khác nhau (SG không có cột "Nhân viên đóng đơn").
+//
+// Ngày ghi trong file rất lộn xộn: có dòng là ngày Excel thật (Date), có dòng là text kiểu
+// "M/D/YYYY", có dòng là text kiểu "D/M" không năm. Suy luận: nếu ID đơn khớp định dạng
+// YYMMDD... (Shopee) thì dùng đó làm "ngày tạo đơn" để đối chiếu - ngày xử lý luôn >= ngày tạo
+// đơn và thường trong vòng ~90 ngày sau đó. Nếu CHỈ 1 cách đọc (M/D hay D/M) thoả điều kiện này
+// -> tin cậy cao. Nếu cả 2 cách đều không khớp hoặc không có ID để đối chiếu -> xếp vào danh
+// sách "cần xác minh", KHÔNG đoán bừa (xác nhận Tân 2026-09-07, giống cách làm báo cáo Excel
+// tay trước đó cho tháng 8/2026).
+//
+// Cột "Nhân viên đóng đơn" cũng bị ghi lẫn lộn (có dòng ghi tên, có dòng ghi giờ giấc, có dòng
+// ghi nguyên nhân lỗi). Chỉ nhận diện tên qua danh sách nhân sự cố định BCDL_EMPLOYEES - KHÔNG
+// đoán tên từ văn bản tự do. Nếu đổi nhân sự đóng gói, sửa lại mảng này.
+
+const BCDL_EMPLOYEES = ['Thảo', 'Ngân', 'Hải', 'Minh', 'Thuần', 'Liên', 'Hưng', 'Ninh', 'Bảo', 'Huệ'];
+
+const BCDL = {
+  rowsHN: [],
+  rowsSG: [],
+  khoFilter: 'ALL',
+  monthFilter: '',
+  fileName: '',
+};
+
+function bcdlHandleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
+      const wsHN = wb.Sheets['Đơn Hà Nội'];
+      const wsSG = wb.Sheets['Đơn Sài Gòn'];
+      if (!wsHN && !wsSG) {
+        alert('Không tìm thấy tab "Đơn Hà Nội" hoặc "Đơn Sài Gòn" trong file này.');
+        return;
+      }
+      BCDL.rowsHN = wsHN ? bcdlParseSheet(wsHN, 'HN') : [];
+      BCDL.rowsSG = wsSG ? bcdlParseSheet(wsSG, 'SG') : [];
+      BCDL.fileName = file.name;
+
+      const warnBox = document.getElementById('bcdl-warn-box');
+      if (!wsHN || !wsSG) {
+        warnBox.style.display = '';
+        warnBox.innerHTML = '⚠ File thiếu tab: ' + (!wsHN ? '"Đơn Hà Nội" ' : '') + (!wsSG ? '"Đơn Sài Gòn"' : '');
+      } else {
+        warnBox.style.display = 'none';
+      }
+
+      bcdlPopulateMonths();
+      document.getElementById('bcdl-filter-card').style.display = '';
+      document.getElementById('bcdl-export-btn').style.display = '';
+      document.getElementById('bcdl-reset-btn').style.display = '';
+      bcdlRender();
+    } catch (err) {
+      alert('Lỗi đọc file: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  input.value = '';
+}
+
+function bcdlFindCol(header, names) {
+  for (const n of names) {
+    const i = header.findIndex(h => String(h || '').trim().toLowerCase() === n.trim().toLowerCase());
+    if (i !== -1) return i;
+  }
+  return -1;
+}
+
+function bcdlParseSheet(ws, khoCode) {
+  const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+  if (!rawRows.length) return [];
+  const header = rawRows[0].map(c => String(c || '').trim());
+  const iNgay = bcdlFindCol(header, ['Ngày']);
+  const iId = bcdlFindCol(header, ['ID đơn hàng']);
+  const iVanDe = bcdlFindCol(header, ['Vấn đề']);
+  const iNv = bcdlFindCol(header, ['Nhân viên đóng đơn\n (Đóng hàng thừa - Thiếu)', 'Nhân viên đóng đơn']);
+  const iTrangThai = bcdlFindCol(header, ['Trạng thái', 'Trạng thái ']);
+
+  const rows = [];
+  for (let i = 1; i < rawRows.length; i++) {
+    const r = rawRows[i];
+    if (!r) continue;
+    const ngayRaw = iNgay !== -1 ? r[iNgay] : null;
+    const id = iId !== -1 ? r[iId] : null;
+    const vanDe = iVanDe !== -1 ? r[iVanDe] : null;
+    if (ngayRaw == null && id == null) continue; // dòng rỗng
+
+    const nvRaw = iNv !== -1 ? r[iNv] : null;
+    const trangThai = iTrangThai !== -1 ? r[iTrangThai] : null;
+    const resolved = bcdlResolveDate(ngayRaw, id);
+    const employees = nvRaw ? bcdlExtractEmployees(String(nvRaw)) : [];
+
+    rows.push({
+      kho: khoCode,
+      ngayRaw: ngayRaw,
+      ngayResolved: resolved.date,
+      confidence: resolved.confidence,
+      id: id != null ? String(id) : '',
+      vanDe: vanDe != null ? String(vanDe) : '',
+      nvRaw: nvRaw != null ? String(nvRaw) : '',
+      employees: employees,
+      trangThai: trangThai != null ? String(trangThai) : '',
+    });
+  }
+  return rows;
+}
+
+// Trích ngày tạo đơn dạng YYMMDD ở đầu mã đơn (mã Shopee kiểu mới) - dùng làm mốc đối chiếu.
+function bcdlIdCreationDate(idVal) {
+  if (!idVal) return null;
+  const s = String(idVal).trim();
+  const m = s.match(/^(\d{2})(\d{2})(\d{2})/);
+  if (!m) return null;
+  const yy = 2000 + parseInt(m[1], 10);
+  const mm = parseInt(m[2], 10);
+  const dd = parseInt(m[3], 10);
+  if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+  const d = new Date(yy, mm - 1, dd);
+  if (d.getMonth() !== mm - 1) return null;
+  return d;
+}
+
+function bcdlDaysBetween(a, b) {
+  return Math.round((b - a) / 86400000);
+}
+
+// Suy luận ngày xử lý thật từ ô "Ngày" gốc, đối chiếu ID đơn khi có. Trả về {date, confidence}.
+// confidence: 'high' (rõ ràng) | 'low' (suy luận, nên xem lại) | 'none' (đưa vào "cần xác minh").
+function bcdlResolveDate(ngayRaw, idVal) {
+  const creation = bcdlIdCreationDate(idVal);
+
+  if (ngayRaw instanceof Date && !isNaN(ngayRaw)) {
+    return { date: ngayRaw, confidence: 'high' };
+  }
+  if (typeof ngayRaw !== 'string' || !ngayRaw.trim()) {
+    return { date: null, confidence: 'none' };
+  }
+  const s = ngayRaw.trim();
+  const m4 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  const m2 = s.match(/^(\d{1,2})\/(\d{1,2})$/);
+
+  let candidates = [];
+  if (m4) {
+    const a = parseInt(m4[1], 10), b = parseInt(m4[2], 10), y = parseInt(m4[3], 10);
+    [[a, b], [b, a]].forEach(([mm, dd]) => {
+      if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) {
+        const d = new Date(y, mm - 1, dd);
+        if (d.getMonth() === mm - 1) candidates.push(d);
+      }
+    });
+  } else if (m2) {
+    const a = parseInt(m2[1], 10), b = parseInt(m2[2], 10);
+    [2024, 2025, 2026].forEach(y => {
+      [[a, b], [b, a]].forEach(([mm, dd]) => {
+        if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) {
+          const d = new Date(y, mm - 1, dd);
+          if (d.getMonth() === mm - 1) candidates.push(d);
+        }
+      });
+    });
+  } else {
+    return { date: null, confidence: 'none' };
+  }
+
+  const seen = new Set();
+  candidates = candidates.filter(d => {
+    const k = d.getTime();
+    if (seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+
+  if (creation) {
+    const valid = candidates
+      .map(d => ({ d, gap: bcdlDaysBetween(creation, d) }))
+      .filter(x => x.gap >= 0 && x.gap <= 90)
+      .sort((x, y) => x.gap - y.gap);
+    if (valid.length === 1) return { date: valid[0].d, confidence: 'high' };
+    if (valid.length > 1) return { date: valid[0].d, confidence: 'low' };
+    return { date: null, confidence: 'none' };
+  }
+  const today = new Date();
+  const plausible = candidates.filter(d => d <= today);
+  if (plausible.length === 1) return { date: plausible[0], confidence: 'low' };
+  return { date: null, confidence: 'none' };
+}
+
+function bcdlExtractEmployees(text) {
+  const found = [];
+  const low = text.toLowerCase();
+  BCDL_EMPLOYEES.forEach(name => {
+    if (low.includes(name.toLowerCase()) && !found.includes(name)) found.push(name);
+  });
+  return found;
+}
+
+function bcdlAllRows() {
+  return BCDL.rowsHN.concat(BCDL.rowsSG);
+}
+
+function bcdlPopulateMonths() {
+  const months = new Set();
+  bcdlAllRows().forEach(r => {
+    if (r.ngayResolved) {
+      months.add(r.ngayResolved.getFullYear() + '-' + String(r.ngayResolved.getMonth() + 1).padStart(2, '0'));
+    }
+  });
+  const sorted = Array.from(months).sort().reverse();
+  const sel = document.getElementById('bcdl-month-select');
+  sel.innerHTML = sorted.map(m => {
+    const [y, mo] = m.split('-');
+    return `<option value="${m}">Tháng ${mo}/${y}</option>`;
+  }).join('');
+  BCDL.monthFilter = sorted[0] || '';
+  sel.value = BCDL.monthFilter;
+}
+
+function bcdlSetKho(kho, btn) {
+  BCDL.khoFilter = kho;
+  document.querySelectorAll('#bcdl-kho-filter .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  bcdlRender();
+}
+
+function bcdlSetMonth(month) {
+  BCDL.monthFilter = month;
+  bcdlRender();
+}
+
+function bcdlFilteredRows() {
+  let rows = bcdlAllRows();
+  if (BCDL.khoFilter !== 'ALL') rows = rows.filter(r => r.kho === BCDL.khoFilter);
+  if (BCDL.monthFilter) {
+    rows = rows.filter(r => {
+      if (!r.ngayResolved) return false;
+      const m = r.ngayResolved.getFullYear() + '-' + String(r.ngayResolved.getMonth() + 1).padStart(2, '0');
+      return m === BCDL.monthFilter;
+    });
+  }
+  return rows;
+}
+
+// "Cần xác minh" hiển thị theo kho đang chọn nhưng KHÔNG lọc theo tháng (vì chính ngày đang mơ hồ).
+function bcdlVerifyRows() {
+  let rows = bcdlAllRows().filter(r => r.confidence === 'none');
+  if (BCDL.khoFilter !== 'ALL') rows = rows.filter(r => r.kho === BCDL.khoFilter);
+  return rows;
+}
+
+function bcdlRender() {
+  const rows = bcdlFilteredRows();
+  const withEmp = rows.filter(r => r.employees.length > 0);
+  const withoutEmp = rows.length - withEmp.length;
+  const verifyRows = bcdlVerifyRows();
+
+  document.getElementById('bcdl-kpi-card').style.display = '';
+  document.getElementById('bcdl-tables-card').style.display = 'flex';
+  document.getElementById('bcdl-stat-total').textContent = rows.length.toLocaleString('vi-VN');
+  document.getElementById('bcdl-stat-xacdinh').textContent = withEmp.length.toLocaleString('vi-VN');
+  document.getElementById('bcdl-stat-chuaxacdinh').textContent = withoutEmp.toLocaleString('vi-VN');
+  document.getElementById('bcdl-stat-canxacminh').textContent = verifyRows.length.toLocaleString('vi-VN');
+
+  const empCount = {};
+  withEmp.forEach(r => r.employees.forEach(name => { empCount[name] = (empCount[name] || 0) + 1; }));
+  const empList = Object.keys(empCount).sort((a, b) => empCount[b] - empCount[a]);
+  document.getElementById('bcdl-emp-thead').innerHTML =
+    '<tr style="background:#1a2a4a"><th style="padding:7px 10px;text-align:left;color:#fff;font-size:11px">Nhân viên</th><th style="padding:7px 10px;text-align:right;color:#fff;font-size:11px">Số đơn lỗi</th></tr>';
+  document.getElementById('bcdl-emp-tbody').innerHTML = empList.length
+    ? empList.map(name => `<tr style="border-bottom:1px solid var(--gray3)"><td style="padding:6px 10px">${name}</td><td style="padding:6px 10px;text-align:right;font-weight:600">${empCount[name]}</td></tr>`).join('')
+    : '<tr><td style="padding:10px;color:var(--text2);text-align:center" colspan="2">Không có đơn nào xác định được nhân viên</td></tr>';
+
+  const issueCount = {};
+  rows.forEach(r => { const key = r.vanDe || '(Không ghi)'; issueCount[key] = (issueCount[key] || 0) + 1; });
+  const issueList = Object.keys(issueCount).sort((a, b) => issueCount[b] - issueCount[a]);
+  document.getElementById('bcdl-issue-thead').innerHTML =
+    '<tr style="background:#1a2a4a"><th style="padding:7px 10px;text-align:left;color:#fff;font-size:11px">Vấn đề</th><th style="padding:7px 10px;text-align:right;color:#fff;font-size:11px">Số đơn</th></tr>';
+  document.getElementById('bcdl-issue-tbody').innerHTML = issueList.length
+    ? issueList.map(name => `<tr style="border-bottom:1px solid var(--gray3)"><td style="padding:6px 10px">${name}</td><td style="padding:6px 10px;text-align:right;font-weight:600">${issueCount[name]}</td></tr>`).join('')
+    : '<tr><td style="padding:10px;color:var(--text2);text-align:center" colspan="2">Không có dữ liệu</td></tr>';
+
+  const verifyCard = document.getElementById('bcdl-verify-card');
+  if (verifyRows.length > 0) {
+    verifyCard.style.display = '';
+    document.getElementById('bcdl-verify-tbody').innerHTML = verifyRows.map(r => `
+      <tr style="border-bottom:1px solid var(--gray3);background:#fffdf5">
+        <td style="padding:6px 10px">${r.kho === 'HN' ? 'Hà Nội' : 'Sài Gòn'}</td>
+        <td style="padding:6px 10px">${r.ngayRaw != null ? String(r.ngayRaw) : ''}</td>
+        <td style="padding:6px 10px">${r.id}</td>
+        <td style="padding:6px 10px">${r.vanDe}</td>
+        <td style="padding:6px 10px;color:var(--text2)">${r.nvRaw}</td>
+      </tr>`).join('');
+  } else {
+    verifyCard.style.display = 'none';
+  }
+}
+
+function bcdlExport() {
+  const rows = bcdlFilteredRows();
+  if (!rows.length) { alert('Không có dữ liệu để xuất!'); return; }
+
+  const headers = ['Kho', 'Ngày xử lý (đã chuẩn hoá)', 'Ngày ghi gốc', 'ID đơn hàng', 'Vấn đề',
+    'Cột NV đóng đơn (gốc)', 'Nhân viên đã xác định', 'Trạng thái', 'Độ tin cậy ngày'];
+  const wsData = [headers];
+  rows.forEach(r => {
+    wsData.push([
+      r.kho === 'HN' ? 'Hà Nội' : 'Sài Gòn',
+      r.ngayResolved ? r.ngayResolved.toLocaleDateString('vi-VN') : '',
+      r.ngayRaw != null ? String(r.ngayRaw) : '',
+      r.id, r.vanDe, r.nvRaw, r.employees.join(', '), r.trangThai,
+      r.confidence === 'high' ? 'Rõ ràng' : (r.confidence === 'low' ? 'Suy luận (nên xem lại)' : 'Không xác định'),
+    ]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{ wch: 10 }, { wch: 18 }, { wch: 22 }, { wch: 26 }, { wch: 12 }, { wch: 30 }, { wch: 18 }, { wch: 16 }, { wch: 18 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Chi tiet don loi');
+  const label = BCDL.monthFilter || 'tatca';
+  XLSX.writeFile(wb, `BaoCao_DonLoi_${label}.xlsx`);
+}
+
+function bcdlReset() {
+  BCDL.rowsHN = []; BCDL.rowsSG = []; BCDL.khoFilter = 'ALL'; BCDL.monthFilter = ''; BCDL.fileName = '';
+  ['bcdl-filter-card', 'bcdl-kpi-card', 'bcdl-tables-card', 'bcdl-verify-card', 'bcdl-export-btn', 'bcdl-reset-btn']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  document.querySelectorAll('#bcdl-kho-filter .filter-btn').forEach(b => b.classList.remove('active'));
+  const allBtn = document.querySelector('#bcdl-kho-filter .filter-btn[data-kho="ALL"]');
+  if (allBtn) allBtn.classList.add('active');
+  const sel = document.getElementById('bcdl-month-select'); if (sel) sel.innerHTML = '';
+  const warnBox = document.getElementById('bcdl-warn-box'); if (warnBox) warnBox.style.display = 'none';
 }
 
 </script>
