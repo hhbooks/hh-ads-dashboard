@@ -2829,6 +2829,82 @@
         </table>
       </div>
     </div>
+
+    <!-- ── CHIA FILE THỐNG KÊ (SÁCH / VPP) ── -->
+    <div style="margin-top:24px;border-top:2px solid var(--gray3);padding-top:20px">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><span class="dot"></span> Chia File Thống Kê (Sách / VPP)</div>
+      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
+        Upload nhiều file <b>Thong_ke_nhanh_Shopee_SP_kho_*.xlsx</b> (hoặc file bất kỳ có cột <b>Mã sản phẩm / Tên sản phẩm / Số lượng bán</b>).
+        Hệ thống phân loại từng dòng theo Mã sản phẩm — mã số thuần 12-13 chữ số → <b>Sách</b>, mã có chứa chữ cái → <b>VPP/Còn lại</b> —
+        rồi xuất ra 2 file Excel riêng. Không cộng dồn, không loại trùng — giữ nguyên từng dòng, giống "Gộp File Thống Kê Shopee" ở trên.
+      </p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <input type="file" id="cftk-file-input" accept=".xlsx,.xls" multiple style="display:none"
+               onchange="cftkHandleFiles(this)">
+        <button class="sw-upload-btn" onclick="document.getElementById('cftk-file-input').click()">
+          📂 Chọn File (có thể chọn nhiều)
+        </button>
+        <button class="sw-upload-btn" style="background:var(--green,#27ae60);color:white;display:none"
+                id="cftk-export-sach-btn" onclick="cftkExportSach()">
+          📚 Tải File Sách
+        </button>
+        <button class="sw-upload-btn" style="background:var(--orange,#f39c12);color:white;display:none"
+                id="cftk-export-vpp-btn" onclick="cftkExportVPP()">
+          🧰 Tải File VPP
+        </button>
+        <button onclick="cftkReset()"
+                style="padding:8px 16px;border:1px solid var(--red,#e74c3c);color:var(--red,#e74c3c);background:white;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:none"
+                id="cftk-reset-btn">
+          🔄 RESET
+        </button>
+      </div>
+      <div id="cftk-warn-box" style="display:none;margin-top:10px;background:#fff8e1;border:1px solid #f39c12;border-radius:8px;padding:8px 14px;font-size:12px;color:#7d5b00"></div>
+    </div>
+
+    <div class="card" id="cftk-summary-card" style="display:none;margin-bottom:16px">
+      <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center">
+        <div>
+          <div style="font-size:12px;color:var(--text2)">Số file đã nạp</div>
+          <div id="cftk-stat-files" style="font-size:24px;font-weight:700;color:var(--navy)">0</div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text2)">Tổng dòng dữ liệu</div>
+          <div id="cftk-stat-rows" style="font-size:24px;font-weight:700;color:var(--navy)">0</div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text2)">Số dòng Sách</div>
+          <div id="cftk-stat-sach" style="font-size:24px;font-weight:700;color:#1d4ed8">0</div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text2)">Số dòng VPP</div>
+          <div id="cftk-stat-vpp" style="font-size:24px;font-weight:700;color:#c2410c">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="cftk-preview-card" style="display:none">
+      <div style="font-size:13px;font-weight:600;color:var(--text1);margin-bottom:10px">
+        Xem trước dữ liệu (50 dòng đầu)
+      </div>
+      <div class="table-wrap" style="max-height:480px;overflow-y:auto;border:1px solid var(--gray3);border-radius:8px">
+        <table>
+          <thead>
+            <tr>
+              <th style="text-align:left">#</th>
+              <th style="text-align:left">Mã sản phẩm</th>
+              <th style="text-align:left;min-width:260px">Tên sản phẩm</th>
+              <th style="text-align:right">Số lượng bán</th>
+              <th style="text-align:left">Loại</th>
+              <th style="text-align:left;color:var(--text2)">Nguồn file</th>
+            </tr>
+          </thead>
+          <tbody id="cftk-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    </div><!-- end cftk wrapper -->
+
     <!-- ── BÁO CÁO BÁN HÀNG THEO KHÁCH HÀNG ── -->
     <div style="margin-top:24px;border-top:2px solid var(--gray3);padding-top:20px">
     <div class="card" style="margin-bottom:16px">
@@ -19768,6 +19844,146 @@ function nvReset() {
   document.getElementById('nv-reset-btn').style.display     = 'none';
   document.getElementById('nv-tbody').innerHTML              = '';
   document.getElementById('nv-warn-box').style.display      = 'none';
+}
+
+// ══════════════════════════════════════════════════════════════
+// NGHIỆP VỤ — CHIA FILE THỐNG KÊ (Sách / VPP)
+// Dùng lại nvParseSheet() của "Gộp File Thống Kê" để đọc file,
+// chỉ khác ở bước phân loại + xuất 2 file riêng.
+// ══════════════════════════════════════════════════════════════
+const CFTK = {
+  rows: [],      // [{ ma, ten, sl, filename, loai: 'sach'|'vpp' }]
+  fileCount: 0,
+  warnFiles: []
+};
+
+// Phân loại theo Mã sản phẩm: mã số thuần 12-13 chữ số (barcode kiểu
+// EAN/ISBN) => Sách; mã có chứa chữ cái (BOSE-xxxx, CT7xx-xx, E01xx-xx...) => VPP/Còn lại
+function cftkClassify(ma) {
+  return /^\d{12,13}$/.test(String(ma || '').trim()) ? 'sach' : 'vpp';
+}
+
+function cftkHandleFiles(input) {
+  const files = [...input.files];
+  if (!files.length) return;
+
+  // Reset state rồi đọc lại từ đầu (hỗ trợ chọn lại)
+  CFTK.rows = []; CFTK.fileCount = 0; CFTK.warnFiles = [];
+
+  let done = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const parsed = nvParseSheet(ws, file.name);
+        if (parsed.ok) {
+          parsed.rows.forEach(r => { r.loai = cftkClassify(r.ma); });
+          CFTK.rows = CFTK.rows.concat(parsed.rows);
+        } else {
+          CFTK.warnFiles.push(file.name);
+        }
+      } catch(err) {
+        CFTK.warnFiles.push(file.name + ' (lỗi đọc: ' + err.message + ')');
+      }
+      done++;
+      if (done === files.length) {
+        CFTK.fileCount = files.length;
+        cftkRenderUI();
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+
+  input.value = '';
+}
+
+// Render KPI + preview + hiện các nút xuất
+function cftkRenderUI() {
+  const soSach = CFTK.rows.filter(r => r.loai === 'sach').length;
+  const soVpp  = CFTK.rows.filter(r => r.loai === 'vpp').length;
+
+  document.getElementById('cftk-stat-files').textContent = CFTK.fileCount;
+  document.getElementById('cftk-stat-rows').textContent  = CFTK.rows.length.toLocaleString('vi-VN');
+  document.getElementById('cftk-stat-sach').textContent  = soSach.toLocaleString('vi-VN');
+  document.getElementById('cftk-stat-vpp').textContent   = soVpp.toLocaleString('vi-VN');
+  document.getElementById('cftk-summary-card').style.display    = '';
+  document.getElementById('cftk-export-sach-btn').style.display = '';
+  document.getElementById('cftk-export-vpp-btn').style.display  = '';
+  document.getElementById('cftk-reset-btn').style.display       = '';
+
+  const warnBox = document.getElementById('cftk-warn-box');
+  if (CFTK.warnFiles.length > 0) {
+    warnBox.style.display = '';
+    warnBox.innerHTML = '⚠ Không đọc được header từ ' + CFTK.warnFiles.length + ' file:<br>'
+      + CFTK.warnFiles.map(f => '• ' + f).join('<br>');
+  } else {
+    warnBox.style.display = 'none';
+  }
+
+  // Preview 50 dòng đầu, có cột Loại để Tân kiểm tra nhanh phân loại
+  const preview = CFTK.rows.slice(0, 50);
+  let html = '';
+  preview.forEach((r, i) => {
+    const isSach = r.loai === 'sach';
+    const badgeBg    = isSach ? '#eff6ff' : '#fff7ed';
+    const badgeColor = isSach ? '#1d4ed8' : '#c2410c';
+    const badgeText  = isSach ? 'Sách' : 'VPP';
+    html += `<tr>
+      <td style="color:var(--text2);font-size:12px">${i + 1}</td>
+      <td style="font-size:12px">${r.ma}</td>
+      <td style="font-size:12px">${r.ten}</td>
+      <td class="num" style="font-size:12px">${r.sl.toLocaleString('vi-VN')}</td>
+      <td style="font-size:12px"><span style="background:${badgeBg};color:${badgeColor};padding:2px 8px;border-radius:8px;font-size:11px;font-weight:600">${badgeText}</span></td>
+      <td style="font-size:11px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.filename}">${r.filename}</td>
+    </tr>`;
+  });
+  if (CFTK.rows.length > 50) {
+    html += `<tr><td colspan="6" style="text-align:center;color:var(--text2);font-size:12px;padding:10px">
+      ... và ${(CFTK.rows.length - 50).toLocaleString('vi-VN')} dòng nữa (không hiển thị hết để tránh chậm)
+    </td></tr>`;
+  }
+  document.getElementById('cftk-tbody').innerHTML = html;
+  document.getElementById('cftk-preview-card').style.display = '';
+}
+
+// Xuất 1 file xlsx theo loại ('sach' hoặc 'vpp')
+function cftkExportOne(loai, label, sheetName) {
+  const rows = CFTK.rows.filter(r => r.loai === loai);
+  if (!rows.length) { alert('Không có dòng nào thuộc nhóm ' + label + ' để xuất!'); return; }
+
+  const wsData = [['Mã sản phẩm', 'Tên sản phẩm', 'Số lượng bán']];
+  rows.forEach(r => wsData.push([r.ma, r.ten, r.sl]));
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{ wch: 20 }, { wch: 50 }, { wch: 16 }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+  const today = new Date();
+  const dateStr = today.getFullYear().toString()
+    + String(today.getMonth() + 1).padStart(2, '0')
+    + String(today.getDate()).padStart(2, '0');
+  const filename = 'ThongKe_' + label + '_' + dateStr + '.xlsx';
+
+  XLSX.writeFile(wb, filename);
+}
+
+function cftkExportSach() { cftkExportOne('sach', 'Sach', 'SACH'); }
+function cftkExportVPP()  { cftkExportOne('vpp',  'VPP',  'VPP'); }
+
+// Reset toàn bộ
+function cftkReset() {
+  CFTK.rows = []; CFTK.fileCount = 0; CFTK.warnFiles = [];
+  document.getElementById('cftk-summary-card').style.display    = 'none';
+  document.getElementById('cftk-preview-card').style.display    = 'none';
+  document.getElementById('cftk-export-sach-btn').style.display = 'none';
+  document.getElementById('cftk-export-vpp-btn').style.display  = 'none';
+  document.getElementById('cftk-reset-btn').style.display       = 'none';
+  document.getElementById('cftk-tbody').innerHTML                = '';
+  document.getElementById('cftk-warn-box').style.display        = 'none';
 }
 
 // ══════════════════════════════════════════════════════════════
