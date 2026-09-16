@@ -2944,6 +2944,88 @@
     </div>
     </div><!-- end cftk wrapper -->
 
+    <!-- ── TÁCH THỐNG KÊ HỎA TỐC / THƯỜNG ── -->
+    <div style="margin-top:24px;border-top:2px solid var(--gray3);padding-top:20px">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><span class="dot"></span> Tách Thống Kê Hỏa Tốc / Thường</div>
+      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
+        Upload file <b>Thong_ke_nhanh_Shopee_SP_kho_*.xlsx</b> (Mã sản phẩm / Tên sản phẩm / Số lượng bán) và file
+        <b>đơn hàng</b> (chi tiết từng đơn, có cột <b>Đơn vị vận chuyển</b>). Hệ thống đối chiếu 2 file để tách
+        Thống kê nhanh thành 2 file riêng theo đúng số lượng cần nhặt cho từng nhóm — không loại bỏ nhầm SKU khi
+        1 mã vừa có ở đơn Hỏa Tốc vừa có ở đơn Thường. Mã SP không xác định được rõ ràng (carrier lạ, không khớp
+        được giữa 2 file, hoặc lệch số lượng) sẽ KHÔNG tự gộp vào file nào — được đưa riêng vào danh sách cảnh báo
+        để anh tự kiểm tra tay.
+      </p>
+      <div style="background:#f8fafc;border:1px solid var(--gray3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.7">
+        <b style="color:var(--text1)">Đang nhận diện theo Đơn vị vận chuyển:</b><br>
+        🔴 Hỏa Tốc: SPX Instant, Green SM, beDelivery, GrabExpress, AhaMove<br>
+        ⚪ Thường: SPX Express, Giao Hàng Nhanh, Best, GHN hàng cồng kềnh, SPX hàng cồng kềnh, Tủ nhận hàng<br>
+        Carrier khác không nằm trong 2 danh sách trên → xếp vào cảnh báo, không tự đoán. Nếu thấy thiếu carrier nào, báo lại để tôi bổ sung.
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:24px">
+        <div style="flex:1;min-width:260px">
+          <div style="font-size:12px;font-weight:600;color:var(--text1);margin-bottom:8px">1. File Thống Kê Nhanh</div>
+          <input type="file" id="tdht-tk-input" accept=".xlsx,.xls" multiple style="display:none" onchange="tdhtHandleTkFiles(this)">
+          <button class="sw-upload-btn" onclick="document.getElementById('tdht-tk-input').click()">📂 Chọn File Thống Kê Nhanh</button>
+          <div id="tdht-tk-status" style="font-size:12px;color:var(--text2);margin-top:6px">Chưa chọn file</div>
+          <div id="tdht-tk-warn" style="display:none;margin-top:6px;background:#fff8e1;border:1px solid #f39c12;border-radius:8px;padding:6px 10px;font-size:11px;color:#7d5b00"></div>
+        </div>
+        <div style="flex:1;min-width:260px">
+          <div style="font-size:12px;font-weight:600;color:var(--text1);margin-bottom:8px">2. File Đơn Hàng</div>
+          <input type="file" id="tdht-dh-input" accept=".xlsx,.xls" multiple style="display:none" onchange="tdhtHandleDhFiles(this)">
+          <button class="sw-upload-btn" onclick="document.getElementById('tdht-dh-input').click()">📂 Chọn File Đơn Hàng</button>
+          <div id="tdht-dh-status" style="font-size:12px;color:var(--text2);margin-top:6px">Chưa chọn file</div>
+          <div id="tdht-dh-warn" style="display:none;margin-top:6px;background:#fff8e1;border:1px solid #f39c12;border-radius:8px;padding:6px 10px;font-size:11px;color:#7d5b00"></div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:16px">
+        <button id="tdht-process-btn" class="sw-upload-btn" style="background:var(--navy);color:white;display:none" onclick="tdhtProcess()">⚙️ Tách File</button>
+        <button id="tdht-export-hoatoc-btn" class="sw-upload-btn" style="background:var(--red,#e74c3c);color:white;display:none" onclick="tdhtExportHoaToc()">🔴 Tải File Hỏa Tốc</button>
+        <button id="tdht-export-thuong-btn" class="sw-upload-btn" style="background:var(--green,#27ae60);color:white;display:none" onclick="tdhtExportThuong()">⚪ Tải File Thường</button>
+        <button id="tdht-export-canhbao-btn" class="sw-upload-btn" style="background:var(--orange,#f39c12);color:white;display:none" onclick="tdhtExportCanhBao()">⚠️ Tải Danh Sách Cảnh Báo</button>
+        <button onclick="tdhtReset()" style="padding:8px 16px;border:1px solid var(--red,#e74c3c);color:var(--red,#e74c3c);background:white;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:none" id="tdht-reset-btn">🔄 RESET</button>
+      </div>
+    </div>
+
+    <div class="card" id="tdht-summary-card" style="display:none;margin-bottom:16px">
+      <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center">
+        <div>
+          <div style="font-size:12px;color:var(--text2)">Số SKU Hỏa Tốc</div>
+          <div id="tdht-stat-hoatoc" style="font-size:24px;font-weight:700;color:#c0392b">0</div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text2)">Số SKU Thường</div>
+          <div id="tdht-stat-thuong" style="font-size:24px;font-weight:700;color:var(--navy)">0</div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text2)">Số SKU Cảnh Báo</div>
+          <div id="tdht-stat-canhbao" style="font-size:24px;font-weight:700;color:#c2410c">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="tdht-preview-card" style="display:none">
+      <div style="font-size:13px;font-weight:600;color:var(--text1);margin-bottom:10px">Xem trước kết quả tách (50 dòng đầu)</div>
+      <div class="table-wrap" style="max-height:480px;overflow-y:auto;border:1px solid var(--gray3);border-radius:8px">
+        <table>
+          <thead>
+            <tr>
+              <th style="text-align:left">#</th>
+              <th style="text-align:left">Mã sản phẩm</th>
+              <th style="text-align:left;min-width:260px">Tên sản phẩm</th>
+              <th style="text-align:right">Số lượng</th>
+              <th style="text-align:left">Nhóm</th>
+              <th style="text-align:left;min-width:200px">Lý do (nếu cảnh báo)</th>
+            </tr>
+          </thead>
+          <tbody id="tdht-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    </div><!-- end tdht wrapper -->
+
     <!-- ── BÁO CÁO BÁN HÀNG THEO KHÁCH HÀNG ── -->
     <div style="margin-top:24px;border-top:2px solid var(--gray3);padding-top:20px">
     <div class="card" style="margin-bottom:16px">
@@ -20184,6 +20266,281 @@ function cftkReset() {
   document.getElementById('cftk-reset-btn').style.display       = 'none';
   document.getElementById('cftk-tbody').innerHTML                = '';
   document.getElementById('cftk-warn-box').style.display        = 'none';
+}
+
+// ══════════════════════════════════════════════════════════════
+// TÁCH THỐNG KÊ HỎA TỐC / THƯỜNG (TDHT)
+// Input: file Thống kê nhanh (dùng lại nvParseSheet) + file Đơn hàng
+// (parse riêng, có forward-fill vì đơn nhiều SKU chỉ dòng đầu có
+// Mã đơn hàng/Đơn vị vận chuyển, các dòng SKU phụ bị để trống).
+// Phân loại theo whitelist carrier (★ Cập nhật 2026-09-16: xác nhận
+// qua mẫu 205 đơn Hỏa Tốc thật + Tân xác nhận danh sách carrier
+// Thường bổ sung), trừ đúng số lượng để không mất/dư khi 1 SKU vừa
+// thuộc đơn Hỏa Tốc vừa thuộc đơn Thường. Carrier lạ hoặc SKU không
+// khớp được giữa 2 file KHÔNG tự gộp vào bên nào — đưa vào cảnh báo.
+// ══════════════════════════════════════════════════════════════
+const TDHT_HOATOC_CARRIERS = ['spx instant', 'green sm', 'bedelivery', 'grabexpress', 'ahamove'];
+const TDHT_THUONG_CARRIERS = ['spx express', 'giao hàng nhanh', 'best', 'ghn hàng cồng kềnh', 'spx hàng cồng kềnh', 'tủ nhận hàng'];
+
+const TDHT = {
+  tk: { rows: [], fileCount: 0, warnFiles: [] },
+  dh: { rows: [], fileCount: 0, warnFiles: [] },
+  result: null
+};
+
+function tdhtNormCarrier(s) { return String(s || '').trim().toLowerCase(); }
+
+function tdhtClassifyCarrier(carrier) {
+  const c = tdhtNormCarrier(carrier);
+  if (TDHT_HOATOC_CARRIERS.includes(c)) return 'hoaToc';
+  if (TDHT_THUONG_CARRIERS.includes(c)) return 'thuong';
+  return 'la';
+}
+
+// Parse file Đơn hàng: tìm dòng header chứa "Mã đơn hàng" + "Đơn vị vận chuyển",
+// forward-fill 2 cột này cho các dòng SKU phụ (đơn nhiều SKU chỉ dòng đầu có giá trị,
+// các dòng SKU tiếp theo của cùng đơn bị để trống theo đúng cấu trúc file Salework xuất).
+function tdhtParseDonHangSheet(ws, filename) {
+  const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+  let headerRow = -1;
+  for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
+    const r = rawRows[i];
+    if (r && r.some(c => String(c || '').trim() === 'Mã đơn hàng') && r.some(c => String(c || '').trim() === 'Đơn vị vận chuyển')) {
+      headerRow = i; break;
+    }
+  }
+  if (headerRow === -1) return { ok: false, rows: [] };
+
+  const header = rawRows[headerRow].map(c => String(c || '').trim());
+  const iDon = header.indexOf('Mã đơn hàng');
+  const iSku = header.indexOf('Mã sản phẩm Salework');
+  const iCarrier = header.indexOf('Đơn vị vận chuyển');
+  if (iDon === -1 || iSku === -1 || iCarrier === -1) return { ok: false, rows: [] };
+  const iSl = iSku + 1; // "Số lượng" luôn nằm ngay sau "Mã sản phẩm Salework" theo cấu trúc file Salework xuất
+
+  const rows = [];
+  let curDon = '', curCarrier = '';
+  for (let i = headerRow + 1; i < rawRows.length; i++) {
+    const r = rawRows[i];
+    if (!r) continue;
+    const don = r[iDon];
+    const carrier = r[iCarrier];
+    if (don != null && String(don).trim() !== '') curDon = String(don).trim();
+    if (carrier != null && String(carrier).trim() !== '') curCarrier = String(carrier).trim();
+    const sku = r[iSku];
+    if (sku == null || String(sku).trim() === '') continue;
+    rows.push({
+      maDon: curDon,
+      carrier: curCarrier,
+      ma: String(sku).trim(),
+      sl: Number(r[iSl]) || 0,
+      filename: filename
+    });
+  }
+  return { ok: true, rows };
+}
+
+function tdhtHandleTkFiles(input) {
+  const files = [...input.files];
+  if (!files.length) return;
+  TDHT.tk.rows = []; TDHT.tk.fileCount = 0; TDHT.tk.warnFiles = [];
+  TDHT.result = null;
+  let done = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const parsed = nvParseSheet(ws, file.name);
+        if (parsed.ok) TDHT.tk.rows = TDHT.tk.rows.concat(parsed.rows);
+        else TDHT.tk.warnFiles.push(file.name);
+      } catch (err) {
+        TDHT.tk.warnFiles.push(file.name + ' (lỗi đọc: ' + err.message + ')');
+      }
+      done++;
+      if (done === files.length) { TDHT.tk.fileCount = files.length; tdhtRenderStatus(); }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+  input.value = '';
+}
+
+function tdhtHandleDhFiles(input) {
+  const files = [...input.files];
+  if (!files.length) return;
+  TDHT.dh.rows = []; TDHT.dh.fileCount = 0; TDHT.dh.warnFiles = [];
+  TDHT.result = null;
+  let done = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const parsed = tdhtParseDonHangSheet(ws, file.name);
+        if (parsed.ok) TDHT.dh.rows = TDHT.dh.rows.concat(parsed.rows);
+        else TDHT.dh.warnFiles.push(file.name);
+      } catch (err) {
+        TDHT.dh.warnFiles.push(file.name + ' (lỗi đọc: ' + err.message + ')');
+      }
+      done++;
+      if (done === files.length) { TDHT.dh.fileCount = files.length; tdhtRenderStatus(); }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+  input.value = '';
+}
+
+function tdhtRenderStatus() {
+  document.getElementById('tdht-tk-status').textContent =
+    TDHT.tk.fileCount ? (TDHT.tk.fileCount + ' file, ' + TDHT.tk.rows.length.toLocaleString('vi-VN') + ' dòng') : 'Chưa chọn file';
+  document.getElementById('tdht-dh-status').textContent =
+    TDHT.dh.fileCount ? (TDHT.dh.fileCount + ' file, ' + TDHT.dh.rows.length.toLocaleString('vi-VN') + ' dòng') : 'Chưa chọn file';
+
+  const tkWarn = document.getElementById('tdht-tk-warn');
+  if (TDHT.tk.warnFiles.length) {
+    tkWarn.style.display = '';
+    tkWarn.innerHTML = '⚠ Không đọc được: ' + TDHT.tk.warnFiles.join(', ');
+  } else tkWarn.style.display = 'none';
+
+  const dhWarn = document.getElementById('tdht-dh-warn');
+  if (TDHT.dh.warnFiles.length) {
+    dhWarn.style.display = '';
+    dhWarn.innerHTML = '⚠ Không đọc được: ' + TDHT.dh.warnFiles.join(', ');
+  } else dhWarn.style.display = 'none';
+
+  document.getElementById('tdht-process-btn').style.display =
+    (TDHT.tk.rows.length > 0 && TDHT.dh.rows.length > 0) ? '' : 'none';
+}
+
+function tdhtProcess() {
+  const tkMap = new Map(); // ma -> { ten, sl }
+  TDHT.tk.rows.forEach(r => {
+    const cur = tkMap.get(r.ma);
+    if (cur) cur.sl += r.sl;
+    else tkMap.set(r.ma, { ten: r.ten, sl: r.sl });
+  });
+
+  const dhMap = new Map(); // ma -> { hoaToc, la, laCarriers:Set }
+  TDHT.dh.rows.forEach(r => {
+    const loai = tdhtClassifyCarrier(r.carrier);
+    let cur = dhMap.get(r.ma);
+    if (!cur) { cur = { hoaToc: 0, la: 0, laCarriers: new Set() }; dhMap.set(r.ma, cur); }
+    if (loai === 'hoaToc') cur.hoaToc += r.sl;
+    else if (loai === 'la') { cur.la += r.sl; cur.laCarriers.add(r.carrier); }
+  });
+
+  const hoaToc = [], thuong = [], canhBao = [];
+  tkMap.forEach((v, ma) => {
+    const dh = dhMap.get(ma);
+    if (!dh) {
+      canhBao.push({ ma, ten: v.ten, sl: v.sl, loai: 'canhBao', lyDo: 'Không tìm thấy trong file Đơn hàng (lệch batch / đơn hủy / lỗi mã)' });
+      return;
+    }
+    const qtyThuong = v.sl - dh.hoaToc - dh.la;
+    if (qtyThuong < 0) {
+      canhBao.push({ ma, ten: v.ten, sl: v.sl, loai: 'canhBao', lyDo: 'Lệch số lượng: Đơn hàng cộng dồn (' + (dh.hoaToc + dh.la) + ') vượt quá Thống kê nhanh (' + v.sl + ')' });
+      return;
+    }
+    if (dh.hoaToc > 0) hoaToc.push({ ma, ten: v.ten, sl: dh.hoaToc, loai: 'hoaToc', lyDo: '' });
+    if (qtyThuong > 0) thuong.push({ ma, ten: v.ten, sl: qtyThuong, loai: 'thuong', lyDo: '' });
+    if (dh.la > 0) canhBao.push({ ma, ten: v.ten, sl: dh.la, loai: 'canhBao', lyDo: 'Carrier lạ: ' + [...dh.laCarriers].join(', ') });
+  });
+
+  TDHT.result = { hoaToc, thuong, canhBao };
+  tdhtRenderResult();
+}
+
+function tdhtRenderResult() {
+  const r = TDHT.result;
+  document.getElementById('tdht-stat-hoatoc').textContent = r.hoaToc.length.toLocaleString('vi-VN');
+  document.getElementById('tdht-stat-thuong').textContent = r.thuong.length.toLocaleString('vi-VN');
+  document.getElementById('tdht-stat-canhbao').textContent = r.canhBao.length.toLocaleString('vi-VN');
+  document.getElementById('tdht-summary-card').style.display = '';
+
+  document.getElementById('tdht-export-hoatoc-btn').style.display = r.hoaToc.length ? '' : 'none';
+  document.getElementById('tdht-export-thuong-btn').style.display = r.thuong.length ? '' : 'none';
+  document.getElementById('tdht-export-canhbao-btn').style.display = r.canhBao.length ? '' : 'none';
+  document.getElementById('tdht-reset-btn').style.display = '';
+
+  const all = [...r.hoaToc, ...r.thuong, ...r.canhBao];
+  const badgeMap = {
+    hoaToc: { bg: '#fdecea', color: '#c0392b', text: 'Hỏa Tốc' },
+    thuong: { bg: '#eff6ff', color: '#1d4ed8', text: 'Thường' },
+    canhBao: { bg: '#fff7ed', color: '#c2410c', text: 'Cảnh báo' }
+  };
+  const preview = all.slice(0, 50);
+  let html = '';
+  preview.forEach((row, i) => {
+    const b = badgeMap[row.loai];
+    html += `<tr>
+      <td style="color:var(--text2);font-size:12px">${i + 1}</td>
+      <td style="font-size:12px">${row.ma}</td>
+      <td style="font-size:12px">${row.ten}</td>
+      <td class="num" style="font-size:12px">${row.sl.toLocaleString('vi-VN')}</td>
+      <td style="font-size:12px"><span style="background:${b.bg};color:${b.color};padding:2px 8px;border-radius:8px;font-size:11px;font-weight:600">${b.text}</span></td>
+      <td style="font-size:11px;color:var(--text2)">${row.lyDo || ''}</td>
+    </tr>`;
+  });
+  if (all.length > 50) {
+    html += `<tr><td colspan="6" style="text-align:center;color:var(--text2);font-size:12px;padding:10px">
+      ... và ${(all.length - 50).toLocaleString('vi-VN')} dòng nữa (không hiển thị hết để tránh chậm)
+    </td></tr>`;
+  }
+  document.getElementById('tdht-tbody').innerHTML = html;
+  document.getElementById('tdht-preview-card').style.display = '';
+}
+
+function tdhtExportRows(rows, filename, sheetName, withReason) {
+  const header = withReason ? ['Mã sản phẩm', 'Tên sản phẩm', 'Số lượng bán', 'Lý do'] : ['Mã sản phẩm', 'Tên sản phẩm', 'Số lượng bán'];
+  const wsData = [header];
+  rows.forEach(r => {
+    const row = [r.ma, r.ten, r.sl];
+    if (withReason) row.push(r.lyDo || '');
+    wsData.push(row);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = withReason ? [{ wch: 20 }, { wch: 50 }, { wch: 16 }, { wch: 40 }] : [{ wch: 20 }, { wch: 50 }, { wch: 16 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.writeFile(wb, filename);
+}
+
+function tdhtDateStr() {
+  const d = new Date();
+  return d.getFullYear().toString() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+}
+
+function tdhtExportHoaToc() {
+  if (!TDHT.result || !TDHT.result.hoaToc.length) { alert('Không có SKU nào thuộc nhóm Hỏa Tốc để xuất!'); return; }
+  tdhtExportRows(TDHT.result.hoaToc, 'ThongKe_HoaToc_' + tdhtDateStr() + '.xlsx', 'HOA_TOC', false);
+}
+function tdhtExportThuong() {
+  if (!TDHT.result || !TDHT.result.thuong.length) { alert('Không có SKU nào thuộc nhóm Thường để xuất!'); return; }
+  tdhtExportRows(TDHT.result.thuong, 'ThongKe_Thuong_' + tdhtDateStr() + '.xlsx', 'THUONG', false);
+}
+function tdhtExportCanhBao() {
+  if (!TDHT.result || !TDHT.result.canhBao.length) { alert('Không có dòng cảnh báo nào để xuất!'); return; }
+  tdhtExportRows(TDHT.result.canhBao, 'ThongKe_CanhBao_' + tdhtDateStr() + '.xlsx', 'CANH_BAO', true);
+}
+
+function tdhtReset() {
+  TDHT.tk = { rows: [], fileCount: 0, warnFiles: [] };
+  TDHT.dh = { rows: [], fileCount: 0, warnFiles: [] };
+  TDHT.result = null;
+  document.getElementById('tdht-tk-status').textContent = 'Chưa chọn file';
+  document.getElementById('tdht-dh-status').textContent = 'Chưa chọn file';
+  document.getElementById('tdht-tk-warn').style.display = 'none';
+  document.getElementById('tdht-dh-warn').style.display = 'none';
+  document.getElementById('tdht-process-btn').style.display = 'none';
+  document.getElementById('tdht-export-hoatoc-btn').style.display = 'none';
+  document.getElementById('tdht-export-thuong-btn').style.display = 'none';
+  document.getElementById('tdht-export-canhbao-btn').style.display = 'none';
+  document.getElementById('tdht-reset-btn').style.display = 'none';
+  document.getElementById('tdht-summary-card').style.display = 'none';
+  document.getElementById('tdht-preview-card').style.display = 'none';
+  document.getElementById('tdht-tbody').innerHTML = '';
 }
 
 // ══════════════════════════════════════════════════════════════
