@@ -2288,6 +2288,21 @@
       </div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:4px">File tồn: <b id="tfm-status-ton">chưa chọn</b></div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:10px">File mass: <b id="tfm-status-mass">chưa chọn</b></div>
+
+      <!-- Đối chiếu Black List cho SKU trong file tồn vừa upload — xác nhận Tân 2026-09-16 -->
+      <div id="tfm-bl-box" style="display:none;margin-bottom:14px;border:2px solid #e74c3c;border-radius:8px;padding:14px;background:#fff5f5">
+        <div style="font-size:13px;font-weight:700;color:#c0392b;margin-bottom:8px">🚫 <span id="tfm-bl-count">0</span> mã SKU trong file tồn này đang bị khóa trong Black List — nên xóa BL trước khi xuất Mass để tồn cập nhật đúng</div>
+        <div class="table-wrap" style="max-height:220px;overflow-y:auto;border:1px solid var(--gray3);border-radius:8px;background:white;margin-bottom:10px">
+          <table>
+            <thead><tr><th>#</th><th style="text-align:left">SKU</th><th style="text-align:left">Tên (trong file)</th><th class="num">SL trong file</th><th>Kho đang khóa BL</th></tr></thead>
+            <tbody id="tfm-bl-tbody"></tbody>
+          </table>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Copy nguyên khối dưới đây, dán 1 lần vào nhóm Lark (bot đã hỗ trợ nhiều dòng lệnh trong 1 tin nhắn):</div>
+        <textarea id="tfm-bl-textarea" readonly style="width:100%;min-height:90px;font-family:monospace;font-size:13px;border:1px solid var(--gray3);border-radius:6px;padding:8px;resize:vertical;background:#fafafa"></textarea>
+        <button class="btn-drive-sync" style="margin-top:8px;max-width:220px" onclick="blCopyXoaText('tfm', this)">📋 Copy Lệnh Xóa BL</button>
+      </div>
+
       <div id="tfm-preview" style="display:none;background:#f8f4fd;border:1px solid #d5b8f0;border-radius:8px;padding:10px 14px;margin-bottom:10px"></div>
       <div id="tfm-log" class="drive-log"></div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
@@ -2350,6 +2365,20 @@
             <tbody id="nh-preview-tbody"></tbody>
           </table>
         </div>
+      </div>
+
+      <!-- Đối chiếu Black List cho SKU trong phiếu/đơn hàng về vừa upload — xác nhận Tân 2026-09-16 -->
+      <div id="nh-bl-box" style="display:none;margin-bottom:14px;border:2px solid #e74c3c;border-radius:8px;padding:14px;background:#fff5f5">
+        <div style="font-size:13px;font-weight:700;color:#c0392b;margin-bottom:8px">🚫 <span id="nh-bl-count">0</span> mã hàng về thêm đang bị khóa trong Black List — nên xóa BL trước khi cộng thêm tồn để cập nhật đúng</div>
+        <div class="table-wrap" style="max-height:220px;overflow-y:auto;border:1px solid var(--gray3);border-radius:8px;background:white;margin-bottom:10px">
+          <table>
+            <thead><tr><th>#</th><th style="text-align:left">SKU</th><th style="text-align:left">Tên (trong file)</th><th class="num">SL</th><th>Kho đang khóa BL</th></tr></thead>
+            <tbody id="nh-bl-tbody"></tbody>
+          </table>
+        </div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Copy nguyên khối dưới đây, dán 1 lần vào nhóm Lark (bot đã hỗ trợ nhiều dòng lệnh trong 1 tin nhắn):</div>
+        <textarea id="nh-bl-textarea" readonly style="width:100%;min-height:90px;font-family:monospace;font-size:13px;border:1px solid var(--gray3);border-radius:6px;padding:8px;resize:vertical;background:#fafafa"></textarea>
+        <button class="btn-drive-sync" style="margin-top:8px;max-width:220px" onclick="blCopyXoaText('nh', this)">📋 Copy Lệnh Xóa BL</button>
       </div>
 
       <div id="nhm-export-row" style="display:none;margin-top:14px">
@@ -6328,6 +6357,8 @@ function nhResetAll() {
   document.getElementById('nh-status-file').textContent = 'chưa chọn';
   document.getElementById('nh-preview').style.display = 'none';
   document.getElementById('nh-preview-tbody').innerHTML = '';
+  const blBox0 = document.getElementById('nh-bl-box');
+  if (blBox0) blBox0.style.display = 'none';
   // Reset NHM
   NHM.massWb = null; NHM.massWs = null; NHM.massFileName = '';
   NHM.massHeaderRow = -1; NHM.massIdx = null; NHM.massKhoCols = [];
@@ -6389,6 +6420,7 @@ function nhHandleFile(input) {
       document.getElementById('nh-preview-count').textContent = parsed.length;
       document.getElementById('nh-preview').style.display = 'block';
       nhLog(`✅ Đọc xong phiếu: ${parsed.length} mã hàng, tổng ${parsed.reduce((s,r)=>s+r.sl,0).toLocaleString('vi-VN')} đơn vị.`, 'ok');
+      blCheckIncomingItems(parsed.map(r => ({ sku: r.ma, ten: r.ten, sl: r.sl }))).then(matches => blRenderMatchBox('nh', matches));
       nhmCheckReady();
     } catch (err) {
       nhLog('❌ Lỗi đọc file: ' + err.message, 'err');
@@ -6478,6 +6510,8 @@ function nhmSetMode(mode, btn) {
   if (preview) preview.style.display = 'none';
   const tbody = document.getElementById('nh-preview-tbody');
   if (tbody) tbody.innerHTML = '';
+  const blBoxMode = document.getElementById('nh-bl-box');
+  if (blBoxMode) blBoxMode.style.display = 'none';
 
   const inputBtn = document.getElementById('nh-input-btn');
   const previewThead = document.getElementById('nh-preview-thead');
@@ -6625,6 +6659,7 @@ function nhBoseHandleFile(input) {
       if (statusEl) statusEl.textContent = `${file.name} — ${parsed.length} mã (đã bỏ qua cột "HN2 đi HCM")`;
       nhLog(`✅ Đọc xong đơn Bose: ${parsed.length} mã hàng, tổng HN ${parsed.reduce((s,r)=>s+r.hn,0).toLocaleString('vi-VN')} + HCM ${parsed.reduce((s,r)=>s+r.hcm,0).toLocaleString('vi-VN')} đơn vị.`, 'ok');
       nhRenderBosePreview(parsed);
+      blCheckIncomingItems(parsed.map(r => ({ sku: r.sku, ten: r.ten, sl: `HN ${r.hn.toLocaleString('vi-VN')} / HCM ${r.hcm.toLocaleString('vi-VN')}` }))).then(matches => blRenderMatchBox('nh', matches));
     } catch (err) {
       nhLog('❌ Lỗi đọc file: ' + err.message, 'err');
       if (statusEl) statusEl.textContent = 'chưa chọn';
@@ -7955,6 +7990,10 @@ function tfmHandleTonFile(input) {
           : TFM.kho ? `${TFM.kho.toUpperCase()} (${TFM.tonMap.size} SKU)` : '';
         const el = document.getElementById('tfm-status-ton');
         if (el) el.textContent = `${TFM.tonFileNames.length} file — ${label}`;
+        // Đối chiếu Black List trên TOÀN BỘ SKU đã gộp từ các file tồn vừa upload (không có tên
+        // sản phẩm ở nguồn này — tkxParseTonkhoThatSheet chỉ trả sku→qty, chấp nhận để trống cột Tên).
+        blCheckIncomingItems(Array.from(TFM.tonMap.entries()).map(([sku, qty]) => ({ sku, ten: '', sl: qty })))
+          .then(matches => blRenderMatchBox('tfm', matches));
         tfmCheckReady();
       }
     };
@@ -8068,6 +8107,8 @@ function tfmResetAll() {
   if (prevEl) { prevEl.innerHTML = ''; prevEl.style.display = 'none'; }
   const btn = document.getElementById('tfm-export-btn');
   if (btn) btn.style.display = 'none';
+  const blBox = document.getElementById('tfm-bl-box');
+  if (blBox) blBox.style.display = 'none';
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -12790,6 +12831,85 @@ async function blLoadIfNeeded() {
     }
   })();
   return BL.loading;
+}
+
+// ── ĐỐI CHIẾU BLACK LIST CHO FILE HÀNG VỀ / FILE TỒN MỚI (xác nhận Tân 2026-09-16) ──────────────
+// Dùng chung cho cả 2 khối "Hàng Về Thêm (Deli/Bose)" và "Update Tồn Theo File": ngay khi upload
+// file nguồn (phiếu/đơn/tồn), đối chiếu với Black List đang cache (BL.lookup — CHÍNH LÀ dữ liệu
+// đã dùng để "giữ nguyên tồn" khi xuất Mass ở các luồng khác), rồi xuất sẵn khối lệnh "Xóa BL ..."
+// đúng cú pháp bot Lark để Tân copy dán 1 lần (bot .gs bản mới đã hỗ trợ nhiều dòng lệnh/1 tin
+// nhắn — xem giai đoạn 18 phía file .gs, PHẢI deploy bản đó thì mới dán nguyên khối gửi 1 lần
+// được, nếu chưa deploy thì bot cũ vẫn chỉ nhận đúng 1 dòng/tin nhắn).
+// Lưu ý: dữ liệu chỉ mới bằng lần "Đồng Bộ Black List" gần nhất trên dashboard (nút ở mục Cập
+// Nhật Dữ Liệu) — không tự lấy mới từ Google Sheet ngay lúc gọi hàm này.
+async function blCheckIncomingItems(items) {
+  // items: [{sku, ten, sl}] — sl chỉ để hiển thị lên bảng xem trước, không dùng để so khớp.
+  await blLoadIfNeeded();
+  const matches = [];
+  const seen = new Set();
+  (items || []).forEach(it => {
+    const sku = String((it && it.sku) || '').trim();
+    if (!sku || seen.has(sku)) return;
+    const bl = BL.lookup.get(sku);
+    if (!bl) return;
+    const hnLocked = bl.hn !== null && bl.hn !== undefined;
+    const sgLocked = bl.hcm !== null && bl.hcm !== undefined; // BL.lookup dùng key "hcm" = cột "Số Lượng SG" trên Sheet
+    if (!hnLocked && !sgLocked) return;
+    seen.add(sku);
+    matches.push({ sku, ten: (it && it.ten) || '', sl: it ? it.sl : null, hnLocked, sgLocked });
+  });
+  return matches;
+}
+
+// Sinh đúng cú pháp lệnh bot Lark (xem comment đầu applyBlackListCommand_ ở file .gs): khoá cả 2
+// kho → "Xóa BL <SKU>" (không ghi kho); chỉ khoá 1 kho → ghi rõ "HN"/"SG" để KHÔNG lỡ gỡ luôn kho
+// còn lại đang khoá đúng.
+function blMatchesToXoaText(matches) {
+  return (matches || []).map(m => {
+    if (m.hnLocked && m.sgLocked) return `Xóa BL ${m.sku}`;
+    if (m.hnLocked) return `Xóa BL HN ${m.sku}`;
+    return `Xóa BL SG ${m.sku}`;
+  }).join('\n');
+}
+
+function blRenderMatchBox(prefix, matches) {
+  const box = document.getElementById(prefix + '-bl-box');
+  if (!box) return;
+  if (!matches || !matches.length) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  const countEl = document.getElementById(prefix + '-bl-count');
+  if (countEl) countEl.textContent = matches.length;
+  const tbody = document.getElementById(prefix + '-bl-tbody');
+  if (tbody) {
+    tbody.innerHTML = matches.map((m, i) => {
+      const khoText = m.hnLocked && m.sgLocked ? 'HN + SG' : m.hnLocked ? 'HN' : 'SG';
+      let slText = '';
+      if (m.sl !== null && m.sl !== undefined && m.sl !== '') {
+        slText = typeof m.sl === 'number' ? m.sl.toLocaleString('vi-VN') : String(m.sl);
+      }
+      return `<tr><td>${i + 1}</td><td>${m.sku}</td><td style="max-width:260px;white-space:normal">${m.ten || ''}</td><td class="num">${slText}</td><td style="color:#c0392b;font-weight:600">${khoText}</td></tr>`;
+    }).join('');
+  }
+  const ta = document.getElementById(prefix + '-bl-textarea');
+  if (ta) ta.value = blMatchesToXoaText(matches);
+}
+
+function blCopyXoaText(prefix, btnEl) {
+  const ta = document.getElementById(prefix + '-bl-textarea');
+  if (!ta || !ta.value) return;
+  const showCopied = () => {
+    if (!btnEl) return;
+    const old = btnEl.textContent;
+    btnEl.textContent = '✅ Đã copy';
+    setTimeout(() => { btnEl.textContent = old; }, 1500);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(ta.value).then(showCopied).catch(() => {
+      ta.select(); document.execCommand('copy'); showCopied();
+    });
+  } else {
+    ta.select(); document.execCommand('copy'); showCopied();
+  }
 }
 
 function blSyncBlacklist() {
