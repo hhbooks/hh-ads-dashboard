@@ -2367,7 +2367,17 @@
         </div>
       </div>
 
-      <!-- Đối chiếu Black List cho SKU trong phiếu/đơn hàng về vừa upload — xác nhận Tân 2026-09-16 -->
+      <!-- Đối chiếu Black List cho SKU trong phiếu/đơn hàng về vừa upload — xác nhận Tân 2026-09-16.
+           Riêng phiếu Deli KHÔNG tự ghi rõ sẽ cộng vào kho nào (Tân chọn kho lúc bấm nút Xuất Mass
+           bên dưới) — nên phải hỏi trước qua nh-bl-kho-picker để không đề xuất xóa nhầm kho không
+           liên quan (sửa 2026-09-16, phản hồi thực tế Tân với file Tồn HCM bị đề xuất xóa cả HN). -->
+      <div id="nh-bl-kho-picker" style="display:none;margin-bottom:14px;border:2px solid #e74c3c;border-radius:8px;padding:14px;background:#fff5f5">
+        <div style="font-size:13px;font-weight:700;color:#c0392b;margin-bottom:8px">🚫 Phiếu này có mã đang bị khóa trong Black List. Phiếu này bạn sẽ cộng thêm vào kho nào? (chọn để xem đúng gợi ý xóa BL cho kho đó)</div>
+        <div style="display:flex;gap:8px">
+          <button class="filter-btn" onclick="nhSetBlKho('hn', this)">📦 Cộng Vào Kho HN</button>
+          <button class="filter-btn" onclick="nhSetBlKho('hcm', this)">📦 Cộng Vào Kho HCM</button>
+        </div>
+      </div>
       <div id="nh-bl-box" style="display:none;margin-bottom:14px;border:2px solid #e74c3c;border-radius:8px;padding:14px;background:#fff5f5">
         <div style="font-size:13px;font-weight:700;color:#c0392b;margin-bottom:8px">🚫 <span id="nh-bl-count">0</span> mã hàng về thêm đang bị khóa trong Black List — nên xóa BL trước khi cộng thêm tồn để cập nhật đúng</div>
         <div class="table-wrap" style="max-height:220px;overflow-y:auto;border:1px solid var(--gray3);border-radius:8px;background:white;margin-bottom:10px">
@@ -6333,7 +6343,7 @@ async function thExportNewMassFile() {
 // → cộng thêm vào tonkho_thuc (hn hoặc hcm tùy user chọn) → lưu Firestore.
 // Black List vẫn được áp sau khi cộng (giống các module khác).
 // ══════════════════════════════════════════════════════════════
-const NH = { rows: [], boseRows: [], fileName: '' };
+const NH = { rows: [], boseRows: [], fileName: '', deliBlKho: null };
 
 // Dispatcher cho input phiếu/đơn dùng chung — rẽ nhánh theo NHM.mode
 function nhFileInputChange(input) {
@@ -6352,13 +6362,15 @@ function nhLog(msg, type) {
 }
 
 function nhResetAll() {
-  NH.rows = []; NH.boseRows = []; NH.fileName = '';
+  NH.rows = []; NH.boseRows = []; NH.fileName = ''; NH.deliBlKho = null;
   document.getElementById('nhap-hang-input').value = '';
   document.getElementById('nh-status-file').textContent = 'chưa chọn';
   document.getElementById('nh-preview').style.display = 'none';
   document.getElementById('nh-preview-tbody').innerHTML = '';
   const blBox0 = document.getElementById('nh-bl-box');
   if (blBox0) blBox0.style.display = 'none';
+  const blPicker0 = document.getElementById('nh-bl-kho-picker');
+  if (blPicker0) blPicker0.style.display = 'none';
   // Reset NHM
   NHM.massWb = null; NHM.massWs = null; NHM.massFileName = '';
   NHM.massHeaderRow = -1; NHM.massIdx = null; NHM.massKhoCols = [];
@@ -6376,6 +6388,20 @@ function nhResetAll() {
   if (exportRow) exportRow.style.display = 'none';
   const log = document.getElementById('nh-log');
   if (log) { log.innerHTML = ''; log.classList.remove('visible'); }
+}
+
+// Tân chọn kho sẽ cộng thêm cho phiếu Deli đang xem (từ nh-bl-kho-picker) — tính lại đúng gợi ý
+// xóa BL CHỈ cho kho đó, không đụng tới khóa BL của kho còn lại (sửa 2026-09-16).
+function nhSetBlKho(kho, btn) {
+  NH.deliBlKho = kho;
+  document.querySelectorAll('#nh-bl-kho-picker .filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const items = NH.rows.map(r => ({
+    sku: r.ma, ten: r.ten, sl: r.sl,
+    hnQty: kho === 'hn' ? r.sl : 0,
+    hcmQty: kho === 'hcm' ? r.sl : 0
+  }));
+  blCheckIncomingItems(items).then(matches => blRenderMatchBox('nh', matches));
 }
 
 function nhHandleFile(input) {
@@ -6420,7 +6446,15 @@ function nhHandleFile(input) {
       document.getElementById('nh-preview-count').textContent = parsed.length;
       document.getElementById('nh-preview').style.display = 'block';
       nhLog(`✅ Đọc xong phiếu: ${parsed.length} mã hàng, tổng ${parsed.reduce((s,r)=>s+r.sl,0).toLocaleString('vi-VN')} đơn vị.`, 'ok');
-      blCheckIncomingItems(parsed.map(r => ({ sku: r.ma, ten: r.ten, sl: r.sl }))).then(matches => blRenderMatchBox('nh', matches));
+      // Phiếu Deli không tự ghi rõ cộng vào kho nào (Tân chọn lúc bấm nút Xuất Mass HN/HCM bên
+      // dưới) — phải hỏi trước qua nh-bl-kho-picker, KHÔNG tự đoán/gộp cả 2 kho (sửa 2026-09-16).
+      NH.deliBlKho = null;
+      document.querySelectorAll('#nh-bl-kho-picker .filter-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('nh-bl-box').style.display = 'none';
+      blAnySkuInBlacklist(parsed.map(r => r.ma)).then(any => {
+        const picker = document.getElementById('nh-bl-kho-picker');
+        if (picker) picker.style.display = any ? 'block' : 'none';
+      });
       nhmCheckReady();
     } catch (err) {
       nhLog('❌ Lỗi đọc file: ' + err.message, 'err');
@@ -6501,7 +6535,7 @@ function nhmSetMode(mode, btn) {
   if (btn) btn.classList.add('active');
 
   // Đổi nguồn thì xóa dữ liệu phiếu/đơn cũ, tránh lẫn Deli/Bose
-  NH.rows = []; NH.boseRows = []; NH.fileName = '';
+  NH.rows = []; NH.boseRows = []; NH.fileName = ''; NH.deliBlKho = null;
   const fileInput = document.getElementById('nhap-hang-input');
   if (fileInput) fileInput.value = '';
   const statusFile = document.getElementById('nh-status-file');
@@ -6512,6 +6546,8 @@ function nhmSetMode(mode, btn) {
   if (tbody) tbody.innerHTML = '';
   const blBoxMode = document.getElementById('nh-bl-box');
   if (blBoxMode) blBoxMode.style.display = 'none';
+  const blPickerMode = document.getElementById('nh-bl-kho-picker');
+  if (blPickerMode) blPickerMode.style.display = 'none';
 
   const inputBtn = document.getElementById('nh-input-btn');
   const previewThead = document.getElementById('nh-preview-thead');
@@ -6659,7 +6695,12 @@ function nhBoseHandleFile(input) {
       if (statusEl) statusEl.textContent = `${file.name} — ${parsed.length} mã (đã bỏ qua cột "HN2 đi HCM")`;
       nhLog(`✅ Đọc xong đơn Bose: ${parsed.length} mã hàng, tổng HN ${parsed.reduce((s,r)=>s+r.hn,0).toLocaleString('vi-VN')} + HCM ${parsed.reduce((s,r)=>s+r.hcm,0).toLocaleString('vi-VN')} đơn vị.`, 'ok');
       nhRenderBosePreview(parsed);
-      blCheckIncomingItems(parsed.map(r => ({ sku: r.sku, ten: r.ten, sl: `HN ${r.hn.toLocaleString('vi-VN')} / HCM ${r.hcm.toLocaleString('vi-VN')}` }))).then(matches => blRenderMatchBox('nh', matches));
+      // Bose có sẵn số lượng riêng theo từng kho (r.hn/r.hcm) — chỉ báo khóa BL đúng kho SKU đó
+      // thật sự có hàng về trong đơn này (sửa 2026-09-16, xem giải thích ở blCheckIncomingItems).
+      blCheckIncomingItems(parsed.map(r => ({
+        sku: r.sku, ten: r.ten, hnQty: r.hn, hcmQty: r.hcm,
+        sl: `HN ${r.hn.toLocaleString('vi-VN')} / HCM ${r.hcm.toLocaleString('vi-VN')}`
+      }))).then(matches => blRenderMatchBox('nh', matches));
     } catch (err) {
       nhLog('❌ Lỗi đọc file: ' + err.message, 'err');
       if (statusEl) statusEl.textContent = 'chưa chọn';
@@ -7990,10 +8031,27 @@ function tfmHandleTonFile(input) {
           : TFM.kho ? `${TFM.kho.toUpperCase()} (${TFM.tonMap.size} SKU)` : '';
         const el = document.getElementById('tfm-status-ton');
         if (el) el.textContent = `${TFM.tonFileNames.length} file — ${label}`;
-        // Đối chiếu Black List trên TOÀN BỘ SKU đã gộp từ các file tồn vừa upload (không có tên
-        // sản phẩm ở nguồn này — tkxParseTonkhoThatSheet chỉ trả sku→qty, chấp nhận để trống cột Tên).
-        blCheckIncomingItems(Array.from(TFM.tonMap.entries()).map(([sku, qty]) => ({ sku, ten: '', sl: qty })))
-          .then(matches => blRenderMatchBox('tfm', matches));
+        // Đối chiếu Black List — dùng RIÊNG tonMapHn/tonMapHcm (không dùng TFM.tonMap đã gộp)
+        // để biết CHÍNH XÁC sku nào thật sự có số lượng ở kho nào trong (các) file tồn vừa upload
+        // (sửa 2026-09-16: trước đây báo cả khóa HN lẫn SG dù file chỉ có 1 kho — xem giải thích ở
+        // blCheckIncomingItems). Không có tên sản phẩm ở nguồn này (tkxParseTonkhoThatSheet chỉ
+        // trả sku→qty), chấp nhận để trống cột Tên.
+        (function () {
+          const tfmBlMap = new Map(); // sku -> {sku, ten, sl, hnQty, hcmQty}
+          TFM.tonMapHn.forEach((qty, sku) => {
+            tfmBlMap.set(sku, { sku, ten: '', sl: qty, hnQty: qty, hcmQty: 0 });
+          });
+          TFM.tonMapHcm.forEach((qty, sku) => {
+            if (tfmBlMap.has(sku)) {
+              const cur = tfmBlMap.get(sku);
+              cur.hcmQty = qty;
+              cur.sl = `HN ${cur.hnQty.toLocaleString('vi-VN')} / HCM ${qty.toLocaleString('vi-VN')}`;
+            } else {
+              tfmBlMap.set(sku, { sku, ten: '', sl: qty, hnQty: 0, hcmQty: qty });
+            }
+          });
+          blCheckIncomingItems(Array.from(tfmBlMap.values())).then(matches => blRenderMatchBox('tfm', matches));
+        })();
         tfmCheckReady();
       }
     };
@@ -12842,8 +12900,17 @@ async function blLoadIfNeeded() {
 // được, nếu chưa deploy thì bot cũ vẫn chỉ nhận đúng 1 dòng/tin nhắn).
 // Lưu ý: dữ liệu chỉ mới bằng lần "Đồng Bộ Black List" gần nhất trên dashboard (nút ở mục Cập
 // Nhật Dữ Liệu) — không tự lấy mới từ Google Sheet ngay lúc gọi hàm này.
+// ★ Sửa 2026-09-16 (phản hồi thực tế Tân — file Tồn chỉ có HCM nhưng lại đề xuất xóa luôn khóa
+// HN): TRƯỚC ĐÂY hàm này báo NGUYÊN TRẠNG khóa BL của SKU (cả HN lẫn SG nếu cả 2 đang khóa), bất
+// kể file đang cập nhật có thật sự đụng tới kho đó hay không — SAI, vì hàng chỉ về 1 kho thì
+// không có lý do gỡ khóa kho còn lại. Giờ bắt buộc truyền `hnQty`/`hcmQty` cho từng item (số
+// lượng thật của SKU đó ở TỪNG kho trong file đang xử lý, không truyền/0/null nghĩa là kho đó
+// KHÔNG có trong file này) — CHỈ báo khóa (và chỉ đề xuất xóa) đúng kho có số lượng > 0 trong file,
+// không đụng tới kho kia dù kho đó cũng đang khóa trong Black List.
 async function blCheckIncomingItems(items) {
-  // items: [{sku, ten, sl}] — sl chỉ để hiển thị lên bảng xem trước, không dùng để so khớp.
+  // items: [{sku, ten, sl, hnQty, hcmQty}] — sl chỉ để hiển thị; hnQty/hcmQty quyết định kho nào
+  // được coi là "có hàng về" trong file này (dùng number > 0, bỏ trống/0/null = kho đó không có
+  // trong file, không được đề xuất xóa khóa kho đó dù đang bị khóa).
   await blLoadIfNeeded();
   const matches = [];
   const seen = new Set();
@@ -12852,13 +12919,26 @@ async function blCheckIncomingItems(items) {
     if (!sku || seen.has(sku)) return;
     const bl = BL.lookup.get(sku);
     if (!bl) return;
-    const hnLocked = bl.hn !== null && bl.hn !== undefined;
-    const sgLocked = bl.hcm !== null && bl.hcm !== undefined; // BL.lookup dùng key "hcm" = cột "Số Lượng SG" trên Sheet
+    const hnInFile = Number(it && it.hnQty) > 0;
+    const hcmInFile = Number(it && it.hcmQty) > 0;
+    const hnLocked = hnInFile && bl.hn !== null && bl.hn !== undefined;
+    const sgLocked = hcmInFile && bl.hcm !== null && bl.hcm !== undefined; // BL.lookup dùng key "hcm" = cột "Số Lượng SG" trên Sheet
     if (!hnLocked && !sgLocked) return;
     seen.add(sku);
     matches.push({ sku, ten: (it && it.ten) || '', sl: it ? it.sl : null, hnLocked, sgLocked });
   });
   return matches;
+}
+
+// Kiểm tra nhanh (không cần biết kho) xem trong danh sách SKU có mã nào ĐANG bị khóa BL ở BẤT KỲ
+// kho nào không — dùng để quyết định có cần hỏi Tân chọn kho trước (trường hợp phiếu Deli, xem
+// nh-bl-kho-picker) hay không, tránh hỏi khi chẳng có SKU nào liên quan tới Black List cả.
+async function blAnySkuInBlacklist(skus) {
+  await blLoadIfNeeded();
+  return (skus || []).some(s => {
+    const sku = String(s || '').trim();
+    return sku && BL.lookup.has(sku);
+  });
 }
 
 // Sinh đúng cú pháp lệnh bot Lark (xem comment đầu applyBlackListCommand_ ở file .gs): khoá cả 2
