@@ -2526,18 +2526,18 @@
          đúng dữ liệu + công thức Giá Nhập, KHÔNG tô vàng header như bản làm tay qua Claude trước đó -
          xác nhận Tân 2026-09-21, chấp nhận đánh đổi này để không phải phụ thuộc Claude mỗi lần cần file. -->
     <div class="card" style="margin-top:18px;border-top:3px solid #2980b9">
-      <div class="card-title"><span class="dot" style="background:#2980b9"></span> Tạo Sản Phẩm Mới → Salework</div>
+      <div class="card-title"><span class="dot" style="background:#2980b9"></span> Tạo Sản Phẩm SW</div>
       <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
         Đọc file nguồn (Mega Book cho Sách Liên Kết, hoặc file "Thông tin sách mới - tái bản" cho Sách Huy Hoàng), tự tính <b>Giá Nhập</b> theo % chiết khấu (Sách Liên Kết: lấy từ file, làm tròn về mức 5% gần nhất; Sách Huy Hoàng: mặc định cố định 55%), xuất ra file đúng 12 cột Template tạo sản phẩm Salework. Mỗi lần upload xuất 1 file riêng, không lưu lại giữa các lần.
       </p>
       <div id="spm-mode-toggle" style="display:flex;gap:8px;margin-bottom:12px">
-        <button class="filter-btn active" onclick="spmSetMode('lienket',this)">📗 Sách Liên Kết (Mega Book)</button>
+        <button class="filter-btn active" onclick="spmSetMode('lienket',this)">📗 Sách Liên Kết</button>
         <button class="filter-btn" onclick="spmSetMode('huyhoang',this)">📘 Sách Huy Hoàng</button>
       </div>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
         <div>
           <input type="file" id="spm-input" accept=".xlsx,.xls" style="display:none" onchange="spmHandleFile(this)">
-          <button class="sw-upload-btn" id="spm-input-btn" onclick="document.getElementById('spm-input').click()">📂 Chọn File Mega Book</button>
+          <button class="sw-upload-btn" id="spm-input-btn" onclick="document.getElementById('spm-input').click()">📂 Chọn File Liên Kết</button>
         </div>
         <div id="spm-sheet-picker-wrap" style="display:none">
           <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">Chọn tháng (tab):</label>
@@ -6512,7 +6512,7 @@ function spmSetMode(mode, btnEl) {
   SPM.mode = mode;
   document.querySelectorAll('#spm-mode-toggle .filter-btn').forEach(b => b.classList.remove('active'));
   if (btnEl) btnEl.classList.add('active');
-  document.getElementById('spm-input-btn').textContent = mode === 'lienket' ? '📂 Chọn File Mega Book' : '📂 Chọn File Thông Tin Sách Huy Hoàng';
+  document.getElementById('spm-input-btn').textContent = mode === 'lienket' ? '📂 Chọn File Liên Kết' : '📂 Chọn File Thông Tin Sách Huy Hoàng';
   spmResetAll();
 }
 
