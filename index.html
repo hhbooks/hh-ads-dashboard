@@ -6690,7 +6690,6 @@ function spmProcessHuyHoang(sheet) {
   const cMaHang = colOf[spmNormHeader('Mã Hàng')];
   const cTen = colOf[spmNormHeader('Tên Sách')];
   const cGiaBia = colOf[spmNormHeader('Giá Bìa (VNĐ)')]; // đã gộp xuống dòng thành dấu cách khi so khớp
-  const cGhiChu = colOf[spmNormHeader('Ghi chú')];
   if (cMaHang == null || cTen == null || cGiaBia == null) {
     const missing = [];
     if (cMaHang == null) missing.push('Mã Hàng');
@@ -6707,19 +6706,16 @@ function spmProcessHuyHoang(sheet) {
     return;
   }
 
+  // ★ Cập nhật 2026-09-22 (xác nhận Tân): TẤT CẢ dòng trong file này đều là sách của Huy Hoàng -
+  // Ghi chú "Sách liên kết" chỉ mô tả hình thức SẢN XUẤT (liên kết xuất bản hay tự xuất bản), KHÔNG
+  // phải nghĩa "không thuộc Huy Hoàng" như hiểu nhầm trước đó (đã loại nhầm 1 dòng ngày 2026-09-21) -
+  // nên KHÔNG còn loại dòng nào theo Ghi chú nữa, mọi dòng có đủ Mã Hàng/Tên Sách/Giá Bìa đều hợp lệ.
   const rows = [];
-  const excluded = [];
   for (let r = headerRow + 1; r <= range.e.r; r++) {
     const maHang = spmCellVal(sheet, r, cMaHang);
     const ten = spmCellVal(sheet, r, cTen);
     if (maHang == null || String(maHang).trim() === '' || ten == null) continue;
     const giaBia = spmCellVal(sheet, r, cGiaBia);
-    const ghiChuRaw = cGhiChu != null ? spmCellVal(sheet, r, cGhiChu) : '';
-    const ghiChu = String(ghiChuRaw || '').trim();
-    if (spmNormHeader(ghiChu) === spmNormHeader('Sách liên kết')) {
-      excluded.push({ ma: maHang, ten: ten, ghiChu: ghiChu });
-      continue;
-    }
     const tenClean = String(ten).replace(/\n\ntít phụ: /gi, ' - ').replace(/\n/g, ' ').trim() + ' HHB DM1';
     rows.push({
       ma: Number(String(maHang).trim()),
@@ -6730,10 +6726,10 @@ function spmProcessHuyHoang(sheet) {
     });
   }
   SPM.rows = rows;
-  SPM.excluded = excluded;
+  SPM.excluded = [];
   spmRenderExcluded();
   spmRenderPreview();
-  spmLog(`✅ Đọc được ${rows.length} sản phẩm từ sheet "${SPM.currentSheetName}" (đã loại ${excluded.length} dòng "Sách liên kết").`, 'ok');
+  spmLog(`✅ Đọc được ${rows.length} sản phẩm từ sheet "${SPM.currentSheetName}".`, 'ok');
 }
 
 function spmRenderExcluded() {
