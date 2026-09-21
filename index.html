@@ -2519,6 +2519,62 @@
       </div>
     </div>
 
+    <!-- TẠO SẢN PHẨM MỚI → SALEWORK (Sách Liên Kết / Sách Huy Hoàng) — ĐỘC LẬP, không lưu Firestore,
+         không dùng chung state với card nào khác. Xuất ngay theo từng lần upload, KHÔNG lưu dồn lũy kế
+         (xác nhận Tân 2026-09-21). Do dashboard dùng xlsx.js bản community (xlsx.full.min.js 0.18.5 -
+         không ghi được style/màu khi TẠO file mới bằng aoa_to_sheet/book_new), file xuất ra CHỈ đảm bảo
+         đúng dữ liệu + công thức Giá Nhập, KHÔNG tô vàng header như bản làm tay qua Claude trước đó -
+         xác nhận Tân 2026-09-21, chấp nhận đánh đổi này để không phải phụ thuộc Claude mỗi lần cần file. -->
+    <div class="card" style="margin-top:18px;border-top:3px solid #2980b9">
+      <div class="card-title"><span class="dot" style="background:#2980b9"></span> Tạo Sản Phẩm Mới → Salework</div>
+      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
+        Đọc file nguồn (Mega Book cho Sách Liên Kết, hoặc file "Thông tin sách mới - tái bản" cho Sách Huy Hoàng), tự tính <b>Giá Nhập</b> theo % chiết khấu (Sách Liên Kết: lấy từ file, làm tròn về mức 5% gần nhất; Sách Huy Hoàng: mặc định cố định 55%), xuất ra file đúng 12 cột Template tạo sản phẩm Salework. Mỗi lần upload xuất 1 file riêng, không lưu lại giữa các lần.
+      </p>
+      <div id="spm-mode-toggle" style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="filter-btn active" onclick="spmSetMode('lienket',this)">📗 Sách Liên Kết (Mega Book)</button>
+        <button class="filter-btn" onclick="spmSetMode('huyhoang',this)">📘 Sách Huy Hoàng</button>
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+        <div>
+          <input type="file" id="spm-input" accept=".xlsx,.xls" style="display:none" onchange="spmHandleFile(this)">
+          <button class="sw-upload-btn" id="spm-input-btn" onclick="document.getElementById('spm-input').click()">📂 Chọn File Mega Book</button>
+        </div>
+        <div id="spm-sheet-picker-wrap" style="display:none">
+          <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">Chọn tháng (tab):</label>
+          <select id="spm-sheet-picker" onchange="spmOnSheetChange(this.value)" style="padding:8px 12px;border:1px solid var(--gray3);border-radius:8px;font-size:13px"></select>
+        </div>
+        <button onclick="spmResetAll()" style="padding:6px 14px;border:1px solid var(--text);color:var(--text);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">File nguồn: <b id="spm-status-file">chưa chọn</b></div>
+
+      <div id="spm-excluded-box" style="display:none;margin-bottom:14px;border:2px solid #f39c12;border-radius:8px;padding:14px;background:#fffaf0">
+        <div style="font-size:13px;font-weight:700;color:#c87f0a;margin-bottom:8px">⚠️ <span id="spm-excluded-count">0</span> dòng bị loại vì Ghi chú là "Sách liên kết" (không thuộc Sách Huy Hoàng tự xuất bản)</div>
+        <div class="table-wrap" style="max-height:180px;overflow-y:auto;border:1px solid var(--gray3);border-radius:8px;background:white">
+          <table>
+            <thead><tr><th>#</th><th style="text-align:left">Mã Hàng</th><th style="text-align:left">Tên Sách</th><th>Ghi Chú</th></tr></thead>
+            <tbody id="spm-excluded-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="spm-preview" style="display:none">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--navy)">📋 Xem trước — <span id="spm-preview-count">0</span> sản phẩm</div>
+        <div class="table-wrap" style="max-height:360px;overflow-y:auto;border:1px solid var(--gray3);border-radius:8px;margin-bottom:14px">
+          <table>
+            <thead>
+              <tr><th>#</th><th style="text-align:left">Mã Sản Phẩm</th><th style="text-align:left;max-width:260px">Tên Sản Phẩm</th><th class="num">Giá Bán Lẻ</th><th class="num">Giá Nhập</th></tr>
+            </thead>
+            <tbody id="spm-preview-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="spm-log" class="drive-log"></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
+        <button id="spm-export-btn" class="btn-drive-sync" style="display:none;max-width:320px" onclick="spmExportFile()">📤 Xuất File Salework (.xlsx)</button>
+      </div>
+    </div>
+
   </div>
 
   <!-- BÁO CÁO SẢN LƯỢNG — nơi làm việc riêng với 2 file "Thống kê sản phẩm" tải từ Salework. Tách riêng khỏi các trang Tồn Kho khác. -->
@@ -6417,6 +6473,298 @@ async function thExportNewMassFile() {
   const outName = TH.massFileName.replace(/\.xlsx$/i, '') + '_DA_TRU_TRA_HANG.xlsx';
   XLSX.writeFile(TH.massWb, outName);
   thLog(`📤 Đã xuất "${outName}" — ${rowsAffected} sản phẩm bị set về 0 (${cellsZeroed} ô theo kho), các sản phẩm khác giữ nguyên giá trị mass gốc.`, 'ok');
+}
+
+// ══════════════════════════════════════════════════════════════
+// SPM — Tạo Sản Phẩm Mới → Salework (Sách Liên Kết / Sách Huy Hoàng) — xác nhận Tân 2026-09-21.
+// ĐỘC LẬP hoàn toàn, không lưu Firestore, không đụng state của module nào khác. Xuất ngay theo
+// từng lần upload (KHÔNG lưu dồn lũy kế - khác các module khác dùng Firestore).
+//
+// Cấu trúc output CỐ ĐỊNH 12 cột, khớp đúng Template_create_product_normal.xlsx của Salework
+// (MÃ SẢN PHẨM, TÊN SẢN PHẨM, ĐƠN VỊ TÍNH, THUẾ GTGT, GIÁ NHẬP, GIÁ BÁN BUÔN, GIÁ BÁN LẺ, BARCODE,
+// TỒN KHO, LINK ẢNH, MÔ TẢ, TÊN XUẤT HĐĐT) - không embed file Template thật vì xlsx.js bản
+// community (xlsx.full.min.js) KHÔNG ghi được style/màu khi tạo sheet mới bằng aoa_to_sheet, nên
+// dù có embed template cũng không giữ được style - viết thẳng header bằng text cho gọn.
+//
+// Quy ước từng nguồn (xác nhận Tân qua phiên làm tay trước đó, áp lại y hệt ở đây):
+// - Sách Liên Kết (Mega Book, export "MUA HÀNG THEO HÀNG HÓA" của KiotViet): Mã SP = Mã SKU (cột A),
+//   Giá Nhập = Giá Bìa (cột H) x (1 - %CK), %CK lấy từ cột I, LÀM TRÒN về mức 5% gần nhất (vd 44.57%
+//   -> 45%) vì %CK thực tế không phải số tròn nhưng Tân xác nhận làm tròn đủ dùng, giữ đúng 12 cột
+//   gốc (không thêm cột %CK riêng).
+// - Sách Huy Hoàng (file "Thông tin sách mới - tái bản", nhiều tab theo tháng): Mã SP = Mã Hàng,
+//   Giá Nhập = Giá Bìa x 0.45 (chiết khấu mặc định CỐ ĐỊNH 55% cho MỌI sách, không lấy từ file vì
+//   sách tự xuất bản không có %CK theo NCC), LOẠI BỎ các dòng có Ghi chú = "Sách liên kết" (không
+//   thuộc Huy Hoàng tự xuất bản), tên sản phẩm gộp tít phụ xuống dòng thành 1 dòng + thêm hậu tố
+//   " HHB DM1" vào cuối tên - xác nhận Tân 2026-09-21. ĐVT không có trong file nguồn này nên GIẢ
+//   ĐỊNH "Cuốn" cho mọi dòng (Tân xác nhận lại nếu sai).
+const SPM_HEADERS = ['MÃ SẢN PHẨM','TÊN SẢN PHẨM','ĐƠN VỊ TÍNH','THUẾ GTGT','GIÁ NHẬP','GIÁ BÁN BUÔN','GIÁ BÁN LẺ','BARCODE','TỒN KHO','LINK ẢNH','MÔ TẢ','TÊN XUẤT HĐĐT'];
+
+const SPM = {
+  mode: 'lienket',        // 'lienket' | 'huyhoang'
+  workbook: null,          // wb đã đọc từ file nguồn - giữ lại để đổi tab/sheet không cần đọc lại file
+  fileName: '',
+  currentSheetName: '',
+  rows: [],                // sản phẩm đã xử lý: {ma, ten, dvt, giaBanLe, ckRate}
+  excluded: [],             // riêng chế độ huyhoang: các dòng bị loại (Ghi chú = Sách liên kết)
+};
+
+function spmSetMode(mode, btnEl) {
+  SPM.mode = mode;
+  document.querySelectorAll('#spm-mode-toggle .filter-btn').forEach(b => b.classList.remove('active'));
+  if (btnEl) btnEl.classList.add('active');
+  document.getElementById('spm-input-btn').textContent = mode === 'lienket' ? '📂 Chọn File Mega Book' : '📂 Chọn File Thông Tin Sách Huy Hoàng';
+  spmResetAll();
+}
+
+function spmResetAll() {
+  SPM.workbook = null;
+  SPM.fileName = '';
+  SPM.currentSheetName = '';
+  SPM.rows = [];
+  SPM.excluded = [];
+  document.getElementById('spm-input').value = '';
+  document.getElementById('spm-status-file').textContent = 'chưa chọn';
+  document.getElementById('spm-sheet-picker-wrap').style.display = 'none';
+  document.getElementById('spm-sheet-picker').innerHTML = '';
+  document.getElementById('spm-excluded-box').style.display = 'none';
+  document.getElementById('spm-preview').style.display = 'none';
+  document.getElementById('spm-export-btn').style.display = 'none';
+  const logEl = document.getElementById('spm-log');
+  logEl.innerHTML = '';
+  logEl.classList.remove('visible');
+}
+
+function spmLog(msg, type) {
+  const el = document.getElementById('spm-log');
+  if (!el) return;
+  el.classList.add('visible');
+  const color = type === 'err' ? '#e74c3c' : type === 'warn' ? '#f39c12' : type === 'ok' ? '#27ae60' : '#555';
+  const time = new Date().toLocaleTimeString('vi-VN');
+  el.innerHTML += `<div style="color:${color}">[${time}] ${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+function spmHandleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  SPM.fileName = file.name;
+  document.getElementById('spm-status-file').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: 'array' });
+      SPM.workbook = wb;
+      if (SPM.mode === 'huyhoang') {
+        spmPopulateSheetPicker(wb);
+      } else {
+        document.getElementById('spm-sheet-picker-wrap').style.display = 'none';
+        SPM.currentSheetName = wb.SheetNames[0];
+        spmProcessLienKet(wb.Sheets[wb.SheetNames[0]]);
+      }
+    } catch (err) {
+      spmLog('❌ Lỗi đọc file: ' + String(err.message || err), 'err');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// File "Thông tin sách mới - tái bản" có NHIỀU tab theo tháng (vd 09.2026, 08.2026...) - hiện dropdown
+// để Tân tự chọn đúng tab, mặc định chọn tab ĐẦU TIÊN trong workbook (file gốc xếp tab mới nhất lên
+// đầu - xác nhận qua file mẫu Tân gửi 2026-09-21).
+function spmPopulateSheetPicker(wb) {
+  const sel = document.getElementById('spm-sheet-picker');
+  sel.innerHTML = '';
+  wb.SheetNames.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    sel.appendChild(opt);
+  });
+  document.getElementById('spm-sheet-picker-wrap').style.display = 'flex';
+  spmOnSheetChange(wb.SheetNames[0]);
+}
+
+function spmOnSheetChange(sheetName) {
+  if (!SPM.workbook || !SPM.workbook.Sheets[sheetName]) return;
+  SPM.currentSheetName = sheetName;
+  spmProcessHuyHoang(SPM.workbook.Sheets[sheetName]);
+}
+
+// Tìm ô header theo ĐÚNG NỘI DUNG chữ (không phân biệt hoa/thường, cắt khoảng trắng đầu-cuối) thay
+// vì dựa vào số dòng cố định - để chịu được file/tab có số dòng metadata đầu file khác nhau giữa
+// các tháng, không đoán mò vị trí (nếu không tìm thấy, báo lỗi rõ ràng thay vì cứ chạy bừa).
+function spmFindHeaderCell(sheet, headerText, maxScanRow) {
+  const range = XLSX.utils.decode_range(sheet['!ref']);
+  const scanRows = Math.min(maxScanRow || 25, range.e.r);
+  for (let r = 0; r <= scanRows; r++) {
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const cell = sheet[XLSX.utils.encode_cell({ r, c })];
+      if (cell && cell.v != null && String(cell.v).trim().toLowerCase() === headerText.toLowerCase()) {
+        return { row: r, col: c };
+      }
+    }
+  }
+  return null;
+}
+
+function spmCellVal(sheet, r, c) {
+  const cell = sheet[XLSX.utils.encode_cell({ r, c })];
+  return cell ? cell.v : undefined;
+}
+
+// ---- SÁCH LIÊN KẾT (Mega Book - KiotViet "MUA HÀNG THEO HÀNG HÓA") ----
+// Layout cố định của báo cáo KiotViet (xác nhận qua file Mega Book mẫu): cột A=Mã SKU, B=Tên hàng
+// hóa, C=Thương hiệu, D=ĐVT, E=Nhóm hàng hóa, F=SL mua, G=Đơn giá TB, H=Giá bìa, I=Giá Chiết Khấu
+// (decimal). Dòng header chính (chứa "Mã SKU") + 1 dòng sub-header ngay dưới cho cột H/I gộp ô ->
+// dữ liệu bắt đầu từ header.row + 2. Dừng đọc khi cột A rỗng (hết dữ liệu, sang phần chân ký).
+function spmProcessLienKet(sheet) {
+  SPM.excluded = [];
+  document.getElementById('spm-excluded-box').style.display = 'none';
+  const hdr = spmFindHeaderCell(sheet, 'Mã SKU', 25);
+  if (!hdr) {
+    spmLog('❌ Không tìm thấy cột "Mã SKU" trong file - kiểm tra lại đúng file Mega Book (KiotViet "MUA HÀNG THEO HÀNG HÓA") chưa.', 'err');
+    SPM.rows = [];
+    spmRenderPreview();
+    return;
+  }
+  const dataStart = hdr.row + 2;
+  const range = XLSX.utils.decode_range(sheet['!ref']);
+  const rows = [];
+  for (let r = dataStart; r <= range.e.r; r++) {
+    const sku = spmCellVal(sheet, r, 0);
+    if (sku == null || String(sku).trim() === '') break;
+    const ten = spmCellVal(sheet, r, 1);
+    const dvt = spmCellVal(sheet, r, 3);
+    const giaBia = spmCellVal(sheet, r, 7);
+    const ckRaw = spmCellVal(sheet, r, 8);
+    if (ten == null || giaBia == null || ckRaw == null) continue;
+    const ckRounded = Math.round(Number(ckRaw) * 20) / 20; // làm tròn về mức 5% gần nhất - xác nhận Tân
+    rows.push({
+      ma: Number(String(sku).trim()),
+      ten: String(ten).trim(),
+      dvt: dvt != null && String(dvt).trim() !== '' ? String(dvt).trim() : 'Cuốn',
+      giaBanLe: Number(giaBia),
+      ckRate: ckRounded,
+    });
+  }
+  SPM.rows = rows;
+  spmRenderPreview();
+  spmLog(`✅ Đọc được ${rows.length} sản phẩm từ Mega Book (sheet "${SPM.currentSheetName}").`, 'ok');
+}
+
+// ---- SÁCH HUY HOÀNG (file "Thông tin sách mới - tái bản", nhiều tab theo tháng) ----
+// Khác Mega Book: tra cột theo TÊN header (không cố định chỉ số cột) vì đây là file Tân tự soạn
+// tay hàng tháng, thứ tự cột ít ổn định hơn báo cáo xuất tự động từ KiotViet.
+function spmProcessHuyHoang(sheet) {
+  const hdr = spmFindHeaderCell(sheet, 'Mã Hàng', 25);
+  if (!hdr) {
+    spmLog(`❌ Không tìm thấy cột "Mã Hàng" trong sheet "${SPM.currentSheetName}" - kiểm tra lại đúng file/tab chưa.`, 'err');
+    SPM.rows = [];
+    SPM.excluded = [];
+    spmRenderExcluded();
+    spmRenderPreview();
+    return;
+  }
+  const headerRow = hdr.row;
+  const range = XLSX.utils.decode_range(sheet['!ref']);
+  const colOf = {};
+  for (let c = range.s.c; c <= range.e.c; c++) {
+    const v = spmCellVal(sheet, headerRow, c);
+    if (v != null) colOf[String(v).trim()] = c;
+  }
+  const cMaHang = colOf['Mã Hàng'];
+  const cTen = colOf['Tên Sách'];
+  const cGiaBia = colOf['Giá Bìa\n(VNĐ)'] != null ? colOf['Giá Bìa\n(VNĐ)'] : colOf['Giá Bìa (VNĐ)'];
+  const cGhiChu = colOf['Ghi chú'];
+  if (cMaHang == null || cTen == null || cGiaBia == null) {
+    spmLog(`❌ Thiếu cột bắt buộc (Mã Hàng / Tên Sách / Giá Bìa) trong sheet "${SPM.currentSheetName}".`, 'err');
+    SPM.rows = [];
+    SPM.excluded = [];
+    spmRenderExcluded();
+    spmRenderPreview();
+    return;
+  }
+
+  const rows = [];
+  const excluded = [];
+  for (let r = headerRow + 1; r <= range.e.r; r++) {
+    const maHang = spmCellVal(sheet, r, cMaHang);
+    const ten = spmCellVal(sheet, r, cTen);
+    if (maHang == null || String(maHang).trim() === '' || ten == null) continue;
+    const giaBia = spmCellVal(sheet, r, cGiaBia);
+    const ghiChu = cGhiChu != null ? String(spmCellVal(sheet, r, cGhiChu) || '').trim() : '';
+    if (ghiChu === 'Sách liên kết') {
+      excluded.push({ ma: maHang, ten: ten, ghiChu: ghiChu });
+      continue;
+    }
+    const tenClean = String(ten).replace(/\n\ntít phụ: /gi, ' - ').replace(/\n/g, ' ').trim() + ' HHB DM1';
+    rows.push({
+      ma: Number(String(maHang).trim()),
+      ten: tenClean,
+      dvt: 'Cuốn', // file nguồn không có cột ĐVT - giả định, xác nhận lại với Tân
+      giaBanLe: Number(giaBia),
+      ckRate: 0.55, // mặc định cố định cho Sách Huy Hoàng - xác nhận Tân 2026-09-21
+    });
+  }
+  SPM.rows = rows;
+  SPM.excluded = excluded;
+  spmRenderExcluded();
+  spmRenderPreview();
+  spmLog(`✅ Đọc được ${rows.length} sản phẩm từ sheet "${SPM.currentSheetName}" (đã loại ${excluded.length} dòng "Sách liên kết").`, 'ok');
+}
+
+function spmRenderExcluded() {
+  const box = document.getElementById('spm-excluded-box');
+  const tbody = document.getElementById('spm-excluded-tbody');
+  if (!SPM.excluded.length) { box.style.display = 'none'; return; }
+  document.getElementById('spm-excluded-count').textContent = SPM.excluded.length;
+  tbody.innerHTML = SPM.excluded.map((e, i) => `<tr><td>${i + 1}</td><td style="text-align:left">${e.ma}</td><td style="text-align:left">${e.ten}</td><td>${e.ghiChu}</td></tr>`).join('');
+  box.style.display = 'block';
+}
+
+function spmRenderPreview() {
+  const wrap = document.getElementById('spm-preview');
+  const tbody = document.getElementById('spm-preview-tbody');
+  const exportBtn = document.getElementById('spm-export-btn');
+  if (!SPM.rows.length) { wrap.style.display = 'none'; exportBtn.style.display = 'none'; return; }
+  document.getElementById('spm-preview-count').textContent = SPM.rows.length;
+  tbody.innerHTML = SPM.rows.map((row, i) => {
+    const giaNhap = Math.round(row.giaBanLe * (1 - row.ckRate));
+    return `<tr><td>${i + 1}</td><td style="text-align:left">${row.ma}</td><td style="text-align:left;max-width:260px">${row.ten}</td><td class="num">${row.giaBanLe.toLocaleString('vi-VN')}</td><td class="num">${giaNhap.toLocaleString('vi-VN')}</td></tr>`;
+  }).join('');
+  wrap.style.display = 'block';
+  exportBtn.style.display = 'inline-block';
+}
+
+// Xuất file .xlsx đúng 12 cột Template Salework. Giá Nhập ghi CÔNG THỨC EXCEL THẬT (không chỉ số
+// tĩnh) kèm giá trị đã tính sẵn (v) để mở lên thấy ngay không cần đợi Excel tính lại - giữ đúng
+// tinh thần bản làm tay qua Claude trước đó. KHÔNG tô màu header (giới hạn xlsx.js bản community -
+// xác nhận Tân 2026-09-21, chấp nhận đánh đổi).
+function spmExportFile() {
+  if (!SPM.rows.length) return;
+  const aoa = [SPM_HEADERS];
+  SPM.rows.forEach(row => {
+    aoa.push([row.ma, row.ten, row.dvt, null, null, null, row.giaBanLe, null, 1, null, null, null]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  SPM.rows.forEach((row, i) => {
+    const r = i + 2; // dòng 1-indexed, dòng 1 là header
+    const cellA = ws[XLSX.utils.encode_cell({ r: r - 1, c: 0 })];
+    if (cellA) cellA.z = '0'; // cột Mã sản phẩm - ép định dạng số nguyên, tránh hiện khoa học kiểu 8.93E+12
+    const giaNhap = Math.round(row.giaBanLe * (1 - row.ckRate));
+    ws[XLSX.utils.encode_cell({ r: r - 1, c: 4 })] = { t: 'n', v: giaNhap, f: `G${r}*(1-${row.ckRate})` };
+  });
+  ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: SPM.rows.length, c: 11 } });
+  ws['!cols'] = [{ wch: 16 }, { wch: 50 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 14 }];
+
+  const wbOut = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wbOut, ws, 'KHO_HANG');
+  const modeLabel = SPM.mode === 'lienket' ? 'SachLienKet' : 'SachHuyHoang';
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const outName = `SP_${modeLabel}_len_Salework_${dateStr}.xlsx`;
+  XLSX.writeFile(wbOut, outName);
+  spmLog(`📤 Đã xuất "${outName}" (${SPM.rows.length} dòng).`, 'ok');
 }
 
 // ══════════════════════════════════════════════════════════════
