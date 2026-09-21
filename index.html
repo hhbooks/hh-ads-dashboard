@@ -6868,7 +6868,7 @@ function spmComputeSkuSheetRow(row) {
   const giaVon = Math.round(row.giaBanLe * (1 - row.ckRate));
   const byHeader = {
     'Mã SKU': row.ma,
-    'Nhà cung cấp': isHH ? 'HHB DM1' : 'Mega',
+    'Nhà cung cấp': isHH ? 'SÁCH HUY HOÀNG' : 'Mega', // xác nhận Tân 2026-09-21 (sửa từ "HHB DM1")
     'Giá Bìa': row.giaBanLe,
     '%Giảm': phanTramGiam,
     'Giá Bán': giaBan,
