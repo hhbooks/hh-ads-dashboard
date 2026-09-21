@@ -6925,6 +6925,67 @@ function spmJsonpCall_(url, params, timeoutMs) {
   });
 }
 
+// Gửi dữ liệu GHI THẬT qua 1 FORM ẨN (submit POST vào 1 iframe ẩn) thay vì fetch()/JSONP trực
+// tiếp - 2 cách trước đều gặp lỗi thật (fetch() bị CORS chặn; JSONP thì URL quá dài với tên sách
+// tiếng Việt dài - xác nhận 2026-09-21). Form submit KHÔNG bị CORS chặn (không phải fetch/XHR) và
+// KHÔNG giới hạn độ dài như query string trên URL, nên gửi được bao nhiêu dòng cũng an toàn.
+function spmSubmitViaHiddenForm_(url, fields) {
+  const iframeName = '_spm_iframe_' + Date.now();
+  const iframe = document.createElement('iframe');
+  iframe.name = iframeName;
+  iframe.style.display = 'none';
+  document.body.appendChild(iframe);
+
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = url;
+  form.target = iframeName;
+  form.style.display = 'none';
+  Object.keys(fields).forEach(k => {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = k;
+    input.value = fields[k];
+    form.appendChild(input);
+  });
+  document.body.appendChild(form);
+  form.submit();
+  setTimeout(() => {
+    if (form.parentNode) form.parentNode.removeChild(form);
+    if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+  }, 8000);
+}
+
+// Vì gửi qua form ẩn không đọc được phản hồi trực tiếp, dashboard hỏi lại KẾT QUẢ bằng JSONP với
+// 1 mã "requestId" ngắn (không phải toàn bộ dữ liệu) - không bị lỗi URL quá dài. Apps Script lưu
+// tạm kết quả vào CacheService ngay sau khi ghi xong (xem doPost trong .gs) - dashboard hỏi lại
+// vài lần cách nhau 1.5s cho tới khi có kết quả hoặc hết thời gian chờ.
+function spmPollResult_(url, requestId, opts) {
+  const intervalMs = (opts && opts.intervalMs) || 1500;
+  const maxAttempts = (opts && opts.maxAttempts) || 14;
+  return new Promise((resolve, reject) => {
+    let attempt = 0;
+    const tryOnce = () => {
+      attempt++;
+      spmJsonpCall_(url, { action: 'checkResult', requestId: requestId }, 8000).then(data => {
+        if (data && data.pending) {
+          if (attempt >= maxAttempts) {
+            reject(new Error('Đã gửi yêu cầu nhưng chưa nhận được xác nhận sau ' + Math.round(intervalMs * maxAttempts / 1000) + 's - kiểm tra lại trực tiếp trong Sheet xem đã vào chưa.'));
+            return;
+          }
+          setTimeout(tryOnce, intervalMs);
+        } else {
+          resolve(data);
+        }
+      }).catch(err => {
+        if (attempt >= maxAttempts) { reject(err); return; }
+        setTimeout(tryOnce, intervalMs);
+      });
+    };
+    tryOnce();
+  });
+}
+
 async function spmPushToSheet() {
   if (!SPM.rows.length) return;
   if (!SKU_SHEET_APPS_SCRIPT_URL) {
@@ -6936,9 +6997,13 @@ async function spmPushToSheet() {
   spmLog(`📤 Đang đẩy ${SPM.rows.length} sản phẩm vào tab "SKU"...`);
   try {
     const rows = SPM.rows.map(spmComputeSkuSheetRow);
-    const data = await spmJsonpCall_(SKU_SHEET_APPS_SCRIPT_URL, {
+    const requestId = 'spm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    spmSubmitViaHiddenForm_(SKU_SHEET_APPS_SCRIPT_URL, {
       payload: JSON.stringify({ headers: SKU_SHEET_HEADERS, rows }),
+      requestId: requestId,
     });
+    spmLog('⏳ Đã gửi yêu cầu, đang đợi Apps Script xác nhận kết quả...');
+    const data = await spmPollResult_(SKU_SHEET_APPS_SCRIPT_URL, requestId);
     if (!data.ok) throw new Error(data.error || 'Lỗi không xác định từ Apps Script');
     let msg = `✅ Đã đẩy ${data.added}/${SPM.rows.length} dòng mới vào tab "SKU".`;
     if (data.skipped && data.skipped.length) {
