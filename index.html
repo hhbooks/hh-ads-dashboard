@@ -6886,6 +6886,45 @@ function spmComputeSkuSheetRow(row) {
   return SKU_SHEET_HEADERS.map(h => byHeader[h]);
 }
 
+// Gọi Apps Script kiểu JSONP (thẻ <script src="...">) thay vì fetch() - fetch() kiểu POST bị
+// Chrome chặn lỗi CORS ("No Access-Control-Allow-Origin header") với các Apps Script Web App mới
+// deploy - lỗi hạ tầng phía Google, không phải do code/cấu hình (xác nhận qua lỗi thật gặp phải
+// 2026-09-21, xem Console: "blocked by CORS policy"). Thẻ <script> không bị trình duyệt áp CORS
+// nên né được hoàn toàn. Dữ liệu gửi đi nằm trong query string (?payload=...) nên chỉ phù hợp với
+// số dòng vừa phải (vài chục dòng mỗi lần) - đúng quy mô thực tế của tính năng này.
+let _spmJsonpCounter = 0;
+function spmJsonpCall_(url, params, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_spmJsonpCb_' + Date.now() + '_' + (_spmJsonpCounter++);
+    const script = document.createElement('script');
+    let done = false;
+    const timer = setTimeout(() => {
+      if (done) return;
+      cleanup();
+      reject(new Error('Hết thời gian chờ phản hồi từ Apps Script (quá ' + Math.round((timeoutMs || 20000) / 1000) + 's không thấy trả lời).'));
+    }, timeoutMs || 20000);
+    function cleanup() {
+      done = true;
+      clearTimeout(timer);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+    window[cbName] = (data) => {
+      if (done) return;
+      cleanup();
+      resolve(data);
+    };
+    script.onerror = () => {
+      if (done) return;
+      cleanup();
+      reject(new Error('Không tải được phản hồi từ Apps Script - kiểm tra lại URL trong SKU_SHEET_APPS_SCRIPT_URL.'));
+    };
+    const qs = Object.keys(params).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k])).join('&');
+    script.src = url + (url.indexOf('?') === -1 ? '?' : '&') + qs + '&callback=' + cbName;
+    document.head.appendChild(script);
+  });
+}
+
 async function spmPushToSheet() {
   if (!SPM.rows.length) return;
   if (!SKU_SHEET_APPS_SCRIPT_URL) {
@@ -6897,12 +6936,9 @@ async function spmPushToSheet() {
   spmLog(`📤 Đang đẩy ${SPM.rows.length} sản phẩm vào tab "SKU"...`);
   try {
     const rows = SPM.rows.map(spmComputeSkuSheetRow);
-    const resp = await fetch(SKU_SHEET_APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ headers: SKU_SHEET_HEADERS, rows }),
+    const data = await spmJsonpCall_(SKU_SHEET_APPS_SCRIPT_URL, {
+      payload: JSON.stringify({ headers: SKU_SHEET_HEADERS, rows }),
     });
-    const data = await resp.json();
     if (!data.ok) throw new Error(data.error || 'Lỗi không xác định từ Apps Script');
     let msg = `✅ Đã đẩy ${data.added}/${SPM.rows.length} dòng mới vào tab "SKU".`;
     if (data.skipped && data.skipped.length) {
