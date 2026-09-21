@@ -2572,6 +2572,7 @@
       <div id="spm-log" class="drive-log"></div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
         <button id="spm-export-btn" class="btn-drive-sync" style="display:none;max-width:320px" onclick="spmExportFile()">📤 Xuất File Salework (.xlsx)</button>
+        <button id="spm-export-phieunhap-btn" class="btn-drive-sync" style="display:none;max-width:320px" onclick="spmExportPhieuNhap()">📥 Xuất Phiếu Nhập</button>
       </div>
     </div>
 
@@ -6529,6 +6530,7 @@ function spmResetAll() {
   document.getElementById('spm-excluded-box').style.display = 'none';
   document.getElementById('spm-preview').style.display = 'none';
   document.getElementById('spm-export-btn').style.display = 'none';
+  document.getElementById('spm-export-phieunhap-btn').style.display = 'none';
   const logEl = document.getElementById('spm-log');
   logEl.innerHTML = '';
   logEl.classList.remove('visible');
@@ -6747,7 +6749,8 @@ function spmRenderPreview() {
   const wrap = document.getElementById('spm-preview');
   const tbody = document.getElementById('spm-preview-tbody');
   const exportBtn = document.getElementById('spm-export-btn');
-  if (!SPM.rows.length) { wrap.style.display = 'none'; exportBtn.style.display = 'none'; return; }
+  const phieuNhapBtn = document.getElementById('spm-export-phieunhap-btn');
+  if (!SPM.rows.length) { wrap.style.display = 'none'; exportBtn.style.display = 'none'; phieuNhapBtn.style.display = 'none'; return; }
   document.getElementById('spm-preview-count').textContent = SPM.rows.length;
   tbody.innerHTML = SPM.rows.map((row, i) => {
     const giaNhap = Math.round(row.giaBanLe * (1 - row.ckRate));
@@ -6755,6 +6758,7 @@ function spmRenderPreview() {
   }).join('');
   wrap.style.display = 'block';
   exportBtn.style.display = 'inline-block';
+  phieuNhapBtn.style.display = 'inline-block';
 }
 
 // Xuất file .xlsx đúng 12 cột Template Salework. Giá Nhập ghi CÔNG THỨC EXCEL THẬT (không chỉ số
@@ -6785,6 +6789,35 @@ function spmExportFile() {
   const outName = `SP_${modeLabel}_len_Salework_${dateStr}.xlsx`;
   XLSX.writeFile(wbOut, outName);
   spmLog(`📤 Đã xuất "${outName}" (${SPM.rows.length} dòng).`, 'ok');
+}
+
+// Xuất file "Tạo Phiếu Nhập" (đúng cấu trúc Template_exchange.xlsx Tân gửi 2026-09-21) - DÙNG LUÔN
+// danh sách SPM.rows đang có trong bộ nhớ (đã đọc/xử lý ở trên cho lần xuất "Xuất File Salework"),
+// KHÔNG cần upload lại gì - xác nhận Tân 2026-09-21. Cột Số Lượng mặc định = 1 cho mọi dòng. Cột
+// Giá Nhập để TRỐNG (theo đúng ghi chú trong template gốc: để trống thì Salework Kho tự lấy giá
+// nhập đã lưu của sản phẩm trên hệ thống - sản phẩm này vừa tạo ở bước "Xuất File Salework" nên đã
+// có giá nhập lưu sẵn, không cần nhập lại).
+function spmExportPhieuNhap() {
+  if (!SPM.rows.length) return;
+  const headers = ['MÃ SẢN PHẨM (*)', 'SỐ LƯỢNG  (*)', 'GIÁ NHẬP', 'THÀNH TIỀN'];
+  const aoa = [headers];
+  SPM.rows.forEach(() => aoa.push([null, 1, null, null]));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  SPM.rows.forEach((row, i) => {
+    const r = i + 2; // dòng 1-indexed, dòng 1 là header
+    ws[XLSX.utils.encode_cell({ r: r - 1, c: 0 })] = { t: 'n', v: row.ma, z: '0' }; // Mã sản phẩm - ép định dạng số nguyên, tránh hiện khoa học
+    ws[XLSX.utils.encode_cell({ r: r - 1, c: 3 })] = { t: 'n', v: 0, f: `C${r}*B${r}` }; // Thành tiền - công thức thật, giống template gốc
+  });
+  ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: SPM.rows.length, c: 3 } });
+  ws['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 14 }];
+
+  const wbOut = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wbOut, ws, 'Nhập Kho');
+  const modeLabel = SPM.mode === 'lienket' ? 'SachLienKet' : 'SachHuyHoang';
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const outName = `PhieuNhap_${modeLabel}_${dateStr}.xlsx`;
+  XLSX.writeFile(wbOut, outName);
+  spmLog(`📥 Đã xuất "${outName}" (${SPM.rows.length} dòng, Số lượng mặc định 1, Giá nhập để trống).`, 'ok');
 }
 
 // ══════════════════════════════════════════════════════════════
