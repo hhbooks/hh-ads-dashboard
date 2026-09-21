@@ -6591,16 +6591,26 @@ function spmOnSheetChange(sheetName) {
   spmProcessHuyHoang(SPM.workbook.Sheets[sheetName]);
 }
 
-// Tìm ô header theo ĐÚNG NỘI DUNG chữ (không phân biệt hoa/thường, cắt khoảng trắng đầu-cuối) thay
-// vì dựa vào số dòng cố định - để chịu được file/tab có số dòng metadata đầu file khác nhau giữa
-// các tháng, không đoán mò vị trí (nếu không tìm thấy, báo lỗi rõ ràng thay vì cứ chạy bừa).
+// Chuẩn hóa text header để so khớp: gộp MỌI khoảng trắng liên tiếp (kể cả xuống dòng \n, \r\n bên
+// trong 1 ô - xác nhận có thật ở cột "Giá Bìa\n(VNĐ)") thành 1 dấu cách, cắt đầu-cuối, hạ chữ thường.
+// Bắt buộc dùng cách này thay vì so khớp chính xác từng ký tự - vì xlsx.js đọc trên trình duyệt có
+// thể trả về ký tự xuống dòng trong ô khác với cách Python đọc thử (đã gặp lỗi thật 2026-09-21:
+// cột "Giá Bìa\n(VNĐ)" không khớp được dù nhìn y hệt).
+function spmNormHeader(s) {
+  return String(s == null ? '' : s).replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+// Tìm ô header theo NỘI DUNG chữ đã chuẩn hóa (xem spmNormHeader) thay vì dựa vào số dòng cố định
+// - để chịu được file/tab có số dòng metadata đầu file khác nhau giữa các tháng, không đoán mò vị
+// trí (nếu không tìm thấy, báo lỗi rõ ràng thay vì cứ chạy bừa).
 function spmFindHeaderCell(sheet, headerText, maxScanRow) {
   const range = XLSX.utils.decode_range(sheet['!ref']);
   const scanRows = Math.min(maxScanRow || 25, range.e.r);
+  const target = spmNormHeader(headerText);
   for (let r = 0; r <= scanRows; r++) {
     for (let c = range.s.c; c <= range.e.c; c++) {
       const cell = sheet[XLSX.utils.encode_cell({ r, c })];
-      if (cell && cell.v != null && String(cell.v).trim().toLowerCase() === headerText.toLowerCase()) {
+      if (cell && cell.v != null && spmNormHeader(cell.v) === target) {
         return { row: r, col: c };
       }
     }
@@ -6668,17 +6678,26 @@ function spmProcessHuyHoang(sheet) {
   }
   const headerRow = hdr.row;
   const range = XLSX.utils.decode_range(sheet['!ref']);
+  // colOf khóa theo text ĐÃ CHUẨN HÓA (xem spmNormHeader) - tránh lệch do khoảng trắng/xuống dòng
+  // bên trong ô đọc khác nhau giữa các thư viện, đã gặp lỗi thật với cột "Giá Bìa\n(VNĐ)" 2026-09-21.
   const colOf = {};
   for (let c = range.s.c; c <= range.e.c; c++) {
     const v = spmCellVal(sheet, headerRow, c);
-    if (v != null) colOf[String(v).trim()] = c;
+    if (v != null) colOf[spmNormHeader(v)] = c;
   }
-  const cMaHang = colOf['Mã Hàng'];
-  const cTen = colOf['Tên Sách'];
-  const cGiaBia = colOf['Giá Bìa\n(VNĐ)'] != null ? colOf['Giá Bìa\n(VNĐ)'] : colOf['Giá Bìa (VNĐ)'];
-  const cGhiChu = colOf['Ghi chú'];
+  const cMaHang = colOf[spmNormHeader('Mã Hàng')];
+  const cTen = colOf[spmNormHeader('Tên Sách')];
+  const cGiaBia = colOf[spmNormHeader('Giá Bìa (VNĐ)')]; // đã gộp xuống dòng thành dấu cách khi so khớp
+  const cGhiChu = colOf[spmNormHeader('Ghi chú')];
   if (cMaHang == null || cTen == null || cGiaBia == null) {
-    spmLog(`❌ Thiếu cột bắt buộc (Mã Hàng / Tên Sách / Giá Bìa) trong sheet "${SPM.currentSheetName}".`, 'err');
+    const missing = [];
+    if (cMaHang == null) missing.push('Mã Hàng');
+    if (cTen == null) missing.push('Tên Sách');
+    if (cGiaBia == null) missing.push('Giá Bìa (VNĐ)');
+    // In ra danh sách tên cột THẬT SỰ đọc được ở dòng header, để Tân/lần sau tự đối chiếu được
+    // ngay trong log, không cần hỏi lại Claude mỗi lần lệch tên cột.
+    const foundCols = Object.keys(colOf).map(k => `"${k}"`).join(', ');
+    spmLog(`❌ Thiếu cột bắt buộc: ${missing.join(', ')} - trong sheet "${SPM.currentSheetName}". Các cột đọc được ở dòng header: ${foundCols}`, 'err');
     SPM.rows = [];
     SPM.excluded = [];
     spmRenderExcluded();
@@ -6693,8 +6712,9 @@ function spmProcessHuyHoang(sheet) {
     const ten = spmCellVal(sheet, r, cTen);
     if (maHang == null || String(maHang).trim() === '' || ten == null) continue;
     const giaBia = spmCellVal(sheet, r, cGiaBia);
-    const ghiChu = cGhiChu != null ? String(spmCellVal(sheet, r, cGhiChu) || '').trim() : '';
-    if (ghiChu === 'Sách liên kết') {
+    const ghiChuRaw = cGhiChu != null ? spmCellVal(sheet, r, cGhiChu) : '';
+    const ghiChu = String(ghiChuRaw || '').trim();
+    if (spmNormHeader(ghiChu) === spmNormHeader('Sách liên kết')) {
       excluded.push({ ma: maHang, ten: ten, ghiChu: ghiChu });
       continue;
     }
