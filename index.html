@@ -2573,6 +2573,7 @@
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
         <button id="spm-export-btn" class="btn-drive-sync" style="display:none;max-width:320px" onclick="spmExportFile()">📤 Xuất File Salework (.xlsx)</button>
         <button id="spm-export-phieunhap-btn" class="btn-drive-sync" style="display:none;max-width:320px" onclick="spmExportPhieuNhap()">📥 Xuất Phiếu Nhập</button>
+        <button id="spm-push-sheet-btn" class="btn-drive-sync" style="display:none;max-width:320px;background:#8e44ad;border-color:#8e44ad" onclick="spmPushToSheet()">🔗 Đẩy Vào Sheet SKU</button>
       </div>
     </div>
 
@@ -6531,6 +6532,7 @@ function spmResetAll() {
   document.getElementById('spm-preview').style.display = 'none';
   document.getElementById('spm-export-btn').style.display = 'none';
   document.getElementById('spm-export-phieunhap-btn').style.display = 'none';
+  document.getElementById('spm-push-sheet-btn').style.display = 'none';
   const logEl = document.getElementById('spm-log');
   logEl.innerHTML = '';
   logEl.classList.remove('visible');
@@ -6746,7 +6748,8 @@ function spmRenderPreview() {
   const tbody = document.getElementById('spm-preview-tbody');
   const exportBtn = document.getElementById('spm-export-btn');
   const phieuNhapBtn = document.getElementById('spm-export-phieunhap-btn');
-  if (!SPM.rows.length) { wrap.style.display = 'none'; exportBtn.style.display = 'none'; phieuNhapBtn.style.display = 'none'; return; }
+  const pushSheetBtn = document.getElementById('spm-push-sheet-btn');
+  if (!SPM.rows.length) { wrap.style.display = 'none'; exportBtn.style.display = 'none'; phieuNhapBtn.style.display = 'none'; pushSheetBtn.style.display = 'none'; return; }
   document.getElementById('spm-preview-count').textContent = SPM.rows.length;
   tbody.innerHTML = SPM.rows.map((row, i) => {
     const giaNhap = Math.round(row.giaBanLe * (1 - row.ckRate));
@@ -6755,6 +6758,7 @@ function spmRenderPreview() {
   wrap.style.display = 'block';
   exportBtn.style.display = 'inline-block';
   phieuNhapBtn.style.display = 'inline-block';
+  pushSheetBtn.style.display = 'inline-block';
 }
 
 // Xuất file .xlsx đúng 12 cột Template Salework. Giá Nhập ghi CÔNG THỨC EXCEL THẬT (không chỉ số
@@ -6814,6 +6818,102 @@ function spmExportPhieuNhap() {
   const outName = `PhieuNhap_${modeLabel}_${dateStr}.xlsx`;
   XLSX.writeFile(wbOut, outName);
   spmLog(`📥 Đã xuất "${outName}" (${SPM.rows.length} dòng, Số lượng mặc định 1, Giá nhập để trống).`, 'ok');
+}
+
+// ---- Đẩy sản phẩm vừa xử lý thẳng vào tab "SKU" của Google Sheet "SKU Tổng" ----
+// Gọi qua Apps Script Web App GẮN TRỰC TIẾP vào Sheet đó (xem file riêng
+// AppsScript_SKU_Tong_Push.gs) — Apps Script chạy bằng quyền chủ sở hữu Sheet, không cần
+// đăng nhập Google từ phía dashboard, giống hệt cách GIA_APPS_SCRIPT_URL đang chạy ở trên.
+// Apps Script tự chặn ghi trùng theo "Mã SKU" (xác nhận Tân 2026-09-21) - bấm nút này 2 lần
+// với cùng dữ liệu sẽ KHÔNG tạo dòng trùng, chỉ báo "đã có sẵn, bỏ qua".
+//
+// ★★★ CẦN LÀM 1 LẦN: deploy file AppsScript_SKU_Tong_Push.gs vào Sheet "SKU Tổng" (Extensions
+// > Apps Script > dán code > Deploy > Web app > Execute as Me, Who has access Anyone), rồi dán
+// URL Web App vào biến SKU_SHEET_APPS_SCRIPT_URL bên dưới. Trước khi có URL, nút "Đẩy Vào Sheet
+// SKU" sẽ báo lỗi rõ ràng thay vì gửi đi vô ích.
+const SKU_SHEET_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwl78Hq8SGpcHQvXoGstpMNPJB1xm0GV6emAz6iXsTOD51QCKMT0UdTbFwwzxmaruj5/exec';
+
+// Đúng tên 15 cột của tab "SKU" trong Sheet "SKU Tổng" (khớp theo TÊN ở phía Apps Script, không
+// theo vị trí - xem skuNormHeader_ trong AppsScript_SKU_Tong_Push.gs, tự gộp khoảng trắng/xuống
+// dòng nên không cần gõ y hệt ký tự xuống dòng thật trên sheet).
+const SKU_SHEET_HEADERS = ['Mã SKU', 'Nhà cung cấp', 'Giá Bìa', '%Giảm', 'Giá Bán', 'Tên hàng hóa', 'Ngành Hàng', 'Ngày ADD SP', 'Người Nhập', 'Chiết khấu giá nhập', 'Giá nhập (Giá vốn)', '%Giảm Tiktok', 'Giá bán Tiktok', '%Giảm giá live tiktok', 'Giá bán live tiktok'];
+
+// Đoán Ngành Hàng theo từ khoá trong tên sách - CHỈ LÀ GỢI Ý BAN ĐẦU, Tân tự sửa lại tay sau khi
+// đẩy lên Sheet (xác nhận Tân 2026-09-21: "bạn tự theo tên sách để điền tôi sẽ sửa sau"). Khớp
+// theo thứ tự từ trên xuống, dòng đầu tiên khớp được dùng.
+const SPM_NGANH_HANG_KEYWORDS = [
+  [/toán/i, 'Sách Tham Khảo - Toán'],
+  [/tiếng anh|anh văn/i, 'Ngoại Ngữ - Tiếng Anh'],
+  [/từ điển/i, 'Từ Điển'],
+  [/lịch sử/i, 'Lịch Sử - Văn Hóa'],
+  [/địa lý/i, 'Địa Lý'],
+  [/khoa học/i, 'Khoa Học'],
+  [/kỹ năng/i, 'Kỹ Năng Sống'],
+  [/ngữ văn|văn học|tiểu thuyết|truyện/i, 'Văn Học'],
+  [/thiếu nhi|truyện tranh/i, 'Sách Thiếu Nhi'],
+];
+function spmGuessNganhHang(ten) {
+  const found = SPM_NGANH_HANG_KEYWORDS.find(([re]) => re.test(ten));
+  return found ? found[1] : 'Sách Tham Khảo';
+}
+
+// Chuyển 1 dòng SPM.rows -> đúng thứ tự SKU_SHEET_HEADERS để gửi lên Apps Script.
+// %Giảm: theo xác nhận Tân 2026-09-21 - HHB DM1 (Huy Hoàng) = 2%, Sách Liên Kết = 0%. Sản phẩm
+// "HHB DM2 - Huy Hoàng Sale" (20%) CHƯA xử lý ở tính năng này (file nguồn hiện chưa có cách phân
+// biệt DM1/DM2 - toàn bộ sách Huy Hoàng đang mặc định là DM1/2%, xem ckRate = 0.55 cố định).
+function spmComputeSkuSheetRow(row) {
+  const isHH = SPM.mode === 'huyhoang';
+  const phanTramGiam = isHH ? 0.02 : 0;
+  const giaBan = Math.round(row.giaBanLe * (1 - phanTramGiam));
+  const giaVon = Math.round(row.giaBanLe * (1 - row.ckRate));
+  const byHeader = {
+    'Mã SKU': row.ma,
+    'Nhà cung cấp': isHH ? 'HHB DM1' : 'Mega',
+    'Giá Bìa': row.giaBanLe,
+    '%Giảm': phanTramGiam,
+    'Giá Bán': giaBan,
+    'Tên hàng hóa': row.ten,
+    'Ngành Hàng': spmGuessNganhHang(row.ten),
+    'Ngày ADD SP': '', // Apps Script tự điền đúng thời điểm ghi thật (xem SKU_DATE_COLUMN trong .gs)
+    'Người Nhập': '',  // để trống - xác nhận Tân 2026-09-21
+    'Chiết khấu giá nhập': row.ckRate,
+    'Giá nhập (Giá vốn)': giaVon,
+    '%Giảm Tiktok': '',
+    'Giá bán Tiktok': '',
+    '%Giảm giá live tiktok': '',
+    'Giá bán live tiktok': '',
+  };
+  return SKU_SHEET_HEADERS.map(h => byHeader[h]);
+}
+
+async function spmPushToSheet() {
+  if (!SPM.rows.length) return;
+  if (!SKU_SHEET_APPS_SCRIPT_URL) {
+    spmLog('❌ Chưa cấu hình URL Apps Script cho Sheet SKU Tổng (biến SKU_SHEET_APPS_SCRIPT_URL) - xem hướng dẫn deploy trong file AppsScript_SKU_Tong_Push.gs.', 'err');
+    return;
+  }
+  const btn = document.getElementById('spm-push-sheet-btn');
+  if (btn) btn.disabled = true;
+  spmLog(`📤 Đang đẩy ${SPM.rows.length} sản phẩm vào tab "SKU"...`);
+  try {
+    const rows = SPM.rows.map(spmComputeSkuSheetRow);
+    const resp = await fetch(SKU_SHEET_APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ headers: SKU_SHEET_HEADERS, rows }),
+    });
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error || 'Lỗi không xác định từ Apps Script');
+    let msg = `✅ Đã đẩy ${data.added}/${SPM.rows.length} dòng mới vào tab "SKU".`;
+    if (data.skipped && data.skipped.length) {
+      msg += ` ⚠ Bỏ qua ${data.skipped.length} dòng đã có sẵn Mã SKU trên sheet: ${data.skipped.slice(0, 10).join(', ')}${data.skipped.length > 10 ? '...' : ''}.`;
+    }
+    spmLog(msg, data.added ? 'ok' : 'warn');
+  } catch (err) {
+    spmLog('❌ Lỗi khi đẩy vào Sheet: ' + String(err.message || err), 'err');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
