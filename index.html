@@ -22007,6 +22007,17 @@ function ktvatFindDataStart1_(rows) {
 // chỉ là dòng ngăn cách/dòng "Cộng"/chữ ký cuối file - BỎ QUA (continue) và ĐỌC TIẾP đến hết file,
 // không dừng hẳn. Đã verify khớp chính xác 100% với dòng "Cộng" cuối file gốc: 2981 dòng, doanh số
 // 7.919.610.247, thuế GTGT 454.312.161.
+// Thuế suất trong file gốc đôi khi ghi KHÔNG NHẤT QUÁN cho cùng 1 mức - ví dụ vài dòng ghi chữ "5.0"
+// (dạng text) thay vì "5" - phát hiện khi rà lại dữ liệu để làm báo cáo chi tiết theo thuế suất
+// 2026-09-22. Nếu không chuẩn hóa, "5" và "5.0" sẽ bị tách thành 2 nhóm khác nhau dù cùng là mức 5%.
+function ktvatNormThueSuat_(raw) {
+  if (raw == null || raw === '') return '';
+  const s = String(raw).trim();
+  if (s === '') return '';
+  const n = Number(s);
+  return (s !== '' && Number.isFinite(n) && /^-?[0-9]*\.?[0-9]+$/.test(s)) ? String(n) : s; // "5.0" -> "5"; "X" giữ nguyên
+}
+
 function ktvatParseFile1_(rows) {
   const start = ktvatFindDataStart1_(rows);
   if (start === -1) throw new Error('Không tìm được dòng dữ liệu bắt đầu - kiểm tra lại đúng file "Bảng kê HĐ bán ra 01-1/GTGT" chưa.');
@@ -22024,7 +22035,7 @@ function ktvatParseFile1_(rows) {
       ngay: ngay,
       maSoThue: r[4] != null ? String(r[4]).trim() : '',
       doanhSo: Number(r[5]) || 0,
-      thueSuat: (r[6] == null || r[6] === '') ? '' : String(r[6]).trim(),
+      thueSuat: ktvatNormThueSuat_(r[6]),
       thueGTGT: Number(r[7]) || 0,
     });
   }
@@ -22107,13 +22118,24 @@ function ktvatHandleFile2(input) {
 }
 
 function ktvatSum_(arr, key) { return arr.reduce((s, r) => s + (Number(r[key]) || 0), 0); }
+// File 1 (01-1/GTGT): 1 hóa đơn thường bị tách thành NHIỀU DÒNG theo từng mức thuế suất khác nhau
+// (X/5%/8%... trên cùng 1 Số HĐ) - xác nhận với Tân 2026-09-22 sau khi phát hiện qua câu hỏi "có đơn
+// nào 2 mức thuế không?". Vì vậy "Số HĐ" của File 1 PHẢI đếm theo hóa đơn DUY NHẤT (Ký hiệu + Số HĐ),
+// không đếm theo dòng, để khớp đúng bản chất và so sánh công bằng với File 2 (mỗi dòng File 2 = đúng
+// 1 hóa đơn, không tách). Doanh số/Thuế GTGT vẫn cộng đầy đủ theo TỪNG DÒNG như cũ (không đổi) vì đó
+// là số tiền thật của từng phần thuế suất trong hóa đơn.
+function ktvatUniqInvCount_(rows) {
+  const set = new Set();
+  rows.forEach(r => set.add(r.kyHieu + '|' + r.soHD));
+  return set.size;
+}
 
 function ktvatUpdatePreview() {
   const f1 = KTVAT.file1.rows, f2 = KTVAT.file2.rows;
   const box = document.getElementById('ktvat-summary');
   if (f1.length || f2.length) {
     box.style.display = 'grid';
-    document.getElementById('ktvat-f1-count').textContent = f1.length.toLocaleString('vi-VN');
+    document.getElementById('ktvat-f1-count').textContent = ktvatUniqInvCount_(f1).toLocaleString('vi-VN');
     document.getElementById('ktvat-f1-doanhso').textContent = Math.round(ktvatSum_(f1, 'doanhSo')).toLocaleString('vi-VN') + 'đ';
     document.getElementById('ktvat-f2-count').textContent = f2.length.toLocaleString('vi-VN');
     document.getElementById('ktvat-f2-doanhso').textContent = Math.round(ktvatSum_(f2, 'doanhSo')).toLocaleString('vi-VN') + 'đ';
@@ -22156,6 +22178,23 @@ function ktvatEsc_(v) {
 }
 function ktvatFmt_(n) { return Math.round(Number(n) || 0).toLocaleString('vi-VN'); }
 function ktvatFmtD_(n) { return ktvatFmt_(n) + 'đ'; }
+function ktvatFmtDate_(d) {
+  if (!(d instanceof Date) || isNaN(d)) return '';
+  const p = n => String(n).padStart(2, '0');
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()}`;
+}
+// Thứ tự hiển thị mức thuế suất: theo số tăng dần (5%, 8%, 10%...), "X" (không chịu thuế) và
+// "(trống)" luôn xếp cuối cùng - tự nhiên hơn so với sort chuỗi mặc định (vốn cho ra thứ tự lẫn lộn
+// "10", "5", "8", "X" vì so sánh theo ký tự).
+function ktvatSortRateKeys_(keys) {
+  return keys.slice().sort((a, b) => {
+    const aSp = a === 'X' || a === '(trống)', bSp = b === 'X' || b === '(trống)';
+    if (aSp && bSp) return a === b ? 0 : (a === '(trống)' ? 1 : -1);
+    if (aSp) return 1;
+    if (bSp) return -1;
+    return Number(a) - Number(b);
+  });
+}
 function ktvatSection_(title, bodyHtml) {
   return `<div class="card" style="margin-bottom:14px">
     <div class="card-title" style="font-size:13px"><span class="dot"></span> ${ktvatEsc_(title)}</div>
@@ -22242,20 +22281,40 @@ function ktvatRenderReport_(r) {
       ${rows4}
     </table></div>`);
 
-  // 5. Thuế suất
+  // 5. Thuế suất - kèm chi tiết từng hóa đơn theo từng mức (xác nhận Tân 2026-09-22: gộp chung mục
+  // 5, hiển thị đủ cả 4 mức X/5%/8%/10%). Trên màn hình chỉ xem trước tối đa DETAIL_CAP dòng/mức
+  // (bấm "Xem chi tiết" mới hiện), đủ toàn bộ luôn có trong file Excel xuất ra.
+  const DETAIL_CAP = 50;
+  const tsKeys = ktvatSortRateKeys_(Object.keys(r.tsMap));
+  const tsLabel = k => k === 'X' ? 'Không chịu thuế (X)' : (k === '(trống)' ? k : k + '%');
   const t5 = { count: 0, doanhSo: 0, thue: 0 };
-  let rows5 = Object.keys(r.tsMap).sort().map(k => {
+  let rows5 = tsKeys.map(k => {
     const v = r.tsMap[k];
     t5.count += v.count; t5.doanhSo += v.doanhSo; t5.thue += v.thue;
-    const label = k === 'X' ? 'Không chịu thuế (X)' : (k === '(trống)' ? k : k + '%');
-    return `<tr><td>${ktvatEsc_(label)}</td><td>${ktvatFmt_(v.count)}</td><td>${ktvatFmtD_(v.doanhSo)}</td><td>${ktvatFmtD_(v.thue)}</td></tr>`;
+    return `<tr><td>${ktvatEsc_(tsLabel(k))}</td><td>${ktvatFmt_(v.count)}</td><td>${ktvatFmtD_(v.doanhSo)}</td><td>${ktvatFmtD_(v.thue)}</td></tr>`;
   }).join('');
   rows5 += `<tr><td>Tổng</td><td>${ktvatFmt_(t5.count)}</td><td>${ktvatFmtD_(t5.doanhSo)}</td><td>${ktvatFmtD_(t5.thue)}</td></tr>`;
+  const detailBlocks = tsKeys.map(k => {
+    const v = r.tsMap[k];
+    const shown = v.rows.slice(0, DETAIL_CAP);
+    const detailRows = shown.map(x => `<tr><td>${ktvatEsc_(x.kyHieu)}</td><td>${ktvatEsc_(x.soHD)}</td><td>${ktvatEsc_(ktvatFmtDate_(x.ngay))}</td><td>${ktvatFmtD_(x.doanhSo)}</td><td>${ktvatFmtD_(x.thueGTGT)}</td></tr>`).join('');
+    const note = v.rows.length > DETAIL_CAP ? ` (xem trước ${DETAIL_CAP}/${v.rows.length} dòng - đủ toàn bộ trong file Excel xuất ra)` : '';
+    return `<details style="margin-top:10px">
+      <summary style="cursor:pointer;font-weight:700;font-size:12px;color:var(--text2)">Xem chi tiết mức ${ktvatEsc_(tsLabel(k))} - ${ktvatFmt_(v.count)} dòng hóa đơn${note}</summary>
+      <div style="max-height:280px;overflow:auto;margin-top:6px">
+        <table class="th-shop-table" style="width:100%">
+          <tr><th>Ký hiệu</th><th>Số HĐ</th><th>Ngày</th><th>Doanh số</th><th>Thuế GTGT</th></tr>
+          ${detailRows}
+        </table>
+      </div>
+    </details>`;
+  }).join('');
   html += ktvatSection_('5. Thuế Suất', `
     <table class="th-shop-table" style="width:100%">
       <tr><th>Thuế suất</th><th>Số HĐ</th><th>Doanh số</th><th>Thuế GTGT</th></tr>
       ${rows5}
-    </table>`);
+    </table>
+    ${detailBlocks}`);
 
   // 6. Người lập HĐ
   const t6 = { count: 0, doanhSo: 0, thue: 0 };
@@ -22295,7 +22354,7 @@ function ktvatRenderReport_(r) {
 // chi tiết 2 nguồn theo từng ký hiệu.
 function ktvatBuildReport_() {
   const f1 = KTVAT.file1.rows, f2 = KTVAT.file2.rows;
-  const f1Total = { count: f1.length, doanhSo: ktvatSum_(f1, 'doanhSo'), thue: ktvatSum_(f1, 'thueGTGT') };
+  const f1Total = { count: ktvatUniqInvCount_(f1), doanhSo: ktvatSum_(f1, 'doanhSo'), thue: ktvatSum_(f1, 'thueGTGT') };
   const f2Total = { count: f2.length, doanhSo: ktvatSum_(f2, 'doanhSo'), thue: ktvatSum_(f2, 'thueGTGT') };
 
   // 1. Tổng quan
@@ -22312,10 +22371,13 @@ function ktvatBuildReport_() {
   ];
 
   // 2 + 7. Theo ký hiệu/kênh (dùng chung 1 map, xuất thành 2 sheet khác góc nhìn)
+  // f1Count đếm theo HÓA ĐƠN DUY NHẤT trong từng ký hiệu (dùng Set gom Số HĐ), không đếm theo dòng -
+  // cùng lý do ở ktvatUniqInvCount_ phía trên (1 hóa đơn có thể có nhiều dòng theo thuế suất).
   const kyMap = {};
-  const getKy = k => kyMap[k] || (kyMap[k] = { f1Count: 0, f1DoanhSo: 0, f1Thue: 0, f2Count: 0, f2DoanhSo: 0, f2Thue: 0 });
-  f1.forEach(r => { const k = getKy(r.kyHieu); k.f1Count++; k.f1DoanhSo += r.doanhSo; k.f1Thue += r.thueGTGT; });
+  const getKy = k => kyMap[k] || (kyMap[k] = { f1Count: 0, f1DoanhSo: 0, f1Thue: 0, f2Count: 0, f2DoanhSo: 0, f2Thue: 0, _f1Inv: new Set() });
+  f1.forEach(r => { const k = getKy(r.kyHieu); k._f1Inv.add(r.soHD); k.f1DoanhSo += r.doanhSo; k.f1Thue += r.thueGTGT; });
   f2.forEach(r => { const k = getKy(r.kyHieu); k.f2Count++; k.f2DoanhSo += r.doanhSo; k.f2Thue += r.thueGTGT; });
+  Object.values(kyMap).forEach(k => { k.f1Count = k._f1Inv.size; delete k._f1Inv; });
   const kyKeys = Object.keys(kyMap).sort();
 
   const sheet2 = [['Ký hiệu HĐ', 'SL HĐ (File1)', 'Doanh số (File1)', 'Thuế (File1)', 'SL HĐ (File2)', 'Doanh số (File2)', 'Thuế (File2)']];
@@ -22355,18 +22417,29 @@ function ktvatBuildReport_() {
     sheet4.push(['(Không có hóa đơn điều chỉnh/thay thế trong kỳ)']);
   }
 
-  // 5. Thuế suất (File 1)
+  // 5. Thuế suất (File 1) - kèm chi tiết TỪNG HÓA ĐƠN theo từng mức, xác nhận Tân 2026-09-22 (yêu
+  // cầu "bóc tách Thuế GTGT theo mức 5% và 8% gồm những hóa đơn nào") - làm đủ cả 4 mức có trong file
+  // (X, 5%, 8%, 10%) để không bỏ sót mức nào nếu phát sinh sau này.
   const tsMap = {};
   f1.forEach(r => {
     const key = r.thueSuat === '' ? '(trống)' : r.thueSuat;
-    const t = tsMap[key] || (tsMap[key] = { count: 0, doanhSo: 0, thue: 0 });
+    const t = tsMap[key] || (tsMap[key] = { count: 0, doanhSo: 0, thue: 0, rows: [] });
     t.count++; t.doanhSo += r.doanhSo; t.thue += r.thueGTGT;
+    t.rows.push(r);
   });
+  const tsKeys = ktvatSortRateKeys_(Object.keys(tsMap));
+  const tsLabel = k => k === 'X' ? 'Không chịu thuế (X)' : (k === '(trống)' ? k : k + '%');
   const sheet5 = [['Thuế suất', 'Số HĐ', 'Doanh số', 'Thuế GTGT']];
-  Object.keys(tsMap).sort().forEach(k => {
+  tsKeys.forEach(k => { const v = tsMap[k]; sheet5.push([tsLabel(k), v.count, v.doanhSo, v.thue]); });
+  // Chi tiết từng hóa đơn theo từng mức - nối tiếp ngay dưới bảng tổng hợp trong cùng sheet.
+  sheet5.push([]);
+  sheet5.push(['CHI TIẾT TỪNG HÓA ĐƠN THEO TỪNG MỨC THUẾ SUẤT']);
+  tsKeys.forEach(k => {
     const v = tsMap[k];
-    const label = k === 'X' ? 'Không chịu thuế (X)' : (k === '(trống)' ? k : k + '%');
-    sheet5.push([label, v.count, v.doanhSo, v.thue]);
+    sheet5.push([]);
+    sheet5.push([`Mức ${tsLabel(k)} - ${v.count} dòng hóa đơn`]);
+    sheet5.push(['Ký hiệu HĐ', 'Số HĐ', 'Ngày', 'Doanh số', 'Thuế GTGT']);
+    v.rows.forEach(x => sheet5.push([x.kyHieu, x.soHD, ktvatFmtDate_(x.ngay), x.doanhSo, x.thueGTGT]));
   });
 
   // 6. Người lập HĐ (File 2)
