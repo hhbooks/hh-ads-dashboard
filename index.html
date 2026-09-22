@@ -6841,20 +6841,25 @@ const SKU_SHEET_HEADERS = ['Mã SKU', 'Nhà cung cấp', 'Giá Bìa', '%Giảm',
 // Đoán Ngành Hàng theo từ khoá trong tên sách - CHỈ LÀ GỢI Ý BAN ĐẦU, Tân tự sửa lại tay sau khi
 // đẩy lên Sheet (xác nhận Tân 2026-09-21: "bạn tự theo tên sách để điền tôi sẽ sửa sau"). Khớp
 // theo thứ tự từ trên xuống, dòng đầu tiên khớp được dùng.
+//
+// SỬA 2026-09-22: cột "Ngành Hàng" trên Sheet có ràng buộc dữ liệu (chỉ nhận đúng giá trị có sẵn
+// trong danh sách dropdown) - các nhóm đoán trước đây (Toán, Tiếng Anh, Từ Điển...) không khớp
+// dropdown thật của Tân (Tham khảo, Phát triển bản thân, Văn học, Văn hóa (Lịch sử), Thiếu nhi,
+// Trinh thám - Kinh dị, Sức khỏe, Âm nhạc, Văn phòng phẩm, Tools, Home Living, Khác) nên bị từ
+// chối, ô luôn trống. Đổi sang CHỈ dùng đúng các nhóm có thật trong dropdown, và mặc định "Tham
+// khảo" (chắc chắn có sẵn) cho các trường hợp không khớp từ khoá nào, để không bao giờ bị từ chối.
 const SPM_NGANH_HANG_KEYWORDS = [
-  [/toán/i, 'Sách Tham Khảo - Toán'],
-  [/tiếng anh|anh văn/i, 'Ngoại Ngữ - Tiếng Anh'],
-  [/từ điển/i, 'Từ Điển'],
-  [/lịch sử/i, 'Lịch Sử - Văn Hóa'],
-  [/địa lý/i, 'Địa Lý'],
-  [/khoa học/i, 'Khoa Học'],
-  [/kỹ năng/i, 'Kỹ Năng Sống'],
-  [/ngữ văn|văn học|tiểu thuyết|truyện/i, 'Văn Học'],
-  [/thiếu nhi|truyện tranh/i, 'Sách Thiếu Nhi'],
+  [/thiếu nhi|truyện tranh/i, 'Thiếu nhi'],
+  [/trinh thám|kinh dị/i, 'Trinh thám - Kinh dị'],
+  [/tiểu thuyết|ngữ văn|văn học|truyện(?! tranh)/i, 'Văn học'],
+  [/lịch sử|văn hóa/i, 'Văn hóa (Lịch sử)'],
+  [/sức khỏe|y học|y tế/i, 'Sức khỏe'],
+  [/âm nhạc|ca khúc/i, 'Âm nhạc'],
+  [/kỹ năng|phát triển bản thân|lãnh đạo|thành công/i, 'Phát triển bản thân'],
 ];
 function spmGuessNganhHang(ten) {
   const found = SPM_NGANH_HANG_KEYWORDS.find(([re]) => re.test(ten));
-  return found ? found[1] : 'Sách Tham Khảo';
+  return found ? found[1] : 'Tham khảo';
 }
 
 // Chuyển 1 dòng SPM.rows -> đúng thứ tự SKU_SHEET_HEADERS để gửi lên Apps Script.
