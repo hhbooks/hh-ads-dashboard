@@ -6838,29 +6838,9 @@ const SKU_SHEET_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwl78
 // dòng nên không cần gõ y hệt ký tự xuống dòng thật trên sheet).
 const SKU_SHEET_HEADERS = ['Mã SKU', 'Nhà cung cấp', 'Giá Bìa', '%Giảm', 'Giá Bán', 'Tên hàng hóa', 'Ngành Hàng', 'Ngày ADD SP', 'Người Nhập', 'Chiết khấu giá nhập', 'Giá nhập (Giá vốn)', '%Giảm Tiktok', 'Giá bán Tiktok', '%Giảm giá live tiktok', 'Giá bán live tiktok'];
 
-// Đoán Ngành Hàng theo từ khoá trong tên sách - CHỈ LÀ GỢI Ý BAN ĐẦU, Tân tự sửa lại tay sau khi
-// đẩy lên Sheet (xác nhận Tân 2026-09-21: "bạn tự theo tên sách để điền tôi sẽ sửa sau"). Khớp
-// theo thứ tự từ trên xuống, dòng đầu tiên khớp được dùng.
-//
-// SỬA 2026-09-22: cột "Ngành Hàng" trên Sheet có ràng buộc dữ liệu (chỉ nhận đúng giá trị có sẵn
-// trong danh sách dropdown) - các nhóm đoán trước đây (Toán, Tiếng Anh, Từ Điển...) không khớp
-// dropdown thật của Tân (Tham khảo, Phát triển bản thân, Văn học, Văn hóa (Lịch sử), Thiếu nhi,
-// Trinh thám - Kinh dị, Sức khỏe, Âm nhạc, Văn phòng phẩm, Tools, Home Living, Khác) nên bị từ
-// chối, ô luôn trống. Đổi sang CHỈ dùng đúng các nhóm có thật trong dropdown, và mặc định "Tham
-// khảo" (chắc chắn có sẵn) cho các trường hợp không khớp từ khoá nào, để không bao giờ bị từ chối.
-const SPM_NGANH_HANG_KEYWORDS = [
-  [/thiếu nhi|truyện tranh/i, 'Thiếu nhi'],
-  [/trinh thám|kinh dị/i, 'Trinh thám - Kinh dị'],
-  [/tiểu thuyết|ngữ văn|văn học|truyện(?! tranh)/i, 'Văn học'],
-  [/lịch sử|văn hóa/i, 'Văn hóa (Lịch sử)'],
-  [/sức khỏe|y học|y tế/i, 'Sức khỏe'],
-  [/âm nhạc|ca khúc/i, 'Âm nhạc'],
-  [/kỹ năng|phát triển bản thân|lãnh đạo|thành công/i, 'Phát triển bản thân'],
-];
-function spmGuessNganhHang(ten) {
-  const found = SPM_NGANH_HANG_KEYWORDS.find(([re]) => re.test(ten));
-  return found ? found[1] : 'Tham khảo';
-}
+// Ngành Hàng: KHÔNG tự đoán nữa - Tân tự điền tay (xác nhận 2026-09-22, giống Người Nhập). Từng
+// thử đoán theo từ khoá tên sách nhưng cột này có ràng buộc dropdown trên Sheet, dễ bị từ chối/
+// không khớp danh sách thật, nên bỏ hẳn cho đơn giản và chắc chắn.
 
 // Chuyển 1 dòng SPM.rows -> đúng thứ tự SKU_SHEET_HEADERS để gửi lên Apps Script.
 // %Giảm: theo xác nhận Tân 2026-09-21 - HHB DM1 (Huy Hoàng) = 2%, Sách Liên Kết = 0%. Sản phẩm
@@ -6878,7 +6858,7 @@ function spmComputeSkuSheetRow(row) {
     '%Giảm': phanTramGiam,
     'Giá Bán': giaBan,
     'Tên hàng hóa': row.ten,
-    'Ngành Hàng': spmGuessNganhHang(row.ten),
+    'Ngành Hàng': '', // để trống - Tân tự điền tay (xác nhận 2026-09-22)
     'Ngày ADD SP': '', // Apps Script tự điền đúng thời điểm ghi thật (xem SKU_DATE_COLUMN trong .gs)
     'Người Nhập': '',  // để trống - xác nhận Tân 2026-09-21
     'Chiết khấu giá nhập': row.ckRate,
