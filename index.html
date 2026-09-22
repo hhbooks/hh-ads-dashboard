@@ -716,6 +716,9 @@
         <div class="nav-item" onclick="showPage('ke-toan-tong-quan',this)">
           <span class="icon">🧮</span> Tổng Quan
         </div>
+        <div class="nav-item" onclick="showPage('ke-toan-bc-hd-vat',this)">
+          <span class="icon">🧾</span> Báo Cáo Hóa Đơn VAT
+        </div>
       </div>
     </div>
 
@@ -3326,6 +3329,66 @@
       </p>
     </div>
   </div><!-- end page-ke-toan-tong-quan -->
+
+  <!-- Trang Báo Cáo Hóa Đơn VAT - đọc 2 file kế toán xuất ra hàng tháng (Bảng kê HĐ HH,DV bán ra
+       01-1/GTGT - TT119, và Bảng kê hóa đơn đã sử dụng), tự tổng hợp 7 đầu mục, xuất 1 file Excel
+       7 sheet - xác nhận đầu mục với Tân 2026-09-22. File 1 thường bị lỗi font tiếng Việt khi phần
+       mềm kế toán xuất ra (chữ có dấu hiện sai ký tự) - vì vậy code CHỈ đọc các cột số/mã (Ký hiệu,
+       Số HĐ, Ngày, Mã số thuế, Doanh số, Thuế suất, Thuế GTGT) theo ĐÚNG VỊ TRÍ CỘT cố định của mẫu
+       01-1/GTGT, không đọc cột tên khách/tên hàng của file này (lỗi font, không tin cậy được) - phần
+       "top khách hàng" lấy từ File 2 (vốn đã là chữ Unicode chuẩn, không lỗi font). -->
+  <div class="page" id="page-ke-toan-bc-hd-vat">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><span class="dot"></span> Báo Cáo Hóa Đơn VAT</div>
+      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
+        Đọc 2 file xuất từ phần mềm kế toán / hệ thống hóa đơn điện tử mỗi tháng, tự tổng hợp và xuất ra 1 file Excel gồm 7 đầu mục: tổng quan doanh thu, theo ký hiệu/kênh, theo loại khách hàng, hóa đơn điều chỉnh, thuế suất, người lập hóa đơn, và đối chiếu chênh lệch giữa 2 nguồn.
+      </p>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+        <div>
+          <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">File 1: Bảng kê HĐ HH,DV bán ra 01-1/GTGT</label>
+          <input type="file" id="ktvat-input1" accept=".xls,.xlsx" style="display:none" onchange="ktvatHandleFile1(this)">
+          <button class="sw-upload-btn" onclick="document.getElementById('ktvat-input1').click()">📂 Chọn File 1</button>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">File 2: Bảng kê hóa đơn đã sử dụng</label>
+          <input type="file" id="ktvat-input2" accept=".xls,.xlsx" style="display:none" onchange="ktvatHandleFile2(this)">
+          <button class="sw-upload-btn" onclick="document.getElementById('ktvat-input2').click()">📂 Chọn File 2</button>
+        </div>
+        <button onclick="ktvatReset()" style="padding:6px 14px;border:1px solid var(--text);color:var(--text);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:14px">
+        File 1: <b id="ktvat-status-file1">chưa chọn</b> &nbsp;|&nbsp; File 2: <b id="ktvat-status-file2">chưa chọn</b>
+      </div>
+
+      <div id="ktvat-summary" class="kpi-grid" style="display:none;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:14px">
+        <div class="kpi-card navy">
+          <div class="kpi-icon">🧾</div>
+          <div class="kpi-label">Số HĐ - File 1</div>
+          <div class="kpi-value" id="ktvat-f1-count">0</div>
+        </div>
+        <div class="kpi-card green">
+          <div class="kpi-icon">💰</div>
+          <div class="kpi-label">Doanh Số - File 1</div>
+          <div class="kpi-value" id="ktvat-f1-doanhso">0</div>
+        </div>
+        <div class="kpi-card navy">
+          <div class="kpi-icon">🧾</div>
+          <div class="kpi-label">Số HĐ - File 2</div>
+          <div class="kpi-value" id="ktvat-f2-count">0</div>
+        </div>
+        <div class="kpi-card green">
+          <div class="kpi-icon">💰</div>
+          <div class="kpi-label">Doanh Số - File 2</div>
+          <div class="kpi-value" id="ktvat-f2-doanhso">0</div>
+        </div>
+      </div>
+
+      <div id="ktvat-log" class="drive-log"></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
+        <button id="ktvat-export-btn" class="btn-drive-sync" style="display:none;max-width:340px" onclick="ktvatExportExcel()">📤 Xuất Báo Cáo Excel (7 đầu mục)</button>
+      </div>
+    </div>
+  </div><!-- end page-ke-toan-bc-hd-vat -->
 
 </main>
 
@@ -21846,6 +21909,314 @@ function bcdlReset() {
   if (allBtn) allBtn.classList.add('active');
   const sel = document.getElementById('bcdl-month-select'); if (sel) sel.innerHTML = '';
   const warnBox = document.getElementById('bcdl-warn-box'); if (warnBox) warnBox.style.display = 'none';
+}
+
+// ══════════════════════════════════════════════════════════════
+// KẾ TOÁN - BÁO CÁO HÓA ĐƠN VAT
+// Đọc 2 file kế toán xuất hàng tháng, tổng hợp 7 đầu mục, xuất 1 file Excel 7 sheet.
+// Xác nhận đầu mục + cấu trúc file với Tân 2026-09-22.
+//
+// File 1 "Bảng kê HĐ HH,DV bán ra 01-1/GTGT - TT119" (.xls, phần mềm kế toán "effect"): bị lỗi
+// font tiếng Việt khi phần mềm xuất ra (chữ có dấu hiện sai ký tự, kiểu mã hoá TCVN3/VNI cũ bị đọc
+// nhầm) - vì vậy CHỈ đọc các cột số/mã theo ĐÚNG VỊ TRÍ CỘT cố định của mẫu 01-1/GTGT (không đọc cột
+// Tên khách hàng / Tên hàng của file này). Dò dòng bắt đầu dữ liệu THẬT bằng cách tìm 3 dòng liên
+// tiếp có cột "Ngày" (cột C, index 2) là ngày hợp lệ - không hard-code số dòng cố định, để không vỡ
+// nếu phần mềm kế toán đổi số dòng tiêu đề ở lần xuất khác.
+//
+// File 2 "Bảng kê hóa đơn đã sử dụng" (.xlsx, hệ thống hóa đơn điện tử): chữ Unicode chuẩn, không lỗi
+// font - dùng làm nguồn cho phần "theo khách hàng" và "người lập HĐ". Dò dòng bắt đầu bằng cách tìm
+// dòng có cột STT (cột A) = 1.
+const KTVAT = { file1: { name: '', rows: [] }, file2: { name: '', rows: [] } };
+
+function ktvatLog(msg, type) {
+  const el = document.getElementById('ktvat-log');
+  if (!el) return;
+  el.classList.add('visible');
+  const color = type === 'err' ? '#e74c3c' : type === 'warn' ? '#f39c12' : type === 'ok' ? '#27ae60' : '#555';
+  const time = new Date().toLocaleTimeString('vi-VN');
+  el.innerHTML += `<div style="color:${color}">[${time}] ${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+function ktvatToDate_(v) {
+  if (v instanceof Date && !isNaN(v)) return v;
+  if (typeof v === 'number' && v > 0) {
+    try {
+      const d = XLSX.SSF.parse_date_code(v);
+      if (d) return new Date(d.y, d.m - 1, d.d);
+    } catch (e) {}
+    return null;
+  }
+  if (typeof v === 'string') {
+    const s = v.trim();
+    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); // yyyy-mm-dd...
+    if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); // dd/mm/yyyy
+    if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+  }
+  return null;
+}
+
+// Tìm dòng bắt đầu dữ liệu thật của File 1: 3 dòng liên tiếp có cột Ngày (index 2) là ngày hợp lệ.
+function ktvatFindDataStart1_(rows) {
+  for (let i = 0; i < rows.length - 2; i++) {
+    const a = ktvatToDate_(rows[i] && rows[i][2]);
+    const b = ktvatToDate_(rows[i + 1] && rows[i + 1][2]);
+    const c = ktvatToDate_(rows[i + 2] && rows[i + 2][2]);
+    if (a && b && c) return i;
+  }
+  return -1;
+}
+
+function ktvatParseFile1_(rows) {
+  const start = ktvatFindDataStart1_(rows);
+  if (start === -1) throw new Error('Không tìm được dòng dữ liệu bắt đầu - kiểm tra lại đúng file "Bảng kê HĐ bán ra 01-1/GTGT" chưa.');
+  const out = [];
+  let curKy = null;
+  for (let i = start; i < rows.length; i++) {
+    const r = rows[i] || [];
+    if (r[0]) curKy = r[0];
+    const ngay = ktvatToDate_(r[2]);
+    if (!ngay) break; // hết dữ liệu thật (gặp dòng "Cộng"/chữ ký/trống ở cuối file)
+    if (curKy == null) continue;
+    out.push({
+      kyHieu: String(curKy).trim(),
+      soHD: r[1] != null ? String(r[1]).trim() : '',
+      ngay: ngay,
+      maSoThue: r[4] != null ? String(r[4]).trim() : '',
+      doanhSo: Number(r[5]) || 0,
+      thueSuat: (r[6] == null || r[6] === '') ? '' : String(r[6]).trim(),
+      thueGTGT: Number(r[7]) || 0,
+    });
+  }
+  return out;
+}
+
+function ktvatParseFile2_(rows) {
+  let start = -1;
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i] && Number(rows[i][0]) === 1) { start = i; break; }
+  }
+  if (start === -1) throw new Error('Không tìm được dòng STT=1 - kiểm tra lại đúng file "Bảng kê hóa đơn đã sử dụng" chưa.');
+  const out = [];
+  for (let i = start; i < rows.length; i++) {
+    const r = rows[i] || [];
+    const stt = Number(r[0]);
+    if (!stt || !Number.isFinite(stt) || stt <= 0) break; // hết dữ liệu thật (gặp dòng "Tổng cộng"/chữ ký/trống)
+    out.push({
+      stt: stt,
+      kyHieu: r[1] != null ? String(r[1]).trim() : '',
+      soHD: r[2] != null ? String(r[2]).trim() : '',
+      ngay: r[3] != null ? String(r[3]).trim() : '',
+      tenKhach: r[5] != null ? String(r[5]).trim() : '',
+      diaChi: r[10] != null ? String(r[10]).trim() : '',
+      mst: r[11] != null ? String(r[11]).trim() : '',
+      doanhSo: Number(r[16]) || 0,
+      thueGTGT: Number(r[17]) || 0,
+      tongTien: Number(r[18]) || 0,
+      lyDo: r[19] != null ? String(r[19]).trim() : '',
+      trangThaiCQT: r[20] != null ? String(r[20]).trim() : '',
+      trangThaiHD: r[22] != null ? String(r[22]).trim() : '',
+      nguoiLap: r[23] != null ? String(r[23]).trim() : '',
+    });
+  }
+  return out;
+}
+
+function ktvatHandleFile1(input) {
+  const file = input.files[0];
+  if (!file) return;
+  KTVAT.file1.name = file.name;
+  document.getElementById('ktvat-status-file1').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: 'array', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+      KTVAT.file1.rows = ktvatParseFile1_(rows);
+      ktvatLog(`✅ Đọc File 1 "${file.name}": ${KTVAT.file1.rows.length} dòng hóa đơn.`, 'ok');
+      ktvatUpdatePreview();
+    } catch (err) {
+      ktvatLog('❌ Lỗi đọc File 1: ' + String(err.message || err), 'err');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function ktvatHandleFile2(input) {
+  const file = input.files[0];
+  if (!file) return;
+  KTVAT.file2.name = file.name;
+  document.getElementById('ktvat-status-file2').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: 'array', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+      KTVAT.file2.rows = ktvatParseFile2_(rows);
+      ktvatLog(`✅ Đọc File 2 "${file.name}": ${KTVAT.file2.rows.length} dòng hóa đơn.`, 'ok');
+      ktvatUpdatePreview();
+    } catch (err) {
+      ktvatLog('❌ Lỗi đọc File 2: ' + String(err.message || err), 'err');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function ktvatSum_(arr, key) { return arr.reduce((s, r) => s + (Number(r[key]) || 0), 0); }
+
+function ktvatUpdatePreview() {
+  const f1 = KTVAT.file1.rows, f2 = KTVAT.file2.rows;
+  const box = document.getElementById('ktvat-summary');
+  if (f1.length || f2.length) {
+    box.style.display = 'grid';
+    document.getElementById('ktvat-f1-count').textContent = f1.length.toLocaleString('vi-VN');
+    document.getElementById('ktvat-f1-doanhso').textContent = Math.round(ktvatSum_(f1, 'doanhSo')).toLocaleString('vi-VN') + 'đ';
+    document.getElementById('ktvat-f2-count').textContent = f2.length.toLocaleString('vi-VN');
+    document.getElementById('ktvat-f2-doanhso').textContent = Math.round(ktvatSum_(f2, 'doanhSo')).toLocaleString('vi-VN') + 'đ';
+  }
+  const btn = document.getElementById('ktvat-export-btn');
+  if (btn) btn.style.display = (f1.length && f2.length) ? 'inline-flex' : 'none';
+}
+
+function ktvatReset() {
+  KTVAT.file1 = { name: '', rows: [] };
+  KTVAT.file2 = { name: '', rows: [] };
+  document.getElementById('ktvat-input1').value = '';
+  document.getElementById('ktvat-input2').value = '';
+  document.getElementById('ktvat-status-file1').textContent = 'chưa chọn';
+  document.getElementById('ktvat-status-file2').textContent = 'chưa chọn';
+  document.getElementById('ktvat-summary').style.display = 'none';
+  document.getElementById('ktvat-export-btn').style.display = 'none';
+  const log = document.getElementById('ktvat-log');
+  log.innerHTML = ''; log.classList.remove('visible');
+}
+
+// Xây 7 đầu mục báo cáo - xác nhận với Tân 2026-09-22: tổng quan doanh thu, theo ký hiệu/kênh, theo
+// loại khách hàng (+ top khách B2B), hóa đơn điều chỉnh/thay thế, thuế suất, người lập HĐ, đối chiếu
+// chi tiết 2 nguồn theo từng ký hiệu.
+function ktvatBuildReport_() {
+  const f1 = KTVAT.file1.rows, f2 = KTVAT.file2.rows;
+  const f1Total = { count: f1.length, doanhSo: ktvatSum_(f1, 'doanhSo'), thue: ktvatSum_(f1, 'thueGTGT') };
+  const f2Total = { count: f2.length, doanhSo: ktvatSum_(f2, 'doanhSo'), thue: ktvatSum_(f2, 'thueGTGT') };
+
+  // 1. Tổng quan
+  const sheet1 = [
+    ['BÁO CÁO HÓA ĐƠN VAT - TỔNG QUAN'],
+    ['Xuất lúc', new Date().toLocaleString('vi-VN')],
+    ['File 1', KTVAT.file1.name],
+    ['File 2', KTVAT.file2.name],
+    [],
+    ['Nguồn', 'Số hóa đơn', 'Doanh số', 'Thuế GTGT'],
+    ['File 1 - Bảng kê HĐ bán ra (kế toán, TK64)', f1Total.count, f1Total.doanhSo, f1Total.thue],
+    ['File 2 - Bảng kê hóa đơn đã sử dụng (HĐ điện tử)', f2Total.count, f2Total.doanhSo, f2Total.thue],
+    ['Chênh lệch (File 1 - File 2)', f1Total.count - f2Total.count, f1Total.doanhSo - f2Total.doanhSo, f1Total.thue - f2Total.thue],
+  ];
+
+  // 2 + 7. Theo ký hiệu/kênh (dùng chung 1 map, xuất thành 2 sheet khác góc nhìn)
+  const kyMap = {};
+  const getKy = k => kyMap[k] || (kyMap[k] = { f1Count: 0, f1DoanhSo: 0, f1Thue: 0, f2Count: 0, f2DoanhSo: 0, f2Thue: 0 });
+  f1.forEach(r => { const k = getKy(r.kyHieu); k.f1Count++; k.f1DoanhSo += r.doanhSo; k.f1Thue += r.thueGTGT; });
+  f2.forEach(r => { const k = getKy(r.kyHieu); k.f2Count++; k.f2DoanhSo += r.doanhSo; k.f2Thue += r.thueGTGT; });
+  const kyKeys = Object.keys(kyMap).sort();
+
+  const sheet2 = [['Ký hiệu HĐ', 'SL HĐ (File1)', 'Doanh số (File1)', 'Thuế (File1)', 'SL HĐ (File2)', 'Doanh số (File2)', 'Thuế (File2)']];
+  kyKeys.forEach(k => { const v = kyMap[k]; sheet2.push([k, v.f1Count, v.f1DoanhSo, v.f1Thue, v.f2Count, v.f2DoanhSo, v.f2Thue]); });
+
+  // 3. Theo loại khách hàng (từ File 2 - chữ Unicode chuẩn)
+  let b2b = { count: 0, doanhSo: 0, thue: 0 }, le = { count: 0, doanhSo: 0, thue: 0 };
+  const custMap = {};
+  f2.forEach(r => {
+    if (r.mst) {
+      b2b.count++; b2b.doanhSo += r.doanhSo; b2b.thue += r.thueGTGT;
+      const key = r.mst + '|' + r.tenKhach;
+      const c = custMap[key] || (custMap[key] = { ten: r.tenKhach, mst: r.mst, diaChi: r.diaChi, count: 0, doanhSo: 0, thue: 0 });
+      c.count++; c.doanhSo += r.doanhSo; c.thue += r.thueGTGT;
+    } else {
+      le.count++; le.doanhSo += r.doanhSo; le.thue += r.thueGTGT;
+    }
+  });
+  const topKhach = Object.values(custMap).sort((a, b) => b.doanhSo - a.doanhSo);
+  const sheet3 = [
+    ['PHÂN LOẠI KHÁCH HÀNG (theo File 2 - hóa đơn điện tử)'],
+    ['Loại', 'Số HĐ', 'Doanh số', 'Thuế GTGT'],
+    ['Khách doanh nghiệp (có MST)', b2b.count, b2b.doanhSo, b2b.thue],
+    ['Khách lẻ (không lấy hóa đơn / không MST)', le.count, le.doanhSo, le.thue],
+    [],
+    ['TOP KHÁCH HÀNG DOANH NGHIỆP THEO DOANH SỐ'],
+    ['#', 'Tên khách hàng', 'MST', 'Địa chỉ', 'Số HĐ', 'Tổng doanh số', 'Tổng thuế GTGT'],
+  ];
+  topKhach.forEach((c, i) => sheet3.push([i + 1, c.ten, c.mst, c.diaChi, c.count, c.doanhSo, c.thue]));
+
+  // 4. HĐ điều chỉnh/thay thế (File 2)
+  const dieuChinh = f2.filter(r => r.trangThaiHD && r.trangThaiHD !== 'Hoá đơn mới');
+  const sheet4 = [['Ký hiệu', 'Số HĐ', 'Ngày', 'Khách hàng', 'Tổng tiền', 'Trạng thái', 'Lý do']];
+  if (dieuChinh.length) {
+    dieuChinh.forEach(r => sheet4.push([r.kyHieu, r.soHD, r.ngay, r.tenKhach, r.tongTien, r.trangThaiHD, r.lyDo]));
+  } else {
+    sheet4.push(['(Không có hóa đơn điều chỉnh/thay thế trong kỳ)']);
+  }
+
+  // 5. Thuế suất (File 1)
+  const tsMap = {};
+  f1.forEach(r => {
+    const key = r.thueSuat === '' ? '(trống)' : r.thueSuat;
+    const t = tsMap[key] || (tsMap[key] = { count: 0, doanhSo: 0, thue: 0 });
+    t.count++; t.doanhSo += r.doanhSo; t.thue += r.thueGTGT;
+  });
+  const sheet5 = [['Thuế suất', 'Số HĐ', 'Doanh số', 'Thuế GTGT']];
+  Object.keys(tsMap).sort().forEach(k => {
+    const v = tsMap[k];
+    const label = k === 'X' ? 'Không chịu thuế (X)' : (k === '(trống)' ? k : k + '%');
+    sheet5.push([label, v.count, v.doanhSo, v.thue]);
+  });
+
+  // 6. Người lập HĐ (File 2)
+  const nlMap = {};
+  f2.forEach(r => {
+    const key = r.nguoiLap || '(không rõ)';
+    const n = nlMap[key] || (nlMap[key] = { count: 0, doanhSo: 0, thue: 0 });
+    n.count++; n.doanhSo += r.doanhSo; n.thue += r.thueGTGT;
+  });
+  const sheet6 = [['Người lập HĐ', 'Số HĐ đã lập', 'Doanh số', 'Thuế GTGT']];
+  Object.keys(nlMap).forEach(k => { const v = nlMap[k]; sheet6.push([k, v.count, v.doanhSo, v.thue]); });
+
+  // 7. Đối chiếu chi tiết 2 nguồn theo từng ký hiệu
+  const sheet7 = [['Ký hiệu HĐ', 'SL HĐ File1', 'SL HĐ File2', 'Chênh lệch SL', 'Doanh số File1', 'Doanh số File2', 'Chênh lệch Doanh số', 'Thuế File1', 'Thuế File2', 'Chênh lệch Thuế']];
+  kyKeys.forEach(k => {
+    const v = kyMap[k];
+    sheet7.push([k, v.f1Count, v.f2Count, v.f1Count - v.f2Count, v.f1DoanhSo, v.f2DoanhSo, v.f1DoanhSo - v.f2DoanhSo, v.f1Thue, v.f2Thue, v.f1Thue - v.f2Thue]);
+  });
+
+  return { sheet1, sheet2, sheet3, sheet4, sheet5, sheet6, sheet7 };
+}
+
+function ktvatExportExcel() {
+  if (!KTVAT.file1.rows.length || !KTVAT.file2.rows.length) return;
+  let r;
+  try {
+    r = ktvatBuildReport_();
+  } catch (err) {
+    ktvatLog('❌ Lỗi khi tổng hợp báo cáo: ' + String(err.message || err), 'err');
+    return;
+  }
+  const wb = XLSX.utils.book_new();
+  const addSheet = (aoa, name) => { const ws = XLSX.utils.aoa_to_sheet(aoa); XLSX.utils.book_append_sheet(wb, ws, name); };
+  addSheet(r.sheet1, 'Tong Quan');
+  addSheet(r.sheet2, 'Theo Ky Hieu');
+  addSheet(r.sheet3, 'Theo Khach Hang');
+  addSheet(r.sheet4, 'HD Dieu Chinh');
+  addSheet(r.sheet5, 'Thue Suat');
+  addSheet(r.sheet6, 'Nguoi Lap HD');
+  addSheet(r.sheet7, 'Doi Chieu 2 Nguon');
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const outName = `BaoCao_HoaDon_VAT_${dateStr}.xlsx`;
+  XLSX.writeFile(wb, outName);
+  ktvatLog(`📤 Đã xuất "${outName}" — 7 đầu mục.`, 'ok');
 }
 
 </script>
