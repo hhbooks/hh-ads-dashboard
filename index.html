@@ -705,11 +705,13 @@
       </div>
     </div>
 
-    <!-- Khối Kế Toán -->
+    <!-- Khối Kế Toán - có khóa mật khẩu, xác nhận với Tân 2026-09-22: hỏi mật khẩu khi MỞ khối (đóng
+         lại không cần), nhớ trong phiên trình duyệt (đóng tab/đóng trình duyệt phải nhập lại) -->
     <div class="sidebar-block" id="block-ke-toan">
-      <div class="block-header" onclick="toggleSidebarBlock('ke-toan')">
+      <div class="block-header" onclick="ketoanGuardToggle()">
         <span class="block-icon">🧮</span>
         <span class="block-title">Kế Toán</span>
+        <span class="block-icon" style="font-size:12px" title="Khối có mật khẩu">🔒</span>
         <span class="block-arrow">▶</span>
       </div>
       <div class="block-body" id="block-body-ke-toan" style="display:none">
@@ -15917,6 +15919,29 @@ function updateShopStatus(shopId, fname) {
 // NAVIGATION
 // ══════════════════════════════════════════════════════════════
 
+
+// Khối Kế Toán có mật khẩu - xác nhận với Tân 2026-09-22: chỉ hỏi mật khẩu khi MỞ khối (đóng lại thì
+// không cần), nhớ trong phiên trình duyệt qua sessionStorage (đóng tab/trình duyệt phải nhập lại).
+// Đây CHỈ là rào cản phía client (không phải bảo mật thật sự - ai xem mã nguồn cũng thấy được mật
+// khẩu), phù hợp mục đích "che bớt" khỏi người vô tình bấm nhầm, không dùng cho dữ liệu thật sự nhạy cảm.
+const KETOAN_PASSWORD = 'ketoan110';
+function ketoanGuardToggle() {
+  const body = document.getElementById('block-body-ke-toan');
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  if (isOpen) { toggleSidebarBlock('ke-toan'); return; } // đóng lại không cần mật khẩu
+  try {
+    if (sessionStorage.getItem('ketoan_authed') === '1') { toggleSidebarBlock('ke-toan'); return; }
+  } catch (e) {}
+  const pw = prompt('Nhập mật khẩu để mở khối Kế Toán:');
+  if (pw === null) return; // bấm Hủy
+  if (pw === KETOAN_PASSWORD) {
+    try { sessionStorage.setItem('ketoan_authed', '1'); } catch (e) {}
+    toggleSidebarBlock('ke-toan');
+  } else {
+    alert('Sai mật khẩu.');
+  }
+}
 
 function toggleSidebarBlock(name) {
   const blocks = ['ads', 'gia', 'tonkho', 'marketing', 'nghiep-vu', 'ke-toan'];
