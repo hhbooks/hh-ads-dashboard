@@ -3385,6 +3385,10 @@
         </div>
       </div>
 
+      <!-- Xem trước 7 đầu mục báo cáo ngay trên dashboard - xác nhận với Tân 2026-09-22, tự hiện
+           ngay khi đã đọc đủ 2 file (không cần bấm xuất Excel mới xem được số liệu). -->
+      <div id="ktvat-report" style="display:none;margin-top:4px"></div>
+
       <div id="ktvat-log" class="drive-log"></div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
         <button id="ktvat-export-btn" class="btn-drive-sync" style="display:none;max-width:340px" onclick="ktvatExportExcel()">📤 Xuất Báo Cáo Excel (7 đầu mục)</button>
@@ -22106,6 +22110,18 @@ function ktvatUpdatePreview() {
   }
   const btn = document.getElementById('ktvat-export-btn');
   if (btn) btn.style.display = (f1.length && f2.length) ? 'inline-flex' : 'none';
+  const reportBox = document.getElementById('ktvat-report');
+  if (f1.length && f2.length) {
+    try {
+      ktvatRenderReport_(ktvatBuildReport_());
+    } catch (err) {
+      ktvatLog('❌ Lỗi khi dựng bảng xem trước: ' + String(err.message || err), 'err');
+      if (reportBox) reportBox.style.display = 'none';
+    }
+  } else if (reportBox) {
+    reportBox.style.display = 'none';
+    reportBox.innerHTML = '';
+  }
 }
 
 function ktvatReset() {
@@ -22117,8 +22133,151 @@ function ktvatReset() {
   document.getElementById('ktvat-status-file2').textContent = 'chưa chọn';
   document.getElementById('ktvat-summary').style.display = 'none';
   document.getElementById('ktvat-export-btn').style.display = 'none';
+  const reportBox = document.getElementById('ktvat-report');
+  if (reportBox) { reportBox.style.display = 'none'; reportBox.innerHTML = ''; }
   const log = document.getElementById('ktvat-log');
   log.innerHTML = ''; log.classList.remove('visible');
+}
+
+// ==== Xem trước 7 đầu mục báo cáo ngay trên dashboard (xác nhận Tân 2026-09-22) ====
+
+function ktvatEsc_(v) {
+  return String(v == null ? '' : v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+function ktvatFmt_(n) { return Math.round(Number(n) || 0).toLocaleString('vi-VN'); }
+function ktvatFmtD_(n) { return ktvatFmt_(n) + 'đ'; }
+function ktvatSection_(title, bodyHtml) {
+  return `<div class="card" style="margin-bottom:14px">
+    <div class="card-title" style="font-size:13px"><span class="dot"></span> ${ktvatEsc_(title)}</div>
+    ${bodyHtml}
+  </div>`;
+}
+// Bảng dùng class .th-shop-table (dùng chung toàn dashboard) - CSS của class này tự bôi đậm + tô nền
+// vàng nhạt cho DÒNG CUỐI CÙNG của bảng (quy ước "dòng Tổng"), nên mọi bảng nhiều dòng bên dưới đều
+// chủ động thêm 1 dòng "Tổng" ở cuối để khớp đúng quy ước đó, thay vì để lỡ dòng dữ liệu cuối bị tô
+// nhầm như thể là dòng tổng.
+
+function ktvatRenderReport_(r) {
+  const box = document.getElementById('ktvat-report');
+  if (!box) return;
+  let html = '';
+
+  // 1. Tổng quan
+  html += ktvatSection_('1. Tổng Quan', `
+    <table class="th-shop-table" style="width:100%">
+      <tr><th>Nguồn</th><th>Số hóa đơn</th><th>Doanh số</th><th>Thuế GTGT</th></tr>
+      <tr><td>File 1 - Bảng kê HĐ bán ra (kế toán)</td><td>${ktvatFmt_(r.f1Total.count)}</td><td>${ktvatFmtD_(r.f1Total.doanhSo)}</td><td>${ktvatFmtD_(r.f1Total.thue)}</td></tr>
+      <tr><td>File 2 - Bảng kê hóa đơn đã sử dụng (HĐ điện tử)</td><td>${ktvatFmt_(r.f2Total.count)}</td><td>${ktvatFmtD_(r.f2Total.doanhSo)}</td><td>${ktvatFmtD_(r.f2Total.thue)}</td></tr>
+      <tr><td>Chênh lệch (File 1 - File 2)</td><td>${ktvatFmt_(r.f1Total.count - r.f2Total.count)}</td><td>${ktvatFmtD_(r.f1Total.doanhSo - r.f2Total.doanhSo)}</td><td>${ktvatFmtD_(r.f1Total.thue - r.f2Total.thue)}</td></tr>
+    </table>`);
+
+  // 2. Theo ký hiệu / kênh
+  const ky2Total = { f1Count: 0, f1DoanhSo: 0, f1Thue: 0, f2Count: 0, f2DoanhSo: 0, f2Thue: 0 };
+  let rows2 = r.kyKeys.map(k => {
+    const v = r.kyMap[k];
+    ky2Total.f1Count += v.f1Count; ky2Total.f1DoanhSo += v.f1DoanhSo; ky2Total.f1Thue += v.f1Thue;
+    ky2Total.f2Count += v.f2Count; ky2Total.f2DoanhSo += v.f2DoanhSo; ky2Total.f2Thue += v.f2Thue;
+    return `<tr><td>${ktvatEsc_(k)}</td><td>${ktvatFmt_(v.f1Count)}</td><td>${ktvatFmtD_(v.f1DoanhSo)}</td><td>${ktvatFmtD_(v.f1Thue)}</td><td>${ktvatFmt_(v.f2Count)}</td><td>${ktvatFmtD_(v.f2DoanhSo)}</td><td>${ktvatFmtD_(v.f2Thue)}</td></tr>`;
+  }).join('');
+  rows2 += `<tr><td>Tổng</td><td>${ktvatFmt_(ky2Total.f1Count)}</td><td>${ktvatFmtD_(ky2Total.f1DoanhSo)}</td><td>${ktvatFmtD_(ky2Total.f1Thue)}</td><td>${ktvatFmt_(ky2Total.f2Count)}</td><td>${ktvatFmtD_(ky2Total.f2DoanhSo)}</td><td>${ktvatFmtD_(ky2Total.f2Thue)}</td></tr>`;
+  html += ktvatSection_('2. Theo Ký Hiệu / Kênh', `
+    <div style="max-height:320px;overflow:auto">
+    <table class="th-shop-table" style="width:100%">
+      <tr><th>Ký hiệu HĐ</th><th>SL HĐ F1</th><th>Doanh số F1</th><th>Thuế F1</th><th>SL HĐ F2</th><th>Doanh số F2</th><th>Thuế F2</th></tr>
+      ${rows2}
+    </table></div>`);
+
+  // 3. Theo loại khách hàng (+ top khách B2B)
+  const TOP_N = 30;
+  const topShown = r.topKhach.slice(0, TOP_N);
+  const topTotal = { count: 0, doanhSo: 0, thue: 0 };
+  let topRows = topShown.map((c, i) => {
+    topTotal.count += c.count; topTotal.doanhSo += c.doanhSo; topTotal.thue += c.thue;
+    return `<tr><td>${i + 1}</td><td>${ktvatEsc_(c.ten)}</td><td>${ktvatEsc_(c.mst)}</td><td>${ktvatFmt_(c.count)}</td><td>${ktvatFmtD_(c.doanhSo)}</td><td>${ktvatFmtD_(c.thue)}</td></tr>`;
+  }).join('');
+  if (topShown.length) {
+    topRows += `<tr><td colspan="3">Tổng (Top ${topShown.length}${r.topKhach.length > TOP_N ? '/' + r.topKhach.length : ''})</td><td>${ktvatFmt_(topTotal.count)}</td><td>${ktvatFmtD_(topTotal.doanhSo)}</td><td>${ktvatFmtD_(topTotal.thue)}</td></tr>`;
+  } else {
+    topRows = '<tr><td colspan="6">(không có khách hàng doanh nghiệp)</td></tr>';
+  }
+  html += ktvatSection_('3. Theo Loại Khách Hàng', `
+    <table class="th-shop-table" style="width:100%;margin-bottom:10px">
+      <tr><th>Loại</th><th>Số HĐ</th><th>Doanh số</th><th>Thuế GTGT</th></tr>
+      <tr><td>Khách doanh nghiệp (có MST)</td><td>${ktvatFmt_(r.b2b.count)}</td><td>${ktvatFmtD_(r.b2b.doanhSo)}</td><td>${ktvatFmtD_(r.b2b.thue)}</td></tr>
+      <tr><td>Khách lẻ (không MST)</td><td>${ktvatFmt_(r.le.count)}</td><td>${ktvatFmtD_(r.le.doanhSo)}</td><td>${ktvatFmtD_(r.le.thue)}</td></tr>
+    </table>
+    <div style="font-size:12px;font-weight:700;margin:8px 0 4px;color:var(--text2)">Top khách hàng doanh nghiệp theo doanh số${r.topKhach.length > TOP_N ? ' (đủ ' + r.topKhach.length + ' khách trong file Excel xuất ra)' : ''}</div>
+    <div style="max-height:320px;overflow:auto">
+    <table class="th-shop-table" style="width:100%">
+      <tr><th>#</th><th>Tên khách hàng</th><th>MST</th><th>Số HĐ</th><th>Doanh số</th><th>Thuế GTGT</th></tr>
+      ${topRows}
+    </table></div>`);
+
+  // 4. HĐ điều chỉnh / thay thế
+  let rows4;
+  if (r.dieuChinh.length) {
+    const t4 = { tongTien: 0 };
+    rows4 = r.dieuChinh.map(x => {
+      t4.tongTien += x.tongTien;
+      return `<tr><td>${ktvatEsc_(x.kyHieu)}</td><td>${ktvatEsc_(x.soHD)}</td><td>${ktvatEsc_(x.ngay)}</td><td>${ktvatEsc_(x.tenKhach)}</td><td>${ktvatFmtD_(x.tongTien)}</td><td>${ktvatEsc_(x.trangThaiHD)}</td><td>${ktvatEsc_(x.lyDo)}</td></tr>`;
+    }).join('');
+    rows4 += `<tr><td colspan="4">Tổng (${r.dieuChinh.length} hóa đơn)</td><td>${ktvatFmtD_(t4.tongTien)}</td><td colspan="2"></td></tr>`;
+  } else {
+    rows4 = '<tr><td colspan="7">(Không có hóa đơn điều chỉnh/thay thế trong kỳ)</td></tr>';
+  }
+  html += ktvatSection_('4. Hóa Đơn Điều Chỉnh / Thay Thế', `
+    <div style="max-height:280px;overflow:auto">
+    <table class="th-shop-table" style="width:100%">
+      <tr><th>Ký hiệu</th><th>Số HĐ</th><th>Ngày</th><th>Khách hàng</th><th>Tổng tiền</th><th>Trạng thái</th><th>Lý do</th></tr>
+      ${rows4}
+    </table></div>`);
+
+  // 5. Thuế suất
+  const t5 = { count: 0, doanhSo: 0, thue: 0 };
+  let rows5 = Object.keys(r.tsMap).sort().map(k => {
+    const v = r.tsMap[k];
+    t5.count += v.count; t5.doanhSo += v.doanhSo; t5.thue += v.thue;
+    const label = k === 'X' ? 'Không chịu thuế (X)' : (k === '(trống)' ? k : k + '%');
+    return `<tr><td>${ktvatEsc_(label)}</td><td>${ktvatFmt_(v.count)}</td><td>${ktvatFmtD_(v.doanhSo)}</td><td>${ktvatFmtD_(v.thue)}</td></tr>`;
+  }).join('');
+  rows5 += `<tr><td>Tổng</td><td>${ktvatFmt_(t5.count)}</td><td>${ktvatFmtD_(t5.doanhSo)}</td><td>${ktvatFmtD_(t5.thue)}</td></tr>`;
+  html += ktvatSection_('5. Thuế Suất', `
+    <table class="th-shop-table" style="width:100%">
+      <tr><th>Thuế suất</th><th>Số HĐ</th><th>Doanh số</th><th>Thuế GTGT</th></tr>
+      ${rows5}
+    </table>`);
+
+  // 6. Người lập HĐ
+  const t6 = { count: 0, doanhSo: 0, thue: 0 };
+  let rows6 = Object.keys(r.nlMap).map(k => {
+    const v = r.nlMap[k];
+    t6.count += v.count; t6.doanhSo += v.doanhSo; t6.thue += v.thue;
+    return `<tr><td>${ktvatEsc_(k)}</td><td>${ktvatFmt_(v.count)}</td><td>${ktvatFmtD_(v.doanhSo)}</td><td>${ktvatFmtD_(v.thue)}</td></tr>`;
+  }).join('');
+  rows6 += `<tr><td>Tổng</td><td>${ktvatFmt_(t6.count)}</td><td>${ktvatFmtD_(t6.doanhSo)}</td><td>${ktvatFmtD_(t6.thue)}</td></tr>`;
+  html += ktvatSection_('6. Người Lập Hóa Đơn', `
+    <table class="th-shop-table" style="width:100%">
+      <tr><th>Người lập HĐ</th><th>Số HĐ đã lập</th><th>Doanh số</th><th>Thuế GTGT</th></tr>
+      ${rows6}
+    </table>`);
+
+  // 7. Đối chiếu chi tiết 2 nguồn
+  const t7 = { f1Count: 0, f2Count: 0, f1DoanhSo: 0, f2DoanhSo: 0, f1Thue: 0, f2Thue: 0 };
+  let rows7 = r.kyKeys.map(k => {
+    const v = r.kyMap[k];
+    t7.f1Count += v.f1Count; t7.f2Count += v.f2Count; t7.f1DoanhSo += v.f1DoanhSo; t7.f2DoanhSo += v.f2DoanhSo; t7.f1Thue += v.f1Thue; t7.f2Thue += v.f2Thue;
+    return `<tr><td>${ktvatEsc_(k)}</td><td>${ktvatFmt_(v.f1Count)}</td><td>${ktvatFmt_(v.f2Count)}</td><td>${ktvatFmt_(v.f1Count - v.f2Count)}</td><td>${ktvatFmtD_(v.f1DoanhSo)}</td><td>${ktvatFmtD_(v.f2DoanhSo)}</td><td>${ktvatFmtD_(v.f1DoanhSo - v.f2DoanhSo)}</td><td>${ktvatFmtD_(v.f1Thue)}</td><td>${ktvatFmtD_(v.f2Thue)}</td><td>${ktvatFmtD_(v.f1Thue - v.f2Thue)}</td></tr>`;
+  }).join('');
+  rows7 += `<tr><td>Tổng</td><td>${ktvatFmt_(t7.f1Count)}</td><td>${ktvatFmt_(t7.f2Count)}</td><td>${ktvatFmt_(t7.f1Count - t7.f2Count)}</td><td>${ktvatFmtD_(t7.f1DoanhSo)}</td><td>${ktvatFmtD_(t7.f2DoanhSo)}</td><td>${ktvatFmtD_(t7.f1DoanhSo - t7.f2DoanhSo)}</td><td>${ktvatFmtD_(t7.f1Thue)}</td><td>${ktvatFmtD_(t7.f2Thue)}</td><td>${ktvatFmtD_(t7.f1Thue - t7.f2Thue)}</td></tr>`;
+  html += ktvatSection_('7. Đối Chiếu Chênh Lệch 2 Nguồn', `
+    <div style="max-height:320px;overflow:auto">
+    <table class="th-shop-table" style="width:100%">
+      <tr><th>Ký hiệu</th><th>SL F1</th><th>SL F2</th><th>Chênh SL</th><th>Doanh số F1</th><th>Doanh số F2</th><th>Chênh Doanh số</th><th>Thuế F1</th><th>Thuế F2</th><th>Chênh Thuế</th></tr>
+      ${rows7}
+    </table></div>`);
+
+  box.innerHTML = html;
+  box.style.display = 'block';
 }
 
 // Xây 7 đầu mục báo cáo - xác nhận với Tân 2026-09-22: tổng quan doanh thu, theo ký hiệu/kênh, theo
@@ -22217,7 +22376,37 @@ function ktvatBuildReport_() {
     sheet7.push([k, v.f1Count, v.f2Count, v.f1Count - v.f2Count, v.f1DoanhSo, v.f2DoanhSo, v.f1DoanhSo - v.f2DoanhSo, v.f1Thue, v.f2Thue, v.f1Thue - v.f2Thue]);
   });
 
-  return { sheet1, sheet2, sheet3, sheet4, sheet5, sheet6, sheet7 };
+  return {
+    sheet1, sheet2, sheet3, sheet4, sheet5, sheet6, sheet7,
+    // Dữ liệu gốc đã tổng hợp - dùng để vẽ bảng xem trước ngay trên dashboard (ktvatRenderReport_),
+    // khỏi phải đọc lại từ aoa (mảng 2 chiều) của các sheet Excel ở trên.
+    f1Total, f2Total, kyKeys, kyMap, b2b, le, topKhach, dieuChinh, tsMap, nlMap,
+  };
+}
+
+// Excel mặc định format "General" sẽ tự chuyển số lớn (doanh số, thuế tiền tỷ) sang dạng khoa học
+// (1.09E+09) khi cột không đủ rộng, và chữ dài (tên khách/người lập) bị cắt vì cột quá hẹp theo mặc
+// định - xác nhận với Tân 2026-09-22: gán hẳn định dạng số có dấu phẩy ngăn cách + auto-rộng cột theo
+// nội dung dài nhất để khỏi phải tự kéo giãn cột trong Excel.
+function ktvatFormatNumbers_(ws) {
+  if (!ws['!ref']) return;
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let R = range.s.r; R <= range.e.r; R++) {
+    for (let C = range.s.c; C <= range.e.c; C++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+      if (cell && cell.t === 'n') cell.z = '#,##0';
+    }
+  }
+}
+function ktvatAutoWidths_(aoa) {
+  const widths = [];
+  aoa.forEach(row => {
+    (row || []).forEach((v, i) => {
+      const len = v == null ? 0 : String(v).length;
+      widths[i] = Math.max(widths[i] || 8, Math.min(len + 2, 42));
+    });
+  });
+  return widths.map(w => ({ wch: w }));
 }
 
 function ktvatExportExcel() {
@@ -22230,7 +22419,12 @@ function ktvatExportExcel() {
     return;
   }
   const wb = XLSX.utils.book_new();
-  const addSheet = (aoa, name) => { const ws = XLSX.utils.aoa_to_sheet(aoa); XLSX.utils.book_append_sheet(wb, ws, name); };
+  const addSheet = (aoa, name) => {
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ktvatFormatNumbers_(ws);
+    ws['!cols'] = ktvatAutoWidths_(aoa);
+    XLSX.utils.book_append_sheet(wb, ws, name);
+  };
   addSheet(r.sheet1, 'Tong Quan');
   addSheet(r.sheet2, 'Theo Ky Hieu');
   addSheet(r.sheet3, 'Theo Khach Hang');
