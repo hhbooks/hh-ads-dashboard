@@ -3387,7 +3387,11 @@
 
       <!-- Xem trước 7 đầu mục báo cáo ngay trên dashboard - xác nhận với Tân 2026-09-22, tự hiện
            ngay khi đã đọc đủ 2 file (không cần bấm xuất Excel mới xem được số liệu). -->
-      <div id="ktvat-report" style="display:none;margin-top:4px"></div>
+      <!-- class th-shop-table-lg = wrapper phóng to chữ/khoảng cách cho MỌI bảng .th-shop-table bên
+           trong (quy ước đã dùng sẵn ở các trang Chiến Dịch khác, xác nhận Tân 2026-08-10) - không
+           đụng tới định nghĩa gốc .th-shop-table (class dùng chung toàn dashboard), an toàn không ảnh
+           hưởng bảng ở trang khác. Áp dụng theo yêu cầu Tân 2026-09-22: "số liệu cần to hơn, rõ hơn". -->
+      <div id="ktvat-report" class="th-shop-table-lg" style="display:none;margin-top:4px"></div>
 
       <div id="ktvat-log" class="drive-log"></div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
@@ -22196,8 +22200,8 @@ function ktvatSortRateKeys_(keys) {
   });
 }
 function ktvatSection_(title, bodyHtml) {
-  return `<div class="card" style="margin-bottom:14px">
-    <div class="card-title" style="font-size:13px"><span class="dot"></span> ${ktvatEsc_(title)}</div>
+  return `<div class="card" style="margin-bottom:16px">
+    <div class="card-title" style="font-size:16px"><span class="dot"></span> ${ktvatEsc_(title)}</div>
     ${bodyHtml}
   </div>`;
 }
@@ -22255,7 +22259,7 @@ function ktvatRenderReport_(r) {
       <tr><td>Khách doanh nghiệp (có MST)</td><td>${ktvatFmt_(r.b2b.count)}</td><td>${ktvatFmtD_(r.b2b.doanhSo)}</td><td>${ktvatFmtD_(r.b2b.thue)}</td></tr>
       <tr><td>Khách lẻ (không MST)</td><td>${ktvatFmt_(r.le.count)}</td><td>${ktvatFmtD_(r.le.doanhSo)}</td><td>${ktvatFmtD_(r.le.thue)}</td></tr>
     </table>
-    <div style="font-size:12px;font-weight:700;margin:8px 0 4px;color:var(--text2)">Top khách hàng doanh nghiệp theo doanh số${r.topKhach.length > TOP_N ? ' (đủ ' + r.topKhach.length + ' khách trong file Excel xuất ra)' : ''}</div>
+    <div style="font-size:14px;font-weight:700;margin:8px 0 4px;color:var(--text2)">Top khách hàng doanh nghiệp theo doanh số${r.topKhach.length > TOP_N ? ' (đủ ' + r.topKhach.length + ' khách trong file Excel xuất ra)' : ''}</div>
     <div style="max-height:320px;overflow:auto">
     <table class="th-shop-table" style="width:100%">
       <tr><th>#</th><th>Tên khách hàng</th><th>MST</th><th>Số HĐ</th><th>Doanh số</th><th>Thuế GTGT</th></tr>
@@ -22300,7 +22304,7 @@ function ktvatRenderReport_(r) {
     const detailRows = shown.map(x => `<tr><td>${ktvatEsc_(x.kyHieu)}</td><td>${ktvatEsc_(x.soHD)}</td><td>${ktvatEsc_(ktvatFmtDate_(x.ngay))}</td><td>${ktvatFmtD_(x.doanhSo)}</td><td>${ktvatFmtD_(x.thueGTGT)}</td></tr>`).join('');
     const note = v.rows.length > DETAIL_CAP ? ` (xem trước ${DETAIL_CAP}/${v.rows.length} dòng - đủ toàn bộ trong file Excel xuất ra)` : '';
     return `<details style="margin-top:10px">
-      <summary style="cursor:pointer;font-weight:700;font-size:12px;color:var(--text2)">Xem chi tiết mức ${ktvatEsc_(tsLabel(k))} - ${ktvatFmt_(v.count)} dòng hóa đơn${note}</summary>
+      <summary style="cursor:pointer;font-weight:700;font-size:14px;color:var(--text2)">Xem chi tiết mức ${ktvatEsc_(tsLabel(k))} - ${ktvatFmt_(v.count)} dòng hóa đơn${note}</summary>
       <div style="max-height:280px;overflow:auto;margin-top:6px">
         <table class="th-shop-table" style="width:100%">
           <tr><th>Ký hiệu</th><th>Số HĐ</th><th>Ngày</th><th>Doanh số</th><th>Thuế GTGT</th></tr>
