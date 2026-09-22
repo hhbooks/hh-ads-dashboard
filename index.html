@@ -21997,6 +21997,16 @@ function ktvatFindDataStart1_(rows) {
   return -1;
 }
 
+// BUG đã sửa 2026-09-22 (Tân phát hiện qua câu hỏi "Thuế GTGT có lệch không?" - kiểm lại thấy File 1
+// chỉ đọc được 153/2981 dòng thật, Thuế GTGT File1 toàn số 0): file 01-1/GTGT không chỉ có 1 khối dữ
+// liệu liên tục - phần mềm kế toán chia thành nhiều khối con theo Thuế suất (khối "X - không chịu
+// thuế" trước, rồi tới khối "5%" ...), NGĂN CÁCH bằng 1 dòng trống có Ngày = chuỗi "  -   -" (không
+// phải ngày thật, không parse được). Code CŨ coi dòng không-parse-được-ngày đầu tiên là hết dữ liệu
+// (break) nên dừng đọc luôn tại dòng ngăn cách đó, bỏ sót toàn bộ khối dữ liệu phía sau (2828 dòng,
+// gồm hầu hết phần có thuế suất - vì vậy Thuế GTGT File1 ra toàn 0). Fix: dòng không parse được ngày
+// chỉ là dòng ngăn cách/dòng "Cộng"/chữ ký cuối file - BỎ QUA (continue) và ĐỌC TIẾP đến hết file,
+// không dừng hẳn. Đã verify khớp chính xác 100% với dòng "Cộng" cuối file gốc: 2981 dòng, doanh số
+// 7.919.610.247, thuế GTGT 454.312.161.
 function ktvatParseFile1_(rows) {
   const start = ktvatFindDataStart1_(rows);
   if (start === -1) throw new Error('Không tìm được dòng dữ liệu bắt đầu - kiểm tra lại đúng file "Bảng kê HĐ bán ra 01-1/GTGT" chưa.');
@@ -22004,9 +22014,9 @@ function ktvatParseFile1_(rows) {
   let curKy = null;
   for (let i = start; i < rows.length; i++) {
     const r = rows[i] || [];
-    if (r[0]) curKy = r[0];
     const ngay = ktvatToDate_(r[2]);
-    if (!ngay) break; // hết dữ liệu thật (gặp dòng "Cộng"/chữ ký/trống ở cuối file)
+    if (!ngay) continue; // dòng ngăn cách giữa các khối thuế suất / dòng "Cộng" / chữ ký cuối file - bỏ qua, KHÔNG dừng
+    if (r[0]) curKy = r[0]; // chỉ cập nhật ký hiệu từ dòng có ngày hợp lệ thật, tránh dính chữ "Cộng" ở dòng tổng
     if (curKy == null) continue;
     out.push({
       kyHieu: String(curKy).trim(),
