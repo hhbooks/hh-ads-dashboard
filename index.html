@@ -2550,7 +2550,7 @@
     <div class="card" style="margin-top:18px;border-top:3px solid #2980b9">
       <div class="card-title"><span class="dot" style="background:#2980b9"></span> Tạo Sản Phẩm SW</div>
       <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-        Đọc file nguồn (Mega Book cho Sách Liên Kết, file "Thông tin sách mới - tái bản" cho Sách Huy Hoàng, hoặc sheet "Giá nhập Deli" trong file triển khai VPP Deli), tự tính <b>Giá Nhập</b> theo % chiết khấu (Sách Liên Kết: lấy từ file, làm tròn về mức 5% gần nhất; Sách Huy Hoàng: mặc định cố định 55%; VPP Deli: suy ra từ Giá Bìa và Giá sau CK Shop Mall có sẵn trong file), xuất ra file đúng 12 cột Template tạo sản phẩm Salework. Mỗi lần upload xuất 1 file riêng, không lưu lại giữa các lần.
+        Đọc file nguồn (Mega Book cho Sách Liên Kết, file "Thông tin sách mới - tái bản" cho Sách Huy Hoàng, hoặc sheet "Giá nhập Deli" trong file triển khai VPP Deli), tự tính <b>Giá Nhập</b> (Sách Liên Kết: theo % chiết khấu lấy từ file, làm tròn về mức 5% gần nhất; Sách Huy Hoàng: mặc định cố định 55%; VPP Deli: lấy thẳng giá trị có sẵn ở cột "Giá nhập T8" trong file, không qua công thức), xuất ra file đúng 12 cột Template tạo sản phẩm Salework. Mỗi lần upload xuất 1 file riêng, không lưu lại giữa các lần.
       </p>
       <div id="spm-mode-toggle" style="display:flex;gap:8px;margin-bottom:12px">
         <button class="filter-btn active" onclick="spmSetMode('lienket',this)">📗 Sách Liên Kết</button>
@@ -6921,13 +6921,19 @@ function spmProcessHuyHoang(sheet) {
 // sách (SPM.rows.ma giữ nguyên dạng text cho mode này - ảnh hưởng tới spmExportFile/
 // spmExportPhieuNhap bên dưới, xem biến isTextMa). Xác nhận qua file mẫu Tân gửi 2026-09-24: sheet
 // "Giá nhập Deli" khai báo tới 3827 dòng nhưng thực tế CHỈ 24 dòng có đủ dữ liệu ở 4 cột bắt buộc
-// (Mã hàng/Tên hàng/Giá bán lẻ - Gia bìa/Giá sau CK Shop Mall) - phần còn lại để trống sẵn, KHÔNG
-// có cột trạng thái nào dùng lọc được nên lấy TOÀN BỘ dòng có đủ 4 cột này. Tên hàng trong file đã
-// có sẵn phân biệt màu/biến thể, DÙNG THẲNG không ghép gì thêm - xác nhận Tân 2026-09-24. Giá Nhập
-// = Giá sau CK Shop Mall; %CK suy ngược = 1 - (Giá sau CK / Giá bìa) để tương thích công thức
-// GIÁ NHẬP = GIÁ BÌA×(1-%CK) dùng chung với 2 mode kia (ra cùng 1 số). ĐVT không đủ dữ liệu trong
-// file - mặc định "Cái" cho mọi dòng, Tân tự sửa tay dòng nào không đúng sau khi xuất - xác nhận
-// Tân 2026-09-24.
+// (Mã hàng/Tên hàng/Giá bán lẻ - Gia bìa/Giá nhập T8) - phần còn lại để trống sẵn, KHÔNG có cột
+// trạng thái nào dùng lọc được nên lấy TOÀN BỘ dòng có đủ 4 cột này. Tên hàng trong file đã có sẵn
+// phân biệt màu/biến thể, DÙNG THẲNG không ghép gì thêm - xác nhận Tân 2026-09-24.
+// GIÁ NHẬP: lấy THẲNG giá trị cột K "Giá nhập T8", KHÔNG qua công thức % (xác nhận Tân 2026-09-24,
+// sửa lại sau khi Tân chỉ ra lần đầu em nhìn nhầm cột "Giá sau CK Shop Mall" - AA - là giá BÁN sau
+// chiết khấu trên sàn, không phải giá công ty NHẬP vào; giá nhập thật nằm ở cột K). ckRate vẫn được
+// tính (= 1 - Giá nhập/Giá bìa) nhưng CHỈ để hiển thị % informational ở cột "Chiết khấu giá nhập"
+// khi đẩy SKU Tổng, không dùng để tính lại Giá Nhập. ĐVT không đủ dữ liệu trong file - mặc định
+// "Cái" cho mọi dòng, Tân tự sửa tay dòng nào không đúng sau khi xuất - xác nhận Tân 2026-09-24.
+// GIÁ BÁN (cột "Giá Bán" + "%Giảm" khi đẩy SKU Tổng): xác nhận Tân 2026-09-24 - Giá Bán = THẲNG
+// cột "Giá sau CK Shop Mall" (AA) - đúng cột trước đây em nhìn nhầm là Giá Nhập, hoá ra là dùng cho
+// Giá Bán chứ không phải Giá Nhập. %Giảm suy ngược = 1 - (Giá Bán / Giá Bìa), không còn hardcode 0%
+// như Sách Liên Kết/Mega nữa (xem spmComputeSkuSheetRow).
 function spmProcessDeli(sheet) {
   SPM.excluded = [];
   document.getElementById('spm-excluded-box').style.display = 'none';
@@ -6948,13 +6954,15 @@ function spmProcessDeli(sheet) {
   const cMa = colOf[spmNormHeader('Mã hàng')];
   const cTen = colOf[spmNormHeader('Tên hàng')];
   const cGiaBia = colOf[spmNormHeader('Giá bán lẻ Gia bìa')];
-  const cGiaSauCK = colOf[spmNormHeader('Giá sau CK Shop Mall')];
-  if (cMa == null || cTen == null || cGiaBia == null || cGiaSauCK == null) {
+  const cGiaNhap = colOf[spmNormHeader('Giá nhập T8')]; // Giá Nhập thật - xem SW/KHO_HANG, Giá vốn khi đẩy SKU Tổng
+  const cGiaBanSauCK = colOf[spmNormHeader('Giá sau CK Shop Mall')]; // Giá Bán khi đẩy SKU Tổng (xác nhận Tân 2026-09-24)
+  if (cMa == null || cTen == null || cGiaBia == null || cGiaNhap == null || cGiaBanSauCK == null) {
     const missing = [];
     if (cMa == null) missing.push('Mã hàng');
     if (cTen == null) missing.push('Tên hàng');
     if (cGiaBia == null) missing.push('Giá bán lẻ / Gia bìa');
-    if (cGiaSauCK == null) missing.push('Giá sau CK Shop Mall');
+    if (cGiaNhap == null) missing.push('Giá nhập T8');
+    if (cGiaBanSauCK == null) missing.push('Giá sau CK Shop Mall');
     const foundCols = Object.keys(colOf).map(k => `"${k}"`).join(', ');
     spmLog(`❌ Thiếu cột bắt buộc: ${missing.join(', ')} - trong sheet "${SPM.currentSheetName}". Các cột đọc được ở dòng header: ${foundCols}`, 'err');
     SPM.rows = [];
@@ -6967,21 +6975,26 @@ function spmProcessDeli(sheet) {
     const ma = spmCellVal(sheet, r, cMa);
     const ten = spmCellVal(sheet, r, cTen);
     const giaBia = spmCellVal(sheet, r, cGiaBia);
-    const giaSauCK = spmCellVal(sheet, r, cGiaSauCK);
+    const giaNhap = spmCellVal(sheet, r, cGiaNhap);
+    const giaBanSauCK = spmCellVal(sheet, r, cGiaBanSauCK);
     if (ma == null || String(ma).trim() === '') continue;
-    if (ten == null || typeof giaBia !== 'number' || typeof giaSauCK !== 'number') continue; // thiếu 1 trong 4 cột bắt buộc - bỏ qua, không đoán
-    const ckRate = giaBia > 0 ? Math.round((1 - giaSauCK / giaBia) * 10000) / 10000 : 0;
+    if (ten == null || typeof giaBia !== 'number' || typeof giaNhap !== 'number' || typeof giaBanSauCK !== 'number') continue; // thiếu 1 trong 5 cột bắt buộc - bỏ qua, không đoán
+    // ckRate chỉ để HIỂN THỊ tỉ lệ % chiết khấu giá nhập so với giá bìa (cột "Chiết khấu giá nhập"
+    // khi đẩy SKU Tổng) - KHÔNG dùng để tính lại Giá Nhập, giaNhap luôn lấy nguyên giá trị cột K.
+    const ckRate = giaBia > 0 ? Math.round((1 - giaNhap / giaBia) * 10000) / 10000 : 0;
     rows.push({
       ma: String(ma).trim(), // GIỮ DẠNG TEXT - mã Deli có chữ, không ép Number() như 2 mode sách
       ten: String(ten).trim(),
       dvt: 'Cái', // mặc định - xác nhận Tân 2026-09-24
       giaBanLe: Number(giaBia),
+      giaNhap: Number(giaNhap), // giá trị THẬT lấy thẳng từ cột K, không qua công thức
+      giaBanSauCK: Number(giaBanSauCK), // Giá Bán khi đẩy SKU Tổng - lấy thẳng cột AA
       ckRate: ckRate,
     });
   }
   SPM.rows = rows;
   spmRenderPreview();
-  spmLog(`✅ Đọc được ${rows.length} sản phẩm VPP Deli từ sheet "${SPM.currentSheetName}" (chỉ lấy dòng đủ 4 cột Mã hàng/Tên hàng/Giá bìa/Giá sau CK).`, 'ok');
+  spmLog(`✅ Đọc được ${rows.length} sản phẩm VPP Deli từ sheet "${SPM.currentSheetName}" (chỉ lấy dòng đủ 5 cột Mã hàng/Tên hàng/Giá bìa/Giá nhập T8/Giá sau CK Shop Mall).`, 'ok');
 }
 
 function spmRenderExcluded() {
@@ -7002,7 +7015,9 @@ function spmRenderPreview() {
   if (!SPM.rows.length) { wrap.style.display = 'none'; exportBtn.style.display = 'none'; phieuNhapBtn.style.display = 'none'; pushSheetBtn.style.display = 'none'; return; }
   document.getElementById('spm-preview-count').textContent = SPM.rows.length;
   tbody.innerHTML = SPM.rows.map((row, i) => {
-    const giaNhap = Math.round(row.giaBanLe * (1 - row.ckRate));
+    // VPP Deli: Giá Nhập lấy thẳng row.giaNhap (đọc từ cột K, không qua công thức %).
+    // Sách Liên Kết/Huy Hoàng: vẫn tính theo %CK như cũ.
+    const giaNhap = SPM.mode === 'deli' ? row.giaNhap : Math.round(row.giaBanLe * (1 - row.ckRate));
     return `<tr><td>${i + 1}</td><td style="text-align:left">${row.ma}</td><td style="text-align:left;max-width:260px">${row.ten}</td><td class="num">${row.giaBanLe.toLocaleString('vi-VN')}</td><td class="num">${giaNhap.toLocaleString('vi-VN')}</td></tr>`;
   }).join('');
   wrap.style.display = 'block';
@@ -7029,8 +7044,14 @@ function spmExportFile() {
       const cellA = ws[XLSX.utils.encode_cell({ r: r - 1, c: 0 })];
       if (cellA) cellA.z = '0'; // cột Mã sản phẩm - ép định dạng số nguyên, tránh hiện khoa học kiểu 8.93E+12
     }
-    const giaNhap = Math.round(row.giaBanLe * (1 - row.ckRate));
-    ws[XLSX.utils.encode_cell({ r: r - 1, c: 4 })] = { t: 'n', v: giaNhap, f: `G${r}*(1-${row.ckRate})` };
+    if (isTextMa) {
+      // VPP Deli: Giá Nhập lấy THẲNG giá trị đã đọc từ cột "Giá nhập T8" - ghi số tĩnh, KHÔNG
+      // ghi công thức Excel (xác nhận Tân 2026-09-24: không cần tính công thức gì cả).
+      ws[XLSX.utils.encode_cell({ r: r - 1, c: 4 })] = { t: 'n', v: row.giaNhap };
+    } else {
+      const giaNhap = Math.round(row.giaBanLe * (1 - row.ckRate));
+      ws[XLSX.utils.encode_cell({ r: r - 1, c: 4 })] = { t: 'n', v: giaNhap, f: `G${r}*(1-${row.ckRate})` };
+    }
   });
   ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: SPM.rows.length, c: 11 } });
   ws['!cols'] = [{ wch: 16 }, { wch: 50 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 14 }];
@@ -7105,9 +7126,15 @@ const SKU_SHEET_HEADERS = ['Mã SKU', 'Nhà cung cấp', 'Giá Bìa', '%Giảm',
 function spmComputeSkuSheetRow(row) {
   const isHH = SPM.mode === 'huyhoang';
   const isDeli = SPM.mode === 'deli';
-  const phanTramGiam = isHH ? 0.02 : 0; // VPP Deli: 0% - chưa có xác nhận riêng, dùng mặc định giống Sách Liên Kết (thấp rủi ro nhất, dễ sửa sau nếu Tân muốn khác)
-  const giaBan = Math.round(row.giaBanLe * (1 - phanTramGiam));
-  const giaVon = Math.round(row.giaBanLe * (1 - row.ckRate));
+  // VPP Deli: Giá Bán = THẲNG row.giaBanSauCK (cột "Giá sau CK Shop Mall" trong file gốc); %Giảm
+  // suy ngược từ Giá Bìa/Giá Bán thật (xác nhận Tân 2026-09-24) - KHÔNG hardcode 0% như Sách Liên
+  // Kết/Mega nữa (khác 2 mode kia, vốn không có cột giá bán sau CK sẵn trong file nguồn).
+  const phanTramGiamDeli = isDeli && row.giaBanLe > 0 ? Math.round((1 - row.giaBanSauCK / row.giaBanLe) * 10000) / 10000 : 0;
+  const phanTramGiam = isHH ? 0.02 : isDeli ? phanTramGiamDeli : 0;
+  const giaBan = isDeli ? row.giaBanSauCK : Math.round(row.giaBanLe * (1 - phanTramGiam));
+  // VPP Deli: Giá vốn/Giá nhập lấy thẳng row.giaNhap (cột K "Giá nhập T8" trong file gốc), không
+  // tính lại qua ckRate (xác nhận Tân 2026-09-24). ckRate ở đây chỉ dùng hiển thị % informational.
+  const giaVon = isDeli ? row.giaNhap : Math.round(row.giaBanLe * (1 - row.ckRate));
   const byHeader = {
     'Mã SKU': row.ma,
     'Nhà cung cấp': isHH ? 'SÁCH HUY HOÀNG' : isDeli ? 'DELI' : 'Mega', // xác nhận Tân 2026-09-21 (Huy Hoàng/Mega); DELI xác nhận 2026-09-24
