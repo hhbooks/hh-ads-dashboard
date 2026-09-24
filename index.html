@@ -2550,11 +2550,12 @@
     <div class="card" style="margin-top:18px;border-top:3px solid #2980b9">
       <div class="card-title"><span class="dot" style="background:#2980b9"></span> Tạo Sản Phẩm SW</div>
       <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-        Đọc file nguồn (Mega Book cho Sách Liên Kết, hoặc file "Thông tin sách mới - tái bản" cho Sách Huy Hoàng), tự tính <b>Giá Nhập</b> theo % chiết khấu (Sách Liên Kết: lấy từ file, làm tròn về mức 5% gần nhất; Sách Huy Hoàng: mặc định cố định 55%), xuất ra file đúng 12 cột Template tạo sản phẩm Salework. Mỗi lần upload xuất 1 file riêng, không lưu lại giữa các lần.
+        Đọc file nguồn (Mega Book cho Sách Liên Kết, file "Thông tin sách mới - tái bản" cho Sách Huy Hoàng, hoặc sheet "Giá nhập Deli" trong file triển khai VPP Deli), tự tính <b>Giá Nhập</b> theo % chiết khấu (Sách Liên Kết: lấy từ file, làm tròn về mức 5% gần nhất; Sách Huy Hoàng: mặc định cố định 55%; VPP Deli: suy ra từ Giá Bìa và Giá sau CK Shop Mall có sẵn trong file), xuất ra file đúng 12 cột Template tạo sản phẩm Salework. Mỗi lần upload xuất 1 file riêng, không lưu lại giữa các lần.
       </p>
       <div id="spm-mode-toggle" style="display:flex;gap:8px;margin-bottom:12px">
         <button class="filter-btn active" onclick="spmSetMode('lienket',this)">📗 Sách Liên Kết</button>
         <button class="filter-btn" onclick="spmSetMode('huyhoang',this)">📘 Sách Huy Hoàng</button>
+        <button class="filter-btn" onclick="spmSetMode('deli',this)">📦 VPP Deli</button>
       </div>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
         <div>
@@ -2562,7 +2563,7 @@
           <button class="sw-upload-btn" id="spm-input-btn" onclick="document.getElementById('spm-input').click()">📂 Chọn File Liên Kết</button>
         </div>
         <div id="spm-sheet-picker-wrap" style="display:none">
-          <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">Chọn tháng (tab):</label>
+          <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">Chọn đúng tab/sheet:</label>
           <select id="spm-sheet-picker" onchange="spmOnSheetChange(this.value)" style="padding:8px 12px;border:1px solid var(--gray3);border-radius:8px;font-size:13px"></select>
         </div>
         <button onclick="spmResetAll()" style="padding:6px 14px;border:1px solid var(--text);color:var(--text);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
@@ -3361,9 +3362,19 @@
           <div class="kpi-value" id="cc-kpi-late">0</div>
         </div>
         <div class="kpi-card orange">
+          <div class="kpi-icon">🏃</div>
+          <div class="kpi-label">Tổng Lượt Về Sớm</div>
+          <div class="kpi-value" id="cc-kpi-early">0</div>
+        </div>
+        <div class="kpi-card orange">
           <div class="kpi-icon">📆</div>
           <div class="kpi-label">Tổng Ngày Nghỉ Phép</div>
           <div class="kpi-value" id="cc-kpi-off">0</div>
+        </div>
+        <div class="kpi-card red">
+          <div class="kpi-icon">👆</div>
+          <div class="kpi-label">Tổng Lượt Quên Chấm</div>
+          <div class="kpi-value" id="cc-kpi-needcheck">0</div>
         </div>
         <div class="kpi-card green">
           <div class="kpi-icon">🕐</div>
@@ -3377,7 +3388,7 @@
 
       <div id="cc-log" class="drive-log"></div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
-        <button id="cc-export-btn" class="btn-drive-sync" style="display:none;max-width:340px" onclick="ccExportExcel()">📤 Xuất Báo Cáo Excel (4 sheet)</button>
+        <button id="cc-export-btn" class="btn-drive-sync" style="display:none;max-width:340px" onclick="ccExportExcel()">📤 Xuất Báo Cáo Excel (6 sheet)</button>
       </div>
     </div>
   </div><!-- end page-nghiep-vu-bao-cao-cham-cong -->
@@ -6671,7 +6682,7 @@ function spmSetMode(mode, btnEl) {
   SPM.mode = mode;
   document.querySelectorAll('#spm-mode-toggle .filter-btn').forEach(b => b.classList.remove('active'));
   if (btnEl) btnEl.classList.add('active');
-  document.getElementById('spm-input-btn').textContent = mode === 'lienket' ? '📂 Chọn File Liên Kết' : '📂 Chọn File Thông Tin Sách Huy Hoàng';
+  document.getElementById('spm-input-btn').textContent = mode === 'lienket' ? '📂 Chọn File Liên Kết' : mode === 'huyhoang' ? '📂 Chọn File Thông Tin Sách Huy Hoàng' : '📂 Chọn File Giá Nhập Deli';
   spmResetAll();
 }
 
@@ -6718,6 +6729,19 @@ function spmHandleFile(input) {
       SPM.workbook = wb;
       if (SPM.mode === 'huyhoang') {
         spmPopulateSheetPicker(wb);
+      } else if (SPM.mode === 'deli') {
+        // File Deli là file làm việc nhiều sheet của Tân (11 sheet) - ưu tiên tìm ĐÚNG TÊN sheet
+        // "Giá nhập Deli" trước, nếu không thấy mới hiện dropdown cho Tân tự chọn tay (giống Sách
+        // Huy Hoàng) thay vì đoán bừa wb.SheetNames[0] - xác nhận Tân 2026-09-24.
+        const targetName = wb.SheetNames.find(n => spmNormHeader(n) === spmNormHeader('Giá nhập Deli'));
+        if (targetName) {
+          document.getElementById('spm-sheet-picker-wrap').style.display = 'none';
+          SPM.currentSheetName = targetName;
+          spmProcessDeli(wb.Sheets[targetName]);
+        } else {
+          spmLog('⚠️ Không thấy sheet tên đúng "Giá nhập Deli" trong file - chọn tay đúng sheet ở dropdown bên dưới.', 'warn');
+          spmPopulateSheetPicker(wb);
+        }
       } else {
         document.getElementById('spm-sheet-picker-wrap').style.display = 'none';
         SPM.currentSheetName = wb.SheetNames[0];
@@ -6749,7 +6773,8 @@ function spmPopulateSheetPicker(wb) {
 function spmOnSheetChange(sheetName) {
   if (!SPM.workbook || !SPM.workbook.Sheets[sheetName]) return;
   SPM.currentSheetName = sheetName;
-  spmProcessHuyHoang(SPM.workbook.Sheets[sheetName]);
+  if (SPM.mode === 'deli') spmProcessDeli(SPM.workbook.Sheets[sheetName]);
+  else spmProcessHuyHoang(SPM.workbook.Sheets[sheetName]);
 }
 
 // Chuẩn hóa text header để so khớp: gộp MỌI khoảng trắng liên tiếp (kể cả xuống dòng \n, \r\n bên
@@ -6891,6 +6916,74 @@ function spmProcessHuyHoang(sheet) {
   spmLog(`✅ Đọc được ${rows.length} sản phẩm từ sheet "${SPM.currentSheetName}".`, 'ok');
 }
 
+// ---- VPP DELI (sheet "Giá nhập Deli" trong file làm việc nhiều sheet Tân tự soạn) ----
+// Khác 2 nguồn sách: Mã hàng là chuỗi CHỮ+SỐ (vd "EC109-24-KM-01"), KHÔNG ép Number() như 2 mode
+// sách (SPM.rows.ma giữ nguyên dạng text cho mode này - ảnh hưởng tới spmExportFile/
+// spmExportPhieuNhap bên dưới, xem biến isTextMa). Xác nhận qua file mẫu Tân gửi 2026-09-24: sheet
+// "Giá nhập Deli" khai báo tới 3827 dòng nhưng thực tế CHỈ 24 dòng có đủ dữ liệu ở 4 cột bắt buộc
+// (Mã hàng/Tên hàng/Giá bán lẻ - Gia bìa/Giá sau CK Shop Mall) - phần còn lại để trống sẵn, KHÔNG
+// có cột trạng thái nào dùng lọc được nên lấy TOÀN BỘ dòng có đủ 4 cột này. Tên hàng trong file đã
+// có sẵn phân biệt màu/biến thể, DÙNG THẲNG không ghép gì thêm - xác nhận Tân 2026-09-24. Giá Nhập
+// = Giá sau CK Shop Mall; %CK suy ngược = 1 - (Giá sau CK / Giá bìa) để tương thích công thức
+// GIÁ NHẬP = GIÁ BÌA×(1-%CK) dùng chung với 2 mode kia (ra cùng 1 số). ĐVT không đủ dữ liệu trong
+// file - mặc định "Cái" cho mọi dòng, Tân tự sửa tay dòng nào không đúng sau khi xuất - xác nhận
+// Tân 2026-09-24.
+function spmProcessDeli(sheet) {
+  SPM.excluded = [];
+  document.getElementById('spm-excluded-box').style.display = 'none';
+  const hdr = spmFindHeaderCell(sheet, 'Mã hàng', 10);
+  if (!hdr) {
+    spmLog(`❌ Không tìm thấy cột "Mã hàng" trong sheet "${SPM.currentSheetName}" - kiểm tra lại đúng sheet "Giá nhập Deli" chưa.`, 'err');
+    SPM.rows = [];
+    spmRenderPreview();
+    return;
+  }
+  const headerRow = hdr.row;
+  const range = XLSX.utils.decode_range(sheet['!ref']);
+  const colOf = {};
+  for (let c = range.s.c; c <= range.e.c; c++) {
+    const v = spmCellVal(sheet, headerRow, c);
+    if (v != null) colOf[spmNormHeader(v)] = c;
+  }
+  const cMa = colOf[spmNormHeader('Mã hàng')];
+  const cTen = colOf[spmNormHeader('Tên hàng')];
+  const cGiaBia = colOf[spmNormHeader('Giá bán lẻ Gia bìa')];
+  const cGiaSauCK = colOf[spmNormHeader('Giá sau CK Shop Mall')];
+  if (cMa == null || cTen == null || cGiaBia == null || cGiaSauCK == null) {
+    const missing = [];
+    if (cMa == null) missing.push('Mã hàng');
+    if (cTen == null) missing.push('Tên hàng');
+    if (cGiaBia == null) missing.push('Giá bán lẻ / Gia bìa');
+    if (cGiaSauCK == null) missing.push('Giá sau CK Shop Mall');
+    const foundCols = Object.keys(colOf).map(k => `"${k}"`).join(', ');
+    spmLog(`❌ Thiếu cột bắt buộc: ${missing.join(', ')} - trong sheet "${SPM.currentSheetName}". Các cột đọc được ở dòng header: ${foundCols}`, 'err');
+    SPM.rows = [];
+    spmRenderPreview();
+    return;
+  }
+
+  const rows = [];
+  for (let r = headerRow + 1; r <= range.e.r; r++) {
+    const ma = spmCellVal(sheet, r, cMa);
+    const ten = spmCellVal(sheet, r, cTen);
+    const giaBia = spmCellVal(sheet, r, cGiaBia);
+    const giaSauCK = spmCellVal(sheet, r, cGiaSauCK);
+    if (ma == null || String(ma).trim() === '') continue;
+    if (ten == null || typeof giaBia !== 'number' || typeof giaSauCK !== 'number') continue; // thiếu 1 trong 4 cột bắt buộc - bỏ qua, không đoán
+    const ckRate = giaBia > 0 ? Math.round((1 - giaSauCK / giaBia) * 10000) / 10000 : 0;
+    rows.push({
+      ma: String(ma).trim(), // GIỮ DẠNG TEXT - mã Deli có chữ, không ép Number() như 2 mode sách
+      ten: String(ten).trim(),
+      dvt: 'Cái', // mặc định - xác nhận Tân 2026-09-24
+      giaBanLe: Number(giaBia),
+      ckRate: ckRate,
+    });
+  }
+  SPM.rows = rows;
+  spmRenderPreview();
+  spmLog(`✅ Đọc được ${rows.length} sản phẩm VPP Deli từ sheet "${SPM.currentSheetName}" (chỉ lấy dòng đủ 4 cột Mã hàng/Tên hàng/Giá bìa/Giá sau CK).`, 'ok');
+}
+
 function spmRenderExcluded() {
   const box = document.getElementById('spm-excluded-box');
   const tbody = document.getElementById('spm-excluded-tbody');
@@ -6924,6 +7017,7 @@ function spmRenderPreview() {
 // xác nhận Tân 2026-09-21, chấp nhận đánh đổi).
 function spmExportFile() {
   if (!SPM.rows.length) return;
+  const isTextMa = SPM.mode === 'deli'; // mã Deli có chữ - không ép định dạng số nguyên như 2 mode sách
   const aoa = [SPM_HEADERS];
   SPM.rows.forEach(row => {
     aoa.push([row.ma, row.ten, row.dvt, null, null, null, row.giaBanLe, null, 1, null, null, null]);
@@ -6931,8 +7025,10 @@ function spmExportFile() {
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   SPM.rows.forEach((row, i) => {
     const r = i + 2; // dòng 1-indexed, dòng 1 là header
-    const cellA = ws[XLSX.utils.encode_cell({ r: r - 1, c: 0 })];
-    if (cellA) cellA.z = '0'; // cột Mã sản phẩm - ép định dạng số nguyên, tránh hiện khoa học kiểu 8.93E+12
+    if (!isTextMa) {
+      const cellA = ws[XLSX.utils.encode_cell({ r: r - 1, c: 0 })];
+      if (cellA) cellA.z = '0'; // cột Mã sản phẩm - ép định dạng số nguyên, tránh hiện khoa học kiểu 8.93E+12
+    }
     const giaNhap = Math.round(row.giaBanLe * (1 - row.ckRate));
     ws[XLSX.utils.encode_cell({ r: r - 1, c: 4 })] = { t: 'n', v: giaNhap, f: `G${r}*(1-${row.ckRate})` };
   });
@@ -6941,7 +7037,7 @@ function spmExportFile() {
 
   const wbOut = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wbOut, ws, 'KHO_HANG');
-  const modeLabel = SPM.mode === 'lienket' ? 'SachLienKet' : 'SachHuyHoang';
+  const modeLabel = SPM.mode === 'lienket' ? 'SachLienKet' : SPM.mode === 'huyhoang' ? 'SachHuyHoang' : 'VPPDeli';
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const outName = `SP_${modeLabel}_len_Salework_${dateStr}.xlsx`;
   XLSX.writeFile(wbOut, outName);
@@ -6956,13 +7052,16 @@ function spmExportFile() {
 // có giá nhập lưu sẵn, không cần nhập lại).
 function spmExportPhieuNhap() {
   if (!SPM.rows.length) return;
+  const isTextMa = SPM.mode === 'deli';
   const headers = ['MÃ SẢN PHẨM (*)', 'SỐ LƯỢNG  (*)', 'GIÁ NHẬP', 'THÀNH TIỀN'];
   const aoa = [headers];
   SPM.rows.forEach(() => aoa.push([null, 1, null, null]));
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   SPM.rows.forEach((row, i) => {
     const r = i + 2; // dòng 1-indexed, dòng 1 là header
-    ws[XLSX.utils.encode_cell({ r: r - 1, c: 0 })] = { t: 'n', v: row.ma, z: '0' }; // Mã sản phẩm - ép định dạng số nguyên, tránh hiện khoa học
+    // Mã sản phẩm - Sách Liên Kết/Huy Hoàng: ép định dạng số nguyên tránh hiện khoa học;
+    // VPP Deli: mã dạng chữ+số (vd "EC109-24-KM-01") nên giữ nguyên kiểu text.
+    ws[XLSX.utils.encode_cell({ r: r - 1, c: 0 })] = isTextMa ? { t: 's', v: row.ma } : { t: 'n', v: row.ma, z: '0' };
     ws[XLSX.utils.encode_cell({ r: r - 1, c: 3 })] = { t: 'n', v: 0, f: `C${r}*B${r}` }; // Thành tiền - công thức thật, giống template gốc
   });
   ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: SPM.rows.length, c: 3 } });
@@ -6970,7 +7069,7 @@ function spmExportPhieuNhap() {
 
   const wbOut = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wbOut, ws, 'Nhập Kho');
-  const modeLabel = SPM.mode === 'lienket' ? 'SachLienKet' : 'SachHuyHoang';
+  const modeLabel = SPM.mode === 'lienket' ? 'SachLienKet' : SPM.mode === 'huyhoang' ? 'SachHuyHoang' : 'VPPDeli';
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const outName = `PhieuNhap_${modeLabel}_${dateStr}.xlsx`;
   XLSX.writeFile(wbOut, outName);
@@ -7005,12 +7104,13 @@ const SKU_SHEET_HEADERS = ['Mã SKU', 'Nhà cung cấp', 'Giá Bìa', '%Giảm',
 // biệt DM1/DM2 - toàn bộ sách Huy Hoàng đang mặc định là DM1/2%, xem ckRate = 0.55 cố định).
 function spmComputeSkuSheetRow(row) {
   const isHH = SPM.mode === 'huyhoang';
-  const phanTramGiam = isHH ? 0.02 : 0;
+  const isDeli = SPM.mode === 'deli';
+  const phanTramGiam = isHH ? 0.02 : 0; // VPP Deli: 0% - chưa có xác nhận riêng, dùng mặc định giống Sách Liên Kết (thấp rủi ro nhất, dễ sửa sau nếu Tân muốn khác)
   const giaBan = Math.round(row.giaBanLe * (1 - phanTramGiam));
   const giaVon = Math.round(row.giaBanLe * (1 - row.ckRate));
   const byHeader = {
     'Mã SKU': row.ma,
-    'Nhà cung cấp': isHH ? 'SÁCH HUY HOÀNG' : 'Mega', // xác nhận Tân 2026-09-21 (sửa từ "HHB DM1")
+    'Nhà cung cấp': isHH ? 'SÁCH HUY HOÀNG' : isDeli ? 'DELI' : 'Mega', // xác nhận Tân 2026-09-21 (Huy Hoàng/Mega); DELI xác nhận 2026-09-24
     'Giá Bìa': row.giaBanLe,
     '%Giảm': phanTramGiam,
     'Giá Bán': giaBan,
@@ -22586,21 +22686,34 @@ function ktvatExportExcel() {
 }
 
 // ==================================================================================
-// KHỐI NGHIỆP VỤ — BÁO CÁO CHẤM CÔNG (xác nhận Tân 2026-09-22)
-// Logic tính đi muộn/nghỉ phép/giờ làm PORT NGUYÊN VẸN từ bản mẫu Python (openpyxl) đã được Tân
-// duyệt qua 2 vòng xem trước (BaoCao_ChamCong_T8_2026_MAU.xlsx) — không đổi công thức, chỉ đổi
-// công cụ đọc/ghi Excel sang XLSX.js để chạy ngay trên dashboard. Giờ chuẩn: Sáng vào 08:00 (về
-// 12:00), Chiều vào 13:30 (tan ca 17:30) — so sánh CHÊNH LỆCH THẬT, không có thời gian ân hạn.
-// Quy tắc: kí hiệu "Off" hoặc Thứ = "CN" -> bỏ qua (ngày nghỉ theo lịch); kí hiệu "V" -> 1 ngày
-// nghỉ phép; kí hiệu KHÔNG thuộc {"X","X:X"} (chấm công thiếu/lẫn ca - vd "X:KR", "**", "--") ->
-// KHÔNG tự tính muộn (dữ liệu vào/ra dễ bị lẫn thứ tự, from thực tế đã gặp trường hợp tính sai
-// "240 phút muộn" do giờ ra bị lẫn vào cột giờ vào) - liệt kê riêng ở "Cần Kiểm Tra" để xem tay.
+// KHỐI NGHIỆP VỤ — BÁO CÁO CHẤM CÔNG
+// Bản gốc xác nhận Tân 2026-09-22 (đi muộn tính chênh lệch thật, không ân hạn). CẬP NHẬT
+// 2026-09-24 theo yêu cầu mới của Tân:
+//  1) Thêm ÂN HẠN 5 PHÚT cho MỌI mốc giờ vào/ra trong ngày (vào ca sáng 08:00, ra nghỉ trưa 12:00,
+//     vào ca chiều 13:30, tan ca 17:30) — đi trễ/về sớm trong phạm vi 5 phút vẫn tính ĐÚNG GIỜ.
+//     Khi vượt ân hạn, số phút hiển thị tính từ MỐC ĐÃ TRỪ ÂN HẠN (không phải giờ chuẩn gốc) — ví
+//     dụ vào lúc 8:12 (ca 8:00, ân hạn tới 8:05) chỉ tính 7 phút muộn, không phải 12 phút.
+//  2) Thêm chỉ số "VỀ SỚM" (rời trước giờ nghỉ trưa/tan ca sau khi đã trừ ân hạn) — TÁCH RIÊNG
+//     hoàn toàn khỏi "Đi Muộn", không cộng chung, để phân biệt 2 loại vi phạm giờ giấc khác nhau.
+//  3) Thêm báo cáo "Quên Chấm Vân Tay" (tổng hợp theo nhân viên, sắp theo số lần giảm dần) — dùng
+//     lại đúng tập dữ liệu vốn nằm ở "Cần Kiểm Tra Thủ Công" (kí hiệu không thuộc {"X","X:X"},
+//     không phải Off/V/CN, gộp cả ngày trắng hoàn toàn lẫn chấm thiếu 1 lượt trong ca) vì đây gần
+//     như luôn là do quên/lỗi chấm công — không tự tính muộn/về sớm được cho các dòng này vì dữ
+//     liệu vào/ra dễ bị lẫn thứ tự (từng gặp trường hợp tính sai "240 phút muộn" do giờ ra bị lẫn
+//     vào cột giờ vào).
 // Reuse các hàm dùng chung đã có sẵn từ khối Kế Toán (ktvatEsc_, ktvatFmt_, ktvatFmtDate_,
 // ktvatToDate_, ktvatSection_, ktvatAutoWidths_) thay vì viết lại.
 
 const CC = { fileName: '', rows: [], report: null };
-const CC_STD_AM = 8 * 60;       // 08:00
-const CC_STD_PM = 13 * 60 + 30; // 13:30
+const CC_GRACE = 5;                  // phút ân hạn — áp dụng cho mọi mốc giờ vào/ra (Tân 2026-09-24)
+const CC_STD_AM_IN = 8 * 60;         // 08:00 - giờ vào ca sáng
+const CC_STD_AM_OUT = 12 * 60;       // 12:00 - giờ ra nghỉ trưa
+const CC_STD_PM_IN = 13 * 60 + 30;   // 13:30 - giờ vào ca chiều
+const CC_STD_PM_OUT = 17 * 60 + 30;  // 17:30 - giờ tan ca
+const CC_LATE_AM_THRESH = CC_STD_AM_IN + CC_GRACE;   // 08:05 - trễ hơn mốc này mới tính muộn
+const CC_EARLY_AM_THRESH = CC_STD_AM_OUT - CC_GRACE; // 11:55 - ra sớm hơn mốc này mới tính về sớm
+const CC_LATE_PM_THRESH = CC_STD_PM_IN + CC_GRACE;   // 13:35
+const CC_EARLY_PM_THRESH = CC_STD_PM_OUT - CC_GRACE; // 17:25
 const CC_CLEAN = new Set(['X', 'X:X']);
 
 function ccLog(msg, type) {
@@ -22674,14 +22787,17 @@ function ccParseFile_(rows) {
 
 function ccBuildReport_(rows) {
   const empName = {}, empOrder = [];
-  const empLateCount = {}, empLateDays = {}, empLateMinutes = {}, empOffDays = {}, empHours = {}, empNeedCheck = {};
-  const lateDetail = [], needCheckDetail = [];
+  const empLateCount = {}, empLateDays = {}, empLateMinutes = {};
+  const empEarlyCount = {}, empEarlyDays = {}, empEarlyMinutes = {};
+  const empOffDays = {}, empHours = {}, empNeedCheck = {};
+  const lateDetail = [], earlyDetail = [], needCheckDetail = [];
   let minDate = null, maxDate = null;
 
   const ensure = ma => {
     if (!(ma in empName)) {
       empOrder.push(ma);
       empLateCount[ma] = 0; empLateDays[ma] = new Set(); empLateMinutes[ma] = 0;
+      empEarlyCount[ma] = 0; empEarlyDays[ma] = new Set(); empEarlyMinutes[ma] = 0;
       empOffDays[ma] = 0; empHours[ma] = 0; empNeedCheck[ma] = 0;
     }
   };
@@ -22699,6 +22815,8 @@ function ccBuildReport_(rows) {
     if (rec.kiHieu === 'Off' || rec.thu === 'CN') return; // ngày nghỉ theo lịch
     if (rec.kiHieu === 'V') { empOffDays[ma]++; return; } // nghỉ phép nguyên ngày
     if (!CC_CLEAN.has(rec.kiHieu)) {
+      // Chấm công thiếu/không rõ ca -> xem là "quên chấm vân tay" (gộp cả ngày trắng hoàn toàn lẫn
+      // chấm thiếu 1 lượt trong ca - xác nhận Tân 2026-09-24) - không tự tính muộn/về sớm được.
       empNeedCheck[ma]++;
       needCheckDetail.push({
         ma, ten: rec.ten, ngay: rec.ngay, thu: rec.thu, kiHieu: rec.kiHieu,
@@ -22707,45 +22825,81 @@ function ccBuildReport_(rows) {
       return;
     }
 
-    const times = [rec.vao1, rec.vao2, rec.vao3].map(ccParseTimeToMin_).filter(t => t != null);
-    const amTimes = times.filter(t => t < 12 * 60);
-    const pmTimes = times.filter(t => t >= 12 * 60);
-    const amIn = amTimes.length ? Math.min(...amTimes) : null;
-    const pmIn = pmTimes.length ? Math.min(...pmTimes) : null;
+    const ins = [rec.vao1, rec.vao2, rec.vao3].map(ccParseTimeToMin_).filter(t => t != null);
+    const outs = [rec.ra1, rec.ra2, rec.ra3].map(ccParseTimeToMin_).filter(t => t != null);
+    const amInList = ins.filter(t => t < 12 * 60), pmInList = ins.filter(t => t >= 12 * 60);
+    const amIn = amInList.length ? Math.min(...amInList) : null;
+    const pmIn = pmInList.length ? Math.min(...pmInList) : null;
+    // Giờ ra: lấy giờ MUỘN NHẤT trong mỗi nửa ngày (lần ra cuối cùng thực tế trước/sau nghỉ trưa) -
+    // ngược với giờ vào (lấy SỚM NHẤT) - vì cần biết thời điểm rời đi thật sự cuối cùng, tránh nhầm
+    // với 1 lượt ra/vào tạm giữa ca.
+    const amOutList = outs.filter(t => t < 12 * 60), pmOutList = outs.filter(t => t >= 12 * 60);
+    const amOut = amOutList.length ? Math.max(...amOutList) : null;
+    const pmOut = pmOutList.length ? Math.max(...pmOutList) : null;
 
-    if (amIn != null && amIn > CC_STD_AM) {
-      const lateMin = amIn - CC_STD_AM;
+    if (amIn != null && amIn > CC_LATE_AM_THRESH) {
+      const lateMin = amIn - CC_LATE_AM_THRESH;
       empLateCount[ma]++; empLateDays[ma].add(+rec.ngay); empLateMinutes[ma] += lateMin;
-      lateDetail.push({ ma, ten: rec.ten, ngay: rec.ngay, thu: rec.thu, ca: 'Sáng', gioVao: ccFmtHM_(amIn), gioChuan: '08:00', phut: lateMin });
+      lateDetail.push({ ma, ten: rec.ten, ngay: rec.ngay, thu: rec.thu, ca: 'Sáng', gioThucTe: ccFmtHM_(amIn), gioChuan: '08:00', phut: lateMin });
     }
-    if (pmIn != null && pmIn > CC_STD_PM) {
-      const lateMin = pmIn - CC_STD_PM;
+    if (pmIn != null && pmIn > CC_LATE_PM_THRESH) {
+      const lateMin = pmIn - CC_LATE_PM_THRESH;
       empLateCount[ma]++; empLateDays[ma].add(+rec.ngay); empLateMinutes[ma] += lateMin;
-      lateDetail.push({ ma, ten: rec.ten, ngay: rec.ngay, thu: rec.thu, ca: 'Chiều', gioVao: ccFmtHM_(pmIn), gioChuan: '13:30', phut: lateMin });
+      lateDetail.push({ ma, ten: rec.ten, ngay: rec.ngay, thu: rec.thu, ca: 'Chiều', gioThucTe: ccFmtHM_(pmIn), gioChuan: '13:30', phut: lateMin });
+    }
+    if (amOut != null && amOut < CC_EARLY_AM_THRESH) {
+      const earlyMin = CC_EARLY_AM_THRESH - amOut;
+      empEarlyCount[ma]++; empEarlyDays[ma].add(+rec.ngay); empEarlyMinutes[ma] += earlyMin;
+      earlyDetail.push({ ma, ten: rec.ten, ngay: rec.ngay, thu: rec.thu, ca: 'Trưa', gioThucTe: ccFmtHM_(amOut), gioChuan: '12:00', phut: earlyMin });
+    }
+    if (pmOut != null && pmOut < CC_EARLY_PM_THRESH) {
+      const earlyMin = CC_EARLY_PM_THRESH - pmOut;
+      empEarlyCount[ma]++; empEarlyDays[ma].add(+rec.ngay); empEarlyMinutes[ma] += earlyMin;
+      earlyDetail.push({ ma, ten: rec.ten, ngay: rec.ngay, thu: rec.thu, ca: 'Tan ca', gioThucTe: ccFmtHM_(pmOut), gioChuan: '17:30', phut: earlyMin });
     }
   });
 
-  // Chi Tiết Đi Muộn: gom theo TÊN NHÂN VIÊN trước (xác nhận Tân 2026-09-22), rồi theo ngày tăng dần.
-  lateDetail.sort((a, b) => (a.ten !== b.ten ? (a.ten < b.ten ? -1 : 1) : (+a.ngay || 0) - (+b.ngay || 0)));
+  // Chi Tiết Đi Muộn / Về Sớm: gom theo TÊN NHÂN VIÊN trước (xác nhận Tân 2026-09-22), rồi theo
+  // ngày tăng dần.
+  const sortByNameThenDate = (a, b) => (a.ten !== b.ten ? (a.ten < b.ten ? -1 : 1) : (+a.ngay || 0) - (+b.ngay || 0));
+  lateDetail.sort(sortByNameThenDate);
+  earlyDetail.sort(sortByNameThenDate);
   needCheckDetail.sort((a, b) => {
     const d = (+a.ngay || 0) - (+b.ngay || 0);
     return d !== 0 ? d : (a.ma < b.ma ? -1 : (a.ma > b.ma ? 1 : 0));
   });
 
-  let totalLateCount = 0, totalLateDays = 0, totalLateMin = 0, totalOff = 0, totalNeedCheck = 0, totalHours = 0;
+  // Quên Chấm Vân Tay - xếp hạng theo nhân viên, số lần giảm dần (xác nhận Tân 2026-09-24) - để
+  // thấy ngay ai quên chấm nhiều nhất.
+  const needCheckRanking = empOrder
+    .filter(ma => empNeedCheck[ma] > 0)
+    .map(ma => ({ ma, ten: empName[ma], count: empNeedCheck[ma] }))
+    .sort((a, b) => b.count - a.count || (a.ten < b.ten ? -1 : (a.ten > b.ten ? 1 : 0)));
+
+  let totalLateCount = 0, totalLateDays = 0, totalLateMin = 0;
+  let totalEarlyCount = 0, totalEarlyDays = 0, totalEarlyMin = 0;
+  let totalOff = 0, totalNeedCheck = 0, totalHours = 0;
   empOrder.forEach(ma => {
     totalLateCount += empLateCount[ma];
     totalLateDays += empLateDays[ma].size;
     totalLateMin += empLateMinutes[ma];
+    totalEarlyCount += empEarlyCount[ma];
+    totalEarlyDays += empEarlyDays[ma].size;
+    totalEarlyMin += empEarlyMinutes[ma];
     totalOff += empOffDays[ma];
     totalNeedCheck += empNeedCheck[ma];
     totalHours += empHours[ma];
   });
 
   return {
-    empOrder, empName, empLateCount, empLateDays, empLateMinutes, empOffDays, empHours, empNeedCheck,
-    lateDetail, needCheckDetail, minDate, maxDate,
-    totalEmp: empOrder.length, totalLateCount, totalLateDays, totalLateMin, totalOff, totalNeedCheck, totalHours,
+    empOrder, empName, empLateCount, empLateDays, empLateMinutes,
+    empEarlyCount, empEarlyDays, empEarlyMinutes,
+    empOffDays, empHours, empNeedCheck,
+    lateDetail, earlyDetail, needCheckDetail, needCheckRanking, minDate, maxDate,
+    totalEmp: empOrder.length,
+    totalLateCount, totalLateDays, totalLateMin,
+    totalEarlyCount, totalEarlyDays, totalEarlyMin,
+    totalOff, totalNeedCheck, totalHours,
   };
 }
 
@@ -22758,12 +22912,13 @@ function ccRenderReport_(r) {
   html += ktvatSection_('1. Tổng Quan & Quy Định', `
     <p style="font-size:12px;color:var(--text2);margin:0 0 10px">Kỳ báo cáo: <b>${ktvatEsc_(periodStr)}</b></p>
     <ul style="font-size:12px;color:var(--text2);line-height:1.8;margin:0 0 14px;padding-left:18px">
-      <li>Ca sáng: vào chuẩn 08:00, về 12:00. Ca chiều: vào chuẩn 13:30, tan ca 17:30.</li>
+      <li>Ca sáng: vào chuẩn 08:00 (chấm đến 08:05 vẫn tính đúng giờ), về nghỉ trưa chuẩn 12:00 (ra từ 11:55 trở đi vẫn tính đúng giờ).</li>
+      <li>Ca chiều: vào chuẩn 13:30 (chấm đến 13:35 vẫn tính đúng giờ), tan ca chuẩn 17:30 (ra từ 17:25 trở đi vẫn tính đúng giờ).</li>
+      <li>Ân hạn 5 phút áp dụng cho MỌI mốc giờ vào/ra trong ngày. Khi vượt ân hạn, số phút muộn/về sớm hiển thị tính từ MỐC ĐÃ TRỪ ÂN HẠN (không phải giờ chuẩn gốc) — ví dụ vào lúc 8:12 chỉ tính 7 phút muộn (8:12 - 8:05).</li>
       <li>Thứ 7: tự nhận diện ca sáng/chiều theo giờ chấm công thực tế, không cố định.</li>
-      <li>Chủ nhật và ngày ký hiệu "Off": ngày nghỉ theo lịch, không tính muộn/nghỉ phép.</li>
-      <li>Ký hiệu "V" (nghỉ nguyên ngày): tính 1 ngày nghỉ phép, không tính muộn.</li>
-      <li>Ngày chấm công thiếu/không rõ ca (KR, **, --...): không tự tính muộn được, liệt kê ở mục "Cần Kiểm Tra" để kiểm tra tay.</li>
-      <li>Số phút muộn tính chênh lệch thật so với giờ chuẩn, không có thời gian ân hạn.</li>
+      <li>Chủ nhật và ngày ký hiệu "Off": ngày nghỉ theo lịch, không tính muộn/về sớm/nghỉ phép.</li>
+      <li>Ký hiệu "V" (nghỉ nguyên ngày): tính 1 ngày nghỉ phép, không tính muộn/về sớm.</li>
+      <li>Ngày chấm công thiếu/không rõ ca (KR, **, --...): tính là "quên chấm vân tay", không tự tính muộn/về sớm được, liệt kê ở mục 5 và 6 để kiểm tra tay.</li>
     </ul>
     <table class="th-shop-table" style="width:100%">
       <tr><th>Chỉ Tiêu</th><th>Giá Trị</th></tr>
@@ -22771,25 +22926,29 @@ function ccRenderReport_(r) {
       <tr><td>Tổng số lượt đi muộn (theo ca)</td><td>${ktvatFmt_(r.totalLateCount)}</td></tr>
       <tr><td>Tổng số ngày đi muộn (ít nhất 1 ca)</td><td>${ktvatFmt_(r.totalLateDays)}</td></tr>
       <tr><td>Tổng số phút đi muộn</td><td>${ktvatFmt_(r.totalLateMin)} phút (≈ ${(r.totalLateMin / 60).toFixed(2)} giờ)</td></tr>
+      <tr><td>Tổng số lượt về sớm (theo ca)</td><td>${ktvatFmt_(r.totalEarlyCount)}</td></tr>
+      <tr><td>Tổng số ngày về sớm (ít nhất 1 ca)</td><td>${ktvatFmt_(r.totalEarlyDays)}</td></tr>
+      <tr><td>Tổng số phút về sớm</td><td>${ktvatFmt_(r.totalEarlyMin)} phút (≈ ${(r.totalEarlyMin / 60).toFixed(2)} giờ)</td></tr>
       <tr><td>Tổng số ngày nghỉ phép (ký hiệu V)</td><td>${ktvatFmt_(r.totalOff)}</td></tr>
-      <tr><td>Tổng số ngày cần kiểm tra tay</td><td>${ktvatFmt_(r.totalNeedCheck)}</td></tr>
+      <tr><td>Tổng số lượt quên chấm vân tay / cần kiểm tra tay</td><td>${ktvatFmt_(r.totalNeedCheck)}</td></tr>
       <tr><td>Tổng giờ làm cả phòng trong kỳ</td><td>${r.totalHours.toFixed(2)} giờ</td></tr>
     </table>`);
 
   let rows2 = r.empOrder.map(ma => `<tr>
       <td>${ktvatEsc_(ma)}</td><td>${ktvatEsc_(r.empName[ma])}</td>
-      <td>${ktvatFmt_(r.empLateCount[ma])}</td><td>${ktvatFmt_(r.empLateDays[ma].size)}</td>
-      <td>${ktvatFmt_(r.empLateMinutes[ma])}</td><td>${(r.empLateMinutes[ma] / 60).toFixed(2)}</td>
+      <td>${ktvatFmt_(r.empLateCount[ma])}</td><td>${ktvatFmt_(r.empLateDays[ma].size)}</td><td>${ktvatFmt_(r.empLateMinutes[ma])}</td><td>${(r.empLateMinutes[ma] / 60).toFixed(2)}</td>
+      <td>${ktvatFmt_(r.empEarlyCount[ma])}</td><td>${ktvatFmt_(r.empEarlyDays[ma].size)}</td><td>${ktvatFmt_(r.empEarlyMinutes[ma])}</td><td>${(r.empEarlyMinutes[ma] / 60).toFixed(2)}</td>
       <td>${ktvatFmt_(r.empOffDays[ma])}</td><td>${ktvatFmt_(r.empNeedCheck[ma])}</td>
       <td>${r.empHours[ma].toFixed(2)}</td>
     </tr>`).join('');
-  rows2 += `<tr><td>Tổng</td><td></td><td>${ktvatFmt_(r.totalLateCount)}</td><td>${ktvatFmt_(r.totalLateDays)}</td>
-      <td>${ktvatFmt_(r.totalLateMin)}</td><td>${(r.totalLateMin / 60).toFixed(2)}</td>
+  rows2 += `<tr><td>Tổng</td><td></td>
+      <td>${ktvatFmt_(r.totalLateCount)}</td><td>${ktvatFmt_(r.totalLateDays)}</td><td>${ktvatFmt_(r.totalLateMin)}</td><td>${(r.totalLateMin / 60).toFixed(2)}</td>
+      <td>${ktvatFmt_(r.totalEarlyCount)}</td><td>${ktvatFmt_(r.totalEarlyDays)}</td><td>${ktvatFmt_(r.totalEarlyMin)}</td><td>${(r.totalEarlyMin / 60).toFixed(2)}</td>
       <td>${ktvatFmt_(r.totalOff)}</td><td>${ktvatFmt_(r.totalNeedCheck)}</td><td>${r.totalHours.toFixed(2)}</td></tr>`;
   html += ktvatSection_('2. Tổng Hợp Theo Nhân Viên', `
     <div style="max-height:360px;overflow:auto">
     <table class="th-shop-table" style="width:100%">
-      <tr><th>Mã NV</th><th>Tên NV</th><th>Số Lần Muộn</th><th>Số Ngày Muộn</th><th>Tổng Phút Muộn</th><th>Tổng Giờ Muộn</th><th>Số Ngày Nghỉ</th><th>Số Ngày Cần KT</th><th>Tổng Giờ Làm</th></tr>
+      <tr><th>Mã NV</th><th>Tên NV</th><th>Số Lần Muộn</th><th>Số Ngày Muộn</th><th>Tổng Phút Muộn</th><th>Tổng Giờ Muộn</th><th>Số Lần Về Sớm</th><th>Số Ngày Về Sớm</th><th>Tổng Phút Về Sớm</th><th>Tổng Giờ Về Sớm</th><th>Số Ngày Nghỉ</th><th>Số Lần Quên Chấm</th><th>Tổng Giờ Làm</th></tr>
       ${rows2}
     </table></div>`);
 
@@ -22800,7 +22959,7 @@ function ccRenderReport_(r) {
     return `<tr${sep ? ' style="border-top:2px solid #9CA3AF"' : ''}>
       <td>${ktvatEsc_(d.ma)}</td><td>${ktvatEsc_(d.ten)}</td><td>${ktvatFmt_(r.empLateMinutes[d.ma])}</td>
       <td>${ktvatFmtDate_(d.ngay)}</td><td>${ktvatEsc_(d.thu)}</td><td>${ktvatEsc_(d.ca)}</td>
-      <td>${ktvatEsc_(d.gioVao)}</td><td>${ktvatEsc_(d.gioChuan)}</td><td>${ktvatFmt_(d.phut)}</td>
+      <td>${ktvatEsc_(d.gioThucTe)}</td><td>${ktvatEsc_(d.gioChuan)}</td><td>${ktvatFmt_(d.phut)}</td>
     </tr>`;
   }).join('');
   html += ktvatSection_('3. Chi Tiết Đi Muộn', r.lateDetail.length ? `
@@ -22810,18 +22969,46 @@ function ccRenderReport_(r) {
       ${rows3}
     </table></div>` : `<p style="font-size:12px;color:var(--text2);margin:0">Không có lượt đi muộn nào trong kỳ.</p>`);
 
-  const rows4 = r.needCheckDetail.map(d => `<tr>
+  let prevMa4 = null;
+  let rows4 = r.earlyDetail.map(d => {
+    const sep = prevMa4 !== null && d.ma !== prevMa4;
+    prevMa4 = d.ma;
+    return `<tr${sep ? ' style="border-top:2px solid #9CA3AF"' : ''}>
+      <td>${ktvatEsc_(d.ma)}</td><td>${ktvatEsc_(d.ten)}</td><td>${ktvatFmt_(r.empEarlyMinutes[d.ma])}</td>
+      <td>${ktvatFmtDate_(d.ngay)}</td><td>${ktvatEsc_(d.thu)}</td><td>${ktvatEsc_(d.ca)}</td>
+      <td>${ktvatEsc_(d.gioThucTe)}</td><td>${ktvatEsc_(d.gioChuan)}</td><td>${ktvatFmt_(d.phut)}</td>
+    </tr>`;
+  }).join('');
+  html += ktvatSection_('4. Chi Tiết Về Sớm', r.earlyDetail.length ? `
+    <div style="max-height:400px;overflow:auto">
+    <table class="th-shop-table" style="width:100%">
+      <tr><th>Mã NV</th><th>Tên NV</th><th>Tổng Phút Về Sớm (Cả Tháng)</th><th>Ngày</th><th>Thứ</th><th>Ca</th><th>Giờ Ra Thực Tế</th><th>Giờ Chuẩn</th><th>Số Phút Về Sớm (Lần Này)</th></tr>
+      ${rows4}
+    </table></div>` : `<p style="font-size:12px;color:var(--text2);margin:0">Không có lượt về sớm nào trong kỳ.</p>`);
+
+  const rows5 = r.needCheckRanking.map((d, i) => `<tr>
+      <td>${i + 1}</td><td>${ktvatEsc_(d.ma)}</td><td>${ktvatEsc_(d.ten)}</td><td>${ktvatFmt_(d.count)}</td>
+    </tr>`).join('');
+  html += ktvatSection_('5. Quên Chấm Vân Tay - Tổng Hợp Theo Nhân Viên', r.needCheckRanking.length ? `
+    <p style="font-size:12px;color:var(--text2);margin:0 0 10px">Xếp theo số lần quên chấm giảm dần, gồm cả ngày trắng hoàn toàn và chấm thiếu 1 lượt trong ca.</p>
+    <div style="max-height:320px;overflow:auto">
+    <table class="th-shop-table" style="width:100%">
+      <tr><th>#</th><th>Mã NV</th><th>Tên NV</th><th>Số Lần Quên Chấm</th></tr>
+      ${rows5}
+    </table></div>` : `<p style="font-size:12px;color:var(--text2);margin:0">Không có nhân viên nào quên chấm trong kỳ.</p>`);
+
+  const rows6 = r.needCheckDetail.map(d => `<tr>
       <td>${ktvatEsc_(d.ma)}</td><td>${ktvatEsc_(d.ten)}</td><td>${ktvatFmtDate_(d.ngay)}</td><td>${ktvatEsc_(d.thu)}</td>
       <td>${ktvatEsc_(d.kiHieu)}</td><td>${ktvatEsc_(ccRawTimeStr_(d.vao1))}</td><td>${ktvatEsc_(ccRawTimeStr_(d.ra1))}</td>
       <td>${ktvatEsc_(ccRawTimeStr_(d.vao2))}</td><td>${ktvatEsc_(ccRawTimeStr_(d.ra2))}</td>
       <td>${ktvatEsc_(ccRawTimeStr_(d.vao3))}</td><td>${ktvatEsc_(ccRawTimeStr_(d.ra3))}</td>
     </tr>`).join('');
-  html += ktvatSection_('4. Cần Kiểm Tra Thủ Công', r.needCheckDetail.length ? `
-    <p style="font-size:12px;color:var(--text2);margin:0 0 10px">Những ngày chấm công thiếu/không rõ ca (kí hiệu không thuộc "X"/"X:X") - không tự tính muộn được, cần đối chiếu tay.</p>
+  html += ktvatSection_('6. Quên Chấm Vân Tay - Chi Tiết', r.needCheckDetail.length ? `
+    <p style="font-size:12px;color:var(--text2);margin:0 0 10px">Những ngày chấm công thiếu/không rõ ca (kí hiệu không thuộc "X"/"X:X") - không tự tính muộn/về sớm được, cần đối chiếu tay.</p>
     <div style="max-height:400px;overflow:auto">
     <table class="th-shop-table" style="width:100%">
       <tr><th>Mã NV</th><th>Tên NV</th><th>Ngày</th><th>Thứ</th><th>Ký Hiệu</th><th>Vào 1</th><th>Ra 1</th><th>Vào 2</th><th>Ra 2</th><th>Vào 3</th><th>Ra 3</th></tr>
-      ${rows4}
+      ${rows6}
     </table></div>` : `<p style="font-size:12px;color:var(--text2);margin:0">Không có ngày nào cần kiểm tra thủ công.</p>`);
 
   box.innerHTML = html;
@@ -22866,7 +23053,9 @@ function ccUpdatePreview() {
   box.style.display = 'grid';
   document.getElementById('cc-kpi-emp').textContent = ktvatFmt_(r.totalEmp);
   document.getElementById('cc-kpi-late').textContent = ktvatFmt_(r.totalLateCount);
+  document.getElementById('cc-kpi-early').textContent = ktvatFmt_(r.totalEarlyCount);
   document.getElementById('cc-kpi-off').textContent = ktvatFmt_(r.totalOff);
+  document.getElementById('cc-kpi-needcheck').textContent = ktvatFmt_(r.totalNeedCheck);
   document.getElementById('cc-kpi-hours').textContent = r.totalHours.toFixed(2);
   const btn = document.getElementById('cc-export-btn');
   if (btn) btn.style.display = 'inline-flex';
@@ -22884,7 +23073,9 @@ function ccReset() {
   document.getElementById('cc-summary').style.display = 'none';
   document.getElementById('cc-kpi-emp').textContent = '0';
   document.getElementById('cc-kpi-late').textContent = '0';
+  document.getElementById('cc-kpi-early').textContent = '0';
   document.getElementById('cc-kpi-off').textContent = '0';
+  document.getElementById('cc-kpi-needcheck').textContent = '0';
   document.getElementById('cc-kpi-hours').textContent = '0';
   document.getElementById('cc-export-btn').style.display = 'none';
   const reportBox = document.getElementById('cc-report');
@@ -22909,7 +23100,7 @@ function ccFormatSheet_(ws, decimalCols) {
 // Ghi chú quan trọng: bản Excel xuất từ dashboard dùng XLSX.js bản Community (miễn phí) - KHÔNG hỗ
 // trợ tô màu/kẻ viền khi ghi file, nên không tái tạo được style (viền phân tách nhân viên, tô nền
 // header/dòng cảnh báo) như bản mẫu Python đã duyệt trước đó - chỉ giống nhau về DỮ LIỆU, cấu trúc
-// 4 sheet, thứ tự sắp xếp và định dạng số. Đã lưu ý trao đổi với Tân khi bàn giao tính năng này.
+// 6 sheet, thứ tự sắp xếp và định dạng số. Đã lưu ý trao đổi với Tân khi bàn giao tính năng này.
 function ccExportExcel() {
   if (!CC.rows.length || !CC.report) return;
   const r = CC.report;
@@ -22926,13 +23117,13 @@ function ccExportExcel() {
   sheet1.push([]);
   sheet1.push(['QUY ĐỊNH GIỜ CHUẨN & CÁCH TÍNH (dùng cho báo cáo này)']);
   [
-    'Ca sáng: vào chuẩn 08:00, về 12:00.',
-    'Ca chiều: vào chuẩn 13:30, tan ca 17:30.',
+    'Ca sáng: vào chuẩn 08:00 (chấm đến 08:05 vẫn tính đúng giờ), về nghỉ trưa chuẩn 12:00 (ra từ 11:55 trở đi vẫn tính đúng giờ).',
+    'Ca chiều: vào chuẩn 13:30 (chấm đến 13:35 vẫn tính đúng giờ), tan ca chuẩn 17:30 (ra từ 17:25 trở đi vẫn tính đúng giờ).',
+    'Ân hạn 5 phút áp dụng cho MỌI mốc giờ vào/ra trong ngày. Khi vượt ân hạn, số phút muộn/về sớm tính từ MỐC ĐÃ TRỪ ÂN HẠN (không phải giờ chuẩn gốc) - ví dụ vào lúc 8:12 chỉ tính 7 phút muộn.',
     'Thứ 7: có thể xếp ca sáng hoặc ca chiều tùy ngày/nhân viên - tự nhận diện theo giờ chấm công thực tế, không cố định.',
-    'Chủ nhật và các ngày ký hiệu "Off": ngày nghỉ theo lịch, KHÔNG tính vào muộn/nghỉ phép.',
-    'Ký hiệu "V" (nghỉ nguyên ngày): tính là 1 ngày nghỉ phép, không tính muộn ngày đó.',
-    'Những ngày chấm công thiếu/không rõ ca (ký hiệu có KR, **, --) KHÔNG tự động tính muộn được vì dữ liệu vào/ra bị lẫn thứ tự - liệt kê riêng ở sheet "Cần Kiểm Tra" để kiểm tra tay.',
-    'Số phút muộn tính CHÊNH LỆCH THẬT so với giờ chuẩn trên, không có thời gian ân hạn (dù chỉ muộn 1 phút vẫn tính).',
+    'Chủ nhật và các ngày ký hiệu "Off": ngày nghỉ theo lịch, KHÔNG tính vào muộn/về sớm/nghỉ phép.',
+    'Ký hiệu "V" (nghỉ nguyên ngày): tính là 1 ngày nghỉ phép, không tính muộn/về sớm ngày đó.',
+    'Những ngày chấm công thiếu/không rõ ca (ký hiệu có KR, **, --) tính là "quên chấm vân tay" - KHÔNG tự động tính muộn/về sớm được vì dữ liệu vào/ra dễ bị lẫn thứ tự - liệt kê riêng ở sheet "Quen Cham Tong Hop" và "Quen Cham Chi Tiet".',
   ].forEach(line => sheet1.push(['• ' + line]));
   sheet1.push([]);
   sheet1.push(['SỐ LIỆU TỔNG QUAN']);
@@ -22940,35 +23131,52 @@ function ccExportExcel() {
   sheet1.push(['Tổng số lượt đi muộn (theo ca)', r.totalLateCount]);
   sheet1.push(['Tổng số ngày đi muộn (ít nhất 1 ca)', r.totalLateDays]);
   sheet1.push(['Tổng số phút đi muộn', r.totalLateMin]);
-  const rowQuyDoiIdx = sheet1.length;
+  const rowQuyDoiMuonIdx = sheet1.length;
   sheet1.push(['Quy đổi tổng giờ đi muộn', Math.round((r.totalLateMin / 60) * 100) / 100]);
+  sheet1.push(['Tổng số lượt về sớm (theo ca)', r.totalEarlyCount]);
+  sheet1.push(['Tổng số ngày về sớm (ít nhất 1 ca)', r.totalEarlyDays]);
+  sheet1.push(['Tổng số phút về sớm', r.totalEarlyMin]);
+  const rowQuyDoiSomIdx = sheet1.length;
+  sheet1.push(['Quy đổi tổng giờ về sớm', Math.round((r.totalEarlyMin / 60) * 100) / 100]);
   sheet1.push(['Tổng số ngày nghỉ phép (ký hiệu V)', r.totalOff]);
-  sheet1.push(['Tổng số ngày chấm công thiếu/cần kiểm tra tay', r.totalNeedCheck]);
+  sheet1.push(['Tổng số lượt quên chấm vân tay / cần kiểm tra tay', r.totalNeedCheck]);
   const rowTongGioIdx = sheet1.length;
   sheet1.push(['Tổng giờ làm cả phòng trong kỳ', Math.round(r.totalHours * 100) / 100]);
 
-  const sheet2 = [['Mã NV', 'Tên Nhân Viên', 'Số Lần Đi Muộn', 'Số Ngày Đi Muộn', 'Tổng Phút Muộn', 'Tổng Giờ Muộn', 'Số Ngày Nghỉ', 'Số Ngày Cần Kiểm Tra', 'Tổng Giờ Làm']];
+  const sheet2 = [['Mã NV', 'Tên Nhân Viên', 'Số Lần Đi Muộn', 'Số Ngày Đi Muộn', 'Tổng Phút Muộn', 'Tổng Giờ Muộn',
+    'Số Lần Về Sớm', 'Số Ngày Về Sớm', 'Tổng Phút Về Sớm', 'Tổng Giờ Về Sớm', 'Số Ngày Nghỉ', 'Số Lần Quên Chấm', 'Tổng Giờ Làm']];
   r.empOrder.forEach(ma => {
-    sheet2.push([ma, r.empName[ma], r.empLateCount[ma], r.empLateDays[ma].size, r.empLateMinutes[ma],
-      Math.round((r.empLateMinutes[ma] / 60) * 100) / 100, r.empOffDays[ma], r.empNeedCheck[ma], Math.round(r.empHours[ma] * 100) / 100]);
+    sheet2.push([ma, r.empName[ma], r.empLateCount[ma], r.empLateDays[ma].size, r.empLateMinutes[ma], Math.round((r.empLateMinutes[ma] / 60) * 100) / 100,
+      r.empEarlyCount[ma], r.empEarlyDays[ma].size, r.empEarlyMinutes[ma], Math.round((r.empEarlyMinutes[ma] / 60) * 100) / 100,
+      r.empOffDays[ma], r.empNeedCheck[ma], Math.round(r.empHours[ma] * 100) / 100]);
   });
-  sheet2.push(['Tổng', '', r.totalLateCount, r.totalLateDays, r.totalLateMin, Math.round((r.totalLateMin / 60) * 100) / 100, r.totalOff, r.totalNeedCheck, Math.round(r.totalHours * 100) / 100]);
+  sheet2.push(['Tổng', '', r.totalLateCount, r.totalLateDays, r.totalLateMin, Math.round((r.totalLateMin / 60) * 100) / 100,
+    r.totalEarlyCount, r.totalEarlyDays, r.totalEarlyMin, Math.round((r.totalEarlyMin / 60) * 100) / 100,
+    r.totalOff, r.totalNeedCheck, Math.round(r.totalHours * 100) / 100]);
 
   const sheet3 = [['Mã NV', 'Tên Nhân Viên', 'Tổng Phút Muộn (Cả Tháng)', 'Ngày', 'Thứ', 'Ca', 'Giờ Vào Thực Tế', 'Giờ Chuẩn', 'Số Phút Muộn (Lần Này)']];
   r.lateDetail.forEach(d => {
-    sheet3.push([d.ma, d.ten, r.empLateMinutes[d.ma], ktvatFmtDate_(d.ngay), d.thu, d.ca, d.gioVao, d.gioChuan, d.phut]);
+    sheet3.push([d.ma, d.ten, r.empLateMinutes[d.ma], ktvatFmtDate_(d.ngay), d.thu, d.ca, d.gioThucTe, d.gioChuan, d.phut]);
   });
 
-  const sheet4 = [['Mã NV', 'Tên Nhân Viên', 'Ngày', 'Thứ', 'Ký Hiệu', 'Vào 1', 'Ra 1', 'Vào 2', 'Ra 2', 'Vào 3', 'Ra 3', 'Ghi Chú']];
+  const sheet4 = [['Mã NV', 'Tên Nhân Viên', 'Tổng Phút Về Sớm (Cả Tháng)', 'Ngày', 'Thứ', 'Ca', 'Giờ Ra Thực Tế', 'Giờ Chuẩn', 'Số Phút Về Sớm (Lần Này)']];
+  r.earlyDetail.forEach(d => {
+    sheet4.push([d.ma, d.ten, r.empEarlyMinutes[d.ma], ktvatFmtDate_(d.ngay), d.thu, d.ca, d.gioThucTe, d.gioChuan, d.phut]);
+  });
+
+  const sheet5 = [['#', 'Mã NV', 'Tên Nhân Viên', 'Số Lần Quên Chấm']];
+  r.needCheckRanking.forEach((d, i) => sheet5.push([i + 1, d.ma, d.ten, d.count]));
+
+  const sheet6 = [['Mã NV', 'Tên Nhân Viên', 'Ngày', 'Thứ', 'Ký Hiệu', 'Vào 1', 'Ra 1', 'Vào 2', 'Ra 2', 'Vào 3', 'Ra 3', 'Ghi Chú']];
   r.needCheckDetail.forEach(d => {
-    sheet4.push([d.ma, d.ten, ktvatFmtDate_(d.ngay), d.thu, d.kiHieu, ccRawTimeStr_(d.vao1), ccRawTimeStr_(d.ra1),
+    sheet6.push([d.ma, d.ten, ktvatFmtDate_(d.ngay), d.thu, d.kiHieu, ccRawTimeStr_(d.vao1), ccRawTimeStr_(d.ra1),
       ccRawTimeStr_(d.vao2), ccRawTimeStr_(d.ra2), ccRawTimeStr_(d.vao3), ccRawTimeStr_(d.ra3),
-      'Chấm công thiếu/không rõ ca - không tự tính muộn được, cần kiểm tra tay']);
+      'Quên chấm vân tay / chấm công thiếu - không tự tính muộn/về sớm được, cần kiểm tra tay']);
   });
 
   const ws1 = XLSX.utils.aoa_to_sheet(sheet1);
   ccFormatSheet_(ws1);
-  [rowQuyDoiIdx, rowTongGioIdx].forEach(ri => {
+  [rowQuyDoiMuonIdx, rowQuyDoiSomIdx, rowTongGioIdx].forEach(ri => {
     const cell = ws1[XLSX.utils.encode_cell({ r: ri, c: 1 })];
     if (cell) cell.z = '0.00';
   });
@@ -22981,14 +23189,16 @@ function ccExportExcel() {
     ws['!cols'] = ktvatAutoWidths_(aoa);
     XLSX.utils.book_append_sheet(wb, ws, name);
   };
-  addSheet(sheet2, 'Tong Hop Theo NV', new Set([5, 8]));
+  addSheet(sheet2, 'Tong Hop Theo NV', new Set([5, 9, 12]));
   addSheet(sheet3, 'Chi Tiet Di Muon');
-  addSheet(sheet4, 'Can Kiem Tra');
+  addSheet(sheet4, 'Chi Tiet Ve Som');
+  addSheet(sheet5, 'Quen Cham Tong Hop');
+  addSheet(sheet6, 'Quen Cham Chi Tiet');
 
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const outName = `BaoCao_ChamCong_${dateStr}.xlsx`;
   XLSX.writeFile(wb, outName);
-  ccLog(`📤 Đã xuất "${outName}" — 4 sheet.`, 'ok');
+  ccLog(`📤 Đã xuất "${outName}" — 6 sheet.`, 'ok');
 }
 
 </script>
