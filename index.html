@@ -22728,6 +22728,13 @@ function ktvatExportExcel() {
 //     như luôn là do quên/lỗi chấm công — không tự tính muộn/về sớm được cho các dòng này vì dữ
 //     liệu vào/ra dễ bị lẫn thứ tự (từng gặp trường hợp tính sai "240 phút muộn" do giờ ra bị lẫn
 //     vào cột giờ vào).
+// SỬA LỖI 2026-09-24 (Tân phát hiện qua ca của NV Cồ Thị Hải, mã 326, ngày 15/08/2026 - Thứ 7):
+// nhân viên chỉ làm CA SÁNG riêng Thứ 7 (tan ca lúc 12:00, không chấm công buổi chiều) bị báo SAI
+// "về sớm" ~5.5 tiếng, vì mốc chia buổi sáng/chiều của các lượt chấm trong ngày trước đây đặt đúng
+// 12:00 (t >= 12:00 coi là buổi chiều) nên lượt "ra" đúng 12:00 giờ bị xếp nhầm vào buổi chiều rồi so
+// với chuẩn tan ca 17:30 thay vì chuẩn tan ca sáng 12:00. Xem CC_HALF_DAY_SPLIT bên dưới (dời mốc
+// chia sang 12:45 - giữa giờ nghỉ trưa) - nhân viên chỉ làm ca chiều Thứ 7 (vào 13:30, ra 17:30)
+// không bị ảnh hưởng gì (không đổi so với trước), ngày thường làm đủ cả ngày cũng không đổi.
 // Reuse các hàm dùng chung đã có sẵn từ khối Kế Toán (ktvatEsc_, ktvatFmt_, ktvatFmtDate_,
 // ktvatToDate_, ktvatSection_, ktvatAutoWidths_) thay vì viết lại.
 
@@ -22742,6 +22749,15 @@ const CC_EARLY_AM_THRESH = CC_STD_AM_OUT - CC_GRACE; // 11:55 - ra sớm hơn m�
 const CC_LATE_PM_THRESH = CC_STD_PM_IN + CC_GRACE;   // 13:35
 const CC_EARLY_PM_THRESH = CC_STD_PM_OUT - CC_GRACE; // 17:25
 const CC_CLEAN = new Set(['X', 'X:X']);
+// Mốc chia "giờ vào/ra buổi sáng" vs "buổi chiều" khi phân loại các lượt chấm trong ngày - đặt ở
+// GIỮA giờ nghỉ trưa (12:00 tan ca sáng - 13:30 vào ca chiều), KHÔNG đặt đúng 12:00 như bản cũ. Sửa
+// 2026-09-24 vì bản cũ dùng đúng mốc 12:00 làm ranh giới (t >= 12:00 => buổi chiều) khiến 1 lượt "ra"
+// đúng 12:00 giờ (rất hay gặp ở nhân viên làm CA SÁNG riêng ngày Thứ 7 - tan ca sáng đúng 12:00, cả
+// ngày không có lượt chấm chiều nào khác) bị xếp NHẦM vào buổi chiều, sau đó so sánh với chuẩn tan ca
+// 17:30 thay vì chuẩn tan ca sáng 12:00 => báo sai "về sớm" gần 5.5 tiếng (Tân phát hiện qua ca của
+// NV Cồ Thị Hải 326, 15/08/2026). Các ngày làm đủ cả ngày (vào sáng - ra trưa - vào chiều - ra chiều)
+// không bị ảnh hưởng vì luôn lấy MAX/MIN đúng của mỗi nửa ngày.
+const CC_HALF_DAY_SPLIT = 12 * 60 + 45; // 12:45 - giữa 12:00 và 13:30
 
 function ccLog(msg, type) {
   const el = document.getElementById('cc-log');
@@ -22854,13 +22870,13 @@ function ccBuildReport_(rows) {
 
     const ins = [rec.vao1, rec.vao2, rec.vao3].map(ccParseTimeToMin_).filter(t => t != null);
     const outs = [rec.ra1, rec.ra2, rec.ra3].map(ccParseTimeToMin_).filter(t => t != null);
-    const amInList = ins.filter(t => t < 12 * 60), pmInList = ins.filter(t => t >= 12 * 60);
+    const amInList = ins.filter(t => t < CC_HALF_DAY_SPLIT), pmInList = ins.filter(t => t >= CC_HALF_DAY_SPLIT);
     const amIn = amInList.length ? Math.min(...amInList) : null;
     const pmIn = pmInList.length ? Math.min(...pmInList) : null;
     // Giờ ra: lấy giờ MUỘN NHẤT trong mỗi nửa ngày (lần ra cuối cùng thực tế trước/sau nghỉ trưa) -
     // ngược với giờ vào (lấy SỚM NHẤT) - vì cần biết thời điểm rời đi thật sự cuối cùng, tránh nhầm
     // với 1 lượt ra/vào tạm giữa ca.
-    const amOutList = outs.filter(t => t < 12 * 60), pmOutList = outs.filter(t => t >= 12 * 60);
+    const amOutList = outs.filter(t => t < CC_HALF_DAY_SPLIT), pmOutList = outs.filter(t => t >= CC_HALF_DAY_SPLIT);
     const amOut = amOutList.length ? Math.max(...amOutList) : null;
     const pmOut = pmOutList.length ? Math.max(...pmOutList) : null;
 
@@ -22942,7 +22958,7 @@ function ccRenderReport_(r) {
       <li>Ca sáng: vào chuẩn 08:00 (chấm đến 08:05 vẫn tính đúng giờ), về nghỉ trưa chuẩn 12:00 (ra từ 11:55 trở đi vẫn tính đúng giờ).</li>
       <li>Ca chiều: vào chuẩn 13:30 (chấm đến 13:35 vẫn tính đúng giờ), tan ca chuẩn 17:30 (ra từ 17:25 trở đi vẫn tính đúng giờ).</li>
       <li>Ân hạn 5 phút áp dụng cho MỌI mốc giờ vào/ra trong ngày. Khi vượt ân hạn, số phút muộn/về sớm hiển thị tính từ MỐC ĐÃ TRỪ ÂN HẠN (không phải giờ chuẩn gốc) — ví dụ vào lúc 8:12 chỉ tính 7 phút muộn (8:12 - 8:05).</li>
-      <li>Thứ 7: tự nhận diện ca sáng/chiều theo giờ chấm công thực tế, không cố định.</li>
+      <li>Thứ 7: tự nhận diện ca sáng/chiều theo giờ chấm công thực tế trong ngày (không cố định cả 2 ca như ngày thường). Nhân viên chỉ chấm buổi sáng → chuẩn tan ca là 12:00 (không phải 17:30). Nhân viên chỉ chấm buổi chiều → chuẩn vào 13:30, chuẩn tan ca 17:30. Nhân viên chấm đủ cả 2 buổi thì tính như ngày thường.</li>
       <li>Chủ nhật và ngày ký hiệu "Off": ngày nghỉ theo lịch, không tính muộn/về sớm/nghỉ phép.</li>
       <li>Ký hiệu "V" (nghỉ nguyên ngày): tính 1 ngày nghỉ phép, không tính muộn/về sớm.</li>
       <li>Ngày chấm công thiếu/không rõ ca (KR, **, --...): tính là "quên chấm vân tay", không tự tính muộn/về sớm được, liệt kê ở mục 5 và 6 để kiểm tra tay.</li>
