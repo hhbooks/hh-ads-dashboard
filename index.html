@@ -2332,14 +2332,22 @@
       </div>
     </div>
 
-    <!-- SKU BỊ SHOPEE TỪ CHỐI (LỆCH GIÁ) → GOM DANH SÁCH SET QUA BOT SETTON — ĐỘC LẬP,
-         không lưu Firestore, không dùng chung state với TFM/TON, không ảnh hưởng luồng khác -->
+    <!-- SKU BỊ SHOPEE TỪ CHỐI (LỆCH GIÁ) → GOM DANH SÁCH SET QUA BOT SETTON.
+         Có dùng Firestore (collection skuloi_sent_log, doc id "{KHO}_{SKU}") để chống set trùng
+         giữa các shop/ca làm việc khác nhau trong 24h — xem khối SKULOI ở <script> phía dưới
+         (xác nhận Tân 2026-09-28). Không dùng chung state với TFM/TON. -->
     <div class="card" style="margin-top:18px;border-top:3px solid #d35400">
       <div class="card-title"><span class="dot" style="background:#d35400"></span> SKU Bị Shopee Từ Chối → SetTon</div>
       <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-        Dùng khi Shopee từ chối cập nhật tồn qua file mass (thường do lệch tỷ lệ giá biến thể &gt;5 lần, báo trong file Result). Tải lên các file <b>Result_shopee_mass_update...xlsx</b> (Shopee tự xuất sau khi xử lý file mass, có thể chọn nhiều file — nhiều shop cùng lúc) + file <b>tồn kho thật</b> (HN/SG, có thể chọn nhiều file). Hệ thống gom danh sách SKU bị lỗi (loại trùng giữa các shop), tra đúng số lượng theo kho, chia thành từng đợt để bạn copy dán vào chat bot SetTon.
+        Dùng khi Shopee từ chối cập nhật tồn qua file mass (thường do lệch tỷ lệ giá biến thể &gt;5 lần, báo trong file Result). Tải lên các file <b>Result_shopee_mass_update...xlsx</b> (Shopee tự xuất sau khi xử lý file mass, có thể chọn nhiều file — nhiều shop cùng lúc) + file <b>tồn kho thật</b> (HN/SG, có thể chọn nhiều file). Hệ thống gom danh sách SKU bị lỗi (loại trùng giữa các shop), tra đúng số lượng theo kho, tự động ẩn các mã đã được set qua SetTon trong 24h gần nhất (bởi shop khác), rồi chia thành từng đợt để bạn copy dán vào chat bot SetTon.
       </p>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
+        <div>
+          <label style="display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Shop đang set tồn</label>
+          <select id="skuloi-shop-select" onchange="skuloiSetShop(this.value)" style="height:34px;padding:0 10px;border:1px solid #ccc;border-radius:6px;font-size:12px;min-width:190px">
+            <option value="">— Chọn shop —</option>
+          </select>
+        </div>
         <div>
           <input type="file" id="skuloi-result-input" accept=".xlsx,.xls" multiple style="display:none" onchange="skuloiHandleResultFiles(this)">
           <button class="sw-upload-btn" onclick="document.getElementById('skuloi-result-input').click()">📂 1. Chọn File Result Shopee (nhiều file)</button>
@@ -2352,6 +2360,10 @@
       </div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:4px">File Result: <b id="skuloi-status-result">chưa chọn</b></div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:10px">File tồn: <b id="skuloi-status-ton">chưa chọn</b></div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);margin-bottom:10px;cursor:pointer">
+        <input type="checkbox" id="skuloi-skip-dedup" onchange="skuloiToggleSkipDedup(this.checked)">
+        Bỏ qua bộ lọc trùng — hiện &amp; set lại cả những SKU đã gửi SetTon trong 24h qua
+      </label>
       <div id="skuloi-log" class="drive-log"></div>
       <div id="skuloi-preview" style="display:none;margin-top:14px"></div>
     </div>
@@ -4296,6 +4308,7 @@ const db = firebase.firestore();
 window.addEventListener('DOMContentLoaded', () => {
   if (typeof renderAllShopFilterBars === 'function') renderAllShopFilterBars();
   if (typeof blLoadIfNeeded === 'function') blLoadIfNeeded();
+  if (typeof skuloiInitShopSelect === 'function') skuloiInitShopSelect();
   // Xử lý OAuth callback từ Shopee (nếu URL có ?code=xxx&shop_id=yyy)
   if (typeof sapiHandleCallback === 'function') sapiHandleCallback();
   // Tự load data ADS Tổng Quan/Tổng Hợp Hệ Thống — CHỈ còn từ Google Drive (xác nhận Tân
@@ -9120,8 +9133,12 @@ function tfmResetAll() {
 
 // ══════════════════════════════════════════════════════════════
 // SKULOI — SKU bị Shopee từ chối (lệch giá) → gom danh sách set qua bot SetTon.
-// ĐỘC LẬP hoàn toàn với TFM/TON — không share state, không lưu Firestore, chỉ tính
-// toán trong trình duyệt rồi xuất text để copy tay, không ghi/gọi API gì cả.
+// ĐỘC LẬP với TFM/TON — không share state với 2 khối đó. TỪ 2026-09-28 có dùng Firestore
+// (collection skuloi_sent_log, doc id "{KHO}_{SKU}") để chống set trùng 1 mã nhiều lần giữa các
+// shop/ca làm việc khác nhau — xác nhận Tân: cửa sổ chống trùng 24h, so khớp cả SỐ LƯỢNG (nếu
+// tồn đổi từ lần set trước thì KHÔNG coi là trùng, vẫn phải set lại), log lưu kèm shop đã gửi.
+// Dọn log hết hạn kiểu "lazy" ngay trong skuloiFetchDedupLog() mỗi lần tính toán — không cần
+// cấu hình TTL policy trên Firebase Console.
 // ══════════════════════════════════════════════════════════════
 
 const SKULOI = {
@@ -9133,7 +9150,17 @@ const SKULOI = {
   rows: [],                // ket qua tinh: [{ kho, sku, tenSp, qty, source }]
   notFound: [],             // SKU loi nhung khong co trong file ton da chon
   batchSize: 10,
+  selectedShop: '',         // shopId đang chọn ở dropdown — bắt buộc trước khi Copy Đợt
+  skipDedup: false,         // true = bỏ qua bộ lọc trùng, hiện & set lại cả SKU đã gửi trong 24h
+  dedupMap: new Map(),      // key: "{KHO}_{SKU}" -> { qty, shopName, sentAtMs } (log 24h gần nhất)
+  dedupLoaded: false,       // đã fetch xong dedupMap cho lần tính hiện tại chưa
+  activeRows: [],           // rows sau khi lọc trùng (hoặc = rows nếu skipDedup) — dùng để copy
+  skippedRows: [],          // rows bị lọc vì trùng — chỉ để hiển thị thông tin
+  batches: [],              // batch hiện tại, giữ nguyên object row (không chỉ text) để ghi log
 };
+
+const SKULOI_LOG_COLLECTION = 'skuloi_sent_log';
+const SKULOI_DEDUP_WINDOW_MS = 24 * 60 * 60 * 1000; // 24h — xác nhận Tân 2026-09-28
 
 function skuloiLog(msg, type) {
   const el = document.getElementById('skuloi-log');
@@ -9264,7 +9291,33 @@ function skuloiCheckReady() {
   }
 }
 
-function skuloiCompute() {
+// Đọc collection skuloi_sent_log, dọn (xoá) các log đã quá 24h ngay trong lúc đọc (thay cho TTL
+// policy trên Firebase Console — không cần bước cấu hình thủ công), trả về Map "{KHO}_{SKU}" ->
+// { qty, shopName, sentAtMs } chỉ gồm log còn trong hạn 24h (xác nhận Tân 2026-09-28).
+async function skuloiFetchDedupLog() {
+  const map = new Map();
+  try {
+    const snap = await db.collection(SKULOI_LOG_COLLECTION).get();
+    const now = Date.now();
+    const expiredDocs = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      const sentAtMs = Number(d.sentAtMs) || 0;
+      if (now - sentAtMs > SKULOI_DEDUP_WINDOW_MS) { expiredDocs.push(doc.ref); return; }
+      map.set(doc.id, { qty: d.qty, shopName: d.shopName || '', sentAtMs });
+    });
+    if (expiredDocs.length > 0) {
+      const cleanupBatch = db.batch();
+      expiredDocs.forEach(ref => cleanupBatch.delete(ref));
+      await cleanupBatch.commit();
+    }
+  } catch (err) {
+    skuloiLog(`⚠ Không đọc được log chống trùng SetTon (${err.message}) — tạm hiện tất cả, không lọc trùng.`, 'warn');
+  }
+  return map;
+}
+
+async function skuloiCompute() {
   const rows = [];
   const notFound = [];
   const skusSorted = [...SKULOI.failedMap.keys()].sort();
@@ -9285,6 +9338,10 @@ function skuloiCompute() {
   });
   SKULOI.rows = rows;
   SKULOI.notFound = notFound;
+  SKULOI.dedupLoaded = false;
+  skuloiRenderPreview();
+  SKULOI.dedupMap = await skuloiFetchDedupLog();
+  SKULOI.dedupLoaded = true;
   skuloiRenderPreview();
 }
 
@@ -9293,9 +9350,20 @@ function skuloiRenderPreview() {
   if (!el) return;
   el.style.display = 'block';
 
+  const dupKey = (r) => `${r.kho}_${r.sku}`;
+  const isDup = (r) => {
+    const d = SKULOI.dedupMap.get(dupKey(r));
+    return !!d && Number(d.qty) === Number(r.qty);
+  };
+  const skippedRows = SKULOI.dedupLoaded ? SKULOI.rows.filter(isDup) : [];
+  const activeRows = SKULOI.skipDedup ? SKULOI.rows : SKULOI.rows.filter(r => !isDup(r));
+  SKULOI.activeRows = activeRows;
+  SKULOI.skippedRows = skippedRows;
+
   const totalSku = SKULOI.failedMap.size;
-  const totalRows = SKULOI.rows.length;
+  const totalRows = activeRows.length;
   const totalNotFound = SKULOI.notFound.length;
+  const totalSkipped = skippedRows.length;
 
   const card = (label, val, color) => `<div style="background:white;border:2px solid ${color};border-radius:10px;padding:8px 14px;min-width:150px;text-align:center">
     <div style="font-size:10px;color:#777;font-weight:700;margin-bottom:2px">${label}</div>
@@ -9303,7 +9371,8 @@ function skuloiRenderPreview() {
   </div>`;
   const cards = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
     ${card('SKU LỖI (ĐÃ LOẠI TRÙNG)', totalSku, '#d35400')}
-    ${card('DÒNG KHO/SL TRA ĐƯỢC', totalRows, '#27ae60')}
+    ${card('DÒNG SẼ SET (KHO/SL)', totalRows, '#27ae60')}
+    ${card(SKULOI.dedupLoaded ? 'ĐÃ SET GẦN ĐÂY — BỎ QUA' : 'ĐANG KIỂM TRA TRÙNG…', totalSkipped, '#8e44ad')}
     ${card('SKU CHƯA CÓ TRONG FILE TỒN', totalNotFound, '#e74c3c')}
   </div>`;
 
@@ -9314,7 +9383,7 @@ function skuloiRenderPreview() {
       style="width:70px;padding:5px 8px;border:1px solid #ccc;border-radius:6px;font-size:12px">
   </div>`;
 
-  const rowsHtml = SKULOI.rows.map((r, i) => `<tr style="border-bottom:1px solid #f5e2cf">
+  const rowsHtml = activeRows.map((r, i) => `<tr style="border-bottom:1px solid #f5e2cf">
     <td style="padding:5px 10px;color:#999;text-align:center;font-size:11px">${i + 1}</td>
     <td style="padding:5px 10px;font-size:11px;font-weight:700;color:#d35400">${r.kho}</td>
     <td style="padding:5px 10px;font-size:11px">${r.sku}</td>
@@ -9326,6 +9395,15 @@ function skuloiRenderPreview() {
   const notFoundHtml = SKULOI.notFound.length > 0 ? `<div style="margin-top:14px;border:1px solid #e74c3c;border-radius:8px;padding:10px 14px;background:#fdf0ef">
     <div style="font-size:12px;font-weight:700;color:#c0392b;margin-bottom:6px">⚠ ${SKULOI.notFound.length} SKU không có trong file tồn đã chọn (cần bổ sung file tồn):</div>
     <div style="font-size:11px;color:#555;line-height:1.8">${SKULOI.notFound.map(f => f.sku + (f.tenSp ? ' — ' + f.tenSp : '')).join('<br>')}</div>
+  </div>` : '';
+
+  const skippedHtml = totalSkipped > 0 ? `<div style="margin-top:14px;border:1px solid #8e44ad;border-radius:8px;padding:10px 14px;background:#f6effa">
+    <div style="font-size:12px;font-weight:700;color:#8e44ad;margin-bottom:6px">🔁 ${totalSkipped} dòng đã được set qua SetTon trong 24h qua (bởi shop khác)${SKULOI.skipDedup ? ' — vẫn hiện & sẽ set lại vì đang bật "bỏ qua bộ lọc trùng"' : ' — đã tự động bỏ qua, không đưa vào các đợt copy bên dưới'}:</div>
+    <div style="font-size:11px;color:#555;line-height:1.8">${skippedRows.map(r => {
+      const d = SKULOI.dedupMap.get(dupKey(r));
+      const timeAgo = d ? Math.round((Date.now() - d.sentAtMs) / 3600000) : '?';
+      return `${r.kho} ${r.sku} (SL ${r.qty}) — đã gửi bởi <b>${d ? d.shopName : '?'}</b> ~${timeAgo}h trước`;
+    }).join('<br>')}</div>
   </div>` : '';
 
   const thStyle = 'padding:6px 10px;position:sticky;top:0;z-index:1;background:#d35400;color:white';
@@ -9343,28 +9421,32 @@ function skuloiRenderPreview() {
     </table>
   </div>`;
 
-  el.innerHTML = cards + batchInput + table + notFoundHtml + `<div id="skuloi-batches" style="margin-top:16px"></div>`;
+  el.innerHTML = cards + batchInput + table + skippedHtml + notFoundHtml + `<div id="skuloi-batches" style="margin-top:16px"></div>`;
   skuloiRenderBatches();
 }
 
 function skuloiRenderBatches() {
   const el = document.getElementById('skuloi-batches');
   if (!el) return;
-  const lines = SKULOI.rows.map(r => `${r.kho} ${r.sku} ${r.qty}`);
-  if (lines.length === 0) { el.innerHTML = ''; return; }
+  const rows = SKULOI.activeRows || [];
+  if (rows.length === 0) { el.innerHTML = ''; SKULOI.batches = []; return; }
   const size = SKULOI.batchSize > 0 ? SKULOI.batchSize : 10;
   const batches = [];
-  for (let i = 0; i < lines.length; i += size) batches.push(lines.slice(i, i + size));
+  for (let i = 0; i < rows.length; i += size) batches.push(rows.slice(i, i + size));
+  SKULOI.batches = batches; // giữ nguyên object row (không chỉ text) để dùng khi ghi log Firestore
 
-  el.innerHTML = batches.map((batch, i) => `
+  el.innerHTML = batches.map((batch, i) => {
+    const lines = batch.map(r => `${r.kho} ${r.sku} ${r.qty}`);
+    return `
     <div style="margin-bottom:12px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
         <span style="font-size:12px;font-weight:700;color:#d35400">Đợt ${i + 1}/${batches.length} (${batch.length} dòng)</span>
         <button onclick="skuloiCopyBatch(${i})" style="padding:4px 12px;border:1px solid #d35400;color:#d35400;background:white;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">📋 Copy Đợt ${i + 1}</button>
       </div>
-      <textarea id="skuloi-batch-text-${i}" readonly style="width:100%;box-sizing:border-box;min-height:${Math.min(batch.length, 12) * 20 + 16}px;font-family:monospace;font-size:12px;padding:8px;border:1px solid #e0c19a;border-radius:6px;background:#fffaf3">${batch.join('\n')}</textarea>
+      <textarea id="skuloi-batch-text-${i}" readonly style="width:100%;box-sizing:border-box;min-height:${Math.min(batch.length, 12) * 20 + 16}px;font-family:monospace;font-size:12px;padding:8px;border:1px solid #e0c19a;border-radius:6px;background:#fffaf3">${lines.join('\n')}</textarea>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function skuloiSetBatchSize(val) {
@@ -9373,7 +9455,12 @@ function skuloiSetBatchSize(val) {
   skuloiRenderBatches();
 }
 
-function skuloiCopyBatch(i) {
+async function skuloiCopyBatch(i) {
+  if (!SKULOI.selectedShop) {
+    alert('⚠ Vui lòng chọn Shop đang set tồn ở dropdown trước khi Copy (để hệ thống ghi log chống trùng đúng shop).');
+    document.getElementById('skuloi-shop-select')?.focus();
+    return;
+  }
   const el = document.getElementById(`skuloi-batch-text-${i}`);
   if (!el) return;
   el.select();
@@ -9384,6 +9471,24 @@ function skuloiCopyBatch(i) {
   } else {
     document.execCommand('copy'); doAlert();
   }
+  // Ghi log "đã gửi SetTon" cho các dòng trong đợt này, để các shop khác lọc trùng trong 24h tới
+  // (xác nhận Tân 2026-09-28) — chạy song song, không chặn thao tác copy nếu ghi log lỗi.
+  skuloiLogBatchSent(i).catch(err => skuloiLog(`⚠ Copy OK nhưng ghi log chống trùng lỗi (${err.message}) — SKU đợt này có thể vẫn bị set trùng lần sau.`, 'warn'));
+}
+
+async function skuloiLogBatchSent(i) {
+  const batch = (SKULOI.batches || [])[i];
+  if (!batch || batch.length === 0) return;
+  const shopName = (SHOPS[SKULOI.selectedShop] && SHOPS[SKULOI.selectedShop].name) || SKULOI.selectedShop;
+  const sentAtMs = Date.now();
+  const fsBatch = db.batch();
+  batch.forEach(r => {
+    const docId = `${r.kho}_${r.sku}`;
+    const ref = db.collection(SKULOI_LOG_COLLECTION).doc(docId);
+    fsBatch.set(ref, { kho: r.kho, sku: r.sku, qty: r.qty, shopId: SKULOI.selectedShop, shopName, sentAtMs });
+    SKULOI.dedupMap.set(docId, { qty: r.qty, shopName, sentAtMs }); // cập nhật cache local luôn
+  });
+  await fsBatch.commit();
 }
 
 function skuloiResetAll() {
@@ -9394,6 +9499,15 @@ function skuloiResetAll() {
   SKULOI.tonSg = new Map();
   SKULOI.rows = [];
   SKULOI.notFound = [];
+  SKULOI.activeRows = [];
+  SKULOI.skippedRows = [];
+  SKULOI.batches = [];
+  SKULOI.dedupMap = new Map();
+  SKULOI.dedupLoaded = false;
+  SKULOI.skipDedup = false;
+  // Giữ nguyên SKULOI.selectedShop — 1 ca thường vẫn đang set cho đúng shop đó, không bắt chọn lại.
+  const skipEl = document.getElementById('skuloi-skip-dedup');
+  if (skipEl) skipEl.checked = false;
   ['skuloi-status-result', 'skuloi-status-ton'].forEach(id => {
     const e = document.getElementById(id); if (e) e.textContent = 'chưa chọn';
   });
@@ -9401,6 +9515,23 @@ function skuloiResetAll() {
   if (logEl) { logEl.innerHTML = ''; logEl.classList.remove('visible'); }
   const prevEl = document.getElementById('skuloi-preview');
   if (prevEl) { prevEl.innerHTML = ''; prevEl.style.display = 'none'; }
+}
+
+function skuloiSetShop(shopId) {
+  SKULOI.selectedShop = shopId || '';
+}
+
+function skuloiToggleSkipDedup(checked) {
+  SKULOI.skipDedup = !!checked;
+  if (SKULOI.rows.length > 0) skuloiRenderPreview(); // chỉ vẽ lại, không cần fetch lại Firestore
+}
+
+function skuloiInitShopSelect() {
+  const sel = document.getElementById('skuloi-shop-select');
+  if (!sel || sel.dataset.inited) return;
+  sel.innerHTML = '<option value="">— Chọn shop —</option>' +
+    Object.entries(SHOPS).map(([id, s]) => `<option value="${id}">${s.icon} ${s.name}</option>`).join('');
+  sel.dataset.inited = '1';
 }
 
 // ══════════════════════════════════════════════════════════════
