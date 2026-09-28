@@ -9234,7 +9234,8 @@ function tfmResetAll() {
 let DKD = {
   orderItems: [], orderFileName: '',
   finalItems: [], finalFileName: '',
-  missingRows: [],
+  missingRows: [], matchedRows: [], allRows: [],
+  filter: null, // 'all' | 'ok' | 'missing' — bam vao card de doi, null = chua tinh lan nao
 };
 
 function dkdLog(msg, type) {
@@ -9335,16 +9336,33 @@ function dkdCheckReady() {
 }
 
 function dkdCompute() {
-  const finalKeys = new Set(DKD.finalItems.map(it => it.key));
+  const finalByKey = new Map(DKD.finalItems.map(it => [it.key, it]));
   DKD.missingRows = [];
+  DKD.matchedRows = [];
+  DKD.allRows = [];
   for (const it of DKD.orderItems) {
-    if (finalKeys.has(it.key)) continue;
-    let reason;
-    if (!it.desc) reason = 'Không có trong catalogue Deli';
-    else if (typeof it.ton === 'number' && it.ton <= 0) reason = 'Hết hàng — tồn Deli ≤ 0';
-    else reason = 'Deli từ chối (không rõ lý do)';
-    DKD.missingRows.push({ ...it, reason });
+    const finalIt = finalByKey.get(it.key);
+    if (finalIt) {
+      const row = { ...it, status: 'ok', finalSl: finalIt.sl, finalTon: finalIt.ton, finalDesc: finalIt.desc };
+      DKD.matchedRows.push(row);
+      DKD.allRows.push(row);
+    } else {
+      let reason;
+      if (!it.desc) reason = 'Không có trong catalogue Deli';
+      else if (typeof it.ton === 'number' && it.ton <= 0) reason = 'Hết hàng — tồn Deli ≤ 0';
+      else reason = 'Deli từ chối (không rõ lý do)';
+      const row = { ...it, status: 'missing', reason };
+      DKD.missingRows.push(row);
+      DKD.allRows.push(row);
+    }
   }
+  if (!DKD.filter) DKD.filter = DKD.missingRows.length ? 'missing' : 'all';
+  dkdRenderResult();
+}
+
+// Bấm vào 1 trong 3 card (Tổng SKU đã đặt / Deli đáp ứng / Không đáp ứng) để lọc bảng bên dưới.
+function dkdSetFilter(f) {
+  DKD.filter = f;
   dkdRenderResult();
 }
 
@@ -9353,7 +9371,9 @@ function dkdRenderResult() {
   const btn = document.getElementById('dkd-export-btn');
   if (!el) return;
   const total = DKD.orderItems.length;
+  if (!total) { el.style.display = 'none'; el.innerHTML = ''; return; }
   const missing = DKD.missingRows;
+  const matched = DKD.matchedRows;
   const cnt = { catalog: 0, outofstock: 0, other: 0 };
   missing.forEach(r => {
     if (r.reason === 'Không có trong catalogue Deli') cnt.catalog++;
@@ -9363,52 +9383,60 @@ function dkdRenderResult() {
 
   if (btn) btn.style.display = missing.length ? 'inline-flex' : 'none';
 
-  const card = (label, val, color) => `<div style="background:white;border:2px solid ${color};border-radius:10px;padding:8px 14px;min-width:120px;text-align:center">
-    <div style="font-size:10px;color:#777;font-weight:700;margin-bottom:2px">${label}</div>
-    <div style="font-size:24px;font-weight:800;color:${color}">${val}</div>
-  </div>`;
+  const f = DKD.filter || (missing.length ? 'missing' : 'all');
+  // Card giờ là nút bấm — cỡ chữ tăng lên để dễ nhìn, card đang chọn tô đậm màu nền.
+  const cardBtn = (key, label, val, color) => `<button type="button" onclick="dkdSetFilter('${key}')" style="cursor:pointer;font-family:inherit;background:${f === key ? color : 'white'};border:2px solid ${color};border-radius:10px;padding:10px 18px;min-width:150px;text-align:center">
+    <div style="font-size:13px;color:${f === key ? 'white' : '#777'};font-weight:700;margin-bottom:3px">${label}</div>
+    <div style="font-size:30px;font-weight:800;color:${f === key ? 'white' : color}">${val}</div>
+  </button>`;
   const cards = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-    ${card('TỔNG SKU ĐÃ ĐẶT', total, '#555')}
-    ${card('DELI ĐÁP ỨNG', total - missing.length, '#27ae60')}
-    ${card('KHÔNG ĐÁP ỨNG', missing.length, '#d35400')}
+    ${cardBtn('all', 'TỔNG SKU ĐÃ ĐẶT', total, '#555')}
+    ${cardBtn('ok', 'DELI ĐÁP ỨNG', matched.length, '#27ae60')}
+    ${cardBtn('missing', 'KHÔNG ĐÁP ỨNG', missing.length, '#d35400')}
   </div>`;
 
-  if (!missing.length) {
+  const statusBadge = (r) => r.status === 'ok'
+    ? `<span style="background:#e8f8f0;color:#27ae60;border-radius:4px;padding:4px 12px;font-size:14px;font-weight:600">✅ Đáp ứng</span>`
+    : ({
+        'Không có trong catalogue Deli': `<span style="background:#fdf0ef;color:#e74c3c;border-radius:4px;padding:4px 12px;font-size:14px;font-weight:600">✗ Không có trong catalogue</span>`,
+        'Hết hàng — tồn Deli ≤ 0': `<span style="background:#fef9e7;color:#e67e22;border-radius:4px;padding:4px 12px;font-size:14px;font-weight:600">⚠ Hết hàng</span>`,
+      }[r.reason] || `<span style="background:#f2f2f2;color:#777;border-radius:4px;padding:4px 12px;font-size:14px;font-weight:600">? Không rõ lý do</span>`);
+
+  const rowsToShow = f === 'ok' ? matched : f === 'missing' ? missing : DKD.allRows;
+
+  if (!rowsToShow.length) {
     el.style.display = 'block';
-    el.innerHTML = cards + `<div style="color:#27ae60;font-size:13px;font-weight:600;padding:6px 0">✅ Deli đáp ứng đủ toàn bộ ${total} SKU trong Đơn Nháp.</div>`;
+    el.innerHTML = cards + `<div style="color:#27ae60;font-size:16px;font-weight:600;padding:10px 0">✅ ${f === 'missing' ? `Deli đáp ứng đủ toàn bộ ${total} SKU trong Đơn Nháp.` : 'Không có dòng nào ở mục này.'}</div>`;
     return;
   }
 
-  const reasonBadge = (r) => ({
-    'Không có trong catalogue Deli': `<span style="background:#fdf0ef;color:#e74c3c;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600">✗ Không có trong catalogue</span>`,
-    'Hết hàng — tồn Deli ≤ 0': `<span style="background:#fef9e7;color:#e67e22;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600">⚠ Hết hàng</span>`,
-  }[r] || `<span style="background:#f2f2f2;color:#777;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600">? Không rõ lý do</span>`);
-
-  const trs = missing.map((r, i) => `<tr style="border-bottom:1px solid #f0e0d0">
-      <td style="padding:5px 10px;color:#999;text-align:center;font-size:11px">${i + 1}</td>
-      <td style="padding:5px 10px;color:#555;font-size:11px">${r.onlineCode || r.code || '—'}</td>
-      <td style="padding:5px 10px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px" title="${(r.desc || '').replace(/"/g, '&quot;')}">${r.desc || '—'}</td>
-      <td style="padding:5px 10px;text-align:center;font-size:12px">${r.sl}</td>
-      <td style="padding:5px 10px;text-align:center;font-size:12px">${r.ton != null ? r.ton : '—'}</td>
-      <td style="padding:5px 10px;white-space:nowrap">${reasonBadge(r.reason)}</td>
+  const trs = rowsToShow.map((r, i) => `<tr style="border-bottom:1px solid #f0e0d0">
+      <td style="padding:9px 12px;color:#999;text-align:center;font-size:15px">${i + 1}</td>
+      <td style="padding:9px 12px;color:#555;font-size:15px">${r.onlineCode || r.code || '—'}</td>
+      <td style="padding:9px 12px;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px" title="${(r.desc || r.finalDesc || '').replace(/"/g, '&quot;')}">${r.desc || r.finalDesc || '—'}</td>
+      <td style="padding:9px 12px;text-align:center;font-size:15px">${r.sl}</td>
+      <td style="padding:9px 12px;text-align:center;font-size:15px">${r.status === 'ok' ? (r.finalSl != null ? r.finalSl : '—') : '—'}</td>
+      <td style="padding:9px 12px;text-align:center;font-size:15px">${r.status === 'ok' ? (r.finalTon != null ? r.finalTon : '—') : (r.ton != null ? r.ton : '—')}</td>
+      <td style="padding:9px 12px;white-space:nowrap">${statusBadge(r)}</td>
     </tr>`).join('');
 
-  const table = `<div style="overflow-x:auto;max-height:420px;overflow-y:auto;border:1px solid #f0c9a8;border-radius:8px">
-    <table style="font-size:12px;border-collapse:collapse;width:100%">
+  const table = `<div style="overflow-x:auto;max-height:460px;overflow-y:auto;border:1px solid #f0c9a8;border-radius:8px">
+    <table style="font-size:15px;border-collapse:collapse;width:100%">
       <thead><tr>
-        <th style="padding:6px 10px;white-space:nowrap;font-weight:600;background:#d35400;color:white;position:sticky;top:0">#</th>
-        <th style="padding:6px 10px;white-space:nowrap;font-weight:600;background:#d35400;color:white;position:sticky;top:0;text-align:left">Mã SKU</th>
-        <th style="padding:6px 10px;white-space:nowrap;font-weight:600;background:#d35400;color:white;position:sticky;top:0;text-align:left">Tên Sản Phẩm</th>
-        <th style="padding:6px 10px;white-space:nowrap;font-weight:600;background:#d35400;color:white;position:sticky;top:0">SL Đã Đặt</th>
-        <th style="padding:6px 10px;white-space:nowrap;font-weight:600;background:#d35400;color:white;position:sticky;top:0">Tồn Deli</th>
-        <th style="padding:6px 10px;white-space:nowrap;font-weight:600;background:#d35400;color:white;position:sticky;top:0">Lý Do</th>
+        <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0">#</th>
+        <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0;text-align:left">Mã SKU</th>
+        <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0;text-align:left">Tên Sản Phẩm</th>
+        <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0">SL Đã Đặt</th>
+        <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0">SL Deli Đáp Ứng</th>
+        <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0">Tồn Deli</th>
+        <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0">Trạng Thái</th>
       </tr></thead>
       <tbody>${trs}</tbody>
     </table>
   </div>`;
 
   el.style.display = 'block';
-  el.innerHTML = cards + `<div style="font-size:11px;color:#999;margin-bottom:8px">Không có trong catalogue: ${cnt.catalog} · Hết hàng: ${cnt.outofstock} · Không rõ lý do: ${cnt.other}</div>` + table;
+  el.innerHTML = cards + `<div style="font-size:13px;color:#888;margin-bottom:10px">Không có trong catalogue: ${cnt.catalog} · Hết hàng: ${cnt.outofstock} · Không rõ lý do: ${cnt.other}</div>` + table;
 }
 
 function dkdExportFile() {
@@ -9429,7 +9457,7 @@ function dkdExportFile() {
 function dkdResetAll() {
   DKD.orderItems = []; DKD.orderFileName = '';
   DKD.finalItems = []; DKD.finalFileName = '';
-  DKD.missingRows = [];
+  DKD.missingRows = []; DKD.matchedRows = []; DKD.allRows = []; DKD.filter = null;
   ['dkd-status-order', 'dkd-status-final'].forEach(id => {
     const el = document.getElementById(id); if (el) el.textContent = 'chưa chọn';
   });
