@@ -9100,6 +9100,28 @@ function tfmComputeStockForRow(maPhanLoaiKey, fallbackSku, maSpKey, tenPhanLoai,
   return tryComps(comps);
 }
 
+function tfmDeriveShopLabel(khoCols) {
+  // Suy ra tên shop/kho từ tên cột "Số lượng:<tên>" bằng cách cắt bỏ phần địa danh ở đầu/cuối.
+  // Ví dụ: "Huy Hoàng HN" + "Huy Hoàng HCM" → "Huy Hoàng", "VPP Hà Nội" → "VPP". Xác nhận Tân 2026-09-28.
+  const LOC_WORDS = ['tp\\.?\\s*hcm', 'hcm', 'hà nội', 'ha noi', 'hn', 'hồ chí minh', 'ho chi minh', 'sài gòn', 'sai gon'];
+  const stripLoc = (s) => {
+    let t = String(s || '').trim();
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const w of LOC_WORDS) {
+        const reStart = new RegExp('^\\s*' + w + '\\b[\\s:\\-]*', 'i');
+        const reEnd   = new RegExp('[\\s:\\-]*\\b' + w + '\\s*$', 'i');
+        if (reStart.test(t)) { t = t.replace(reStart, ''); changed = true; }
+        if (reEnd.test(t))   { t = t.replace(reEnd, ''); changed = true; }
+      }
+    }
+    return t.trim();
+  };
+  const labels = [...new Set((khoCols || []).map(kc => stripLoc(kc.whName)).filter(Boolean))];
+  return labels.length ? labels.join('-') : ((khoCols && khoCols[0] && khoCols[0].whName) || 'File');
+}
+
 async function tfmExportFile() {
   if (!TFM.massFiles.length || !TFM.kho || TFM.tonMap.size === 0) { tfmLog('⚠ Chưa đủ dữ liệu để xuất file', 'warn'); return; }
   if (!SHARED.saleworkMap) { tfmLog('⚠ Chưa có Map Salework — vào mục Tổng Quan Tồn Kho để tải file Map Salework', 'warn'); return; }
@@ -9107,6 +9129,7 @@ async function tfmExportFile() {
 
   const khoLabel = TFM.kho === 'dual' ? 'HN_HCM' : TFM.kho.toUpperCase();
   const isDual = TFM.kho === 'dual';
+  const usedNames = new Set(); // chống trùng tên file khi suy ra shop label giống nhau — xác nhận Tân 2026-09-28
   let fileIdx = 0;
   for (const entry of TFM.massFiles) {
     const ws = entry.ws;
@@ -9143,8 +9166,11 @@ async function tfmExportFile() {
       });
     }
 
-    const baseName = entry.fileName.replace(/\.(xlsx|xls)$/i, '');
-    const outName = `${baseName}_Final.xlsx`;
+    const shopLabel = tfmDeriveShopLabel(entry.khoCols);
+    let outName = `${shopLabel}_Final.xlsx`;
+    let dupIdx = 2;
+    while (usedNames.has(outName)) { outName = `${shopLabel}_${dupIdx}_Final.xlsx`; dupIdx++; }
+    usedNames.add(outName);
     if (fileIdx > 0) await new Promise(res => setTimeout(res, 300));
     XLSX.writeFile(entry.wb, outName);
     tfmLog(`📤 Đã xuất "${outName}" — Kho ${khoLabel}: ${matched} khớp Map SW, ${fallback} khớp dự phòng SKU, ${skipped} không có trong file tồn (giữ nguyên), ${notInMap} không tìm thấy mã SW (giữ nguyên).`, 'ok');
