@@ -9392,6 +9392,11 @@ function dkdRenderResult() {
     <div style="font-size:13px;color:${f === key ? 'white' : '#777'};font-weight:700;margin-bottom:3px">${label}</div>
     <div style="font-size:30px;font-weight:800;color:${f === key ? 'white' : color}">${val}</div>
   </button>`;
+  const tongSlDapUng = matched.reduce((s, r) => s + (typeof r.finalSl === 'number' ? r.finalSl : 0), 0);
+  const slCard = `<div style="background:white;border:2px solid #8e44ad;border-radius:10px;padding:10px 18px;min-width:170px;text-align:center">
+    <div style="font-size:13px;color:#777;font-weight:700;margin-bottom:3px">TỔNG SỐ LƯỢNG ĐÁP ỨNG</div>
+    <div style="font-size:30px;font-weight:800;color:#8e44ad">${tongSlDapUng.toLocaleString('vi-VN')}</div>
+  </div>`;
   const tongTienDapUng = matched.reduce((s, r) => s + (typeof r.finalTotal === 'number' ? r.finalTotal : 0), 0);
   const moneyCard = `<div style="background:white;border:2px solid #2980b9;border-radius:10px;padding:10px 18px;min-width:190px;text-align:center">
     <div style="font-size:13px;color:#777;font-weight:700;margin-bottom:3px">TỔNG TIỀN ĐÁP ỨNG</div>
@@ -9401,6 +9406,7 @@ function dkdRenderResult() {
     ${cardBtn('all', 'TỔNG SKU ĐÃ ĐẶT', total, '#555')}
     ${cardBtn('ok', 'DELI ĐÁP ỨNG', matched.length, '#27ae60')}
     ${cardBtn('missing', 'KHÔNG ĐÁP ỨNG', missing.length, '#d35400')}
+    ${slCard}
     ${moneyCard}
   </div>`;
 
