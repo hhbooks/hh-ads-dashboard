@@ -9267,6 +9267,7 @@ function dkdParseSheet(wb) {
     desc: findCol('Description'),
     sl: findCol('SL Đáp ứng'),
     ton: findCol('Tồn'),
+    total: findCol('Total'),
   };
   if (idx.sl === -1) throw new Error('Không tìm thấy cột "SL Đáp ứng"');
   if (idx.code === -1 && idx.onlineCode === -1) throw new Error('Không tìm thấy cột "Code"/"Online Code" để đối chiếu SKU');
@@ -9284,7 +9285,9 @@ function dkdParseSheet(wb) {
     const desc = (descRaw != null && String(descRaw).trim() !== '' && String(descRaw).trim() !== '#N/A') ? String(descRaw).trim() : '';
     const tonRaw = idx.ton !== -1 ? r[idx.ton] : null;
     const ton = typeof tonRaw === 'number' ? tonRaw : null;
-    items.push({ key, code, onlineCode, desc, sl, ton });
+    const totalRaw = idx.total !== -1 ? r[idx.total] : null;
+    const total = typeof totalRaw === 'number' ? totalRaw : null;
+    items.push({ key, code, onlineCode, desc, sl, ton, total });
   }
   return items;
 }
@@ -9343,7 +9346,7 @@ function dkdCompute() {
   for (const it of DKD.orderItems) {
     const finalIt = finalByKey.get(it.key);
     if (finalIt) {
-      const row = { ...it, status: 'ok', finalSl: finalIt.sl, finalTon: finalIt.ton, finalDesc: finalIt.desc };
+      const row = { ...it, status: 'ok', finalSl: finalIt.sl, finalTon: finalIt.ton, finalDesc: finalIt.desc, finalTotal: finalIt.total };
       DKD.matchedRows.push(row);
       DKD.allRows.push(row);
     } else {
@@ -9389,10 +9392,16 @@ function dkdRenderResult() {
     <div style="font-size:13px;color:${f === key ? 'white' : '#777'};font-weight:700;margin-bottom:3px">${label}</div>
     <div style="font-size:30px;font-weight:800;color:${f === key ? 'white' : color}">${val}</div>
   </button>`;
+  const tongTienDapUng = matched.reduce((s, r) => s + (typeof r.finalTotal === 'number' ? r.finalTotal : 0), 0);
+  const moneyCard = `<div style="background:white;border:2px solid #2980b9;border-radius:10px;padding:10px 18px;min-width:190px;text-align:center">
+    <div style="font-size:13px;color:#777;font-weight:700;margin-bottom:3px">TỔNG TIỀN ĐÁP ỨNG</div>
+    <div style="font-size:26px;font-weight:800;color:#2980b9">${Math.round(tongTienDapUng).toLocaleString('vi-VN')}đ</div>
+  </div>`;
   const cards = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
     ${cardBtn('all', 'TỔNG SKU ĐÃ ĐẶT', total, '#555')}
     ${cardBtn('ok', 'DELI ĐÁP ỨNG', matched.length, '#27ae60')}
     ${cardBtn('missing', 'KHÔNG ĐÁP ỨNG', missing.length, '#d35400')}
+    ${moneyCard}
   </div>`;
 
   const statusBadge = (r) => r.status === 'ok'
@@ -9417,6 +9426,7 @@ function dkdRenderResult() {
       <td style="padding:9px 12px;text-align:center;font-size:15px">${r.sl}</td>
       <td style="padding:9px 12px;text-align:center;font-size:15px">${r.status === 'ok' ? (r.finalSl != null ? r.finalSl : '—') : '—'}</td>
       <td style="padding:9px 12px;text-align:center;font-size:15px">${r.status === 'ok' ? (r.finalTon != null ? r.finalTon : '—') : (r.ton != null ? r.ton : '—')}</td>
+      <td style="padding:9px 12px;text-align:right;font-size:15px">${r.status === 'ok' && typeof r.finalTotal === 'number' ? Math.round(r.finalTotal).toLocaleString('vi-VN') + 'đ' : '—'}</td>
       <td style="padding:9px 12px;white-space:nowrap">${statusBadge(r)}</td>
     </tr>`).join('');
 
@@ -9429,6 +9439,7 @@ function dkdRenderResult() {
         <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0">SL Đã Đặt</th>
         <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0">SL Deli Đáp Ứng</th>
         <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0">Tồn Deli</th>
+        <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0;text-align:right">Thành Tiền</th>
         <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0">Trạng Thái</th>
       </tr></thead>
       <tbody>${trs}</tbody>
