@@ -9903,14 +9903,23 @@ async function dhdSaveEdit(sku) {
 function dhdExportFile() {
   const rows = (DHD._lastRows || []).filter(r => r.isActive && r.deXuat > 0);
   if (!rows.length) { dhdLog('⚠ Chưa có mã nào cần đặt để xuất', 'warn'); return; }
-  const aoa = [['STT', 'Mã SKU', 'Tên Hàng', 'Số Lượng Cần Đặt']];
-  rows.forEach((r, i) => aoa.push([i + 1, r.sku, r.tenHang, r.deXuat]));
+  // Số Lượng Cần Đặt trong bảng làm việc luôn tính theo CÁI (khớp Yêu Cầu Tồn/Tuần). Khi xuất
+  // file để anh dùng đặt hàng thật, quy đổi NGƯỢC lại đúng Đơn Vị Tính đã khai báo cho từng mã
+  // (Hộp/Thùng) — làm tròn LÊN để không đặt thiếu. Mã "Cái" giữ nguyên số, không quy đổi.
+  // Xác nhận Tân 2026-09-30 (yêu cầu thêm cột Đơn Vị Tính sau khi xem lại file đáp ứng Deli).
+  const aoa = [['STT', 'Mã SKU', 'Tên Hàng', 'Đơn Vị Tính', 'Số Lượng Cần Đặt']];
+  rows.forEach((r, i) => {
+    const donVi = r.donVi || 'Cái';
+    const quyCach = typeof r.quyCach === 'number' && r.quyCach > 0 ? r.quyCach : 1;
+    const slXuat = donVi === 'Cái' ? r.deXuat : Math.ceil(r.deXuat / quyCach);
+    aoa.push([i + 1, r.sku, r.tenHang, donVi, slXuat]);
+  });
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Can Dat Hang Deli');
   const outName = `DonDeXuat_Deli_${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, outName);
-  dhdLog(`📤 Đã xuất "${outName}" — ${rows.length} mã cần đặt, tổng SL ${rows.reduce((s, r) => s + r.deXuat, 0).toLocaleString('vi-VN')}`, 'ok');
+  dhdLog(`📤 Đã xuất "${outName}" — ${rows.length} mã cần đặt (SL đã quy đổi đúng Đơn Vị Tính từng mã).`, 'ok');
 }
 
 function dhdExportMaster() {
