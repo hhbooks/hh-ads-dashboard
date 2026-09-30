@@ -2646,6 +2646,46 @@
       </div>
     </div>
 
+    <!-- ĐẶT HÀNG DELI — BẢNG STOCK — dùng Firestore (collection 'deli_stock', doc id = Mã SKU) để
+         lưu dữ liệu gốc từng mã lâu dài (Đơn Vị/Quy Cách/Yêu Cầu Tồn/Tuần/Trạng Thái/Ghi Chú) — xác
+         nhận Tân qua trao đổi 2026-09-30, xây trên nền 586 mã Tân tự khai qua file Excel "Bảng
+         Stock Deli". Quy trình: (1) Nhập/Cập Nhật Bảng Stock Gốc — import qua Excel, GHI ĐÈ toàn
+         bộ field của các mã có trong file (dùng khi khai báo lần đầu hoặc sửa hàng loạt). (2) Đẩy
+         File Tồn Kho Mới ("Tổng hợp nhập xuất tồn kho.xlsx") — CHỈ cập nhật Tồn Hiện Tại cho mã đã
+         có trong Bảng Stock; mã lạ KHÔNG tự thêm, đưa vào danh sách chờ Tân khai báo thủ công (để
+         tránh lẫn hàng thương hiệu khác như Bossee — xác nhận Tân 2026-09-30, ví dụ BOSE-3119 bị
+         loại khỏi phạm vi Deli). Số lượng đề xuất đặt = MAX(0, Yêu Cầu Tồn/Tuần − Tồn Quy Đổi Ra
+         Cái), chỉ tính cho mã Trạng Thái = "Đang nhập bình thường". File xuất ra hiện là danh sách
+         đơn giản (Mã SKU/Tên hàng/SL cần đặt) — CHƯA phải đúng khuôn báo giá Deli (thiếu Code/SAP/
+         Quy cách đóng thùng/Đơn giá — xác nhận Tân 2026-09-30, làm sau khi cần). -->
+    <div class="card" style="margin-top:18px;border-top:3px solid #16a085">
+      <div class="card-title"><span class="dot" style="background:#16a085"></span> Đặt Hàng Deli — Bảng Stock</div>
+      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
+        Lưu dữ liệu gốc từng mã Deli (Đơn Vị/Quy Cách đóng gói/Yêu Cầu Tồn mỗi Tuần/Trạng Thái) lâu dài trên Dashboard. Mỗi lần đẩy file <b>"Tổng hợp nhập xuất tồn kho"</b> mới, hệ thống tự khớp mã, cập nhật tồn và tính ra danh sách mã cần đặt hàng đợt tới.
+      </p>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+        <div>
+          <input type="file" id="dhd-master-input" accept=".xlsx,.xls" style="display:none" onchange="dhdHandleMasterFile(this)">
+          <button class="sw-upload-btn" onclick="document.getElementById('dhd-master-input').click()">📂 Nhập/Cập Nhật Bảng Stock Gốc</button>
+        </div>
+        <div>
+          <input type="file" id="dhd-ton-input" accept=".xlsx,.xls" style="display:none" onchange="dhdHandleTonFile(this)">
+          <button class="sw-upload-btn" onclick="document.getElementById('dhd-ton-input').click()">📂 Đẩy File Tồn Kho Mới</button>
+        </div>
+        <button onclick="dhdLoadFromFirestore()" style="padding:6px 14px;border:1px solid var(--text);color:var(--text);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 Tải Lại Bảng Stock</button>
+        <button onclick="dhdExportMaster()" style="padding:6px 14px;border:1px solid var(--text);color:var(--text);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">📥 Xuất Bảng Stock Hiện Tại</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Bảng Stock gốc: <b id="dhd-status-master">chưa tải</b></div>
+
+      <div id="dhd-newsku" style="display:none;background:#fdecea;border:1px solid #f1a9a0;border-radius:8px;padding:12px 14px;margin-bottom:14px"></div>
+
+      <div id="dhd-log" class="drive-log"></div>
+      <div id="dhd-result" style="display:none;background:#eafaf1;border:1px solid #a3e4c1;border-radius:8px;padding:10px 14px;margin-bottom:10px"></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
+        <button id="dhd-export-btn" class="btn-drive-sync" style="display:none;max-width:340px;background:#16a085;border-color:#16a085" onclick="dhdExportFile()">📤 Xuất File Order (Mã SKU / SL Cần Đặt)</button>
+      </div>
+    </div>
+
   </div>
 
   <!-- BÁO CÁO SẢN LƯỢNG — nơi làm việc riêng với 2 file "Thống kê sản phẩm" tải từ Salework. Tách riêng khỏi các trang Tồn Kho khác. -->
@@ -4340,6 +4380,7 @@ const db = firebase.firestore();
 // có dữ liệu Black List sẵn sàng càng sớm càng tốt. blLoadIfNeeded() được định nghĩa phía dưới,
 // nhưng vì đây chỉ là 1 lệnh gọi async (không thực thi ngay khi parse), JS vẫn chạy đúng.
 window.addEventListener('DOMContentLoaded', () => {
+  if (typeof dhdLoadFromFirestore === 'function') dhdLoadFromFirestore();
   if (typeof renderAllShopFilterBars === 'function') renderAllShopFilterBars();
   if (typeof blLoadIfNeeded === 'function') blLoadIfNeeded();
   if (typeof skuloiInitShopSelect === 'function') skuloiInitShopSelect();
@@ -9490,6 +9531,400 @@ function dkdResetAll() {
 }
 
 // ══════════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════════
+// ĐẶT HÀNG DELI — BẢNG STOCK (Firestore collection 'deli_stock', doc id = Mã SKU). ĐỘC LẬP với
+// DKD/TFM/TON. Xác nhận Tân 2026-09-30: dữ liệu gốc (Đơn Vị/Quy Cách/Yêu Cầu Tồn/Tuần/Trạng Thái)
+// Tân tự khai qua Excel rồi import 1 lần, sau đó chỉnh sửa trực tiếp trên Dashboard. Mỗi lần đẩy
+// file "Tổng hợp nhập xuất tồn kho" mới chỉ cập nhật Tồn Hiện Tại cho mã đã biết; mã lạ phải khai
+// báo thủ công (chặn lẫn thương hiệu khác, ví dụ Bossee).
+// ══════════════════════════════════════════════════════════════
+let DHD = {
+  stockMap: new Map(),
+  loaded: false,
+  pendingNew: [],
+  filter: null, // 'all' | 'active' | 'need'
+  _lastRows: [],
+};
+
+function dhdLog(msg, type) {
+  const el = document.getElementById('dhd-log');
+  if (!el) return;
+  el.classList.add('visible');
+  const color = type === 'err' ? '#e74c3c' : type === 'warn' ? '#f39c12' : type === 'ok' ? '#27ae60' : '#555';
+  const time = new Date().toLocaleTimeString('vi-VN');
+  el.innerHTML += `<div style="color:${color}">[${time}] ${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+async function dhdLoadFromFirestore() {
+  try {
+    const snap = await db.collection('deli_stock').get();
+    DHD.stockMap = new Map();
+    snap.forEach(doc => DHD.stockMap.set(doc.id, doc.data()));
+    const statusEl = document.getElementById('dhd-status-master');
+    if (statusEl) statusEl.textContent = `${DHD.stockMap.size} mã đã lưu`;
+    dhdLog(`🔄 Đã tải ${DHD.stockMap.size} mã từ Bảng Stock.`, 'ok');
+    DHD.loaded = true;
+    dhdRenderResult();
+  } catch (err) {
+    dhdLog(`❌ Lỗi tải Bảng Stock: ${err.message}`, 'err');
+  }
+}
+
+// Đọc file Excel "Bảng Stock" (Tân tự khai Đơn Vị/Quy Cách/Yêu Cầu Tồn/Tuần/Trạng Thái/Ghi Chú) —
+// tra cột theo TÊN header (không theo vị trí) nên tương thích cả bản có cột "Gợi Ý..." lẫn bản FINAL.
+function dhdParseMasterExcel(wb) {
+  const sheetName = wb.SheetNames.find(n => /b.ng stock/i.test(n)) || wb.SheetNames[wb.SheetNames.length - 1];
+  const ws = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+  let headerRow = -1;
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    if (rows[i] && rows[i].some(c => String(c || '').trim().startsWith('Mã SKU'))) { headerRow = i; break; }
+  }
+  if (headerRow === -1) throw new Error('Không tìm thấy dòng header (cột "Mã SKU") trong file');
+  const header = rows[headerRow].map(c => String(c || '').trim());
+  const findCol = (want) => header.findIndex(h => h.startsWith(want));
+  const idx = {
+    sku: findCol('Mã SKU'), ten: findCol('Tên Hàng'), nhom: findCol('Nhóm Hàng'),
+    ton: findCol('Tồn Hiện Tại'), donVi: findCol('Đơn Vị'), quyCach: findCol('Quy Cách'),
+    yeuCau: findCol('Yêu Cầu Tồn'), trangThai: findCol('Trạng Thái'), ghiChu: findCol('Ghi Chú'),
+  };
+  if (idx.sku === -1) throw new Error('Không tìm thấy cột "Mã SKU"');
+
+  const items = [];
+  for (let i = headerRow + 1; i < rows.length; i++) {
+    const r = rows[i]; if (!r) continue;
+    const sku = idx.sku !== -1 && r[idx.sku] != null ? String(r[idx.sku]).trim() : '';
+    if (!sku) continue;
+    const donViRaw = idx.donVi !== -1 && r[idx.donVi] != null ? String(r[idx.donVi]).trim() : 'Cái';
+    const donVi = ['Cái', 'Hộp', 'Thùng'].includes(donViRaw) ? donViRaw : 'Cái';
+    let quyCach = idx.quyCach !== -1 ? r[idx.quyCach] : 1;
+    if (typeof quyCach !== 'number' || quyCach <= 0) quyCach = 1;
+    let ton = idx.ton !== -1 ? r[idx.ton] : 0;
+    if (typeof ton !== 'number') ton = 0;
+    let yeuCau = idx.yeuCau !== -1 ? r[idx.yeuCau] : null;
+    if (typeof yeuCau !== 'number') yeuCau = 0;
+    const trangThaiRaw = idx.trangThai !== -1 && r[idx.trangThai] != null ? String(r[idx.trangThai]).trim() : '';
+    const trangThai = trangThaiRaw || 'Đang nhập bình thường';
+    const ten = idx.ten !== -1 && r[idx.ten] != null ? String(r[idx.ten]).trim() : '';
+    const nhom = idx.nhom !== -1 && r[idx.nhom] != null ? String(r[idx.nhom]).trim() : '';
+    const ghiChu = idx.ghiChu !== -1 && r[idx.ghiChu] != null ? String(r[idx.ghiChu]).trim() : '';
+    items.push({ sku, tenHang: ten, nhomHang: nhom, tonHienTai: ton, donVi, quyCach, yeuCauTuan: yeuCau, trangThai, ghiChu });
+  }
+  return items;
+}
+
+async function dhdWriteMasterBatch(items) {
+  const CHUNK = 450;
+  for (let i = 0; i < items.length; i += CHUNK) {
+    const chunk = items.slice(i, i + CHUNK);
+    const batch = db.batch();
+    chunk.forEach(it => {
+      const ref = db.collection('deli_stock').doc(it.sku);
+      batch.set(ref, {
+        sku: it.sku, tenHang: it.tenHang, nhomHang: it.nhomHang,
+        tonHienTai: it.tonHienTai, donVi: it.donVi, quyCach: it.quyCach,
+        yeuCauTuan: it.yeuCauTuan, trangThai: it.trangThai, ghiChu: it.ghiChu,
+        capNhatLuc: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+    await batch.commit();
+  }
+}
+
+function dhdHandleMasterFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const items = dhdParseMasterExcel(wb);
+      dhdLog(`✅ Đọc file "${file.name}" — ${items.length} mã. Đang ghi vào Bảng Stock...`, 'ok');
+      await dhdWriteMasterBatch(items);
+      dhdLog(`✅ Đã lưu ${items.length} mã vào Bảng Stock (Firestore) — GHI ĐÈ toàn bộ field của các mã này, kể cả Tồn Hiện Tại.`, 'ok');
+      await dhdLoadFromFirestore();
+    } catch (err) {
+      dhdLog(`❌ Lỗi đọc/lưu file: ${err.message}`, 'err');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  input.value = '';
+}
+
+// Đọc file "Tổng hợp nhập xuất tồn kho.xlsx" (báo cáo tồn kho thực tế, dạng KiotViet).
+function dhdParseTonExcel(wb) {
+  const sheetName = wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+  let headerRow = -1;
+  for (let i = 0; i < Math.min(rows.length, 15); i++) {
+    if (rows[i] && rows[i].some(c => String(c || '').trim() === 'Mã SKU')) { headerRow = i; break; }
+  }
+  if (headerRow === -1) throw new Error('Không tìm thấy dòng header (cột "Mã SKU") trong file tồn kho');
+  const header = rows[headerRow].map(c => String(c || '').trim());
+  const findCol = (want) => header.findIndex(h => h === want || h.startsWith(want));
+  const idx = { sku: findCol('Mã SKU'), ten: findCol('Tên hàng hóa'), nhom: findCol('Nhóm hàng hóa'), ton: findCol('Tồn cuối kỳ') };
+  if (idx.sku === -1) throw new Error('Không tìm thấy cột "Mã SKU"');
+  if (idx.ton === -1) throw new Error('Không tìm thấy cột "Tồn cuối kỳ"');
+  let dataStart = headerRow + 1;
+  if (rows[dataStart] && rows[dataStart].some(c => String(c || '').trim() === 'Số lượng')) dataStart++;
+
+  const items = [];
+  for (let i = dataStart; i < rows.length; i++) {
+    const r = rows[i]; if (!r) continue;
+    const sku = idx.sku !== -1 && r[idx.sku] != null ? String(r[idx.sku]).trim() : '';
+    const tonRaw = idx.ton !== -1 ? r[idx.ton] : null;
+    if (!sku || typeof tonRaw !== 'number') continue;
+    const ten = idx.ten !== -1 && r[idx.ten] != null ? String(r[idx.ten]).trim() : '';
+    const nhom = idx.nhom !== -1 && r[idx.nhom] != null ? String(r[idx.nhom]).trim() : '';
+    items.push({ sku, tenHang: ten, nhomHang: nhom, tonMoi: tonRaw });
+  }
+  return items;
+}
+
+function dhdHandleTonFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      if (!DHD.loaded) await dhdLoadFromFirestore();
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const items = dhdParseTonExcel(wb);
+      dhdLog(`✅ Đọc file tồn "${file.name}" — ${items.length} mã.`, 'ok');
+      const toUpdate = [];
+      const newSkus = [];
+      const seenNew = new Set((DHD.pendingNew || []).map(p => p.sku));
+      items.forEach(it => {
+        if (DHD.stockMap.has(it.sku)) toUpdate.push(it);
+        else if (!seenNew.has(it.sku)) { newSkus.push(it); seenNew.add(it.sku); }
+      });
+      const CHUNK = 450;
+      for (let i = 0; i < toUpdate.length; i += CHUNK) {
+        const chunk = toUpdate.slice(i, i + CHUNK);
+        const batch = db.batch();
+        chunk.forEach(it => {
+          const ref = db.collection('deli_stock').doc(it.sku);
+          batch.update(ref, { tonHienTai: it.tonMoi, capNhatLuc: firebase.firestore.FieldValue.serverTimestamp() });
+          const cur = DHD.stockMap.get(it.sku);
+          if (cur) cur.tonHienTai = it.tonMoi;
+        });
+        await batch.commit();
+      }
+      dhdLog(`🔄 Đã cập nhật tồn cho ${toUpdate.length} mã đã có trong Bảng Stock.`, 'ok');
+      if (newSkus.length) {
+        DHD.pendingNew = (DHD.pendingNew || []).concat(newSkus);
+        dhdLog(`⚠ Phát hiện ${newSkus.length} mã CHƯA có trong Bảng Stock — cần anh khai báo (xem khối cảnh báo phía trên bảng).`, 'warn');
+      }
+      dhdRenderPendingNew();
+      dhdRenderResult();
+    } catch (err) {
+      dhdLog(`❌ Lỗi đọc file tồn: ${err.message}`, 'err');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  input.value = '';
+}
+
+function dhdRenderPendingNew() {
+  const el = document.getElementById('dhd-newsku');
+  if (!el) return;
+  const list = DHD.pendingNew || [];
+  if (!list.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.display = 'block';
+  const rowsHtml = list.map((it, i) => `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 0;border-bottom:1px solid #f5c6c0">
+      <div style="min-width:140px;font-weight:700;font-size:13px">${it.sku}</div>
+      <div style="flex:1;min-width:200px;font-size:12px;color:#555">${it.tenHang || '—'} (tồn: ${it.tonMoi})</div>
+      <select id="dhd-new-donvi-${i}" style="padding:4px 8px;border-radius:6px;border:1px solid #ccc;font-size:12px">
+        <option value="Cái">Cái</option><option value="Hộp">Hộp</option><option value="Thùng">Thùng</option>
+      </select>
+      <input id="dhd-new-quycach-${i}" type="number" min="1" value="1" placeholder="Quy cách" style="width:70px;padding:4px 8px;border-radius:6px;border:1px solid #ccc;font-size:12px">
+      <input id="dhd-new-yeucau-${i}" type="number" min="0" value="0" placeholder="Yêu cầu/tuần" style="width:90px;padding:4px 8px;border-radius:6px;border:1px solid #ccc;font-size:12px">
+      <select id="dhd-new-trangthai-${i}" style="padding:4px 8px;border-radius:6px;border:1px solid #ccc;font-size:12px">
+        <option value="Đang nhập bình thường">Đang nhập bình thường</option>
+        <option value="Deli hết hàng">Deli hết hàng</option>
+        <option value="Ngừng nhập chủ động">Ngừng nhập chủ động</option>
+        <option value="Chỉ bán offline (Huy Hoàng)">Chỉ bán offline (Huy Hoàng)</option>
+      </select>
+      <button onclick="dhdSaveNewSku(${i})" style="padding:5px 12px;background:#16a085;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">💾 Lưu</button>
+      <button onclick="dhdDismissNewSku(${i})" style="padding:5px 12px;background:white;color:#999;border:1px solid #ccc;border-radius:6px;font-size:12px;cursor:pointer">✕ Bỏ qua</button>
+    </div>`).join('');
+  el.innerHTML = `<div style="font-weight:700;color:#c0392b;margin-bottom:8px;font-size:13px">⚠ ${list.length} mã mới chưa có trong Bảng Stock — khai báo trước khi tính vào đề xuất đặt:</div>${rowsHtml}`;
+}
+
+async function dhdSaveNewSku(i) {
+  const it = (DHD.pendingNew || [])[i];
+  if (!it) return;
+  const donVi = document.getElementById(`dhd-new-donvi-${i}`).value;
+  const quyCach = Number(document.getElementById(`dhd-new-quycach-${i}`).value) || 1;
+  const yeuCauTuan = Number(document.getElementById(`dhd-new-yeucau-${i}`).value) || 0;
+  const trangThai = document.getElementById(`dhd-new-trangthai-${i}`).value;
+  const data = {
+    sku: it.sku, tenHang: it.tenHang, nhomHang: it.nhomHang,
+    tonHienTai: it.tonMoi, donVi, quyCach, yeuCauTuan, trangThai, ghiChu: '',
+    capNhatLuc: firebase.firestore.FieldValue.serverTimestamp(),
+  };
+  try {
+    await db.collection('deli_stock').doc(it.sku).set(data);
+    DHD.stockMap.set(it.sku, data);
+    DHD.pendingNew.splice(i, 1);
+    dhdLog(`✅ Đã khai báo mã mới: ${it.sku}`, 'ok');
+    dhdRenderPendingNew();
+    dhdRenderResult();
+  } catch (err) {
+    dhdLog(`❌ Lỗi lưu mã ${it.sku}: ${err.message}`, 'err');
+  }
+}
+
+function dhdDismissNewSku(i) {
+  if (!DHD.pendingNew || !DHD.pendingNew[i]) return;
+  dhdLog(`ℹ Đã bỏ qua mã ${DHD.pendingNew[i].sku} (không lưu vào Bảng Stock).`, 'warn');
+  DHD.pendingNew.splice(i, 1);
+  dhdRenderPendingNew();
+}
+
+function dhdCompute() {
+  const rows = [];
+  DHD.stockMap.forEach((d, sku) => {
+    const ton = typeof d.tonHienTai === 'number' ? d.tonHienTai : 0;
+    const quyCach = typeof d.quyCach === 'number' && d.quyCach > 0 ? d.quyCach : 1;
+    const tonQuyDoi = d.donVi === 'Cái' ? ton : ton * quyCach;
+    const yeuCau = typeof d.yeuCauTuan === 'number' ? d.yeuCauTuan : 0;
+    const isActive = d.trangThai === 'Đang nhập bình thường';
+    const deXuat = isActive ? Math.max(0, yeuCau - tonQuyDoi) : 0;
+    rows.push({ sku, ...d, tonQuyDoi, deXuat, isActive });
+  });
+  rows.sort((a, b) => b.deXuat - a.deXuat);
+  return rows;
+}
+
+function dhdSetFilter(f) {
+  DHD.filter = f;
+  dhdRenderResult();
+}
+
+function dhdRenderResult() {
+  const el = document.getElementById('dhd-result');
+  const btn = document.getElementById('dhd-export-btn');
+  if (!el) return;
+  if (!DHD.stockMap || DHD.stockMap.size === 0) { el.style.display = 'none'; el.innerHTML = ''; if (btn) btn.style.display = 'none'; return; }
+
+  const rows = dhdCompute();
+  DHD._lastRows = rows;
+  const activeRows = rows.filter(r => r.isActive);
+  const needRows = activeRows.filter(r => r.deXuat > 0);
+  const tongSlDeXuat = needRows.reduce((s, r) => s + r.deXuat, 0);
+
+  if (btn) btn.style.display = needRows.length ? 'inline-flex' : 'none';
+
+  const f = DHD.filter || (needRows.length ? 'need' : 'active');
+  const cardBtn = (key, label, val, color) => `<button type="button" onclick="dhdSetFilter('${key}')" style="cursor:pointer;font-family:inherit;background:${f === key ? color : 'white'};border:2px solid ${color};border-radius:10px;padding:10px 18px;min-width:160px;text-align:center">
+    <div style="font-size:13px;color:${f === key ? 'white' : '#777'};font-weight:700;margin-bottom:3px">${label}</div>
+    <div style="font-size:30px;font-weight:800;color:${f === key ? 'white' : color}">${val}</div>
+  </button>`;
+  const qtyCard = `<div style="background:white;border:2px solid #8e44ad;border-radius:10px;padding:10px 18px;min-width:170px;text-align:center">
+    <div style="font-size:13px;color:#777;font-weight:700;margin-bottom:3px">TỔNG SL ĐỀ XUẤT ĐẶT</div>
+    <div style="font-size:30px;font-weight:800;color:#8e44ad">${tongSlDeXuat.toLocaleString('vi-VN')}</div>
+  </div>`;
+  const cards = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+    ${cardBtn('all', 'TỔNG MÃ TRONG BẢNG STOCK', rows.length, '#555')}
+    ${cardBtn('active', 'ĐANG NHẬP BÌNH THƯỜNG', activeRows.length, '#2980b9')}
+    ${cardBtn('need', 'MÃ CẦN ĐẶT', needRows.length, '#16a085')}
+    ${qtyCard}
+  </div>`;
+
+  const rowsToShow = f === 'all' ? rows : f === 'active' ? activeRows : needRows;
+
+  if (!rowsToShow.length) {
+    el.style.display = 'block';
+    el.innerHTML = cards + `<div style="color:#27ae60;font-size:15px;font-weight:600;padding:10px 0">✅ Không có mã nào ở mục này.</div>`;
+    return;
+  }
+
+  const statusColor = (t) => t === 'Đang nhập bình thường' ? '#2980b9' : t === 'Deli hết hàng' ? '#e67e22' : t === 'Ngừng nhập chủ động' ? '#7f8c8d' : '#c0392b';
+
+  const trs = rowsToShow.map((r, i) => `<tr style="border-bottom:1px solid #d5f0e3">
+      <td style="padding:8px 10px;color:#999;text-align:center;font-size:14px">${i + 1}</td>
+      <td style="padding:8px 10px;font-size:14px">${r.sku}</td>
+      <td style="padding:8px 10px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px" title="${(r.tenHang || '').replace(/"/g, '&quot;')}">${r.tenHang || '—'}</td>
+      <td style="padding:8px 10px;text-align:center;font-size:14px">${r.tonHienTai}${r.donVi !== 'Cái' ? ` (${r.donVi})` : ''}</td>
+      <td style="padding:8px 10px;text-align:center;font-size:14px">${r.tonQuyDoi}</td>
+      <td style="padding:8px 10px;text-align:center"><input type="number" min="0" value="${r.yeuCauTuan || 0}" id="dhd-edit-yc-${r.sku}" style="width:70px;padding:4px 6px;border:1px solid #ccc;border-radius:5px;font-size:13px"></td>
+      <td style="padding:8px 10px;text-align:center;font-weight:800;font-size:15px;color:#16a085">${r.deXuat}</td>
+      <td style="padding:8px 10px"><select id="dhd-edit-tt-${r.sku}" style="padding:4px 6px;border:1px solid #ccc;border-radius:5px;font-size:12px;color:${statusColor(r.trangThai)}">
+        <option value="Đang nhập bình thường" ${r.trangThai === 'Đang nhập bình thường' ? 'selected' : ''}>Đang nhập bình thường</option>
+        <option value="Deli hết hàng" ${r.trangThai === 'Deli hết hàng' ? 'selected' : ''}>Deli hết hàng</option>
+        <option value="Ngừng nhập chủ động" ${r.trangThai === 'Ngừng nhập chủ động' ? 'selected' : ''}>Ngừng nhập chủ động</option>
+        <option value="Chỉ bán offline (Huy Hoàng)" ${r.trangThai === 'Chỉ bán offline (Huy Hoàng)' ? 'selected' : ''}>Chỉ bán offline (Huy Hoàng)</option>
+      </select></td>
+      <td style="padding:8px 10px;text-align:center"><button onclick="dhdSaveEdit('${String(r.sku).replace(/'/g, "\\'")}')" style="padding:5px 10px;background:#16a085;color:white;border:none;border-radius:5px;font-size:12px;font-weight:700;cursor:pointer">💾</button></td>
+    </tr>`).join('');
+
+  const table = `<div style="overflow-x:auto;max-height:460px;overflow-y:auto;border:1px solid #a3e4c1;border-radius:8px">
+    <table style="font-size:14px;border-collapse:collapse;width:100%">
+      <thead><tr>
+        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0">#</th>
+        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0;text-align:left">Mã SKU</th>
+        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0;text-align:left">Tên Hàng</th>
+        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0">Tồn Hiện Tại</th>
+        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0">Tồn Quy Đổi (Cái)</th>
+        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0">Yêu Cầu/Tuần</th>
+        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0">Đề Xuất Đặt</th>
+        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0">Trạng Thái</th>
+        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0">Lưu</th>
+      </tr></thead>
+      <tbody>${trs}</tbody>
+    </table>
+  </div>`;
+
+  el.style.display = 'block';
+  el.innerHTML = cards + `<div style="font-size:12px;color:#888;margin-bottom:8px">Sửa "Yêu Cầu/Tuần" hoặc "Trạng Thái" ngay trong bảng rồi bấm 💾 để lưu — áp dụng ngay, không cần tải lại file Excel.</div>` + table;
+}
+
+async function dhdSaveEdit(sku) {
+  const ycEl = document.getElementById(`dhd-edit-yc-${sku}`);
+  const ttEl = document.getElementById(`dhd-edit-tt-${sku}`);
+  if (!ycEl || !ttEl) return;
+  const yeuCauTuan = Number(ycEl.value) || 0;
+  const trangThai = ttEl.value;
+  try {
+    await db.collection('deli_stock').doc(sku).update({ yeuCauTuan, trangThai, capNhatLuc: firebase.firestore.FieldValue.serverTimestamp() });
+    const cur = DHD.stockMap.get(sku);
+    if (cur) { cur.yeuCauTuan = yeuCauTuan; cur.trangThai = trangThai; }
+    dhdLog(`✅ Đã lưu mã ${sku}: Yêu Cầu/Tuần=${yeuCauTuan}, Trạng Thái=${trangThai}`, 'ok');
+    dhdRenderResult();
+  } catch (err) {
+    dhdLog(`❌ Lỗi lưu mã ${sku}: ${err.message}`, 'err');
+  }
+}
+
+function dhdExportFile() {
+  const rows = (DHD._lastRows || []).filter(r => r.isActive && r.deXuat > 0);
+  if (!rows.length) { dhdLog('⚠ Chưa có mã nào cần đặt để xuất', 'warn'); return; }
+  const aoa = [['STT', 'Mã SKU', 'Tên Hàng', 'Số Lượng Cần Đặt']];
+  rows.forEach((r, i) => aoa.push([i + 1, r.sku, r.tenHang, r.deXuat]));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Can Dat Hang Deli');
+  const outName = `DonDeXuat_Deli_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  XLSX.writeFile(wb, outName);
+  dhdLog(`📤 Đã xuất "${outName}" — ${rows.length} mã cần đặt, tổng SL ${rows.reduce((s, r) => s + r.deXuat, 0).toLocaleString('vi-VN')}`, 'ok');
+}
+
+function dhdExportMaster() {
+  if (!DHD.stockMap || DHD.stockMap.size === 0) { dhdLog('⚠ Chưa có dữ liệu Bảng Stock để xuất', 'warn'); return; }
+  const aoa = [['Mã SKU (Online Code)', 'Tên Hàng Hóa', 'Nhóm Hàng', 'Tồn Hiện Tại', 'Đơn Vị Tồn Kho', 'Quy Cách (số cái/đơn vị)', 'Yêu Cầu Tồn/Tuần (Cái)', 'Trạng Thái', 'Ghi Chú']];
+  const rows = Array.from(DHD.stockMap.values()).sort((a, b) => String(a.sku || '').localeCompare(String(b.sku || '')));
+  rows.forEach(d => aoa.push([d.sku, d.tenHang, d.nhomHang, d.tonHienTai, d.donVi, d.quyCach, d.yeuCauTuan, d.trangThai, d.ghiChu || '']));
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Bảng Stock');
+  XLSX.writeFile(wb, `Bang_Stock_Deli_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  dhdLog(`📥 Đã xuất Bảng Stock hiện tại — ${rows.length} mã.`, 'ok');
+}
+
 // SKULOI — SKU bị Shopee từ chối (lệch giá) → gom danh sách set qua bot SetTon.
 // ĐỘC LẬP với TFM/TON — không share state với 2 khối đó. TỪ 2026-09-28 có dùng Firestore
 // (collection skuloi_sent_log, doc id "{KHO}_{SKU}") để chống set trùng 1 mã nhiều lần giữa các
