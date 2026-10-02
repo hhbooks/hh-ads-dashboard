@@ -8608,6 +8608,11 @@ async function dhdWriteMasterBatch(items) {
         sku: it.sku, tenHang: it.tenHang, nhomHang: it.nhomHang,
         tonHienTaiHN: it.tonHienTaiHN, tonHienTaiHCM: it.tonHienTaiHCM,
         donVi: it.donVi, quyCach: it.quyCach,
+        // Đơn Vị Đặt Hàng (đặt với NCC Deli) — ĐỘC LẬP với Đơn Vị Tồn Kho, xác nhận Tân 2026-10-02.
+        // Không có cột riêng trong file Excel import — giữ nguyên giá trị Tân đã tự chỉnh trên
+        // dashboard (merge ở dhdHandleMasterFile trước khi gọi hàm này), mã hoàn toàn mới thì mặc
+        // định = Đơn Vị Tồn Kho.
+        donViDatHang: it.donViDatHang || it.donVi,
         yeuCauTuanHN: it.yeuCauTuanHN, yeuCauTuanHCM: it.yeuCauTuanHCM,
         trangThai: it.trangThai, ghiChu: it.ghiChu,
         capNhatLuc: firebase.firestore.FieldValue.serverTimestamp(),
@@ -8623,11 +8628,19 @@ function dhdHandleMasterFile(input) {
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
+      if (!DHD.loaded) await dhdLoadFromFirestore();
       const wb = XLSX.read(e.target.result, { type: 'array' });
       const items = dhdParseMasterExcel(wb);
+      // Giữ nguyên "Đơn Vị Đặt Hàng" đã tự chỉnh riêng cho mã đó trên dashboard (không có cột
+      // này trong file Excel nên không thể lấy từ file — phải lấy lại từ Firestore trước khi ghi
+      // đè, nếu không sẽ bị xoá mất mỗi lần import lại Bảng Stock Gốc). Xác nhận Tân 2026-10-02.
+      items.forEach(it => {
+        const cur = DHD.stockMap.get(it.sku);
+        if (cur && cur.donViDatHang) it.donViDatHang = cur.donViDatHang;
+      });
       dhdLog(`✅ Đọc file "${file.name}" — ${items.length} mã. Đang ghi vào Bảng Stock...`, 'ok');
       await dhdWriteMasterBatch(items);
-      dhdLog(`✅ Đã lưu ${items.length} mã vào Bảng Stock (Firestore) — GHI ĐÈ toàn bộ field của các mã này, kể cả Tồn Hiện Tại.`, 'ok');
+      dhdLog(`✅ Đã lưu ${items.length} mã vào Bảng Stock (Firestore) — GHI ĐÈ toàn bộ field của các mã này, kể cả Tồn Hiện Tại (riêng "Đơn Vị Đặt Hàng" đã tự chỉnh thì được giữ nguyên).`, 'ok');
       await dhdLoadFromFirestore();
     } catch (err) {
       dhdLog(`❌ Lỗi đọc/lưu file: ${err.message}`, 'err');
@@ -8761,6 +8774,7 @@ async function dhdSaveNewSku(i) {
   const data = {
     sku: it.sku, tenHang: it.tenHang, nhomHang: it.nhomHang,
     tonHienTaiHN, tonHienTaiHCM, donVi, quyCach,
+    donViDatHang: donVi, // mac dinh = Don Vi Ton Kho - xac nhan Tan 2026-10-02, sua rieng sau tren bang
     yeuCauTuanHN, yeuCauTuanHCM, trangThai, ghiChu: '',
     capNhatLuc: firebase.firestore.FieldValue.serverTimestamp(),
   };
@@ -8805,12 +8819,17 @@ function dhdCompute() {
     const deXuatHN = deXuatRawHN < 3 ? 0 : deXuatRawHN;
     const deXuatHCM = deXuatRawHCM < 3 ? 0 : deXuatRawHCM;
 
+    // Don Vi Dat Hang (voi NCC Deli) - DOC LAP voi Don Vi Ton Kho, xac nhan Tan 2026-10-02.
+    // Mac dinh bam theo Don Vi Ton Kho cho toi khi Tan tu chinh rieng tung ma tren bang.
+    const donViDatHang = (typeof d.donViDatHang === 'string' && d.donViDatHang) ? d.donViDatHang : d.donVi;
+
     rows.push({
       sku, ...d, isActive,
       tonQuyDoiHN, tonQuyDoiHCM,
       yeuCauTuanHN: ycHN, yeuCauTuanHCM: ycHCM,
       deXuatHN, deXuatHCM,
       deXuat: deXuatHN + deXuatHCM, // tong 2 kho - dung khi xem "Tat Ca" (KPI/sort chung)
+      donViDatHang,
     });
   });
   const kv = DHD.khoView;
@@ -8900,6 +8919,11 @@ function dhdRenderResult() {
       <td style="padding:8px 10px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px" title="${(r.tenHang || '').replace(/"/g, '&quot;')}">${r.tenHang || '—'}</td>
       ${kv !== 'HCM' ? khoCellsHN(r) : ''}
       ${kv !== 'HN' ? khoCellsHCM(r) : ''}
+      <td style="padding:8px 10px"><select id="dhd-edit-dvdh-${r.sku}" title="Đơn vị tính khi đặt hàng với NCC Deli — độc lập với Đơn Vị Tồn Kho" style="padding:4px 6px;border:1px solid #ccc;border-radius:5px;font-size:12px">
+        <option value="Cái" ${r.donViDatHang === 'Cái' ? 'selected' : ''}>Cái</option>
+        <option value="Hộp" ${r.donViDatHang === 'Hộp' ? 'selected' : ''}>Hộp</option>
+        <option value="Thùng" ${r.donViDatHang === 'Thùng' ? 'selected' : ''}>Thùng</option>
+      </select></td>
       <td style="padding:8px 10px"><select id="dhd-edit-tt-${r.sku}" style="padding:4px 6px;border:1px solid #ccc;border-radius:5px;font-size:12px;color:${statusColor(r.trangThai)}">
         <option value="Đang nhập bình thường" ${r.trangThai === 'Đang nhập bình thường' ? 'selected' : ''}>Đang nhập bình thường</option>
         <option value="Deli hết hàng" ${r.trangThai === 'Deli hết hàng' ? 'selected' : ''}>Deli hết hàng</option>
@@ -8926,6 +8950,7 @@ function dhdRenderResult() {
         <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0;text-align:left">Tên Hàng</th>
         ${kv !== 'HCM' ? thHN : ''}
         ${kv !== 'HN' ? thHCM : ''}
+        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0">Đơn Vị Đặt Hàng</th>
         <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0">Trạng Thái</th>
         <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0">Lưu</th>
       </tr></thead>
@@ -8934,12 +8959,13 @@ function dhdRenderResult() {
   </div>`;
 
   el.style.display = 'block';
-  el.innerHTML = khoTabs + cards + `<div style="font-size:12px;color:#888;margin-bottom:8px">Sửa "Yêu Cầu/Tuần" hoặc "Trạng Thái" ngay trong bảng rồi bấm 💾 để lưu — áp dụng ngay, không cần tải lại file Excel. Trạng Thái dùng chung cho cả 2 kho.</div>` + table;
+  el.innerHTML = khoTabs + cards + `<div style="font-size:12px;color:#888;margin-bottom:8px">Sửa "Yêu Cầu/Tuần", "Đơn Vị Đặt Hàng" hoặc "Trạng Thái" ngay trong bảng rồi bấm 💾 để lưu — áp dụng ngay, không cần tải lại file Excel. Trạng Thái dùng chung cho cả 2 kho. "Đơn Vị Đặt Hàng" là đơn vị tính khi đặt với NCC Deli (mặc định theo Đơn Vị Tồn Kho, có thể khác nhau) — quyết định cách quy đổi số lượng khi xuất File Order.</div>` + table;
 }
 
 async function dhdSaveEdit(sku) {
   const ycHNEl = document.getElementById(`dhd-edit-ycHN-${sku}`);
   const ycHCMEl = document.getElementById(`dhd-edit-ycHCM-${sku}`);
+  const dvdhEl = document.getElementById(`dhd-edit-dvdh-${sku}`);
   const ttEl = document.getElementById(`dhd-edit-tt-${sku}`);
   if (!ttEl || (!ycHNEl && !ycHCMEl)) return;
   const trangThai = ttEl.value;
@@ -8948,6 +8974,7 @@ async function dhdSaveEdit(sku) {
   let logParts = [];
   if (ycHNEl) { const v = Number(ycHNEl.value) || 0; updates.yeuCauTuanHN = v; if (cur) cur.yeuCauTuanHN = v; logParts.push(`Yêu Cầu/Tuần HN=${v}`); }
   if (ycHCMEl) { const v = Number(ycHCMEl.value) || 0; updates.yeuCauTuanHCM = v; if (cur) cur.yeuCauTuanHCM = v; logParts.push(`Yêu Cầu/Tuần HCM=${v}`); }
+  if (dvdhEl) { const v = dvdhEl.value; updates.donViDatHang = v; if (cur) cur.donViDatHang = v; logParts.push(`Đơn Vị Đặt Hàng=${v}`); }
   try {
     await db.collection('deli_stock').doc(sku).update(updates);
     if (cur) cur.trangThai = trangThai;
@@ -8969,16 +8996,18 @@ function dhdExportFile(khoView) {
   const rows = (DHD._lastRows || []).filter(r => r.isActive && r[deXuatField] > 0);
   if (!rows.length) { dhdLog(`⚠ Chưa có mã nào cần đặt ở Kho ${kv} để xuất`, 'warn'); return; }
   // Số Lượng Cần Đặt trong bảng làm việc luôn tính theo CÁI (khớp Yêu Cầu Tồn/Tuần). Khi xuất
-  // file để anh dùng đặt hàng thật, quy đổi NGƯỢC lại đúng Đơn Vị Tính đã khai báo cho từng mã
-  // (Hộp/Thùng) — làm tròn LÊN để không đặt thiếu. Mã "Cái" giữ nguyên số, không quy đổi.
-  // Xác nhận Tân 2026-09-30 (yêu cầu thêm cột Đơn Vị Tính sau khi xem lại file đáp ứng Deli).
+  // file để anh dùng đặt hàng thật, quy đổi theo "Đơn Vị Đặt Hàng" (với NCC Deli) của từng mã —
+  // KHÁC với "Đơn Vị Tồn Kho" (chỉ dùng để quy đổi tồn kho nội bộ). Mặc định Đơn Vị Đặt Hàng =
+  // Cái cho đa số mã (Deli bán theo cái), chỉ mã nào Tân tự đánh dấu riêng là Hộp/Thùng mới quy
+  // đổi ngược (làm tròn LÊN để không đặt thiếu). Xác nhận Tân 2026-10-02 — sửa lại từ quy ước cũ
+  // 2026-09-30 (lúc đó lỡ dùng chung Đơn Vị Tồn Kho cho cả 2 mục đích, sai với đa số mã Deli).
   const aoa = [['STT', 'Mã SKU', 'Tên Hàng', 'Đơn Vị Tính', 'Số Lượng Cần Đặt']];
   rows.forEach((r, i) => {
-    const donVi = r.donVi || 'Cái';
+    const donViDatHang = r.donViDatHang || r.donVi || 'Cái';
     const quyCach = typeof r.quyCach === 'number' && r.quyCach > 0 ? r.quyCach : 1;
     const deXuat = r[deXuatField];
-    const slXuat = donVi === 'Cái' ? deXuat : Math.ceil(deXuat / quyCach);
-    aoa.push([i + 1, r.sku, r.tenHang, donVi, slXuat]);
+    const slXuat = donViDatHang === 'Cái' ? deXuat : Math.ceil(deXuat / quyCach);
+    aoa.push([i + 1, r.sku, r.tenHang, donViDatHang, slXuat]);
   });
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   const wb = XLSX.utils.book_new();
