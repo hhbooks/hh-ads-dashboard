@@ -8697,7 +8697,11 @@ function dhdCompute() {
     const tonQuyDoi = d.donVi === 'Cái' ? ton : ton * quyCach;
     const yeuCau = typeof d.yeuCauTuan === 'number' ? d.yeuCauTuan : 0;
     const isActive = d.trangThai === 'Đang nhập bình thường';
-    const deXuat = isActive ? Math.max(0, yeuCau - tonQuyDoi) : 0;
+    const deXuatRaw = isActive ? Math.max(0, yeuCau - tonQuyDoi) : 0;
+    // Xác nhận Tân 2026-10-02: đề xuất đặt từ 2 trở xuống thì không cần đặt nữa — tối thiểu lượng
+    // đặt cho 1 sản phẩm là 3. Sửa duy nhất tại đây vì mọi nơi khác (bảng hiển thị, tổng SL đề
+    // xuất, KPI "Mã Cần Đặt", file xuất order) đều đọc lại r.deXuat từ hàm này.
+    const deXuat = deXuatRaw < 3 ? 0 : deXuatRaw;
     rows.push({ sku, ...d, tonQuyDoi, deXuat, isActive });
   });
   rows.sort((a, b) => b.deXuat - a.deXuat);
