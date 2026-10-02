@@ -244,9 +244,9 @@
   #gia-fix-table td { padding: 8px 8px; }
   #gia-check-table th { white-space: normal; }
   #gia-fix-table th { white-space: normal; }
-  #gia-check-daily-table { font-size: 14px; }
-  #gia-check-daily-table th { padding: 9px 8px; font-size: 13px; }
-  #gia-check-daily-table td { padding: 8px 8px; }
+  #gia-check-daily-table { font-size: 15px; }
+  #gia-check-daily-table th { padding: 10px 10px; font-size: 13px; }
+  #gia-check-daily-table td { padding: 12px 10px; font-size: 20px; font-weight: 700; }
   .roas-badge {
     display: inline-block; padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 11px;
   }
@@ -2164,13 +2164,15 @@
         <div class="table-wrap" style="max-height:220px;overflow:auto;border:1px solid var(--gray3);border-radius:8px;margin-bottom:16px">
           <table id="gia-check-daily-table" style="table-layout:fixed;width:100%">
             <colgroup>
-              <col style="width:18%"><col style="width:18%">
-              <col style="width:21%"><col style="width:21%"><col style="width:22%">
+              <col style="width:12%"><col style="width:11%">
+              <col style="width:14%"><col style="width:14%"><col style="width:14%">
+              <col style="width:17%"><col style="width:18%">
             </colgroup>
             <thead>
               <tr>
                 <th>Ngày</th><th class="num">Số Đơn Lệch</th>
                 <th class="num">Tổng Lệch Dương (+)</th><th class="num">Tổng Lệch Âm (−)</th><th class="num">Lệch Ròng</th>
+                <th class="num">Tổng Được Shopee Trợ Giá</th><th class="num">Tổng Mã Giảm Giá Của Shop</th>
               </tr>
             </thead>
             <tbody id="gia-check-daily-tbody"></tbody>
@@ -14979,23 +14981,26 @@ function giaRenderPriceReport() {
   giaRenderPriceTable();
 }
 
-// Xác nhận Tân 2026-10-02: tổng hợp chênh lệch giá bán (số tiền) theo NGÀY, nhận đúng mảng rows
-// ĐÃ LỌC (Shop/tìm kiếm/trạng thái) từ giaRenderPriceTable() — không tự lọc lại ở đây để luôn khớp
-// với bảng chi tiết đang hiển thị. Chỉ tính các dòng có giaBanChuan (đã xác định được giá chuẩn)
-// và có chênh lệch khác 0 (bằng giá chuẩn thì không tính là "đơn lệch").
+// Xác nhận Tân 2026-10-02: tổng hợp theo NGÀY, nhận đúng mảng rows ĐÃ LỌC (Shop/tìm kiếm/trạng
+// thái) từ giaRenderPriceTable() — không tự lọc lại ở đây để luôn khớp với bảng chi tiết đang hiển
+// thị. Gom theo TẤT CẢ đơn trong ngày (không chỉ riêng đơn lệch giá) để cộng đúng Tổng Được Shopee
+// Trợ Giá / Tổng Mã Giảm Giá Của Shop cho cả ngày — riêng 3 cột lệch (Dương/Âm/Ròng) và Số Đơn Lệch
+// vẫn chỉ tính trên các đơn có xác định được giá chuẩn và thực sự lệch (chênh khác 0).
 function giaRenderDailySummary(rows) {
   const tbody = document.getElementById('gia-check-daily-tbody');
   if (!tbody) return;
-  const byDay = new Map(); // key "YYYY-MM-DD" (hoặc 'unknown') -> { label, count, pos, neg }
+  const byDay = new Map(); // key "YYYY-MM-DD" (hoặc 'unknown') -> { label, count, pos, neg, troGia, maGiamGia }
   rows.forEach(r => {
-    if (r.giaBanChuan == null) return;
-    const chenh = r.giaBanChuan - r.giaBan;
-    if (!chenh) return;
     const norm = giaNormalizeDateStr(r.ngay);
     const key = norm || 'unknown';
     const label = norm ? norm.split('-').reverse().join('/') : '(Không rõ ngày)';
     let g = byDay.get(key);
-    if (!g) { g = { label, count: 0, pos: 0, neg: 0 }; byDay.set(key, g); }
+    if (!g) { g = { label, count: 0, pos: 0, neg: 0, troGia: 0, maGiamGia: 0 }; byDay.set(key, g); }
+    g.troGia += Number(r.duocShopeeTroGia) || 0;
+    g.maGiamGia += Number(r.maGiamGiaShop) || 0;
+    if (r.giaBanChuan == null) return;
+    const chenh = r.giaBanChuan - r.giaBan;
+    if (!chenh) return;
     g.count++;
     if (chenh > 0) g.pos += chenh; else g.neg += chenh;
   });
@@ -15003,7 +15008,7 @@ function giaRenderDailySummary(rows) {
   const days = Array.from(byDay.entries()).sort((a, b) => b[0].localeCompare(a[0]));
 
   if (!days.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text2);padding:14px">Không có đơn lệch giá nào trong tập dữ liệu đang xem</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text2);padding:14px">Không có dữ liệu trong tập đang xem</td></tr>';
     return;
   }
 
@@ -15015,6 +15020,8 @@ function giaRenderDailySummary(rows) {
       <td class="num" style="color:var(--red)">${g.pos > 0 ? '+' + giaFmtVND(g.pos) + 'đ' : '—'}</td>
       <td class="num" style="color:var(--green)">${g.neg < 0 ? giaFmtVND(g.neg) + 'đ' : '—'}</td>
       <td class="num">${giaFmtChenhVND(net)}</td>
+      <td class="num">${giaFmtVND(g.troGia)}đ</td>
+      <td class="num">${giaFmtVND(g.maGiamGia)}đ</td>
     </tr>`;
   }).join('');
 }
