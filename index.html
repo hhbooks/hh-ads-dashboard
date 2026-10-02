@@ -236,9 +236,9 @@
   #shopee-report-table th, #shopee-report-table td { padding: 6px 5px; white-space: normal; word-break: break-word; }
   #shopee-report-table td.num, #shopee-report-table th.num { white-space: nowrap; }
   /* ── Bảng Kiểm Tra Giá (Cảnh Báo Giá): co gọn chữ + đệm để vừa 1 màn hình ── */
-  #gia-check-table { font-size: 11px; }
-  #gia-check-table th { padding: 6px 5px; font-size: 10px; }
-  #gia-check-table td { padding: 5px 5px; }
+  #gia-check-table { font-size: 14px; }
+  #gia-check-table th { padding: 9px 8px; font-size: 13px; }
+  #gia-check-table td { padding: 8px 8px; }
   .roas-badge {
     display: inline-block; padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 11px;
   }
@@ -2094,15 +2094,18 @@
         <div class="table-wrap" style="max-height:560px;overflow:auto;border:1px solid var(--gray3);border-radius:8px">
           <table id="gia-check-table" style="table-layout:fixed;width:100%">
             <colgroup>
-              <col style="width:3%"><col style="width:12%"><col style="width:16%">
-              <col style="width:7%"><col style="width:6%"><col style="width:7%"><col style="width:7%">
+              <col style="width:3%"><col style="width:10%"><col style="width:13%">
+              <col style="width:7%"><col style="width:6%"><col style="width:7%">
+              <col style="width:7%"><col style="width:7%"><col style="width:7%">
               <col style="width:8%"><col style="width:8%"><col style="width:7%">
-              <col style="width:7%"><col style="width:12%">
+              <col style="width:7%"><col style="width:11%">
             </colgroup>
             <thead>
               <tr>
                 <th>#</th><th>Mã Đơn</th><th style="text-align:left">Tên Sản Phẩm</th>
-                <th>SKU</th><th class="num">Giá Gốc</th><th class="num">Giá Bán</th><th class="num">%Giảm Thực</th>
+                <th>SKU</th><th class="num">Giá Gốc</th><th class="num">Giá Bán</th>
+                <th class="num">Được Shopee Trợ Giá</th><th class="num">Mã Giảm Giá Của Shop</th>
+                <th class="num">%Giảm Thực</th>
                 <th class="num">Giá Gốc Chuẩn</th><th class="num">Giá Bán Chuẩn</th><th class="num">%Giảm Chuẩn</th>
                 <th class="num">Lệch</th><th>Trạng Thái</th>
               </tr>
@@ -2772,6 +2775,7 @@
         </div>
         <button onclick="dhdLoadFromFirestore()" style="padding:6px 14px;border:1px solid var(--text);color:var(--text);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 Tải Lại Bảng Stock</button>
         <button onclick="dhdExportMaster()" style="padding:6px 14px;border:1px solid var(--text);color:var(--text);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">📥 Xuất Bảng Stock Hiện Tại</button>
+        <button onclick="dhdResetView()" style="padding:6px 14px;border:1px solid #c0392b;color:#c0392b;background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🧹 Reset Về Mặc Định</button>
       </div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Bảng Stock gốc: <b id="dhd-status-master">chưa tải</b></div>
 
@@ -4478,7 +4482,10 @@ const db = firebase.firestore();
 // có dữ liệu Black List sẵn sàng càng sớm càng tốt. blLoadIfNeeded() được định nghĩa phía dưới,
 // nhưng vì đây chỉ là 1 lệnh gọi async (không thực thi ngay khi parse), JS vẫn chạy đúng.
 window.addEventListener('DOMContentLoaded', () => {
-  if (typeof dhdLoadFromFirestore === 'function') dhdLoadFromFirestore();
+  // Đặt Hàng Deli — KHÔNG auto-tải Bảng Stock khi mở dashboard nữa (xác nhận Tân
+  // 2026-10-02: trước đây tự tải + tính toán ngay khi mở trang khiến lúc nào cũng
+  // hiện kết quả lần xử lý gần nhất, dễ gây hiểu nhầm là dữ liệu mới). Giờ mặc định
+  // trống, Tân chủ động bấm "🔄 Tải Lại Bảng Stock" hoặc "🧹 Reset Về Mặc Định".
   if (typeof renderAllShopFilterBars === 'function') renderAllShopFilterBars();
   if (typeof blLoadIfNeeded === 'function') blLoadIfNeeded();
   if (typeof skuloiInitShopSelect === 'function') skuloiInitShopSelect();
@@ -9653,6 +9660,34 @@ function dhdLog(msg, type) {
   const time = new Date().toLocaleTimeString('vi-VN');
   el.innerHTML += `<div style="color:${color}">[${time}] ${msg}</div>`;
   el.scrollTop = el.scrollHeight;
+}
+
+// Reset HIỂN THỊ của "Đặt Hàng Deli — Bảng Stock" về trạng thái mặc định (như lần đầu mở
+// dashboard) — KHÔNG đụng tới dữ liệu 586 mã đang lưu trên Firestore (collection 'deli_stock'),
+// chỉ xoá state JS trong bộ nhớ trình duyệt + UI. Xác nhận Tân 2026-10-02.
+function dhdResetView() {
+  DHD.stockMap = new Map();
+  DHD.loaded = false;
+  DHD.pendingNew = [];
+  DHD.filter = null;
+  DHD._lastRows = [];
+
+  const statusEl = document.getElementById('dhd-status-master');
+  if (statusEl) statusEl.textContent = 'chưa tải';
+
+  const logEl = document.getElementById('dhd-log');
+  if (logEl) { logEl.innerHTML = ''; logEl.classList.remove('visible'); }
+
+  const resultEl = document.getElementById('dhd-result');
+  if (resultEl) { resultEl.style.display = 'none'; resultEl.innerHTML = ''; }
+
+  const exportBtn = document.getElementById('dhd-export-btn');
+  if (exportBtn) exportBtn.style.display = 'none';
+
+  const newskuEl = document.getElementById('dhd-newsku');
+  if (newskuEl) { newskuEl.style.display = 'none'; newskuEl.innerHTML = ''; }
+
+  dhdLog('🧹 Đã reset về mặc định — bấm "🔄 Tải Lại Bảng Stock" để xem số liệu (dữ liệu trên Firestore không đổi).', 'ok');
 }
 
 async function dhdLoadFromFirestore() {
@@ -16175,7 +16210,7 @@ function giaRenderPriceTable() {
   );
 
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--text2);padding:18px">Không có dòng nào khớp bộ lọc</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;color:var(--text2);padding:18px">Không có dòng nào khớp bộ lọc</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map((r, i) => {
@@ -16194,6 +16229,8 @@ function giaRenderPriceTable() {
       <td style="white-space:normal" title="${r.sku || ''}">${String(r.sku || '').split(',').map(s => s.trim()).join('<br>')}</td>
       <td class="num">${giaFmtVND(r.giaGoc)}</td>
       <td class="num">${giaFmtVND(r.giaBan)}</td>
+      <td class="num">${giaFmtVND(r.duocShopeeTroGia)}</td>
+      <td class="num">${giaFmtVND(r.maGiamGiaShop)}</td>
       <td class="num">${giaFmtPct(r.pctThuc)}</td>
       <td class="num">${giaFmtVND(r.giaGocChuan)}</td>
       <td class="num">${giaFmtVND(r.giaBanChuan)}</td>
