@@ -2195,7 +2195,7 @@
                 <th class="num">Được Shopee Trợ Giá</th><th class="num">Mã Giảm Giá Của Shop</th>
                 <th class="num">%Giảm Thực</th>
                 <th class="num">Giá Gốc Chuẩn</th><th class="num">Giá Bán Chuẩn</th><th class="num">%Giảm Chuẩn</th>
-                <th class="num">Lệch</th><th class="num">Chênh Lệch Giá Bán</th>
+                <th class="num">Lệch</th><th class="num">Chênh Lệch<br>Giá Bán</th>
               </tr>
             </thead>
             <tbody id="gia-check-tbody"></tbody>
@@ -14764,12 +14764,16 @@ async function giaComputeCheckRows(tab, thresholdPct, fromDateStr, logFn) {
       } else {
         status = 'chua-co-db'; // không tính được % (giá gốc/giá gốc chuẩn = 0) → coi như thiếu dữ liệu chuẩn
       }
-      // Xác nhận Tân 2026-10-02: giá bán THỰC = giá bán CHUẨN (bằng tuyệt đối) thì luôn coi là hợp lệ,
-      // bất kể % lệch tính ra sao — vì có trường hợp giá gốc lệch chuẩn nhưng giá bán vẫn đúng, không
-      // phải lỗi vi phạm giá bán thực tế. Chỉ gỡ nhãn 'vi-pham' do %lệch gây ra, không đụng tới
-      // 'thieu-sku'/'chua-co-db' (thiếu dữ liệu để xác định, không phải vi phạm).
-      if (status === 'vi-pham' && giaBanChuan != null && giaBan === giaBanChuan) {
-        status = 'hop-le';
+      // Xác nhận Tân 2026-10-02: gỡ nhãn 'vi-pham' do %lệch gây ra (không đụng 'thieu-sku'/'chua-co-db'
+      // — thiếu dữ liệu để xác định, không phải vi phạm) trong 2 trường hợp:
+      // (a) giá bán THỰC = giá bán CHUẨN (bằng tuyệt đối) — giá gốc có thể lệch chuẩn nhưng giá bán vẫn đúng;
+      // (b) giá bán THỰC + Được Shopee Trợ Giá = giá bán CHUẨN — khoản chênh do Shopee tự trợ giá bù vào,
+      //     shop không mất tiền nên không tính là vi phạm (xác nhận Tân 2026-10-02 lần 2, kèm ví dụ thực tế).
+      if (status === 'vi-pham' && giaBanChuan != null) {
+        const troGia_ = Number(r.duocShopeeTroGia) || 0;
+        if (giaBan === giaBanChuan || (giaBan + troGia_) === giaBanChuan) {
+          status = 'hop-le';
+        }
       }
     }
 
