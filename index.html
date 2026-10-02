@@ -244,6 +244,9 @@
   #gia-fix-table td { padding: 8px 8px; }
   #gia-check-table th { white-space: normal; }
   #gia-fix-table th { white-space: normal; }
+  #gia-check-daily-table { font-size: 14px; }
+  #gia-check-daily-table th { padding: 9px 8px; font-size: 13px; }
+  #gia-check-daily-table td { padding: 8px 8px; }
   .roas-badge {
     display: inline-block; padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 11px;
   }
@@ -2154,6 +2157,26 @@
           <button class="filter-btn" data-filter="hop-le" onclick="giaSetPriceFilter('hop-le',this)">✅ Hợp lệ</button>
         </div>
 
+        <!-- Xác nhận Tân 2026-10-02: tổng hợp CHÊNH LỆCH GIÁ BÁN (số tiền) theo NGÀY, tính trên đúng
+             tập dữ liệu đang hiển thị ở bảng chi tiết bên dưới (đã áp Shop/tìm kiếm/trạng thái) -
+             đổ dữ liệu trong giaRenderDailySummary(), gọi từ cuối giaRenderPriceTable(). -->
+        <div style="font-weight:700;color:var(--navy);font-size:13px;margin:4px 0 6px">📅 Tổng Hợp Chênh Lệch Giá Theo Ngày</div>
+        <div class="table-wrap" style="max-height:220px;overflow:auto;border:1px solid var(--gray3);border-radius:8px;margin-bottom:16px">
+          <table id="gia-check-daily-table" style="table-layout:fixed;width:100%">
+            <colgroup>
+              <col style="width:18%"><col style="width:18%">
+              <col style="width:21%"><col style="width:21%"><col style="width:22%">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Ngày</th><th class="num">Số Đơn Lệch</th>
+                <th class="num">Tổng Lệch Dương (+)</th><th class="num">Tổng Lệch Âm (−)</th><th class="num">Lệch Ròng</th>
+              </tr>
+            </thead>
+            <tbody id="gia-check-daily-tbody"></tbody>
+          </table>
+        </div>
+
         <div class="table-wrap" style="max-height:560px;overflow:auto;border:1px solid var(--gray3);border-radius:8px">
           <table id="gia-check-table" style="table-layout:fixed;width:100%">
             <colgroup>
@@ -2170,7 +2193,7 @@
                 <th class="num">Được Shopee Trợ Giá</th><th class="num">Mã Giảm Giá Của Shop</th>
                 <th class="num">%Giảm Thực</th>
                 <th class="num">Giá Gốc Chuẩn</th><th class="num">Giá Bán Chuẩn</th><th class="num">%Giảm Chuẩn</th>
-                <th class="num">Lệch</th><th>Trạng Thái</th>
+                <th class="num">Lệch</th><th class="num">Chênh Lệch Giá Bán</th>
               </tr>
             </thead>
             <tbody id="gia-check-tbody"></tbody>
@@ -14739,6 +14762,13 @@ async function giaComputeCheckRows(tab, thresholdPct, fromDateStr, logFn) {
       } else {
         status = 'chua-co-db'; // không tính được % (giá gốc/giá gốc chuẩn = 0) → coi như thiếu dữ liệu chuẩn
       }
+      // Xác nhận Tân 2026-10-02: giá bán THỰC = giá bán CHUẨN (bằng tuyệt đối) thì luôn coi là hợp lệ,
+      // bất kể % lệch tính ra sao — vì có trường hợp giá gốc lệch chuẩn nhưng giá bán vẫn đúng, không
+      // phải lỗi vi phạm giá bán thực tế. Chỉ gỡ nhãn 'vi-pham' do %lệch gây ra, không đụng tới
+      // 'thieu-sku'/'chua-co-db' (thiếu dữ liệu để xác định, không phải vi phạm).
+      if (status === 'vi-pham' && giaBanChuan != null && giaBan === giaBanChuan) {
+        status = 'hop-le';
+      }
     }
 
     out.push({
@@ -14920,6 +14950,14 @@ function giaFmtLech(frac) {
   if (Math.abs(pct) < 0.05) return `<span style="color:var(--text2)">${v}</span>`;
   return pct > 0 ? `<span style="color:var(--red)">▲ ${v}</span>` : `<span style="color:var(--green)">▼ ${v}</span>`;
 }
+// Chênh lệch giá bán theo SỐ TIỀN (VNĐ) = Giá Bán Chuẩn − Giá Bán — dùng chung quy ước màu/mũi tên
+// với giaFmtLech: dương (bán thấp hơn chuẩn) = đỏ ▲, âm (bán cao hơn chuẩn) = xanh ▼. Xác nhận Tân 2026-10-02.
+function giaFmtChenhVND(n) {
+  if (n == null || isNaN(n)) return '—';
+  if (Math.abs(n) < 1) return `<span style="color:var(--text2)">0đ</span>`;
+  const v = Math.abs(n).toLocaleString('vi-VN') + 'đ';
+  return n > 0 ? `<span style="color:var(--red)">▲ ${v}</span>` : `<span style="color:var(--green)">▼ ${v}</span>`;
+}
 
 function giaRenderPriceReport() {
   const rows = GIA.checkRows;
@@ -14941,6 +14979,46 @@ function giaRenderPriceReport() {
   giaRenderPriceTable();
 }
 
+// Xác nhận Tân 2026-10-02: tổng hợp chênh lệch giá bán (số tiền) theo NGÀY, nhận đúng mảng rows
+// ĐÃ LỌC (Shop/tìm kiếm/trạng thái) từ giaRenderPriceTable() — không tự lọc lại ở đây để luôn khớp
+// với bảng chi tiết đang hiển thị. Chỉ tính các dòng có giaBanChuan (đã xác định được giá chuẩn)
+// và có chênh lệch khác 0 (bằng giá chuẩn thì không tính là "đơn lệch").
+function giaRenderDailySummary(rows) {
+  const tbody = document.getElementById('gia-check-daily-tbody');
+  if (!tbody) return;
+  const byDay = new Map(); // key "YYYY-MM-DD" (hoặc 'unknown') -> { label, count, pos, neg }
+  rows.forEach(r => {
+    if (r.giaBanChuan == null) return;
+    const chenh = r.giaBanChuan - r.giaBan;
+    if (!chenh) return;
+    const norm = giaNormalizeDateStr(r.ngay);
+    const key = norm || 'unknown';
+    const label = norm ? norm.split('-').reverse().join('/') : '(Không rõ ngày)';
+    let g = byDay.get(key);
+    if (!g) { g = { label, count: 0, pos: 0, neg: 0 }; byDay.set(key, g); }
+    g.count++;
+    if (chenh > 0) g.pos += chenh; else g.neg += chenh;
+  });
+
+  const days = Array.from(byDay.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+
+  if (!days.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text2);padding:14px">Không có đơn lệch giá nào trong tập dữ liệu đang xem</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = days.map(([, g]) => {
+    const net = g.pos + g.neg;
+    return `<tr>
+      <td>${g.label}</td>
+      <td class="num">${g.count}</td>
+      <td class="num" style="color:var(--red)">${g.pos > 0 ? '+' + giaFmtVND(g.pos) + 'đ' : '—'}</td>
+      <td class="num" style="color:var(--green)">${g.neg < 0 ? giaFmtVND(g.neg) + 'đ' : '—'}</td>
+      <td class="num">${giaFmtChenhVND(net)}</td>
+    </tr>`;
+  }).join('');
+}
+
 function giaRenderPriceTable() {
   const tbody = document.getElementById('gia-check-tbody');
   if (!tbody) return;
@@ -14956,24 +15034,25 @@ function giaRenderPriceTable() {
     String(r.shop || '').toLowerCase().includes(search)
   );
 
+  giaRenderDailySummary(rows);
+
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;color:var(--text2);padding:18px">Không có dòng nào khớp bộ lọc</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map((r, i) => {
+    // Xác nhận Tân 2026-10-02: ẩn cột "Trạng Thái" khỏi bảng hiển thị (status vẫn giữ nguyên trong
+    // dữ liệu để 4 nút lọc Vi phạm giá/Thiếu SKU/Chưa có DB/Hợp lệ hoạt động bình thường) — chuyển
+    // nhãn "(qua Map)" sang cạnh cột SKU để không mất thông tin chẩn đoán.
     const mapTag = r.viaMap ? ' <span title="SKU được tự khớp qua Map Salework (Tên sản phẩm + Tên phân loại) — không có sẵn trong file order" style="font-size:10px;color:var(--text2)">(qua Map)</span>' : '';
-    const statusLabel = (r.status === 'vi-pham' ? '<span style="color:var(--red)">🚨 Vi phạm giá</span>'
-      : r.status === 'thieu-sku' ? '<span style="color:var(--orange)">❓ Thiếu SKU</span>'
-      : r.status === 'chua-co-db' ? '<span style="color:var(--orange)">📭 Chưa có DB</span>'
-      : r.isCombo ? '<span style="color:var(--green)">✅ OK*</span>'
-      : '<span style="color:var(--green)">✅ Hợp lệ</span>') + mapTag;
     const tenSpFull = String(r.tenSp || '').replace(/"/g, '&quot;');
     const ell = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    const chenhLechGiaBan = r.giaBanChuan != null ? (r.giaBanChuan - r.giaBan) : null;
     return `<tr>
       <td style="${ell}">${i + 1}</td>
       <td title="${r.maDon || ''}">${r.maDon || ''}</td>
       <td style="text-align:left;${ell}" title="${tenSpFull}">${r.tenSp || ''}</td>
-      <td style="white-space:normal" title="${r.sku || ''}">${String(r.sku || '').split(',').map(s => s.trim()).join('<br>')}</td>
+      <td style="white-space:normal" title="${r.sku || ''}">${String(r.sku || '').split(',').map(s => s.trim()).join('<br>')}${mapTag}</td>
       <td class="num">${giaFmtVND(r.giaGoc)}</td>
       <td class="num">${giaFmtVND(r.giaBan)}</td>
       <td class="num">${giaFmtVND(r.duocShopeeTroGia)}</td>
@@ -14983,7 +15062,7 @@ function giaRenderPriceTable() {
       <td class="num">${giaFmtVND(r.giaBanChuan)}</td>
       <td class="num">${giaFmtPct(r.pctChuan)}</td>
       <td class="num" style="${ell}">${giaFmtLech(r.lech)}</td>
-      <td style="${ell}">${statusLabel}</td>
+      <td class="num" style="${ell}">${giaFmtChenhVND(chenhLechGiaBan)}</td>
     </tr>`;
   }).join('');
 }
