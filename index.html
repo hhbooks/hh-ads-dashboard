@@ -239,6 +239,10 @@
   #gia-check-table { font-size: 14px; }
   #gia-check-table th { padding: 9px 8px; font-size: 13px; }
   #gia-check-table td { padding: 8px 8px; }
+  #gia-fix-table { font-size: 14px; }
+  #gia-fix-table th { padding: 9px 8px; font-size: 13px; }
+  #gia-fix-table td { padding: 8px 8px; }
+  #gia-check-table th { white-space: normal; }
   .roas-badge {
     display: inline-block; padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 11px;
   }
@@ -14880,7 +14884,7 @@ function giaRenderPriceFixTable() {
     const ell = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
     return `<tr>
       <td style="${ell}">${i + 1}</td>
-      <td title="${escAttr(r.sku || '')}">${r.sku || '—'}</td>
+      <td style="white-space:normal;line-height:1.7" title="${escAttr(r.sku || '')}">${String(r.sku || '—').split(',').map(s => s.trim()).join('<br>')}</td>
       <td style="text-align:left;${ell}" title="${escAttr(r.tenSp || '')}">${r.tenSp || '—'}</td>
       <td class="num" style="line-height:1.7">${giaGocShopHtml}</td>
       <td class="num" style="line-height:1.7">${giaBanShopHtml}</td>
