@@ -8502,8 +8502,9 @@ async function dhdLoadFromFirestore() {
 // HCM trước giờ chưa từng được theo dõi riêng nên khởi tạo bằng 0. Hàm này IDEMPOTENT: mã nào đã
 // có field tonHienTaiHN rồi thì bỏ qua, nên bấm lại nhiều lần không sao, không lo chạy trùng.
 async function dhdMigrateKho() {
-  if (!DHD.loaded || !DHD.stockMap || DHD.stockMap.size === 0) {
-    dhdLog('⚠ Cần tải Bảng Stock trước khi Migrate (đẩy 1 file bất kỳ hoặc tải lại trang để nạp dữ liệu).', 'warn');
+  if (!DHD.loaded) await dhdLoadFromFirestore();
+  if (!DHD.stockMap || DHD.stockMap.size === 0) {
+    dhdLog('⚠ Bảng Stock trên Firestore đang rỗng — chưa có dữ liệu để Migrate.', 'warn');
     return;
   }
   const toMigrate = [];
@@ -8987,7 +8988,8 @@ function dhdExportFile(khoView) {
   dhdLog(`📤 Đã xuất "${outName}" — ${rows.length} mã cần đặt Kho ${kv} (SL đã quy đổi đúng Đơn Vị Tính từng mã).`, 'ok');
 }
 
-function dhdExportMaster() {
+async function dhdExportMaster() {
+  if (!DHD.loaded) await dhdLoadFromFirestore();
   if (!DHD.stockMap || DHD.stockMap.size === 0) { dhdLog('⚠ Chưa có dữ liệu Bảng Stock để xuất', 'warn'); return; }
   const aoa = [['Mã SKU (Online Code)', 'Tên Hàng Hóa', 'Nhóm Hàng', 'Tồn Hiện Tại (HN)', 'Tồn Hiện Tại (HCM)', 'Đơn Vị Tồn Kho', 'Quy Cách (số cái/đơn vị)', 'Yêu Cầu Tồn/Tuần HN (Cái)', 'Yêu Cầu Tồn/Tuần HCM (Cái)', 'Trạng Thái', 'Ghi Chú']];
   const rows = Array.from(DHD.stockMap.values()).sort((a, b) => String(a.sku || '').localeCompare(String(b.sku || '')));
