@@ -652,6 +652,29 @@
       </div>
     </div>
 
+    <!-- Khối Đăng Sản Phẩm -->
+    <div class="sidebar-block" id="block-dangsp">
+      <div class="block-header" onclick="toggleSidebarBlock('dangsp')">
+        <span class="block-icon">🏷️</span>
+        <span class="block-title">Đăng Sản Phẩm</span>
+        <span class="block-arrow">▶</span>
+      </div>
+      <div class="block-body" id="block-body-dangsp" style="display:none">
+        <div class="nav-item" onclick="showPage('dang-sp-huyhoang',this)">
+          <span class="icon">📘</span> Đăng sản phẩm Huy Hoàng
+        </div>
+        <div class="nav-item" onclick="showPage('dang-sp-lienket',this)">
+          <span class="icon">🔗</span> Đăng sản phẩm Liên kết
+        </div>
+        <div class="nav-item" onclick="showPage('dang-sp-deli',this)">
+          <span class="icon">✏️</span> Đăng sản phẩm Deli
+        </div>
+        <div class="nav-item" onclick="showPage('dang-sp-bose',this)">
+          <span class="icon">🏠</span> Đăng sản phẩm Bose
+        </div>
+      </div>
+    </div>
+
     <!-- Khối Tồn Kho -->
     <div class="sidebar-block" id="block-tonkho">
       <div class="block-header" onclick="toggleSidebarBlock('tonkho')">
@@ -1822,6 +1845,81 @@
       <div id="th-category-wrap"><div class="th-empty">Chưa có dữ liệu</div></div>
     </div>
 
+  </div>
+
+  <!-- ══════════════════════════════════════════════════ -->
+  <!-- KHỐI: ĐĂNG SẢN PHẨM                               -->
+  <!-- ══════════════════════════════════════════════════ -->
+  <div class="page" id="page-dang-sp-huyhoang">
+    <div class="card" style="text-align:center;padding:60px 24px">
+      <div style="font-size:48px;margin-bottom:16px">📘</div>
+      <div style="font-size:20px;font-weight:700;color:var(--navy);margin-bottom:8px">Đăng Sản Phẩm — Huy Hoàng</div>
+      <div style="font-size:14px;color:var(--text2);max-width:400px;margin:0 auto;line-height:1.7">
+        Tính năng đang được xây dựng.
+      </div>
+      <div style="margin-top:24px;display:inline-block;background:#fff8e1;border:1.5px dashed #f0c000;border-radius:8px;padding:10px 20px;font-size:12px;color:#7b6000">
+        🚧 Coming soon — làm việc cùng Tân để triển khai
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="page-dang-sp-lienket">
+    <div class="card" style="text-align:center;padding:60px 24px">
+      <div style="font-size:48px;margin-bottom:16px">🔗</div>
+      <div style="font-size:20px;font-weight:700;color:var(--navy);margin-bottom:8px">Đăng Sản Phẩm — Liên Kết</div>
+      <div style="font-size:14px;color:var(--text2);max-width:400px;margin:0 auto;line-height:1.7">
+        Tính năng đang được xây dựng.
+      </div>
+      <div style="margin-top:24px;display:inline-block;background:#fff8e1;border:1.5px dashed #f0c000;border-radius:8px;padding:10px 20px;font-size:12px;color:#7b6000">
+        🚧 Coming soon — làm việc cùng Tân để triển khai
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="page-dang-sp-deli">
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:#16a085"></span> Đăng Sản Phẩm — Deli: Đồng Bộ SKU Tổng</div>
+      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
+        Đọc tab "Triển Khai Deli" trong Google Sheet "SKU Tổng", tự gộp các dòng Mã hàng chung 1 sản phẩm (theo ô Link SP gộp), và lọc ra sản phẩm <b>đã Nhập Kho HN</b> nhưng <b>còn thiếu ít nhất 1 trong 6 shop Shopee</b> (không tính 3 cột TikTok) để Tân xử lý tiếp.
+      </p>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <button id="dsp-deli-sync-btn" class="btn-drive-sync" style="max-width:260px" onclick="dspDeliSync()">🔄 Đồng Bộ SKU Tổng</button>
+        <span style="font-size:12px;color:var(--text2)">Lần đồng bộ gần nhất: <b id="dsp-deli-last-sync">chưa đồng bộ</b></span>
+      </div>
+      <div id="dsp-deli-log" class="drive-log"></div>
+
+      <div class="kpi-grid" style="margin:16px 0;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">
+        <div class="kpi-card navy">
+          <div class="kpi-icon">📦</div>
+          <div class="kpi-label">Sản Phẩm Cần Xử Lý</div>
+          <div class="kpi-value" id="dsp-deli-kpi-products">0</div>
+          <div class="kpi-sub">Đã Nhập Kho HN, còn thiếu shop</div>
+        </div>
+        <div class="kpi-card orange">
+          <div class="kpi-icon">🏷️</div>
+          <div class="kpi-label">Tổng Phân Loại</div>
+          <div class="kpi-value" id="dsp-deli-kpi-variants">0</div>
+          <div class="kpi-sub">Tổng số Mã hàng trong các sản phẩm trên</div>
+        </div>
+      </div>
+
+      <div class="table-wrap" id="dsp-deli-table-wrap" style="max-height:560px;overflow-y:auto;border:1px solid var(--gray3);border-radius:8px">
+        <div class="th-empty">Chưa có dữ liệu — bấm "Đồng Bộ SKU Tổng" ở trên.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="page-dang-sp-bose">
+    <div class="card" style="text-align:center;padding:60px 24px">
+      <div style="font-size:48px;margin-bottom:16px">🏠</div>
+      <div style="font-size:20px;font-weight:700;color:var(--navy);margin-bottom:8px">Đăng Sản Phẩm — Bose</div>
+      <div style="font-size:14px;color:var(--text2);max-width:400px;margin:0 auto;line-height:1.7">
+        Tính năng đang được xây dựng.
+      </div>
+      <div style="margin-top:24px;display:inline-block;background:#fff8e1;border:1.5px dashed #f0c000;border-radius:8px;padding:10px 20px;font-size:12px;color:#7b6000">
+        🚧 Coming soon — làm việc cùng Tân để triển khai
+      </div>
+    </div>
   </div>
 
   <!-- ══════════════════════════════════════════════════ -->
@@ -17071,8 +17169,87 @@ function ketoanGuardToggle() {
   }
 }
 
+// ══════════════════════════════════════════════════════════════
+// ĐĂNG SẢN PHẨM — DELI: Đồng Bộ SKU Tổng (tab "Triển Khai Deli")
+// Gọi qua CHÍNH Apps Script đã dùng cho SKU Tổng (AppsScript_SKU_Tong_Push.gs, action mới
+// "syncTrienKhaiDeli") — dùng lại spmJsonpCall_/SKU_SHEET_APPS_SCRIPT_URL sẵn có, không cần
+// OAuth/Drive scope mới. Xác nhận Tân 2026-10-01: sản phẩm "cần xử lý" = Nhập Kho HN (cột R) =
+// TRUE (ít nhất 1 phân loại) VÀ còn thiếu ít nhất 1/6 shop Shopee (không tính 3 cột TikTok).
+// ══════════════════════════════════════════════════════════════
+let DSP_DELI_DATA = [];
+
+function dspDeliLog(msg, type) {
+  const el = document.getElementById('dsp-deli-log');
+  if (!el) return;
+  el.classList.add('visible');
+  const color = type === 'err' ? '#e74c3c' : type === 'warn' ? '#f39c12' : type === 'ok' ? '#27ae60' : '#555';
+  el.innerHTML += `<div style="color:${color}">[${new Date().toLocaleTimeString('vi-VN')}] ${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+async function dspDeliSync() {
+  if (!SKU_SHEET_APPS_SCRIPT_URL) {
+    dspDeliLog('❌ Chưa cấu hình URL Apps Script cho Sheet SKU Tổng.', 'err');
+    return;
+  }
+  const btn = document.getElementById('dsp-deli-sync-btn');
+  if (btn) btn.disabled = true;
+  dspDeliLog('🔄 Đang đồng bộ tab "Triển Khai Deli" từ SKU Tổng...');
+  try {
+    const data = await spmJsonpCall_(SKU_SHEET_APPS_SCRIPT_URL, { action: 'syncTrienKhaiDeli' }, 25000);
+    if (!data || data.ok === false) throw new Error((data && data.error) || 'Không rõ lỗi');
+    DSP_DELI_DATA = data.products || [];
+    dspDeliLog(`✅ Đồng bộ xong — ${DSP_DELI_DATA.length} sản phẩm cần xử lý.`, 'ok');
+    document.getElementById('dsp-deli-last-sync').textContent = new Date().toLocaleString('vi-VN');
+    dspDeliRenderTable();
+  } catch (err) {
+    dspDeliLog('❌ Lỗi đồng bộ: ' + err.message, 'err');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function dspDeliRenderTable() {
+  const wrap = document.getElementById('dsp-deli-table-wrap');
+  if (!wrap) return;
+  document.getElementById('dsp-deli-kpi-products').textContent = DSP_DELI_DATA.length;
+  const totalVariants = DSP_DELI_DATA.reduce((s, p) => s + (p.variants ? p.variants.length : 0), 0);
+  document.getElementById('dsp-deli-kpi-variants').textContent = totalVariants;
+  if (!DSP_DELI_DATA.length) {
+    wrap.innerHTML = '<div class="th-empty">Không có sản phẩm nào cần xử lý (hoặc chưa đồng bộ).</div>';
+    return;
+  }
+  let html = `<table class="th-shop-table">
+    <thead><tr>
+      <th style="text-align:left">Tên Sản Phẩm</th>
+      <th>Mã Hàng (Phân Loại)</th>
+      <th>Giá Bìa</th>
+      <th>Link Sản Phẩm</th>
+      <th>Link Ảnh (từng phân loại)</th>
+      <th style="text-align:left">Shop Còn Thiếu</th>
+    </tr></thead><tbody>`;
+  DSP_DELI_DATA.forEach(p => {
+    const variants = p.variants || [];
+    const maHangCol = variants.map(v => v.maHang || '—').join('<br>');
+    const giaBiaCol = variants.map(v => v.giaBia != null ? fmtMoney(v.giaBia) : '—').join('<br>');
+    const linkAnhCol = variants.map(v => v.linkAnh ? `<a href="${v.linkAnh}" target="_blank" rel="noopener">Xem</a>` : '—').join('<br>');
+    const linkSp = p.linkSp ? `<a href="${p.linkSp}" target="_blank" rel="noopener">Mở link</a>` : '—';
+    const shopThieu = (p.shopThieu || []).join(', ');
+    html += `<tr>
+      <td style="text-align:left">${p.tenHang || ''}</td>
+      <td>${maHangCol}</td>
+      <td>${giaBiaCol}</td>
+      <td>${linkSp}</td>
+      <td>${linkAnhCol}</td>
+      <td style="text-align:left;color:#c0392b;font-weight:600">${shopThieu}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
 function toggleSidebarBlock(name) {
-  const blocks = ['ads', 'gia', 'tonkho', 'marketing', 'nghiep-vu', 'ke-toan'];
+  const blocks = ['ads', 'dangsp', 'gia', 'tonkho', 'marketing', 'nghiep-vu', 'ke-toan'];
   blocks.forEach(b => {
     const header = document.querySelector(`#block-${b} .block-header`);
     const body   = document.getElementById(`block-body-${b}`);
