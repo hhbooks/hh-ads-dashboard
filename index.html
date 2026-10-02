@@ -8920,7 +8920,7 @@ function dhdRenderResult() {
       ${kv !== 'HCM' ? khoCellsHN(r) : ''}
       ${kv !== 'HN' ? khoCellsHCM(r) : ''}
       <td style="padding:8px 10px"><select id="dhd-edit-dvdh-${r.sku}" title="Đơn vị tính khi đặt hàng với NCC Deli — độc lập với Đơn Vị Tồn Kho" style="padding:4px 6px;border:1px solid #ccc;border-radius:5px;font-size:12px">
-        <option value="Cái" ${r.donViDatHang === 'Cái' ? 'selected' : ''}>Cái</option>
+        <option value="Cái" ${r.donViDatHang === 'Cái' ? 'selected' : ''}>Chiếc</option>
         <option value="Hộp" ${r.donViDatHang === 'Hộp' ? 'selected' : ''}>Hộp</option>
         <option value="Thùng" ${r.donViDatHang === 'Thùng' ? 'selected' : ''}>Thùng</option>
       </select></td>
@@ -9002,12 +9002,15 @@ function dhdExportFile(khoView) {
   // đổi ngược (làm tròn LÊN để không đặt thiếu). Xác nhận Tân 2026-10-02 — sửa lại từ quy ước cũ
   // 2026-09-30 (lúc đó lỡ dùng chung Đơn Vị Tồn Kho cho cả 2 mục đích, sai với đa số mã Deli).
   const aoa = [['STT', 'Mã SKU', 'Tên Hàng', 'Đơn Vị Tính', 'Số Lượng Cần Đặt']];
+  // "Cái" chi la gia tri luu noi bo (khong doi, de khoi phai migrate du lieu cu) - hien thi cho
+  // Tan trong file luon la "Chiếc", xac nhan Tan 2026-10-02.
+  const donViDatHangLabel = (v) => v === 'Cái' ? 'Chiếc' : v;
   rows.forEach((r, i) => {
     const donViDatHang = r.donViDatHang || r.donVi || 'Cái';
     const quyCach = typeof r.quyCach === 'number' && r.quyCach > 0 ? r.quyCach : 1;
     const deXuat = r[deXuatField];
     const slXuat = donViDatHang === 'Cái' ? deXuat : Math.ceil(deXuat / quyCach);
-    aoa.push([i + 1, r.sku, r.tenHang, donViDatHang, slXuat]);
+    aoa.push([i + 1, r.sku, r.tenHang, donViDatHangLabel(donViDatHang), slXuat]);
   });
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   const wb = XLSX.utils.book_new();
