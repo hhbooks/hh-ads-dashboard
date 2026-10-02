@@ -2618,7 +2618,6 @@
           <input type="file" id="dhd-ton-input" accept=".xlsx,.xls" style="display:none" onchange="dhdHandleTonFile(this)">
           <button class="sw-upload-btn" onclick="document.getElementById('dhd-ton-input').click()">📂 Đẩy File Tồn Kho Mới</button>
         </div>
-        <button onclick="dhdLoadFromFirestore()" style="padding:6px 14px;border:1px solid var(--text);color:var(--text);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 Tải Lại Bảng Stock</button>
         <button onclick="dhdExportMaster()" style="padding:6px 14px;border:1px solid var(--text);color:var(--text);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">📥 Xuất Bảng Stock Hiện Tại</button>
         <button onclick="dhdResetView()" style="padding:6px 14px;border:1px solid #c0392b;color:#c0392b;background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🧹 Reset Về Mặc Định</button>
       </div>
@@ -4330,7 +4329,9 @@ window.addEventListener('DOMContentLoaded', () => {
   // Đặt Hàng Deli — KHÔNG auto-tải Bảng Stock khi mở dashboard nữa (xác nhận Tân
   // 2026-10-02: trước đây tự tải + tính toán ngay khi mở trang khiến lúc nào cũng
   // hiện kết quả lần xử lý gần nhất, dễ gây hiểu nhầm là dữ liệu mới). Giờ mặc định
-  // trống, Tân chủ động bấm "🔄 Tải Lại Bảng Stock" hoặc "🧹 Reset Về Mặc Định".
+  // trống — Tân chủ động bấm "📂 Đẩy File Tồn Kho Mới"/"📂 Nhập/Cập Nhật Bảng Stock Gốc"
+  // (tự tải Firestore bên trong) hoặc "🧹 Reset Về Mặc Định". Nút "🔄 Tải Lại Bảng Stock"
+  // đã bị xoá khỏi giao diện (xác nhận Tân 2026-10-02 lần 2: thừa, trùng với flow trên).
   if (typeof renderAllShopFilterBars === 'function') renderAllShopFilterBars();
   if (typeof blLoadIfNeeded === 'function') blLoadIfNeeded();
   if (typeof skuloiInitShopSelect === 'function') skuloiInitShopSelect();
@@ -8458,7 +8459,7 @@ function dhdResetView() {
   const newskuEl = document.getElementById('dhd-newsku');
   if (newskuEl) { newskuEl.style.display = 'none'; newskuEl.innerHTML = ''; }
 
-  dhdLog('🧹 Đã reset về mặc định — bấm "🔄 Tải Lại Bảng Stock" để xem số liệu (dữ liệu trên Firestore không đổi).', 'ok');
+  dhdLog('🧹 Đã reset về mặc định — bấm "📂 Đẩy File Tồn Kho Mới" hoặc "📂 Nhập/Cập Nhật Bảng Stock Gốc" để tải lại số liệu (dữ liệu trên Firestore không đổi).', 'ok');
 }
 
 async function dhdLoadFromFirestore() {
