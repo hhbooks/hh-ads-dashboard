@@ -2603,11 +2603,22 @@
          loại khỏi phạm vi Deli). Số lượng đề xuất đặt = MAX(0, Yêu Cầu Tồn/Tuần − Tồn Quy Đổi Ra
          Cái), chỉ tính cho mã Trạng Thái = "Đang nhập bình thường". File xuất ra hiện là danh sách
          đơn giản (Mã SKU/Tên hàng/SL cần đặt) — CHƯA phải đúng khuôn báo giá Deli (thiếu Code/SAP/
-         Quy cách đóng thùng/Đơn giá — xác nhận Tân 2026-09-30, làm sau khi cần). -->
+         Quy cách đóng thùng/Đơn giá — xác nhận Tân 2026-09-30, làm sau khi cần).
+
+         TÁCH THEO KHO (xác nhận Tân 2026-10-02): Tồn Hiện Tại + Yêu Cầu Tồn/Tuần tách riêng 2 kho
+         HN/HCM (field Firestore: tonHienTaiHN/tonHienTaiHCM, yeuCauTuanHN/yeuCauTuanHCM) — dữ liệu
+         cũ (1 số dùng chung) thực chất là số liệu Kho HN, đã migrate 1 lần qua nút "🔧 Migrate Dữ
+         Liệu Theo Kho" (idempotent, bấm lại không sao). Đơn Vị/Quy Cách/Trạng Thái/Ghi Chú vẫn dùng
+         CHUNG cho 2 kho (xác nhận Tân: không có trường hợp 1 kho ngừng nhập mà kho kia vẫn nhập).
+         "Đẩy File Tồn Kho Mới" giờ bắt buộc chọn Kho (HN/HCM) trước khi upload — chỉ cập nhật đúng
+         field tồn của kho đã chọn. Bảng kết quả có bộ lọc Kho (Tất Cả/HN/HCM): "Tất Cả" hiện 2 bộ
+         cột cạnh nhau để đối chiếu; chọn riêng 1 kho mới xuất được File Order cho đúng kho đó (file
+         "Bảng Stock Deli" gốc Tân tự khai PHẢI đổi tên 2 cột cũ thành 4 cột HN/HCM trước khi dùng
+         lại "Nhập/Cập Nhật Bảng Stock Gốc", nếu không sẽ về 0 vì không khớp được tên cột). -->
     <div class="card" style="margin-top:18px;border-top:3px solid #16a085">
       <div class="card-title"><span class="dot" style="background:#16a085"></span> Đặt Hàng Deli — Bảng Stock</div>
       <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-        Lưu dữ liệu gốc từng mã Deli (Đơn Vị/Quy Cách đóng gói/Yêu Cầu Tồn mỗi Tuần/Trạng Thái) lâu dài trên Dashboard. Mỗi lần đẩy file <b>"Tổng hợp nhập xuất tồn kho"</b> mới, hệ thống tự khớp mã, cập nhật tồn và tính ra danh sách mã cần đặt hàng đợt tới.
+        Lưu dữ liệu gốc từng mã Deli (Đơn Vị/Quy Cách đóng gói/Yêu Cầu Tồn mỗi Tuần/Trạng Thái) lâu dài trên Dashboard. Mỗi lần đẩy file <b>"Tổng hợp nhập xuất tồn kho"</b> mới, hệ thống tự khớp mã, cập nhật tồn và tính ra danh sách mã cần đặt hàng đợt tới. Tồn và Yêu Cầu Tồn/Tuần tách riêng theo <b>Kho HN/HCM</b> — chọn đúng kho khi đẩy file tồn.
       </p>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
         <div>
@@ -2615,11 +2626,18 @@
           <button class="sw-upload-btn" onclick="document.getElementById('dhd-master-input').click()">📂 Nhập/Cập Nhật Bảng Stock Gốc</button>
         </div>
         <div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Kho (bắt buộc chọn trước khi đẩy file tồn)</div>
+          <select id="dhd-ton-kho-select" style="padding:7px 10px;border:1px solid var(--gray3);border-radius:8px;font-size:12px;margin-right:6px;vertical-align:bottom">
+            <option value="">-- Chọn Kho --</option>
+            <option value="HN">Kho HN</option>
+            <option value="HCM">Kho HCM</option>
+          </select>
           <input type="file" id="dhd-ton-input" accept=".xlsx,.xls" style="display:none" onchange="dhdHandleTonFile(this)">
           <button class="sw-upload-btn" onclick="document.getElementById('dhd-ton-input').click()">📂 Đẩy File Tồn Kho Mới</button>
         </div>
         <button onclick="dhdExportMaster()" style="padding:6px 14px;border:1px solid var(--text);color:var(--text);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">📥 Xuất Bảng Stock Hiện Tại</button>
         <button onclick="dhdResetView()" style="padding:6px 14px;border:1px solid #c0392b;color:#c0392b;background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🧹 Reset Về Mặc Định</button>
+        <button id="dhd-migrate-btn" onclick="dhdMigrateKho()" style="padding:6px 14px;border:1px solid #8e44ad;color:#8e44ad;background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔧 Migrate Dữ Liệu Theo Kho</button>
       </div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Bảng Stock gốc: <b id="dhd-status-master">chưa tải</b></div>
 
@@ -2628,7 +2646,7 @@
       <div id="dhd-log" class="drive-log"></div>
       <div id="dhd-result" style="display:none;background:#eafaf1;border:1px solid #a3e4c1;border-radius:8px;padding:10px 14px;margin-bottom:10px"></div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
-        <button id="dhd-export-btn" class="btn-drive-sync" style="display:none;max-width:340px;background:#16a085;border-color:#16a085" onclick="dhdExportFile()">📤 Xuất File Order (Mã SKU / SL Cần Đặt)</button>
+        <button id="dhd-export-btn" class="btn-drive-sync" style="display:none;max-width:360px;background:#16a085;border-color:#16a085" onclick="dhdExportFile(DHD.khoView)">📤 Xuất File Order (Mã SKU / SL Cần Đặt)</button>
       </div>
     </div>
 
@@ -8421,6 +8439,7 @@ let DHD = {
   loaded: false,
   pendingNew: [],
   filter: null, // 'all' | 'active' | 'need'
+  khoView: 'all', // 'all' | 'HN' | 'HCM' - xac nhan Tan 2026-10-02 (tach Ton/Yeu Cau theo kho)
   _lastRows: [],
 };
 
@@ -8442,6 +8461,7 @@ function dhdResetView() {
   DHD.loaded = false;
   DHD.pendingNew = [];
   DHD.filter = null;
+  DHD.khoView = 'all';
   DHD._lastRows = [];
 
   const statusEl = document.getElementById('dhd-status-master');
@@ -8477,6 +8497,48 @@ async function dhdLoadFromFirestore() {
   }
 }
 
+// Migrate 1 LẦN DUY NHẤT dữ liệu Tồn/Yêu Cầu cũ (dùng chung) sang cấu trúc tách theo Kho HN/HCM —
+// xác nhận Tân 2026-10-02: số liệu cũ (tonHienTai/yeuCauTuan) thực chất là số liệu KHO HN, Kho
+// HCM trước giờ chưa từng được theo dõi riêng nên khởi tạo bằng 0. Hàm này IDEMPOTENT: mã nào đã
+// có field tonHienTaiHN rồi thì bỏ qua, nên bấm lại nhiều lần không sao, không lo chạy trùng.
+async function dhdMigrateKho() {
+  if (!DHD.loaded || !DHD.stockMap || DHD.stockMap.size === 0) {
+    dhdLog('⚠ Cần tải Bảng Stock trước khi Migrate (đẩy 1 file bất kỳ hoặc tải lại trang để nạp dữ liệu).', 'warn');
+    return;
+  }
+  const toMigrate = [];
+  DHD.stockMap.forEach((d, sku) => {
+    const hasLegacy = typeof d.tonHienTai === 'number' || typeof d.yeuCauTuan === 'number';
+    const alreadyDone = d.tonHienTaiHN !== undefined;
+    if (hasLegacy && !alreadyDone) toMigrate.push(sku);
+  });
+  if (!toMigrate.length) { dhdLog('ℹ Không có mã nào cần migrate (đã migrate hết hoặc chưa có dữ liệu cũ).', 'ok'); return; }
+  dhdLog(`🔧 Bắt đầu migrate ${toMigrate.length} mã sang cấu trúc theo Kho HN/HCM...`, 'warn');
+  const CHUNK = 450;
+  for (let i = 0; i < toMigrate.length; i += CHUNK) {
+    const chunk = toMigrate.slice(i, i + CHUNK);
+    const batch = db.batch();
+    chunk.forEach(sku => {
+      const d = DHD.stockMap.get(sku);
+      const tonHN = typeof d.tonHienTai === 'number' ? d.tonHienTai : 0;
+      const ycHN = typeof d.yeuCauTuan === 'number' ? d.yeuCauTuan : 0;
+      const ref = db.collection('deli_stock').doc(sku);
+      batch.update(ref, {
+        tonHienTaiHN: tonHN,
+        tonHienTaiHCM: 0,
+        yeuCauTuanHN: ycHN,
+        yeuCauTuanHCM: 0,
+        tonHienTai: firebase.firestore.FieldValue.delete(),
+        yeuCauTuan: firebase.firestore.FieldValue.delete(),
+        capNhatLuc: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+    await batch.commit();
+  }
+  dhdLog(`✅ Đã migrate ${toMigrate.length} mã — số cũ chuyển thành Tồn/Yêu Cầu của Kho HN, Kho HCM khởi tạo = 0 (đẩy file tồn Kho HCM để cập nhật số thật).`, 'ok');
+  await dhdLoadFromFirestore();
+}
+
 // Đọc file Excel "Bảng Stock" (Tân tự khai Đơn Vị/Quy Cách/Yêu Cầu Tồn/Tuần/Trạng Thái/Ghi Chú) —
 // tra cột theo TÊN header (không theo vị trí) nên tương thích cả bản có cột "Gợi Ý..." lẫn bản FINAL.
 function dhdParseMasterExcel(wb) {
@@ -8490,12 +8552,22 @@ function dhdParseMasterExcel(wb) {
   if (headerRow === -1) throw new Error('Không tìm thấy dòng header (cột "Mã SKU") trong file');
   const header = rows[headerRow].map(c => String(c || '').trim());
   const findCol = (want) => header.findIndex(h => h.startsWith(want));
+  // Xác nhận Tân 2026-10-02: Tồn Hiện Tại + Yêu Cầu Tồn/Tuần tách 4 cột riêng theo Kho HN/HCM
+  // (thay cho 2 cột cũ dùng chung). Cột nào không tìm thấy trong file thì mặc định về 0 (không
+  // chặn import) — Tân tự biết file thiếu cột nào qua log cảnh báo bên dưới.
   const idx = {
     sku: findCol('Mã SKU'), ten: findCol('Tên Hàng'), nhom: findCol('Nhóm Hàng'),
-    ton: findCol('Tồn Hiện Tại'), donVi: findCol('Đơn Vị'), quyCach: findCol('Quy Cách'),
-    yeuCau: findCol('Yêu Cầu Tồn'), trangThai: findCol('Trạng Thái'), ghiChu: findCol('Ghi Chú'),
+    tonHN: findCol('Tồn Hiện Tại (HN'), tonHCM: findCol('Tồn Hiện Tại (HCM'),
+    donVi: findCol('Đơn Vị'), quyCach: findCol('Quy Cách'),
+    ycHN: findCol('Yêu Cầu Tồn/Tuần HN'), ycHCM: findCol('Yêu Cầu Tồn/Tuần HCM'),
+    trangThai: findCol('Trạng Thái'), ghiChu: findCol('Ghi Chú'),
   };
   if (idx.sku === -1) throw new Error('Không tìm thấy cột "Mã SKU"');
+  const missingKhoCols = ['tonHN', 'tonHCM', 'ycHN', 'ycHCM'].filter(k => idx[k] === -1);
+  if (missingKhoCols.length) {
+    const labelMap = { tonHN: 'Tồn Hiện Tại (HN)', tonHCM: 'Tồn Hiện Tại (HCM)', ycHN: 'Yêu Cầu Tồn/Tuần HN', ycHCM: 'Yêu Cầu Tồn/Tuần HCM' };
+    dhdLog(`⚠ File thiếu cột: ${missingKhoCols.map(k => labelMap[k]).join(', ')} — các cột này sẽ nhận giá trị 0. Kiểm tra lại tên cột trong file nếu không đúng ý.`, 'warn');
+  }
 
   const items = [];
   for (let i = headerRow + 1; i < rows.length; i++) {
@@ -8506,16 +8578,20 @@ function dhdParseMasterExcel(wb) {
     const donVi = ['Cái', 'Hộp', 'Thùng'].includes(donViRaw) ? donViRaw : 'Cái';
     let quyCach = idx.quyCach !== -1 ? r[idx.quyCach] : 1;
     if (typeof quyCach !== 'number' || quyCach <= 0) quyCach = 1;
-    let ton = idx.ton !== -1 ? r[idx.ton] : 0;
-    if (typeof ton !== 'number') ton = 0;
-    let yeuCau = idx.yeuCau !== -1 ? r[idx.yeuCau] : null;
-    if (typeof yeuCau !== 'number') yeuCau = 0;
+    let tonHN = idx.tonHN !== -1 ? r[idx.tonHN] : 0;
+    if (typeof tonHN !== 'number') tonHN = 0;
+    let tonHCM = idx.tonHCM !== -1 ? r[idx.tonHCM] : 0;
+    if (typeof tonHCM !== 'number') tonHCM = 0;
+    let ycHN = idx.ycHN !== -1 ? r[idx.ycHN] : 0;
+    if (typeof ycHN !== 'number') ycHN = 0;
+    let ycHCM = idx.ycHCM !== -1 ? r[idx.ycHCM] : 0;
+    if (typeof ycHCM !== 'number') ycHCM = 0;
     const trangThaiRaw = idx.trangThai !== -1 && r[idx.trangThai] != null ? String(r[idx.trangThai]).trim() : '';
     const trangThai = trangThaiRaw || 'Đang nhập bình thường';
     const ten = idx.ten !== -1 && r[idx.ten] != null ? String(r[idx.ten]).trim() : '';
     const nhom = idx.nhom !== -1 && r[idx.nhom] != null ? String(r[idx.nhom]).trim() : '';
     const ghiChu = idx.ghiChu !== -1 && r[idx.ghiChu] != null ? String(r[idx.ghiChu]).trim() : '';
-    items.push({ sku, tenHang: ten, nhomHang: nhom, tonHienTai: ton, donVi, quyCach, yeuCauTuan: yeuCau, trangThai, ghiChu });
+    items.push({ sku, tenHang: ten, nhomHang: nhom, tonHienTaiHN: tonHN, tonHienTaiHCM: tonHCM, donVi, quyCach, yeuCauTuanHN: ycHN, yeuCauTuanHCM: ycHCM, trangThai, ghiChu });
   }
   return items;
 }
@@ -8529,8 +8605,10 @@ async function dhdWriteMasterBatch(items) {
       const ref = db.collection('deli_stock').doc(it.sku);
       batch.set(ref, {
         sku: it.sku, tenHang: it.tenHang, nhomHang: it.nhomHang,
-        tonHienTai: it.tonHienTai, donVi: it.donVi, quyCach: it.quyCach,
-        yeuCauTuan: it.yeuCauTuan, trangThai: it.trangThai, ghiChu: it.ghiChu,
+        tonHienTaiHN: it.tonHienTaiHN, tonHienTaiHCM: it.tonHienTaiHCM,
+        donVi: it.donVi, quyCach: it.quyCach,
+        yeuCauTuanHN: it.yeuCauTuanHN, yeuCauTuanHCM: it.yeuCauTuanHCM,
+        trangThai: it.trangThai, ghiChu: it.ghiChu,
         capNhatLuc: firebase.firestore.FieldValue.serverTimestamp(),
       });
     });
@@ -8592,19 +8670,27 @@ function dhdParseTonExcel(wb) {
 function dhdHandleTonFile(input) {
   const file = input.files[0];
   if (!file) return;
+  const khoSel = document.getElementById('dhd-ton-kho-select');
+  const kho = khoSel ? khoSel.value : '';
+  if (kho !== 'HN' && kho !== 'HCM') {
+    dhdLog('⚠ Cần chọn Kho (HN hoặc HCM) trước khi đẩy file tồn — mỗi file tồn chỉ thuộc về 1 kho.', 'warn');
+    input.value = '';
+    return;
+  }
+  const tonField = kho === 'HN' ? 'tonHienTaiHN' : 'tonHienTaiHCM';
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
       if (!DHD.loaded) await dhdLoadFromFirestore();
       const wb = XLSX.read(e.target.result, { type: 'array' });
       const items = dhdParseTonExcel(wb);
-      dhdLog(`✅ Đọc file tồn "${file.name}" — ${items.length} mã.`, 'ok');
+      dhdLog(`✅ Đọc file tồn Kho ${kho} "${file.name}" — ${items.length} mã.`, 'ok');
       const toUpdate = [];
       const newSkus = [];
       const seenNew = new Set((DHD.pendingNew || []).map(p => p.sku));
       items.forEach(it => {
         if (DHD.stockMap.has(it.sku)) toUpdate.push(it);
-        else if (!seenNew.has(it.sku)) { newSkus.push(it); seenNew.add(it.sku); }
+        else if (!seenNew.has(it.sku)) { newSkus.push({ ...it, kho }); seenNew.add(it.sku); }
       });
       const CHUNK = 450;
       for (let i = 0; i < toUpdate.length; i += CHUNK) {
@@ -8612,13 +8698,13 @@ function dhdHandleTonFile(input) {
         const batch = db.batch();
         chunk.forEach(it => {
           const ref = db.collection('deli_stock').doc(it.sku);
-          batch.update(ref, { tonHienTai: it.tonMoi, capNhatLuc: firebase.firestore.FieldValue.serverTimestamp() });
+          batch.update(ref, { [tonField]: it.tonMoi, capNhatLuc: firebase.firestore.FieldValue.serverTimestamp() });
           const cur = DHD.stockMap.get(it.sku);
-          if (cur) cur.tonHienTai = it.tonMoi;
+          if (cur) cur[tonField] = it.tonMoi;
         });
         await batch.commit();
       }
-      dhdLog(`🔄 Đã cập nhật tồn cho ${toUpdate.length} mã đã có trong Bảng Stock.`, 'ok');
+      dhdLog(`🔄 Đã cập nhật tồn Kho ${kho} cho ${toUpdate.length} mã đã có trong Bảng Stock.`, 'ok');
       if (newSkus.length) {
         DHD.pendingNew = (DHD.pendingNew || []).concat(newSkus);
         dhdLog(`⚠ Phát hiện ${newSkus.length} mã CHƯA có trong Bảng Stock — cần anh khai báo (xem khối cảnh báo phía trên bảng).`, 'warn');
@@ -8631,6 +8717,7 @@ function dhdHandleTonFile(input) {
   };
   reader.readAsArrayBuffer(file);
   input.value = '';
+  if (khoSel) khoSel.value = '';
 }
 
 function dhdRenderPendingNew() {
@@ -8641,12 +8728,13 @@ function dhdRenderPendingNew() {
   el.style.display = 'block';
   const rowsHtml = list.map((it, i) => `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 0;border-bottom:1px solid #f5c6c0">
       <div style="min-width:140px;font-weight:700;font-size:13px">${it.sku}</div>
-      <div style="flex:1;min-width:200px;font-size:12px;color:#555">${it.tenHang || '—'} (tồn: ${it.tonMoi})</div>
+      <div style="flex:1;min-width:220px;font-size:12px;color:#555">${it.tenHang || '—'} (tồn Kho ${it.kho || '?'}: ${it.tonMoi})</div>
       <select id="dhd-new-donvi-${i}" style="padding:4px 8px;border-radius:6px;border:1px solid #ccc;font-size:12px">
         <option value="Cái">Cái</option><option value="Hộp">Hộp</option><option value="Thùng">Thùng</option>
       </select>
       <input id="dhd-new-quycach-${i}" type="number" min="1" value="1" placeholder="Quy cách" style="width:70px;padding:4px 8px;border-radius:6px;border:1px solid #ccc;font-size:12px">
-      <input id="dhd-new-yeucau-${i}" type="number" min="0" value="0" placeholder="Yêu cầu/tuần" style="width:90px;padding:4px 8px;border-radius:6px;border:1px solid #ccc;font-size:12px">
+      <input id="dhd-new-ycHN-${i}" type="number" min="0" value="0" placeholder="Yêu cầu/tuần HN" style="width:115px;padding:4px 8px;border-radius:6px;border:1px solid #ccc;font-size:12px">
+      <input id="dhd-new-ycHCM-${i}" type="number" min="0" value="0" placeholder="Yêu cầu/tuần HCM" style="width:125px;padding:4px 8px;border-radius:6px;border:1px solid #ccc;font-size:12px">
       <select id="dhd-new-trangthai-${i}" style="padding:4px 8px;border-radius:6px;border:1px solid #ccc;font-size:12px">
         <option value="Đang nhập bình thường">Đang nhập bình thường</option>
         <option value="Deli hết hàng">Deli hết hàng</option>
@@ -8656,7 +8744,7 @@ function dhdRenderPendingNew() {
       <button onclick="dhdSaveNewSku(${i})" style="padding:5px 12px;background:#16a085;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">💾 Lưu</button>
       <button onclick="dhdDismissNewSku(${i})" style="padding:5px 12px;background:white;color:#999;border:1px solid #ccc;border-radius:6px;font-size:12px;cursor:pointer">✕ Bỏ qua</button>
     </div>`).join('');
-  el.innerHTML = `<div style="font-weight:700;color:#c0392b;margin-bottom:8px;font-size:13px">⚠ ${list.length} mã mới chưa có trong Bảng Stock — khai báo trước khi tính vào đề xuất đặt:</div>${rowsHtml}`;
+  el.innerHTML = `<div style="font-weight:700;color:#c0392b;margin-bottom:8px;font-size:13px">⚠ ${list.length} mã mới chưa có trong Bảng Stock — khai báo trước khi tính vào đề xuất đặt (kho còn lại tự khởi tạo tồn = 0, đẩy file tồn kho đó sau để cập nhật):</div>${rowsHtml}`;
 }
 
 async function dhdSaveNewSku(i) {
@@ -8664,11 +8752,15 @@ async function dhdSaveNewSku(i) {
   if (!it) return;
   const donVi = document.getElementById(`dhd-new-donvi-${i}`).value;
   const quyCach = Number(document.getElementById(`dhd-new-quycach-${i}`).value) || 1;
-  const yeuCauTuan = Number(document.getElementById(`dhd-new-yeucau-${i}`).value) || 0;
+  const yeuCauTuanHN = Number(document.getElementById(`dhd-new-ycHN-${i}`).value) || 0;
+  const yeuCauTuanHCM = Number(document.getElementById(`dhd-new-ycHCM-${i}`).value) || 0;
   const trangThai = document.getElementById(`dhd-new-trangthai-${i}`).value;
+  const tonHienTaiHN = it.kho === 'HN' ? it.tonMoi : 0;
+  const tonHienTaiHCM = it.kho === 'HCM' ? it.tonMoi : 0;
   const data = {
     sku: it.sku, tenHang: it.tenHang, nhomHang: it.nhomHang,
-    tonHienTai: it.tonMoi, donVi, quyCach, yeuCauTuan, trangThai, ghiChu: '',
+    tonHienTaiHN, tonHienTaiHCM, donVi, quyCach,
+    yeuCauTuanHN, yeuCauTuanHCM, trangThai, ghiChu: '',
     capNhatLuc: firebase.firestore.FieldValue.serverTimestamp(),
   };
   try {
@@ -8693,24 +8785,49 @@ function dhdDismissNewSku(i) {
 function dhdCompute() {
   const rows = [];
   DHD.stockMap.forEach((d, sku) => {
-    const ton = typeof d.tonHienTai === 'number' ? d.tonHienTai : 0;
     const quyCach = typeof d.quyCach === 'number' && d.quyCach > 0 ? d.quyCach : 1;
-    const tonQuyDoi = d.donVi === 'Cái' ? ton : ton * quyCach;
-    const yeuCau = typeof d.yeuCauTuan === 'number' ? d.yeuCauTuan : 0;
-    const isActive = d.trangThai === 'Đang nhập bình thường';
-    const deXuatRaw = isActive ? Math.max(0, yeuCau - tonQuyDoi) : 0;
+    const isCai = d.donVi === 'Cái';
+    const isActive = d.trangThai === 'Đang nhập bình thường'; // Trạng Thái dùng CHUNG 2 kho - xac nhan Tan 2026-10-02
+
+    const tonHN = typeof d.tonHienTaiHN === 'number' ? d.tonHienTaiHN : 0;
+    const tonHCM = typeof d.tonHienTaiHCM === 'number' ? d.tonHienTaiHCM : 0;
+    const tonQuyDoiHN = isCai ? tonHN : tonHN * quyCach;
+    const tonQuyDoiHCM = isCai ? tonHCM : tonHCM * quyCach;
+
+    const ycHN = typeof d.yeuCauTuanHN === 'number' ? d.yeuCauTuanHN : 0;
+    const ycHCM = typeof d.yeuCauTuanHCM === 'number' ? d.yeuCauTuanHCM : 0;
+
+    const deXuatRawHN = isActive ? Math.max(0, ycHN - tonQuyDoiHN) : 0;
+    const deXuatRawHCM = isActive ? Math.max(0, ycHCM - tonQuyDoiHCM) : 0;
     // Xác nhận Tân 2026-10-02: đề xuất đặt từ 2 trở xuống thì không cần đặt nữa — tối thiểu lượng
-    // đặt cho 1 sản phẩm là 3. Sửa duy nhất tại đây vì mọi nơi khác (bảng hiển thị, tổng SL đề
-    // xuất, KPI "Mã Cần Đặt", file xuất order) đều đọc lại r.deXuat từ hàm này.
-    const deXuat = deXuatRaw < 3 ? 0 : deXuatRaw;
-    rows.push({ sku, ...d, tonQuyDoi, deXuat, isActive });
+    // đặt cho 1 sản phẩm là 3. Áp dụng riêng từng kho (2 kho đặt hàng độc lập với nhau).
+    const deXuatHN = deXuatRawHN < 3 ? 0 : deXuatRawHN;
+    const deXuatHCM = deXuatRawHCM < 3 ? 0 : deXuatRawHCM;
+
+    rows.push({
+      sku, ...d, isActive,
+      tonQuyDoiHN, tonQuyDoiHCM,
+      yeuCauTuanHN: ycHN, yeuCauTuanHCM: ycHCM,
+      deXuatHN, deXuatHCM,
+      deXuat: deXuatHN + deXuatHCM, // tong 2 kho - dung khi xem "Tat Ca" (KPI/sort chung)
+    });
   });
-  rows.sort((a, b) => b.deXuat - a.deXuat);
+  const kv = DHD.khoView;
+  rows.sort((a, b) => {
+    const av = kv === 'HN' ? a.deXuatHN : kv === 'HCM' ? a.deXuatHCM : a.deXuat;
+    const bv = kv === 'HN' ? b.deXuatHN : kv === 'HCM' ? b.deXuatHCM : b.deXuat;
+    return bv - av;
+  });
   return rows;
 }
 
 function dhdSetFilter(f) {
   DHD.filter = f;
+  dhdRenderResult();
+}
+
+function dhdSetKhoView(v) {
+  DHD.khoView = v;
   dhdRenderResult();
 }
 
@@ -8722,11 +8839,22 @@ function dhdRenderResult() {
 
   const rows = dhdCompute();
   DHD._lastRows = rows;
-  const activeRows = rows.filter(r => r.isActive);
-  const needRows = activeRows.filter(r => r.deXuat > 0);
-  const tongSlDeXuat = needRows.reduce((s, r) => s + r.deXuat, 0);
+  const kv = DHD.khoView || 'all';
+  const deXuatOf = (r) => kv === 'HN' ? r.deXuatHN : kv === 'HCM' ? r.deXuatHCM : r.deXuat;
 
-  if (btn) btn.style.display = needRows.length ? 'inline-flex' : 'none';
+  const activeRows = rows.filter(r => r.isActive);
+  const needRows = activeRows.filter(r => deXuatOf(r) > 0);
+  const tongSlDeXuat = needRows.reduce((s, r) => s + deXuatOf(r), 0);
+
+  if (btn) btn.style.display = (kv !== 'all' && needRows.length) ? 'inline-flex' : 'none';
+
+  const khoTabs = `<div style="display:flex;gap:8px;margin-bottom:10px">
+    ${['all', 'HN', 'HCM'].map(k => {
+      const label = k === 'all' ? 'Tất Cả (2 Kho)' : `Kho ${k}`;
+      const active = kv === k;
+      return `<button type="button" onclick="dhdSetKhoView('${k}')" style="cursor:pointer;font-family:inherit;padding:7px 16px;border-radius:8px;border:2px solid #8e44ad;background:${active ? '#8e44ad' : 'white'};color:${active ? 'white' : '#8e44ad'};font-weight:700;font-size:13px">${label}</button>`;
+    }).join('')}
+  </div>`;
 
   const f = DHD.filter || (needRows.length ? 'need' : 'active');
   const cardBtn = (key, label, val, color) => `<button type="button" onclick="dhdSetFilter('${key}')" style="cursor:pointer;font-family:inherit;background:${f === key ? color : 'white'};border:2px solid ${color};border-radius:10px;padding:10px 18px;min-width:160px;text-align:center">
@@ -8734,7 +8862,7 @@ function dhdRenderResult() {
     <div style="font-size:30px;font-weight:800;color:${f === key ? 'white' : color}">${val}</div>
   </button>`;
   const qtyCard = `<div style="background:white;border:2px solid #8e44ad;border-radius:10px;padding:10px 18px;min-width:170px;text-align:center">
-    <div style="font-size:13px;color:#777;font-weight:700;margin-bottom:3px">TỔNG SL ĐỀ XUẤT ĐẶT</div>
+    <div style="font-size:13px;color:#777;font-weight:700;margin-bottom:3px">TỔNG SL ĐỀ XUẤT ĐẶT${kv !== 'all' ? ` (Kho ${kv})` : ' (2 Kho)'}</div>
     <div style="font-size:30px;font-weight:800;color:#8e44ad">${tongSlDeXuat.toLocaleString('vi-VN')}</div>
   </div>`;
   const cards = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
@@ -8748,20 +8876,29 @@ function dhdRenderResult() {
 
   if (!rowsToShow.length) {
     el.style.display = 'block';
-    el.innerHTML = cards + `<div style="color:#27ae60;font-size:15px;font-weight:600;padding:10px 0">✅ Không có mã nào ở mục này.</div>`;
+    el.innerHTML = khoTabs + cards + `<div style="color:#27ae60;font-size:15px;font-weight:600;padding:10px 0">✅ Không có mã nào ở mục này.</div>`;
     return;
   }
 
   const statusColor = (t) => t === 'Đang nhập bình thường' ? '#2980b9' : t === 'Deli hết hàng' ? '#e67e22' : t === 'Ngừng nhập chủ động' ? '#7f8c8d' : '#c0392b';
 
+  const khoCellsHN = (r) => `
+      <td style="padding:8px 10px;text-align:center;font-size:14px;background:#eef6ff">${r.tonHienTaiHN || 0}${r.donVi !== 'Cái' ? ` (${r.donVi})` : ''}</td>
+      <td style="padding:8px 10px;text-align:center;font-size:14px;background:#eef6ff">${r.tonQuyDoiHN}</td>
+      <td style="padding:8px 10px;text-align:center;background:#eef6ff"><input type="number" min="0" value="${r.yeuCauTuanHN || 0}" id="dhd-edit-ycHN-${r.sku}" style="width:70px;padding:4px 6px;border:1px solid #ccc;border-radius:5px;font-size:13px"></td>
+      <td style="padding:8px 10px;text-align:center;font-weight:800;font-size:15px;color:#16a085;background:#eef6ff">${r.deXuatHN}</td>`;
+  const khoCellsHCM = (r) => `
+      <td style="padding:8px 10px;text-align:center;font-size:14px;background:#fff6ea">${r.tonHienTaiHCM || 0}${r.donVi !== 'Cái' ? ` (${r.donVi})` : ''}</td>
+      <td style="padding:8px 10px;text-align:center;font-size:14px;background:#fff6ea">${r.tonQuyDoiHCM}</td>
+      <td style="padding:8px 10px;text-align:center;background:#fff6ea"><input type="number" min="0" value="${r.yeuCauTuanHCM || 0}" id="dhd-edit-ycHCM-${r.sku}" style="width:70px;padding:4px 6px;border:1px solid #ccc;border-radius:5px;font-size:13px"></td>
+      <td style="padding:8px 10px;text-align:center;font-weight:800;font-size:15px;color:#16a085;background:#fff6ea">${r.deXuatHCM}</td>`;
+
   const trs = rowsToShow.map((r, i) => `<tr style="border-bottom:1px solid #d5f0e3">
       <td style="padding:8px 10px;color:#999;text-align:center;font-size:14px">${i + 1}</td>
       <td style="padding:8px 10px;font-size:14px">${r.sku}</td>
-      <td style="padding:8px 10px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px" title="${(r.tenHang || '').replace(/"/g, '&quot;')}">${r.tenHang || '—'}</td>
-      <td style="padding:8px 10px;text-align:center;font-size:14px">${r.tonHienTai}${r.donVi !== 'Cái' ? ` (${r.donVi})` : ''}</td>
-      <td style="padding:8px 10px;text-align:center;font-size:14px">${r.tonQuyDoi}</td>
-      <td style="padding:8px 10px;text-align:center"><input type="number" min="0" value="${r.yeuCauTuan || 0}" id="dhd-edit-yc-${r.sku}" style="width:70px;padding:4px 6px;border:1px solid #ccc;border-radius:5px;font-size:13px"></td>
-      <td style="padding:8px 10px;text-align:center;font-weight:800;font-size:15px;color:#16a085">${r.deXuat}</td>
+      <td style="padding:8px 10px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px" title="${(r.tenHang || '').replace(/"/g, '&quot;')}">${r.tenHang || '—'}</td>
+      ${kv !== 'HCM' ? khoCellsHN(r) : ''}
+      ${kv !== 'HN' ? khoCellsHCM(r) : ''}
       <td style="padding:8px 10px"><select id="dhd-edit-tt-${r.sku}" style="padding:4px 6px;border:1px solid #ccc;border-radius:5px;font-size:12px;color:${statusColor(r.trangThai)}">
         <option value="Đang nhập bình thường" ${r.trangThai === 'Đang nhập bình thường' ? 'selected' : ''}>Đang nhập bình thường</option>
         <option value="Deli hết hàng" ${r.trangThai === 'Deli hết hàng' ? 'selected' : ''}>Deli hết hàng</option>
@@ -8771,16 +8908,23 @@ function dhdRenderResult() {
       <td style="padding:8px 10px;text-align:center"><button onclick="dhdSaveEdit('${String(r.sku).replace(/'/g, "\\'")}')" style="padding:5px 10px;background:#16a085;color:white;border:none;border-radius:5px;font-size:12px;font-weight:700;cursor:pointer">💾</button></td>
     </tr>`).join('');
 
+  const thHN = `<th style="padding:9px 10px;font-weight:700;font-size:13px;background:#2980b9;color:white;position:sticky;top:0">Tồn HN</th>
+        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#2980b9;color:white;position:sticky;top:0">Tồn HN Quy Đổi</th>
+        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#2980b9;color:white;position:sticky;top:0">Yêu Cầu/Tuần HN</th>
+        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#2980b9;color:white;position:sticky;top:0">Đề Xuất HN</th>`;
+  const thHCM = `<th style="padding:9px 10px;font-weight:700;font-size:13px;background:#e67e22;color:white;position:sticky;top:0">Tồn HCM</th>
+        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#e67e22;color:white;position:sticky;top:0">Tồn HCM Quy Đổi</th>
+        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#e67e22;color:white;position:sticky;top:0">Yêu Cầu/Tuần HCM</th>
+        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#e67e22;color:white;position:sticky;top:0">Đề Xuất HCM</th>`;
+
   const table = `<div style="overflow-x:auto;max-height:460px;overflow-y:auto;border:1px solid #a3e4c1;border-radius:8px">
     <table style="font-size:14px;border-collapse:collapse;width:100%">
       <thead><tr>
         <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0">#</th>
         <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0;text-align:left">Mã SKU</th>
         <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0;text-align:left">Tên Hàng</th>
-        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0">Tồn Hiện Tại</th>
-        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0">Tồn Quy Đổi (Cái)</th>
-        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0">Yêu Cầu/Tuần</th>
-        <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0">Đề Xuất Đặt</th>
+        ${kv !== 'HCM' ? thHN : ''}
+        ${kv !== 'HN' ? thHCM : ''}
         <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0">Trạng Thái</th>
         <th style="padding:9px 10px;font-weight:700;font-size:13px;background:#16a085;color:white;position:sticky;top:0">Lưu</th>
       </tr></thead>
@@ -8789,29 +8933,40 @@ function dhdRenderResult() {
   </div>`;
 
   el.style.display = 'block';
-  el.innerHTML = cards + `<div style="font-size:12px;color:#888;margin-bottom:8px">Sửa "Yêu Cầu/Tuần" hoặc "Trạng Thái" ngay trong bảng rồi bấm 💾 để lưu — áp dụng ngay, không cần tải lại file Excel.</div>` + table;
+  el.innerHTML = khoTabs + cards + `<div style="font-size:12px;color:#888;margin-bottom:8px">Sửa "Yêu Cầu/Tuần" hoặc "Trạng Thái" ngay trong bảng rồi bấm 💾 để lưu — áp dụng ngay, không cần tải lại file Excel. Trạng Thái dùng chung cho cả 2 kho.</div>` + table;
 }
 
 async function dhdSaveEdit(sku) {
-  const ycEl = document.getElementById(`dhd-edit-yc-${sku}`);
+  const ycHNEl = document.getElementById(`dhd-edit-ycHN-${sku}`);
+  const ycHCMEl = document.getElementById(`dhd-edit-ycHCM-${sku}`);
   const ttEl = document.getElementById(`dhd-edit-tt-${sku}`);
-  if (!ycEl || !ttEl) return;
-  const yeuCauTuan = Number(ycEl.value) || 0;
+  if (!ttEl || (!ycHNEl && !ycHCMEl)) return;
   const trangThai = ttEl.value;
+  const updates = { trangThai, capNhatLuc: firebase.firestore.FieldValue.serverTimestamp() };
+  const cur = DHD.stockMap.get(sku);
+  let logParts = [];
+  if (ycHNEl) { const v = Number(ycHNEl.value) || 0; updates.yeuCauTuanHN = v; if (cur) cur.yeuCauTuanHN = v; logParts.push(`Yêu Cầu/Tuần HN=${v}`); }
+  if (ycHCMEl) { const v = Number(ycHCMEl.value) || 0; updates.yeuCauTuanHCM = v; if (cur) cur.yeuCauTuanHCM = v; logParts.push(`Yêu Cầu/Tuần HCM=${v}`); }
   try {
-    await db.collection('deli_stock').doc(sku).update({ yeuCauTuan, trangThai, capNhatLuc: firebase.firestore.FieldValue.serverTimestamp() });
-    const cur = DHD.stockMap.get(sku);
-    if (cur) { cur.yeuCauTuan = yeuCauTuan; cur.trangThai = trangThai; }
-    dhdLog(`✅ Đã lưu mã ${sku}: Yêu Cầu/Tuần=${yeuCauTuan}, Trạng Thái=${trangThai}`, 'ok');
+    await db.collection('deli_stock').doc(sku).update(updates);
+    if (cur) cur.trangThai = trangThai;
+    logParts.push(`Trạng Thái=${trangThai}`);
+    dhdLog(`✅ Đã lưu mã ${sku}: ${logParts.join(', ')}`, 'ok');
     dhdRenderResult();
   } catch (err) {
     dhdLog(`❌ Lỗi lưu mã ${sku}: ${err.message}`, 'err');
   }
 }
 
-function dhdExportFile() {
-  const rows = (DHD._lastRows || []).filter(r => r.isActive && r.deXuat > 0);
-  if (!rows.length) { dhdLog('⚠ Chưa có mã nào cần đặt để xuất', 'warn'); return; }
+function dhdExportFile(khoView) {
+  const kv = khoView || DHD.khoView;
+  if (kv !== 'HN' && kv !== 'HCM') {
+    dhdLog('⚠ Cần chọn riêng Kho HN hoặc Kho HCM (bấm tab ở trên bảng) trước khi xuất File Order — "Tất Cả" chỉ để xem đối chiếu, không xuất được.', 'warn');
+    return;
+  }
+  const deXuatField = kv === 'HN' ? 'deXuatHN' : 'deXuatHCM';
+  const rows = (DHD._lastRows || []).filter(r => r.isActive && r[deXuatField] > 0);
+  if (!rows.length) { dhdLog(`⚠ Chưa có mã nào cần đặt ở Kho ${kv} để xuất`, 'warn'); return; }
   // Số Lượng Cần Đặt trong bảng làm việc luôn tính theo CÁI (khớp Yêu Cầu Tồn/Tuần). Khi xuất
   // file để anh dùng đặt hàng thật, quy đổi NGƯỢC lại đúng Đơn Vị Tính đã khai báo cho từng mã
   // (Hộp/Thùng) — làm tròn LÊN để không đặt thiếu. Mã "Cái" giữ nguyên số, không quy đổi.
@@ -8820,27 +8975,28 @@ function dhdExportFile() {
   rows.forEach((r, i) => {
     const donVi = r.donVi || 'Cái';
     const quyCach = typeof r.quyCach === 'number' && r.quyCach > 0 ? r.quyCach : 1;
-    const slXuat = donVi === 'Cái' ? r.deXuat : Math.ceil(r.deXuat / quyCach);
+    const deXuat = r[deXuatField];
+    const slXuat = donVi === 'Cái' ? deXuat : Math.ceil(deXuat / quyCach);
     aoa.push([i + 1, r.sku, r.tenHang, donVi, slXuat]);
   });
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Can Dat Hang Deli');
-  const outName = `DonDeXuat_Deli_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  XLSX.utils.book_append_sheet(wb, ws, `Can Dat Hang Deli ${kv}`);
+  const outName = `DonDeXuat_Deli_${kv}_${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, outName);
-  dhdLog(`📤 Đã xuất "${outName}" — ${rows.length} mã cần đặt (SL đã quy đổi đúng Đơn Vị Tính từng mã).`, 'ok');
+  dhdLog(`📤 Đã xuất "${outName}" — ${rows.length} mã cần đặt Kho ${kv} (SL đã quy đổi đúng Đơn Vị Tính từng mã).`, 'ok');
 }
 
 function dhdExportMaster() {
   if (!DHD.stockMap || DHD.stockMap.size === 0) { dhdLog('⚠ Chưa có dữ liệu Bảng Stock để xuất', 'warn'); return; }
-  const aoa = [['Mã SKU (Online Code)', 'Tên Hàng Hóa', 'Nhóm Hàng', 'Tồn Hiện Tại', 'Đơn Vị Tồn Kho', 'Quy Cách (số cái/đơn vị)', 'Yêu Cầu Tồn/Tuần (Cái)', 'Trạng Thái', 'Ghi Chú']];
+  const aoa = [['Mã SKU (Online Code)', 'Tên Hàng Hóa', 'Nhóm Hàng', 'Tồn Hiện Tại (HN)', 'Tồn Hiện Tại (HCM)', 'Đơn Vị Tồn Kho', 'Quy Cách (số cái/đơn vị)', 'Yêu Cầu Tồn/Tuần HN (Cái)', 'Yêu Cầu Tồn/Tuần HCM (Cái)', 'Trạng Thái', 'Ghi Chú']];
   const rows = Array.from(DHD.stockMap.values()).sort((a, b) => String(a.sku || '').localeCompare(String(b.sku || '')));
-  rows.forEach(d => aoa.push([d.sku, d.tenHang, d.nhomHang, d.tonHienTai, d.donVi, d.quyCach, d.yeuCauTuan, d.trangThai, d.ghiChu || '']));
+  rows.forEach(d => aoa.push([d.sku, d.tenHang, d.nhomHang, d.tonHienTaiHN || 0, d.tonHienTaiHCM || 0, d.donVi, d.quyCach, d.yeuCauTuanHN || 0, d.yeuCauTuanHCM || 0, d.trangThai, d.ghiChu || '']));
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Bảng Stock');
   XLSX.writeFile(wb, `Bang_Stock_Deli_Export_${new Date().toISOString().slice(0, 10)}.xlsx`);
-  dhdLog(`📥 Đã xuất Bảng Stock hiện tại — ${rows.length} mã.`, 'ok');
+  dhdLog(`📥 Đã xuất Bảng Stock hiện tại — ${rows.length} mã (Tồn/Yêu Cầu đã tách theo Kho HN/HCM).`, 'ok');
 }
 
 // SKULOI — SKU bị Shopee từ chối (lệch giá) → gom danh sách set qua bot SetTon.
