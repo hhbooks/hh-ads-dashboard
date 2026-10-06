@@ -2657,7 +2657,7 @@
     <div class="card" style="margin-top:18px;border-top:3px solid #d35400">
       <div class="card-title"><span class="dot" style="background:#d35400"></span> Deli Không Đáp Ứng Được</div>
       <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-        So sánh <b>file đơn đặt</b> với file <b>Deli Xác Nhận</b> (Deli trả về, chỉ còn SKU họ đáp ứng được). File đơn đặt là <b>file order xuất từ khối "Đặt Hàng Deli — Bảng Stock" ngay phía trên</b> (tự nhận dạng) hoặc file Đơn Nháp theo template Deli (sheet "Đơn hàng"). Liệt kê SKU Deli không đáp ứng và SKU chỉ đáp ứng một phần, kèm lý do tự động.
+        So sánh <b>file đơn đặt</b> với các file <b>Deli Xác Nhận</b> (Deli trả về, chỉ còn SKU họ đáp ứng được) — đơn kho HCM có thể được Deli tách thành <b>2 file</b>: phần giao thẳng kho HCM và phần xuất từ HN về Ngọc Hà; dashboard <b>cộng SL của cả 2 file</b> theo từng mã rồi mới so với số đã đặt. File đơn đặt là <b>file order xuất từ khối "Đặt Hàng Deli — Bảng Stock" ngay phía trên</b> (tự nhận dạng) hoặc file Đơn Nháp theo template Deli (sheet "Đơn hàng"). Liệt kê SKU Deli không đáp ứng và SKU chỉ đáp ứng một phần, kèm lý do tự động.
       </p>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
         <div>
@@ -2666,17 +2666,22 @@
         </div>
         <div>
           <input type="file" id="dkd-final-input" accept=".xlsx,.xls" style="display:none" onchange="dkdHandleFinalFile(this)">
-          <button class="sw-upload-btn" onclick="document.getElementById('dkd-final-input').click()">📂 2. Chọn File Deli Xác Nhận</button>
+          <button class="sw-upload-btn" onclick="document.getElementById('dkd-final-input').click()">📂 2a. File Deli Xác Nhận — giao thẳng kho HCM</button>
+        </div>
+        <div>
+          <input type="file" id="dkd-final-hn-input" accept=".xlsx,.xls" style="display:none" onchange="dkdHandleFinalHnFile(this)">
+          <button class="sw-upload-btn" onclick="document.getElementById('dkd-final-hn-input').click()">📂 2b. File Deli xuất từ HN (về Ngọc Hà, chuyển tiếp HCM)</button>
         </div>
         <button onclick="dkdResetAll()" style="padding:6px 14px;border:1px solid var(--text);color:var(--text);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
       </div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:4px">File Đơn Đặt: <b id="dkd-status-order">chưa chọn</b></div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">File Deli Xác Nhận: <b id="dkd-status-final">chưa chọn</b></div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">File Deli giao thẳng HCM: <b id="dkd-status-final">chưa chọn</b></div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px">File Deli xuất từ HN (về Ngọc Hà): <b id="dkd-status-final-hn">chưa chọn</b> <span style="color:#999">— bỏ trống nếu đơn không phát sinh đơn HN</span></div>
 
       <div id="dkd-result" style="display:none;background:#fdf3ec;border:1px solid #f0c9a8;border-radius:8px;padding:10px 14px;margin-bottom:10px"></div>
       <div id="dkd-log" class="drive-log"></div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
-        <button id="dkd-export-btn" class="btn-drive-sync" style="display:none;max-width:320px" onclick="dkdExportFile()">📤 Xuất File Excel (SKU Không / Chỉ Đáp Ứng Một Phần)</button>
+        <button id="dkd-export-btn" class="btn-drive-sync" style="display:none;max-width:320px" onclick="dkdExportFile()">📤 Xuất File Excel (Không Đáp Ứng / Một Phần / Hàng HN Chuyển HCM)</button>
       </div>
     </div>
 
@@ -8200,10 +8205,11 @@ function tfmResetAll() {
 let DKD = {
   orderItems: [], orderFileName: '',
   finalItems: [], finalFileName: '',
-  missingRows: [], matchedRows: [], partialRows: [], allRows: [],
+  finalHnItems: [], finalHnFileName: '', // file Deli xuat tu kho HN (ve Ngoc Ha roi chuyen tiep HCM) - xac nhan Tan 2026-10-06
+  missingRows: [], matchedRows: [], partialRows: [], overRows: [], allRows: [],
   orderFormat: '', // 'order' = file order xuat tu khoi Dat Hang Deli | 'deli' = Don Nhap theo template Deli
   _stockCache: null, // Bang Stock (Map sku -> doc) doc 1 lan de gan ly do khi file dat la 'order'
-  filter: null, // 'all' | 'ok' | 'partial' | 'missing' — bam vao card de doi, null = chua tinh lan nao
+  filter: null, // 'all' | 'ok' | 'partial' | 'over' | 'missing' — bam vao card de doi, null = chua tinh lan nao
 };
 
 function dkdLog(msg, type) {
@@ -8342,8 +8348,29 @@ function dkdHandleFinalFile(input) {
   reader.readAsArrayBuffer(file);
 }
 
+function dkdHandleFinalHnFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      DKD.finalHnItems = dkdParseSheet(wb);
+      DKD.finalHnFileName = file.name;
+      document.getElementById('dkd-status-final-hn').textContent = `${file.name} (${DKD.finalHnItems.length} SKU)`;
+      dkdLog(`✅ Đọc file Deli xuất từ HN: ${file.name} — ${DKD.finalHnItems.length} SKU`, 'ok');
+    } catch (err) {
+      DKD.finalHnItems = []; DKD.finalHnFileName = '';
+      document.getElementById('dkd-status-final-hn').textContent = 'chưa chọn';
+      dkdLog(`❌ Lỗi đọc file Deli xuất từ HN: ${err.message}`, 'err');
+    }
+    dkdCheckReady();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
 function dkdCheckReady() {
-  if (DKD.orderItems.length > 0 && DKD.finalItems.length > 0) dkdCompute();
+  if (DKD.orderItems.length > 0 && (DKD.finalItems.length > 0 || DKD.finalHnItems.length > 0)) dkdCompute();
 }
 
 // Bảng Stock chỉ cần để gán lý do cho file order (Ngoài Bảng Stock / trạng thái ngừng nhập). Dùng lại DHD.stockMap nếu
@@ -8365,25 +8392,44 @@ async function dkdGetStock() {
 }
 
 async function dkdCompute() {
-  const finalByKey = new Map(DKD.finalItems.map(it => [dkdNormKey(it.key), it]));
+  // Gộp SL Deli đáp ứng theo từng mã qua 2 nguồn: HCM (giao thẳng) + HN (về Ngọc Hà) — cộng dồn rồi mới so với SL đã đặt.
+  const agg = new Map();
+  const addSource = (items, field) => {
+    for (const it of items) {
+      const k = dkdNormKey(it.key);
+      let a = agg.get(k);
+      if (!a) { a = { hcm: 0, hn: 0, total: 0, hasTotal: false, tonHcm: null, tonHn: null, desc: '' }; agg.set(k, a); }
+      if (typeof it.sl === 'number') a[field] += it.sl;
+      if (typeof it.total === 'number') { a.total += it.total; a.hasTotal = true; }
+      if (typeof it.ton === 'number') { if (field === 'hcm') a.tonHcm = it.ton; else a.tonHn = it.ton; }
+      if (!a.desc && it.desc) a.desc = it.desc;
+    }
+  };
+  addSource(DKD.finalItems, 'hcm');
+  addSource(DKD.finalHnItems, 'hn');
   const stock = DKD.orderFormat === 'order' ? await dkdGetStock() : null;
   DKD.missingRows = [];
   DKD.matchedRows = [];
   DKD.partialRows = [];
+  DKD.overRows = [];
   DKD.allRows = [];
   for (const it of DKD.orderItems) {
-    const finalIt = finalByKey.get(dkdNormKey(it.key));
-    // Deli xác nhận SL = 0 coi như không đáp ứng (trước đây tính nhầm là "đáp ứng").
-    if (finalIt && !(typeof finalIt.sl === 'number' && finalIt.sl <= 0)) {
-      const isPartial = typeof finalIt.sl === 'number' && typeof it.sl === 'number' && finalIt.sl < it.sl;
-      const row = { ...it, status: isPartial ? 'partial' : 'ok', finalSl: finalIt.sl, finalTon: finalIt.ton, finalDesc: finalIt.desc, finalTotal: finalIt.total,
-        shortSl: isPartial ? it.sl - finalIt.sl : 0 };
+    const a = agg.get(dkdNormKey(it.key));
+    const totalSl = a ? a.hcm + a.hn : 0;
+    // Có mặt trong file Deli nhưng tổng SL = 0 coi như không đáp ứng.
+    if (a && totalSl > 0) {
+      const status = totalSl < it.sl ? 'partial' : totalSl > it.sl ? 'over' : 'ok';
+      const row = { ...it, status, finalSl: totalSl, slHcm: a.hcm, slHn: a.hn,
+        finalTon: a.tonHcm != null ? a.tonHcm : a.tonHn, finalDesc: a.desc,
+        finalTotal: a.hasTotal ? a.total : null,
+        shortSl: status === 'partial' ? it.sl - totalSl : 0, overSl: status === 'over' ? totalSl - it.sl : 0 };
       DKD.matchedRows.push(row);
-      if (isPartial) DKD.partialRows.push(row);
+      if (status === 'partial') DKD.partialRows.push(row);
+      if (status === 'over') DKD.overRows.push(row);
       DKD.allRows.push(row);
     } else {
       let reason;
-      if (finalIt) reason = 'Deli xác nhận SL = 0';
+      if (a) reason = 'Deli xác nhận SL = 0';
       else if (DKD.orderFormat === 'order') {
         // File order không có Mô tả/Tồn như Đơn Nháp → gán lý do bằng cách đối chiếu Bảng Stock
         const sd = stock ? stock.get(it.key) : null;
@@ -8419,6 +8465,8 @@ function dkdRenderResult() {
   const matched = DKD.matchedRows;           // gồm cả đáp ứng đủ + đáp ứng một phần (để cộng SL/tiền Deli đáp ứng)
   const partial = DKD.partialRows || [];
   const okRows = matched.filter(r => r.status === 'ok');
+  const over = DKD.overRows || [];
+  const hasHn = DKD.finalHnItems.length > 0;
   const cnt = { catalog: 0, outofstock: 0, nostock: 0, stockstatus: 0, zero: 0, other: 0 };
   missing.forEach(r => {
     if (r.reason === 'Không có trong catalogue Deli') cnt.catalog++;
@@ -8429,7 +8477,8 @@ function dkdRenderResult() {
     else cnt.other++;
   });
 
-  if (btn) btn.style.display = (missing.length || partial.length) ? 'inline-flex' : 'none';
+  const hnRows = DKD.allRows.filter(r => r.status !== 'missing' && r.slHn > 0);
+  if (btn) btn.style.display = (missing.length || partial.length || hnRows.length) ? 'inline-flex' : 'none';
 
   const f = DKD.filter || (missing.length ? 'missing' : 'all');
   // Card giờ là nút bấm — cỡ chữ tăng lên để dễ nhìn, card đang chọn tô đậm màu nền.
@@ -8451,6 +8500,7 @@ function dkdRenderResult() {
     ${cardBtn('all', 'TỔNG SKU ĐÃ ĐẶT', total, '#555')}
     ${cardBtn('ok', 'DELI ĐÁP ỨNG ĐỦ', okRows.length, '#27ae60')}
     ${partial.length ? cardBtn('partial', 'ĐÁP ỨNG MỘT PHẦN', partial.length, '#d4a017') : ''}
+    ${over.length ? cardBtn('over', 'GIAO VƯỢT SL ĐẶT', over.length, '#3b6fb6') : ''}
     ${cardBtn('missing', 'KHÔNG ĐÁP ỨNG', missing.length, '#d35400')}
     ${slCard}
     ${moneyCard}
@@ -8460,6 +8510,8 @@ function dkdRenderResult() {
     ? `<span style="background:#e8f8f0;color:#27ae60;border-radius:4px;padding:4px 12px;font-size:14px;font-weight:600">✅ Đáp ứng</span>`
     : r.status === 'partial'
     ? `<span style="background:#fff8e1;color:#a67c00;border-radius:4px;padding:4px 12px;font-size:14px;font-weight:600">◐ Một phần (thiếu ${r.shortSl})</span>`
+    : r.status === 'over'
+    ? `<span style="background:#eaf1fb;color:#3b6fb6;border-radius:4px;padding:4px 12px;font-size:14px;font-weight:600">⬆ Vượt đặt (+${r.overSl})</span>`
     : ({
         'Không có trong catalogue Deli': `<span style="background:#fdf0ef;color:#e74c3c;border-radius:4px;padding:4px 12px;font-size:14px;font-weight:600">✗ Không có trong catalogue</span>`,
         'Hết hàng — tồn Deli ≤ 0': `<span style="background:#fef9e7;color:#e67e22;border-radius:4px;padding:4px 12px;font-size:14px;font-weight:600">⚠ Hết hàng</span>`,
@@ -8469,7 +8521,7 @@ function dkdRenderResult() {
         ? `<span style="background:#fef9e7;color:#e67e22;border-radius:4px;padding:4px 12px;font-size:14px;font-weight:600">⚠ ${String(r.reason).replace('Bảng Stock:', 'Stock:')}</span>`
         : `<span style="background:#f2f2f2;color:#777;border-radius:4px;padding:4px 12px;font-size:14px;font-weight:600">? Không rõ lý do</span>`));
 
-  const rowsToShow = f === 'ok' ? okRows : f === 'partial' ? partial : f === 'missing' ? missing : DKD.allRows;
+  const rowsToShow = f === 'ok' ? okRows : f === 'partial' ? partial : f === 'over' ? over : f === 'missing' ? missing : DKD.allRows;
 
   if (!rowsToShow.length) {
     el.style.display = 'block';
@@ -8482,7 +8534,9 @@ function dkdRenderResult() {
       <td style="padding:9px 12px;color:#555;font-size:15px">${r.onlineCode || r.code || '—'}</td>
       <td style="padding:9px 12px;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px" title="${(r.desc || r.finalDesc || '').replace(/"/g, '&quot;')}">${r.desc || r.finalDesc || '—'}</td>
       <td style="padding:9px 12px;text-align:center;font-size:15px">${r.sl}</td>
-      <td style="padding:9px 12px;text-align:center;font-size:15px">${r.status !== 'missing' ? (r.finalSl != null ? r.finalSl : '—') : '—'}</td>
+      <td style="padding:9px 12px;text-align:center;font-size:15px">${r.status !== 'missing' ? (r.finalSl != null ? r.finalSl : '—') : '—'}</td>${hasHn ? `
+      <td style="padding:9px 12px;text-align:center;font-size:15px">${r.status !== 'missing' ? (r.slHcm || 0) : '—'}</td>
+      <td style="padding:9px 12px;text-align:center;font-size:15px">${r.status !== 'missing' ? (r.slHn || 0) : '—'}</td>` : ''}
       <td style="padding:9px 12px;text-align:center;font-size:15px">${r.status !== 'missing' ? (r.finalTon != null ? r.finalTon : '—') : (r.ton != null ? r.ton : '—')}</td>
       <td style="padding:9px 12px;text-align:right;font-size:15px">${r.status !== 'missing' && typeof r.finalTotal === 'number' ? Math.round(r.finalTotal).toLocaleString('vi-VN') + 'đ' : '—'}</td>
       <td style="padding:9px 12px;white-space:nowrap">${statusBadge(r)}</td>
@@ -8495,7 +8549,9 @@ function dkdRenderResult() {
         <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0;text-align:left">Mã SKU</th>
         <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0;text-align:left">Tên Sản Phẩm</th>
         <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0">SL Đã Đặt</th>
-        <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0">SL Deli Đáp Ứng</th>
+        <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0">SL Deli Đáp Ứng${hasHn ? ' (tổng)' : ''}</th>${hasHn ? `
+        <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0">Từ HCM</th>
+        <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0">Từ HN (về Ngọc Hà)</th>` : ''}
         <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0">Tồn Deli</th>
         <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0;text-align:right">Thành Tiền</th>
         <th style="padding:10px 12px;white-space:nowrap;font-weight:700;font-size:14px;background:#d35400;color:white;position:sticky;top:0">Trạng Thái</th>
@@ -8507,11 +8563,12 @@ function dkdRenderResult() {
   el.style.display = 'block';
   el.innerHTML = cards + `<div style="font-size:13px;color:#888;margin-bottom:10px">${DKD.orderFormat === 'order'
     ? `Ngoài Bảng Stock: ${cnt.nostock} · Trạng thái ngừng nhập trong Bảng Stock: ${cnt.stockstatus} · SL = 0: ${cnt.zero} · Không rõ lý do: ${cnt.other}`
-    : `Không có trong catalogue: ${cnt.catalog} · Hết hàng: ${cnt.outofstock} · SL = 0: ${cnt.zero} · Không rõ lý do: ${cnt.other}`}${partial.length ? ` · Một phần: ${partial.length}` : ''}</div>` + table;
+    : `Không có trong catalogue: ${cnt.catalog} · Hết hàng: ${cnt.outofstock} · SL = 0: ${cnt.zero} · Không rõ lý do: ${cnt.other}`}${partial.length ? ` · Một phần: ${partial.length}` : ''}${over.length ? ` · Giao vượt: ${over.length}` : ''}${hasHn ? ` · Có ${hnRows.length} mã nhận từ HN cần chuyển tiếp HCM` : ''}</div>` + table;
 }
 
 function dkdExportFile() {
-  if (!DKD.missingRows.length && !DKD.partialRows.length) { dkdLog('⚠ Chưa có SKU nào để xuất', 'warn'); return; }
+  const hnRows = DKD.allRows.filter(r => r.status !== 'missing' && r.slHn > 0);
+  if (!DKD.missingRows.length && !DKD.partialRows.length && !hnRows.length) { dkdLog('⚠ Chưa có SKU nào để xuất', 'warn'); return; }
   const wb = XLSX.utils.book_new();
   if (DKD.missingRows.length) {
     const aoa = [['STT', 'Online Code', 'Code', 'Tên Sản Phẩm', 'SL Đã Đặt', 'Tồn Deli (lúc đặt)', 'Lý Do Không Đáp Ứng']];
@@ -8521,23 +8578,32 @@ function dkdExportFile() {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Deli Khong Dap Ung');
   }
   if (DKD.partialRows.length) {
-    const aoa = [['STT', 'Online Code', 'Tên Sản Phẩm', 'SL Đã Đặt', 'SL Deli Đáp Ứng', 'SL Thiếu']];
+    const aoa = [['STT', 'Online Code', 'Tên Sản Phẩm', 'SL Đã Đặt', 'SL Deli Đáp Ứng (tổng)', 'Từ HCM', 'Từ HN', 'SL Thiếu']];
     DKD.partialRows.forEach((r, i) => {
-      aoa.push([i + 1, r.onlineCode || r.code, r.desc || r.finalDesc, r.sl, r.finalSl, r.shortSl]);
+      aoa.push([i + 1, r.onlineCode || r.code, r.desc || r.finalDesc, r.sl, r.finalSl, r.slHcm, r.slHn, r.shortSl]);
     });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Dap Ung Mot Phan');
+  }
+  if (hnRows.length) {
+    // Hàng Deli xuất từ HN về Ngọc Hà — để đối chiếu khi nhận và chuyển tiếp vào kho HCM
+    const aoa = [['STT', 'Online Code', 'Tên Sản Phẩm', 'SL Về Ngọc Hà (từ HN)', 'SL Deli Giao Thẳng HCM', 'SL Đã Đặt']];
+    hnRows.forEach((r, i) => {
+      aoa.push([i + 1, r.onlineCode || r.code, r.desc || r.finalDesc, r.slHn, r.slHcm, r.sl]);
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Hang HN Chuyen HCM');
   }
   const baseName = (DKD.orderFileName || 'DonNhap').replace(/\.(xlsx|xls)$/i, '');
   const outName = `${baseName}_KhongDapUng.xlsx`;
   XLSX.writeFile(wb, outName);
-  dkdLog(`📤 Đã xuất "${outName}" — ${DKD.missingRows.length} SKU không đáp ứng, ${DKD.partialRows.length} SKU đáp ứng một phần`, 'ok');
+  dkdLog(`📤 Đã xuất "${outName}" — ${DKD.missingRows.length} SKU không đáp ứng, ${DKD.partialRows.length} SKU đáp ứng một phần, ${hnRows.length} SKU hàng HN chuyển HCM`, 'ok');
 }
 
 function dkdResetAll() {
   DKD.orderItems = []; DKD.orderFileName = '';
   DKD.finalItems = []; DKD.finalFileName = '';
-  DKD.missingRows = []; DKD.matchedRows = []; DKD.partialRows = []; DKD.allRows = []; DKD.filter = null; DKD.orderFormat = '';
-  ['dkd-status-order', 'dkd-status-final'].forEach(id => {
+  DKD.finalHnItems = []; DKD.finalHnFileName = '';
+  DKD.missingRows = []; DKD.matchedRows = []; DKD.partialRows = []; DKD.overRows = []; DKD.allRows = []; DKD.filter = null; DKD.orderFormat = '';
+  ['dkd-status-order', 'dkd-status-final', 'dkd-status-final-hn'].forEach(id => {
     const el = document.getElementById(id); if (el) el.textContent = 'chưa chọn';
   });
   const logEl = document.getElementById('dkd-log');
@@ -8546,7 +8612,7 @@ function dkdResetAll() {
   if (resEl) { resEl.innerHTML = ''; resEl.style.display = 'none'; }
   const btn = document.getElementById('dkd-export-btn');
   if (btn) btn.style.display = 'none';
-  ['dkd-order-input', 'dkd-final-input'].forEach(id => {
+  ['dkd-order-input', 'dkd-final-input', 'dkd-final-hn-input'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
 }
