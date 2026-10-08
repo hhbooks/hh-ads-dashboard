@@ -3554,6 +3554,8 @@
       </p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <button onclick="tthhSync()" class="tthh-btn tthh-btn-green">📊 Đồng Bộ Từ Sheet</button>
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)">Xuất tháng
+          <select id="tthh-exp-month" class="tthh-sel" title="Chọn tháng cần xuất; mặc định theo Kỳ từ–đến đang lọc"><option value="">Theo kỳ đang lọc</option></select></span>
         <button onclick="tthhExportExcel()" id="tthh-export-btn" class="tthh-btn" disabled>📤 Xuất Báo Cáo Excel</button>
         <a id="tthh-sheet-link" class="tthh-link" target="_blank" rel="noopener" style="display:none">↗ Mở Google Sheet</a>
         <a id="tthh-folder-link" class="tthh-link" target="_blank" rel="noopener" style="display:none">↗ Thư mục PDF gốc</a>
@@ -23358,6 +23360,8 @@ async function tthhSync() {
     el.innerHTML = months.map(m => `<option value="${m}">${tthhMonthLabel_(m)}</option>`).join('');
     if (months.length) el.value = i === 0 ? months[0] : months[months.length - 1];
   });
+  const em = document.getElementById('tthh-exp-month');
+  if (em) { const keep = em.value; em.innerHTML = '<option value="">Theo kỳ đang lọc</option>' + months.slice().reverse().map(m => `<option value="${m}">${tthhMonthLabel_(m)}</option>`).join(''); if (months.indexOf(keep) >= 0) em.value = keep; }
   const sl = document.getElementById('tthh-sheet-link'), fl = document.getElementById('tthh-folder-link');
   if (TTHH.sheetUrl) { sl.href = TTHH.sheetUrl; sl.style.display = ''; }
   if (TTHH.folderUrl) { fl.href = TTHH.folderUrl; fl.style.display = ''; }
@@ -23443,37 +23447,207 @@ function tthhRenderDetail_() {
     show.map(r => `<tr><td style="font-size:12px">${ktvatEsc_(r.sn)}</td><td>${tthhMonthLabel_(r.month)}</td><td style="font-size:12px">${ktvatEsc_(r.shop)}</td><td>${ktvatEsc_(r.user)}</td><td style="font-size:12px">${ktvatEsc_(r.name)}</td><td style="text-align:right">${F(r.cc)}</td><td style="text-align:right">${F(r.ads)}</td><td style="text-align:right">${F(r.pit)}</td><td style="text-align:right">${F(r.total)}</td><td>${/^https:\/\//.test(r.link) ? `<a href="${ktvatEsc_(r.link)}" target="_blank" rel="noopener">Mở</a>` : '—'}</td></tr>`).join('') +
     `<tr><td>Tổng (${rows.length})</td><td></td><td></td><td></td><td></td><td style="text-align:right">${F(tthhSum_(rows, 'cc'))}</td><td style="text-align:right">${F(tthhSum_(rows, 'ads'))}</td><td style="text-align:right">${F(tthhSum_(rows, 'pit'))}</td><td style="text-align:right">${F(tthhSum_(rows, 'total'))}</td><td></td></tr></tbody></table>`;
 }
-function tthhExportExcel() {
-  if (!TTHH.rows.length || typeof XLSX === 'undefined') return;
-  const b = tthhBuild_(), k = b.k;
-  const f = document.getElementById('tthh-from').value, t = document.getElementById('tthh-to').value;
-  const shopLabel = TTHH.shop ? TTHH_SHOPS[TTHH.shop] : 'Tất cả 4 shop';
-  const wb = XLSX.utils.book_new();
-  const add = (aoa, name) => { const ws = XLSX.utils.aoa_to_sheet(aoa); ktvatFormatNumbers_(ws); ws['!cols'] = ktvatAutoWidths_(aoa); XLSX.utils.book_append_sheet(wb, ws, name); return ws; };
-  add([
-    ['BÁO CÁO HOA HỒNG CREATOR TIKTOK (TTLK)'], ['Công ty CP Văn Hoá Huy Hoàng — MST 0101255406'],
-    ['Shop', shopLabel], ['Kỳ', tthhMonthLabel_(f) + ' → ' + tthhMonthLabel_(t)], ['Lập lúc', new Date().toLocaleString('vi-VN')], [],
-    ['Chỉ tiêu', 'Giá trị'], ['Số biên nhận', k.n], ['Số creator', k.creators], ['Hoa hồng Creator', k.cc], ['Hoa hồng Shop Ads', k.ads],
-    ['Thuế TNCN khấu trừ', k.pit], ['Tổng phải trả', k.total], [],
-    ['Nguồn: Google Sheet "TTLK TikTok 2H — Dữ liệu" (tiện ích 2H - Tải File TikTok, đã đối chiếu khớp danh sách TikTok). Biên nhận TikTok là chứng từ do máy tạo, không phải hoá đơn.']
-  ], 'Tong Quan');
-  const head = ['Tháng'].concat(b.codes.map(c => TTHH_SHOPS[c])).concat(['Tổng', 'Số biên nhận']);
-  const mx = [head].concat(b.months.map(m => { let tot = 0, n = 0; const v = b.codes.map(c => { const x = b.cell[m + '|' + c]; if (x) { tot += x.t; n += x.n; } return x ? x.t : 0; }); return [tthhMonthLabel_(m)].concat(v, [tot, n]); }));
-  mx.push(['Tổng'].concat(b.codes.map(c => b.byShop.find(s => s.code === c).total), [k.total, k.n]));
-  add(mx, 'Thang x Shop');
-  add([['Shop', 'Số biên nhận', 'Số creator', 'HH Creator', 'HH Shop Ads', 'Thuế TNCN', 'Phải trả']].concat(b.byShop.map(s => [s.shop, s.n, s.creators, s.cc, s.ads, s.pit, s.total]), [['Tổng', k.n, k.creators, k.cc, k.ads, k.pit, k.total]]), 'Theo Shop');
-  add([['#', 'Username', 'Tên creator', 'Shop', 'Số biên nhận', 'HH Creator', 'HH Shop Ads', 'Thuế TNCN', 'Tổng', '% cộng dồn']].concat(b.creators.map((c, i) => [i + 1, c.user, c.name, [...c.shops].join(', '), c.n, c.cc, c.ads, c.pit, c.total, Math.round(c.cumPct * 1000) / 10])), 'Theo Creator');
-  add([['Loại', 'Shop', 'Tháng', 'Số chứng từ / Username', 'Giá trị', 'Ghi chú']]
-    .concat(b.pitRows.map(r => ['Có thuế TNCN', r.shop, tthhMonthLabel_(r.month), r.sn + ' / ' + r.user, r.pit, 'Thuế đã khấu trừ']))
-    .concat(b.adsHeavy.map(c => ['Shop Ads ≥ 50%', [...c.shops].join(', '), '', c.user, c.ads, 'Tổng ' + c.total]))
-    .concat(b.logIssues.map(l => ['Tháng chưa xong', l[1], tthhMonthLabel_(l[2]), '', +l[4] || 0, l[6] !== 'OK' ? 'Lệch tổng với TikTok' : 'PDF ' + l[7] + '/' + l[3]])), 'Can Chu Y');
-  const det = [['Số chứng từ', 'Tháng', 'Shop', 'Mã shop', 'Ngày chứng từ', 'Username', 'Tên creator', 'HH Creator', 'HH Shop Ads', 'Thuế TNCN', 'Phải trả (trước thuế)', 'Tổng', 'Link PDF']]
-    .concat(b.rows.slice().sort((a, c) => a.month.localeCompare(c.month) || a.shop.localeCompare(c.shop) || c.total - a.total).map(r => [r.sn, r.month, r.shop, r.code, r.date, r.user, r.name, r.cc, r.ads, r.pit, r.pay, r.total, r.link]));
-  const ws = add(det, 'Chi Tiet');
-  ws['!autofilter'] = { ref: 'A1:M' + det.length };
-  const name = `BaoCao_HoaHong_TikTok_${f}_${t}${TTHH.shop ? '_' + TTHH.shop : ''}.xlsx`;
-  XLSX.writeFile(wb, name);
-  tthhLog(`📤 Đã xuất "${name}" — ${k.n.toLocaleString('vi-VN')} biên nhận, 6 sheet.`, 'ok');
+// ★ Dựng file Excel báo cáo Hoa hồng TikTok bằng ExcelJS (có định dạng: tiêu đề, màu, viền, số, công thức tổng).
+// Dùng chung cho dashboard (trình duyệt) và bản kiểm thử Node. rows: [{code,shop,month,sn,date,name,user,cc,ads,pit,pay,total,link}]
+// logRows: mảng nhật ký Sheet [Mã shop, Shop, Tháng, Số BN, Tổng PDF, Tổng TikTok, Trạng thái, PDF, Cập nhật]
+function tthhXlsxBuild_(ExcelJS, rows, logRows, meta) {
+  const RED = 'FFC43D2C', PINK = 'FFF6E3E0', GRAYF = 'FFF0F2F5', LINE = 'FFD0D4DA', MUTED = 'FF6B7280';
+  const NUM = '#,##0;(#,##0);"-"', PCT = '0.0%';
+  const F = (o) => Object.assign({ name: 'Arial', size: 10 }, o || {});
+  const border = { top: { style: 'thin', color: { argb: LINE } }, left: { style: 'thin', color: { argb: LINE } }, bottom: { style: 'thin', color: { argb: LINE } }, right: { style: 'thin', color: { argb: LINE } } };
+  const fill = (argb) => ({ type: 'pattern', pattern: 'solid', fgColor: { argb } });
+  const monthLabel = (m) => 'T' + (+m.slice(5, 7)) + '/' + m.slice(0, 4);
+  const sum = (a, k) => a.reduce((s, r) => s + (r[k] || 0), 0);
+  const col = (n) => { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+
+  const shops = meta.shops;                       // { code: name } theo thứ tự hiển thị
+  const codes = Object.keys(shops).filter(c => !meta.shopFilter || c === meta.shopFilter);
+  const months = [...new Set(rows.map(r => r.month))].sort();
+  const K = { n: rows.length, creators: new Set(rows.map(r => r.user)).size, cc: sum(rows, 'cc'), ads: sum(rows, 'ads'), pit: sum(rows, 'pit'), total: sum(rows, 'total') };
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'Trung Tâm Vận Hành 2H'; wb.created = new Date();
+
+  function sheet(name, widths) {
+    const ws = wb.addWorksheet(name, { views: [{ showGridLines: false }], pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 } });
+    widths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+    return ws;
+  }
+  function header(ws, title, sub) {
+    ws.getCell('A1').value = title; ws.getCell('A1').font = F({ size: 15, bold: true, color: { argb: RED } });
+    ws.getCell('A2').value = 'Công ty CP Văn Hoá Huy Hoàng — MST 0101255406 · Shop: ' + meta.shopLabel + ' · Kỳ: ' + meta.periodLabel;
+    ws.getCell('A2').font = F({ size: 10, color: { argb: MUTED } });
+    if (sub) { ws.getCell('A3').value = sub; ws.getCell('A3').font = F({ size: 9, italic: true, color: { argb: MUTED } }); }
+  }
+  function headRow(ws, r, labels) {
+    labels.forEach((t, i) => {
+      const c = ws.getCell(r, i + 1); c.value = t;
+      c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = fill(RED); c.border = border;
+      c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    });
+    ws.getRow(r).height = 30;
+  }
+  // kinds: 't' chữ, 'n' số tiền, 'i' số nguyên, 'p' phần trăm, 'c' chữ giữa
+  function dataRow(ws, r, values, kinds, opt) {
+    opt = opt || {};
+    values.forEach((v, i) => {
+      const c = ws.getCell(r, i + 1); c.value = v; c.border = border;
+      const k = kinds[i] || 't';
+      c.font = F({ bold: !!opt.total });
+      if (k === 'n') c.numFmt = NUM;
+      if (k === 'i') { c.numFmt = '#,##0'; c.alignment = { horizontal: 'center' }; }
+      if (k === 'p') c.numFmt = PCT;
+      if (k === 'c') c.alignment = { horizontal: 'center' };
+      if (opt.total) c.fill = fill(GRAYF);
+      else if (opt.zebra) c.fill = fill('FFFAFAFB');
+    });
+  }
+  const fx = (formula, result) => ({ formula, result });
+
+  // ── 1) Tổng quan
+  let ws = sheet('Tổng quan', [36, 22, 4, 40]);
+  header(ws, 'BÁO CÁO HOA HỒNG CREATOR TIKTOK (TTLK)', 'Lập lúc ' + meta.createdLabel + ' · Nguồn: Google Sheet "TTLK TikTok 2H — Dữ liệu" (tiện ích 2H - Tải File TikTok, đã đối chiếu khớp 100% danh sách TikTok)');
+  headRow(ws, 5, ['Chỉ tiêu', 'Giá trị']);
+  const kpis = [['Số biên nhận', K.n, 'i'], ['Số creator', K.creators, 'i'], ['Hoa hồng Creator', K.cc, 'n'], ['Hoa hồng Shop Ads', K.ads, 'n'],
+    ['Thuế TNCN khấu trừ', K.pit, 'n'], ['Tổng phải trả (VND)', K.total, 'n']];
+  kpis.forEach((k, i) => {
+    const r = 6 + i; dataRow(ws, r, [k[0], k[1]], ['t', k[2] === 'i' ? 'i' : 'n']);
+    ws.getCell(r, 1).fill = fill(PINK);
+    if (k[2] === 'i') ws.getCell(r, 2).alignment = { horizontal: 'right' };
+  });
+  ws.getCell(11, 1).font = F({ bold: true }); ws.getCell(11, 2).font = F({ bold: true, size: 12, color: { argb: RED } });
+  dataRow(ws, 12, ['Tỷ trọng Shop Ads / tổng', fx('IF(B11=0,0,B9/B11)', K.total ? K.ads / K.total : 0)], ['t', 'p']);
+  ws.getCell(12, 1).fill = fill(PINK);
+  ws.getCell('A14').value = 'Kiểm tra (Creator + Shop Ads − Thuế − Tổng, phải = 0)';
+  ws.getCell('A14').font = F({ size: 9, italic: true, color: { argb: MUTED } });
+  ws.getCell('B14').value = fx('B8+B9-B10-B11', K.cc + K.ads - K.pit - K.total); ws.getCell('B14').numFmt = NUM; ws.getCell('B14').font = F({ size: 9, italic: true });
+  ws.getCell('A16').value = 'Biên nhận TikTok là chứng từ do máy tạo, không phải hoá đơn — Merchant/Creator tự kê khai thuế phát sinh.';
+  ws.getCell('A16').font = F({ size: 9, italic: true, color: { argb: MUTED } });
+
+  // ── 2) Tháng × Shop
+  const nC = codes.length;
+  ws = sheet('Tháng × Shop', [14].concat(codes.map(() => 21), [18, 14]));
+  header(ws, 'PHẢI TRẢ THEO THÁNG × SHOP (VND)');
+  headRow(ws, 5, ['Tháng'].concat(codes.map(c => shops[c]), ['Tổng', 'Số biên nhận']));
+  months.forEach((m, i) => {
+    const r = 6 + i, vals = codes.map(c => sum(rows.filter(x => x.month === m && x.code === c), 'total'));
+    const tot = vals.reduce((a, b) => a + b, 0), n = rows.filter(x => x.month === m).length;
+    dataRow(ws, r, [monthLabel(m)].concat(vals, [fx('SUM(B' + r + ':' + col(nC + 1) + r + ')', tot), n]), ['c'].concat(codes.map(() => 'n'), ['n', 'i']), { zebra: i % 2 === 1 });
+    ws.getCell(r, nC + 2).font = F({ bold: true });
+  });
+  let last = 5 + months.length, tr = last + 1;
+  dataRow(ws, tr, ['Tổng'].concat(codes.map((c, j) => fx('SUM(' + col(j + 2) + '6:' + col(j + 2) + last + ')', sum(rows.filter(x => x.code === c), 'total'))),
+    [fx('SUM(' + col(nC + 2) + '6:' + col(nC + 2) + last + ')', K.total), fx('SUM(' + col(nC + 3) + '6:' + col(nC + 3) + last + ')', K.n)]),
+    ['c'].concat(codes.map(() => 'n'), ['n', 'i']), { total: true });
+  ws.views = [{ state: 'frozen', ySplit: 5, xSplit: 1, showGridLines: false }];
+
+  // ── 3) Theo shop
+  ws = sheet('Theo shop', [24, 13, 12, 18, 18, 12, 14, 18, 11]);
+  header(ws, 'CƠ CẤU HOA HỒNG THEO SHOP');
+  headRow(ws, 5, ['Shop', 'Số biên nhận', 'Số creator', 'HH Creator', 'HH Shop Ads', '% Shop Ads', 'Thuế TNCN', 'Phải trả', 'Tỷ trọng']);
+  const lastS = 5 + codes.length;
+  codes.forEach((c, i) => {
+    const a = rows.filter(x => x.code === c), r = 6 + i, t = sum(a, 'total');
+    dataRow(ws, r, [shops[c], a.length, new Set(a.map(x => x.user)).size, sum(a, 'cc'), sum(a, 'ads'), fx('IF(H' + r + '=0,0,E' + r + '/H' + r + ')', t ? sum(a, 'ads') / t : 0), sum(a, 'pit'), t,
+      fx('IF($H$' + (lastS + 1) + '=0,0,H' + r + '/$H$' + (lastS + 1) + ')', K.total ? t / K.total : 0)], ['t', 'i', 'i', 'n', 'n', 'p', 'n', 'n', 'p'], { zebra: i % 2 === 1 });
+  });
+  tr = lastS + 1;
+  dataRow(ws, tr, ['Tổng', fx('SUM(B6:B' + lastS + ')', K.n), K.creators, fx('SUM(D6:D' + lastS + ')', K.cc), fx('SUM(E6:E' + lastS + ')', K.ads), fx('IF(H' + tr + '=0,0,E' + tr + '/H' + tr + ')', K.total ? K.ads / K.total : 0),
+    fx('SUM(G6:G' + lastS + ')', K.pit), fx('SUM(H6:H' + lastS + ')', K.total), fx('IF(H' + tr + '=0,0,1)', K.total ? 1 : 0)], ['t', 'i', 'i', 'n', 'n', 'p', 'n', 'n', 'p'], { total: true });
+  ws.getCell('A' + (tr + 2)).value = 'Số creator ở dòng Tổng là số creator khác nhau trên toàn bộ các shop (1 creator có thể làm cho nhiều shop).';
+  ws.getCell('A' + (tr + 2)).font = F({ size: 9, italic: true, color: { argb: MUTED } });
+
+  // ── 4) Theo creator
+  const cMap = {};
+  rows.forEach(r => { const c = cMap[r.user] || (cMap[r.user] = { user: r.user, name: r.name, shops: new Set(), n: 0, cc: 0, ads: 0, pit: 0, total: 0 }); c.shops.add(r.shop); c.n++; c.cc += r.cc; c.ads += r.ads; c.pit += r.pit; c.total += r.total; });
+  const creators = Object.values(cMap).sort((a, b) => b.total - a.total);
+  ws = sheet('Theo creator', [6, 24, 28, 26, 12, 16, 16, 12, 16, 12]);
+  header(ws, 'HOA HỒNG THEO CREATOR (sắp theo tiền nhận giảm dần)', 'Cột "% cộng dồn" cho biết nhóm creator đứng đầu chiếm bao nhiêu % tổng hoa hồng.');
+  headRow(ws, 5, ['#', 'Username', 'Tên creator', 'Shop', 'Số biên nhận', 'HH Creator', 'HH Shop Ads', 'Thuế TNCN', 'Tổng', '% cộng dồn']);
+  const lastC = 5 + creators.length, totC = lastC + 1;
+  let cum = 0;
+  creators.forEach((c, i) => {
+    const r = 6 + i; cum += c.total;
+    dataRow(ws, r, [i + 1, c.user, c.name, [...c.shops].join(', '), c.n, c.cc, c.ads, c.pit, c.total, fx('IF($I$' + totC + '=0,0,SUM($I$6:I' + r + ')/$I$' + totC + ')', K.total ? cum / K.total : 0)],
+      ['c', 't', 't', 't', 'i', 'n', 'n', 'n', 'n', 'p'], { zebra: i % 2 === 1 });
+  });
+  dataRow(ws, totC, ['', 'Tổng ' + creators.length + ' creator', '', '', fx('SUM(E6:E' + lastC + ')', K.n), fx('SUM(F6:F' + lastC + ')', K.cc), fx('SUM(G6:G' + lastC + ')', K.ads), fx('SUM(H6:H' + lastC + ')', K.pit), fx('SUM(I6:I' + lastC + ')', K.total), ''],
+    ['c', 't', 't', 't', 'i', 'n', 'n', 'n', 'n', 'p'], { total: true });
+  ws.autoFilter = { from: 'A5', to: 'J' + lastC };
+  ws.views = [{ state: 'frozen', ySplit: 5, showGridLines: false }];
+
+  // ── 5) Cần chú ý
+  ws = sheet('Cần chú ý', [22, 22, 12, 34, 16, 46]);
+  header(ws, 'CÁC MỤC CẦN CHÚ Ý');
+  headRow(ws, 5, ['Loại', 'Shop', 'Tháng', 'Số chứng từ / Username', 'Giá trị (VND)', 'Ghi chú']);
+  const att = [];
+  rows.filter(r => r.pit > 0).forEach(r => att.push(['Có khấu trừ thuế TNCN', r.shop, monthLabel(r.month), r.sn + ' / ' + r.user, r.pit, 'Thuế TikTok đã khấu trừ trên biên nhận']));
+  creators.filter(c => c.total >= 100000 && c.ads / c.total >= 0.5).forEach(c => att.push(['Shop Ads ≥ 50%', [...c.shops].join(', '), '', c.user, c.ads, 'Shop Ads ' + Math.round(c.ads / c.total * 100) + '% trên tổng ' + c.total.toLocaleString('vi-VN') + 'đ — shop vừa trả tiền quảng cáo vừa trả hoa hồng']));
+  (logRows || []).filter(l => (!meta.shopFilter || l[0] === meta.shopFilter) && months.indexOf(String(l[2])) >= 0 && (l[6] !== 'OK' || (+l[7] || 0) < (+l[3] || 0)))
+    .forEach(l => att.push(['Tháng chưa xong', l[1], monthLabel(String(l[2])), '', +l[4] || 0, l[6] !== 'OK' ? 'Lệch tổng với TikTok' : 'Thiếu PDF gốc: ' + l[7] + '/' + l[3]]));
+  if (!att.length) att.push(['Không có', '', '', '', 0, 'Không có biên nhận khấu trừ thuế, không có creator Shop Ads ≥ 50%, mọi tháng đều khớp và đủ PDF.']);
+  att.forEach((a, i) => dataRow(ws, 6 + i, a, ['t', 't', 'c', 't', 'n', 't'], { zebra: i % 2 === 1 }));
+  ws.views = [{ state: 'frozen', ySplit: 5, showGridLines: false }];
+
+  // ── 6) Chi tiết
+  ws = sheet('Chi tiết', [24, 11, 20, 14, 14, 22, 28, 15, 15, 12, 17, 15, 11]);
+  header(ws, 'CHI TIẾT BIÊN NHẬN HOA HỒNG LIÊN KẾT', 'Dòng Tổng ở cuối dùng SUBTOTAL nên tự tính lại theo bộ lọc đang chọn.');
+  headRow(ws, 5, ['Số chứng từ', 'Tháng', 'Shop', 'Mã shop', 'Ngày chứng từ', 'Username', 'Tên creator', 'HH Creator', 'HH Shop Ads', 'Thuế TNCN', 'Phải trả (trước thuế)', 'Tổng', 'PDF gốc']);
+  const det = rows.slice().sort((a, b) => a.month.localeCompare(b.month) || a.shop.localeCompare(b.shop) || b.total - a.total);
+  det.forEach((r, i) => {
+    const rr = 6 + i;
+    dataRow(ws, rr, [r.sn, monthLabel(r.month), r.shop, r.code, r.date, r.user, r.name, r.cc, r.ads, r.pit, r.pay, r.total, ''], ['t', 'c', 't', 'c', 'c', 't', 't', 'n', 'n', 'n', 'n', 'n', 'c']);
+    if (/^https:\/\//.test(r.link)) { const c = ws.getCell(rr, 13); c.value = { text: 'Mở PDF', hyperlink: r.link }; c.font = F({ color: { argb: 'FF1A73E8' }, underline: true }); }
+  });
+  const lastD = 5 + det.length, totD = lastD + 1;
+  dataRow(ws, totD, ['Tổng', '', '', '', '', '', det.length + ' biên nhận'].concat(['H', 'I', 'J', 'K', 'L'].map(c => fx('SUBTOTAL(109,' + c + '6:' + c + lastD + ')', sum(det, { H: 'cc', I: 'ads', J: 'pit', K: 'pay', L: 'total' }[c]))), ['']),
+    ['t', 't', 't', 't', 't', 't', 't', 'n', 'n', 'n', 'n', 'n', 't'], { total: true });
+  ws.autoFilter = { from: 'A5', to: 'M' + lastD };
+  ws.views = [{ state: 'frozen', ySplit: 5, xSplit: 1, showGridLines: false }];
+
+  return wb;
+}
+
+// Tải ExcelJS khi cần (chỉ lúc bấm Xuất) — SheetJS bản miễn phí không ghi được định dạng (màu, viền, font).
+let tthhExcelJsPromise_ = null;
+function tthhLoadExcelJS_() {
+  if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  if (tthhExcelJsPromise_) return tthhExcelJsPromise_;
+  const urls = ['https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js', 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js', 'https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js'];
+  tthhExcelJsPromise_ = urls.reduce((p, u) => p.catch(() => new Promise((res, rej) => {
+    const sc = document.createElement('script'); sc.src = u; sc.async = true;
+    sc.onload = () => window.ExcelJS ? res(window.ExcelJS) : rej(new Error('no ExcelJS'));
+    sc.onerror = () => { sc.remove(); rej(new Error('load fail ' + u)); };
+    document.head.appendChild(sc);
+  })), Promise.reject(new Error('start'))).catch(e => { tthhExcelJsPromise_ = null; throw new Error('Không tải được thư viện Excel (kiểm tra mạng): ' + e.message); });
+  return tthhExcelJsPromise_;
+}
+async function tthhExportExcel() {
+  if (!TTHH.rows.length) return;
+  const btn = document.getElementById('tthh-export-btn');
+  const em = (document.getElementById('tthh-exp-month') || {}).value || '';
+  const f = em || document.getElementById('tthh-from').value, t = em || document.getElementById('tthh-to').value;
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Đang tạo file Excel...'; }
+    const ExcelJS = await tthhLoadExcelJS_();
+    const rows = TTHH.rows.filter(r => (!TTHH.shop || r.code === TTHH.shop) && r.month >= f && r.month <= t);
+    if (!rows.length) { tthhLog(`⚠ Không có biên nhận nào cho ${TTHH.shop ? TTHH_SHOPS[TTHH.shop] : 'Tất cả 4 shop'} trong ${tthhMonthLabel_(f)}${f === t ? '' : ' → ' + tthhMonthLabel_(t)} — chưa xuất.`, 'warn'); return; }
+    const wb = tthhXlsxBuild_(ExcelJS, rows, TTHH.log, {
+      shops: TTHH_SHOPS, shopFilter: TTHH.shop || '', shopLabel: TTHH.shop ? TTHH_SHOPS[TTHH.shop] : 'Tất cả 4 shop',
+      periodLabel: tthhMonthLabel_(f) + (f === t ? '' : ' → ' + tthhMonthLabel_(t)), createdLabel: new Date().toLocaleString('vi-VN')
+    });
+    const buf = await wb.xlsx.writeBuffer();
+    const name = `BaoCao_HoaHong_TikTok_${f}_${t}${TTHH.shop ? '_' + TTHH.shop : ''}.xlsx`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+    tthhLog(`📤 Đã xuất "${name}" — ${rows.length.toLocaleString('vi-VN')} biên nhận, 6 sheet có định dạng.`, 'ok');
+  } catch (e) {
+    tthhLog('❌ Xuất Excel lỗi: ' + ktvatEsc_(e.message || e), 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📤 Xuất Báo Cáo Excel'; }
+  }
 }
 
 // ==================================================================================
