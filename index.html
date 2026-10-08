@@ -546,6 +546,16 @@
   .th-shop-table-lg .th-shop-table { font-size:15px; }
   .th-shop-table-lg .th-shop-table th { font-size:13px; padding:12px 16px; }
   .th-shop-table-lg .th-shop-table td { padding:14px 16px; }
+  /* Trang Hoa Hồng TikTok (Kế Toán) — class riêng tiền tố tthh-, không đụng class dùng chung */
+  .tthh-btn { padding:8px 16px; background:#fff; color:var(--text); border:1.5px solid var(--text); border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer; }
+  .tthh-btn:disabled { opacity:.45; cursor:not-allowed; }
+  .tthh-btn-green { background:#0f9d58; border-color:#0f9d58; color:#fff; }
+  .tthh-link { font-size:12px; font-weight:600; color:var(--navy2); text-decoration:none; }
+  .tthh-sel { padding:6px 10px; border:1px solid var(--gray3); border-radius:8px; font-size:12px; background:#fff; }
+  .tthh-pill { padding:6px 12px; border:1px solid var(--gray3); border-radius:20px; font-size:12px; font-weight:600; cursor:pointer; background:#fff; user-select:none; }
+  .tthh-pill:hover { border-color:var(--orange); color:var(--orange); }
+  .tthh-pill.on { background:var(--orange); border-color:var(--orange); color:#fff; }
+  .tthh-att { font-size:13px; line-height:1.6; padding:10px 12px; border-radius:8px; background:#fafafa; border:1px solid var(--gray3); margin-bottom:8px; }
   /* Bảng "Chi tiết sản phẩm" trong panel click-mở của card Phân Tích ROAS Theo Nhóm Hàng —
      phóng to +20% (xác nhận Tân 2026-08-10), chỉ áp dụng trong wrapper .th-cat-prodtable. */
   .th-cat-prodtable { overflow-x:hidden; }
@@ -757,6 +767,9 @@
         </div>
         <div class="nav-item" onclick="showPage('ke-toan-bc-hd-vat',this)">
           <span class="icon">🧾</span> Báo Cáo Hóa Đơn VAT
+        </div>
+        <div class="nav-item" onclick="showPage('ke-toan-tiktok-hh',this)">
+          <span class="icon">🎵</span> Hoa Hồng TikTok
         </div>
       </div>
     </div>
@@ -3528,6 +3541,41 @@
       </div>
     </div>
   </div><!-- end page-ke-toan-bc-hd-vat -->
+
+  <!-- Trang Hoa Hồng Creator TikTok (TTLK) — Tân chốt 08/10/2026: tiện ích Chrome "2H - Tải File TikTok"
+       tải biên nhận hoa hồng liên kết của 4 shop TikTok → Google Sheet "TTLK TikTok 2H — Dữ liệu" (1 biên
+       nhận = 1 dòng) + PDF gốc trên Drive. Trang này chỉ ĐỌC Sheet qua Apps Script riêng (action get_rows),
+       không lưu Firestore. CSS riêng tiền tố .tthh- để không đụng class dùng chung toàn dashboard. -->
+  <div class="page" id="page-ke-toan-tiktok-hh">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><span class="dot"></span> Hoa Hồng Creator TikTok (TTLK)</div>
+      <p style="font-size:12px;color:var(--text2);margin:0 0 12px;line-height:1.6">
+        Biên nhận hoa hồng liên kết của 4 shop TikTok — do tiện ích Chrome <b>"2H - Tải File TikTok"</b> tự tải từ Seller Center, đọc PDF, đối chiếu khớp 100% với TikTok rồi ghi vào Google Sheet. Bấm <b>Đồng Bộ</b> để lấy số liệu mới nhất.
+      </p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button onclick="tthhSync()" class="tthh-btn tthh-btn-green">📊 Đồng Bộ Từ Sheet</button>
+        <button onclick="tthhExportExcel()" id="tthh-export-btn" class="tthh-btn" disabled>📤 Xuất Báo Cáo Excel</button>
+        <a id="tthh-sheet-link" class="tthh-link" target="_blank" rel="noopener" style="display:none">↗ Mở Google Sheet</a>
+        <a id="tthh-folder-link" class="tthh-link" target="_blank" rel="noopener" style="display:none">↗ Thư mục PDF gốc</a>
+        <span id="tthh-last-sync" style="font-size:11px;color:var(--text2);margin-left:auto">Chưa đồng bộ</span>
+      </div>
+      <div id="tthh-log" class="drive-log" style="max-height:120px"></div>
+    </div>
+
+    <div id="tthh-main" style="display:none">
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:center">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center" id="tthh-shop-pills"></div>
+          <div style="display:flex;gap:6px;align-items:center;margin-left:auto;font-size:12px;color:var(--text2)">
+            Kỳ từ <select id="tthh-from" class="tthh-sel" onchange="tthhRender()"></select>
+            đến <select id="tthh-to" class="tthh-sel" onchange="tthhRender()"></select>
+          </div>
+        </div>
+      </div>
+      <div class="kpi-grid" id="tthh-kpis" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))"></div>
+      <div id="tthh-report" class="th-shop-table-lg"></div>
+    </div>
+  </div><!-- end page-ke-toan-tiktok-hh -->
 
 </main>
 
@@ -16713,6 +16761,7 @@ function showPage(name, el) {
     if (ptsWrap) ptsWrap.style.display = 'none';
   }
   if (name === 'dosuat')    initDoSuatPage();
+  if (name === 'ke-toan-tiktok-hh') tthhInit();
   if (name === 'tonghop')  initTongHopPage();
   if (name === 'tonkho-tong-quan') tqInitPage();
   if (name === 'tonkho-bao-cao-san-luong') bcslInitPage();
@@ -23253,6 +23302,178 @@ function ktvatExportExcel() {
   const outName = `BaoCao_HoaDon_VAT_${dateStr}.xlsx`;
   XLSX.writeFile(wb, outName);
   ktvatLog(`📤 Đã xuất "${outName}" — 7 đầu mục.`, 'ok');
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// ★ KẾ TOÁN — HOA HỒNG CREATOR TIKTOK (TTLK)  (Tân chốt 08/10/2026)
+// Nguồn: Google Sheet "TTLK TikTok 2H — Dữ liệu" do tiện ích Chrome "2H - Tải File TikTok" ghi (1 biên
+// nhận = 1 dòng, đã đối chiếu khớp với danh sách TikTok trước khi ghi). Trang chỉ đọc qua Apps Script
+// riêng (AppsScript_2H_TikTok_TTLK.gs, action get_rows). Không lưu Firestore — mỗi lần bấm đọc lại.
+// Hàm/biến đều có tiền tố tthh để không đụng code dùng chung; tái dùng ktvatEsc_/ktvatFmt_/
+// ktvatSection_/ktvatFormatNumbers_/ktvatAutoWidths_ của khối Kế Toán.
+// ══════════════════════════════════════════════════════════════
+const TTHH_BACKEND_URL = '';   // URL Web app /exec của AppsScript_2H_TikTok_TTLK.gs — điền sau khi deploy
+const TTHH_SHOPS = { VNLCNEWYCX: '2HBooks', VNLC3AWAYL: 'Nhà Sách 2HBooks', VNLCBHLLKP: '2HBooks - HCM', VNVNLCFTLHH2: 'Văn Phòng Phẩm 2H' };
+const TTHH = { rows: [], log: [], shop: '', loadedAt: null, sheetUrl: '', folderUrl: '' };
+// cột của get_rows: [Mã shop, Shop, Tháng, Số chứng từ, Ngày, Kỳ từ, Kỳ đến, Creator, Username, Địa chỉ, HH Creator, HH Shop Ads, Thuế TNCN, Phải trả, Tổng, Link PDF]
+
+function tthhUrl_() {
+  let u = TTHH_BACKEND_URL;
+  try { u = localStorage.getItem('tthh_url') || u; } catch (e) {}
+  return u;
+}
+function tthhLog(msg, type) {
+  const el = document.getElementById('tthh-log');
+  if (!el) return;
+  el.classList.add('visible');
+  const color = type === 'err' ? '#e74c3c' : type === 'warn' ? '#f39c12' : type === 'ok' ? '#27ae60' : '#555';
+  el.innerHTML += `<div style="color:${color}">[${new Date().toLocaleTimeString('vi-VN')}] ${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+function tthhInit() {
+  if (!TTHH.loadedAt && tthhUrl_()) tthhSync();
+  else if (!tthhUrl_()) tthhLog('Chưa cấu hình URL Apps Script của TikTok TTLK (TTHH_BACKEND_URL) — báo Tân/Claude điền sau khi deploy.', 'warn');
+}
+async function tthhSync() {
+  const url = tthhUrl_();
+  if (!url) { tthhLog('❌ Chưa cấu hình URL Apps Script (TTHH_BACKEND_URL).', 'err'); return; }
+  tthhLog('📊 Đang đọc Sheet "TTLK TikTok 2H — Dữ liệu"...');
+  let j;
+  try {
+    const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'get_rows' }) });
+    j = await resp.json();
+  } catch (e) { tthhLog('❌ Không đọc được dữ liệu (lỗi mạng hoặc Apps Script chưa deploy đúng): ' + ktvatEsc_(e.message), 'err'); return; }
+  if (!j.ok) { tthhLog('❌ ' + ktvatEsc_(j.error || 'Apps Script báo lỗi'), 'err'); return; }
+  TTHH.rows = (j.rows || []).filter(r => r[0] && r[3]).map(r => ({
+    code: String(r[0]), shop: TTHH_SHOPS[r[0]] || String(r[1]), month: String(r[2]), sn: String(r[3]), date: String(r[4]),
+    name: String(r[7]), user: String(r[8]), cc: +r[10] || 0, ads: +r[11] || 0, pit: +r[12] || 0, pay: +r[13] || 0, total: +r[14] || 0, link: String(r[15] || '')
+  }));
+  TTHH.log = j.log || [];
+  TTHH.sheetUrl = j.sheetUrl || ''; TTHH.folderUrl = j.folderUrl || '';
+  TTHH.loadedAt = new Date();
+  const months = [...new Set(TTHH.rows.map(r => r.month))].sort();
+  ['tthh-from', 'tthh-to'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.innerHTML = months.map(m => `<option value="${m}">${tthhMonthLabel_(m)}</option>`).join('');
+    if (months.length) el.value = i === 0 ? months[0] : months[months.length - 1];
+  });
+  const sl = document.getElementById('tthh-sheet-link'), fl = document.getElementById('tthh-folder-link');
+  if (TTHH.sheetUrl) { sl.href = TTHH.sheetUrl; sl.style.display = ''; }
+  if (TTHH.folderUrl) { fl.href = TTHH.folderUrl; fl.style.display = ''; }
+  document.getElementById('tthh-last-sync').textContent = `Đồng bộ lúc ${TTHH.loadedAt.toLocaleString('vi-VN')} — ${TTHH.rows.length.toLocaleString('vi-VN')} biên nhận`;
+  document.getElementById('tthh-main').style.display = TTHH.rows.length ? '' : 'none';
+  document.getElementById('tthh-export-btn').disabled = !TTHH.rows.length;
+  tthhLog(`✅ Đã đọc ${TTHH.rows.length.toLocaleString('vi-VN')} biên nhận, ${months.length} tháng.`, 'ok');
+  if (!TTHH.rows.length) tthhLog('Sheet chưa có dữ liệu — mở TikTok Seller Center để tiện ích tải về.', 'warn');
+  tthhRenderPills_();
+  tthhRender();
+}
+function tthhMonthLabel_(m) { return 'T' + (+m.slice(5, 7)) + '/' + m.slice(0, 4); }
+function tthhRenderPills_() {
+  const box = document.getElementById('tthh-shop-pills');
+  const codes = Object.keys(TTHH_SHOPS);
+  box.innerHTML = [['', 'Tất cả 4 shop']].concat(codes.map(c => [c, TTHH_SHOPS[c]])).map(([c, n]) =>
+    `<span class="tthh-pill${TTHH.shop === c ? ' on' : ''}" onclick="TTHH.shop='${c}';tthhRenderPills_();tthhRender()">${ktvatEsc_(n)}</span>`).join('');
+}
+function tthhFiltered_() {
+  const f = document.getElementById('tthh-from').value, t = document.getElementById('tthh-to').value;
+  return TTHH.rows.filter(r => (!TTHH.shop || r.code === TTHH.shop) && (!f || r.month >= f) && (!t || r.month <= t));
+}
+function tthhSum_(arr, k) { return arr.reduce((a, r) => a + (r[k] || 0), 0); }
+// Tổng hợp dùng chung cho hiển thị + xuất Excel
+function tthhBuild_() {
+  const rows = tthhFiltered_();
+  const months = [...new Set(rows.map(r => r.month))].sort();
+  const codes = Object.keys(TTHH_SHOPS).filter(c => !TTHH.shop || c === TTHH.shop);
+  const k = { n: rows.length, creators: new Set(rows.map(r => r.user)).size, cc: tthhSum_(rows, 'cc'), ads: tthhSum_(rows, 'ads'), pit: tthhSum_(rows, 'pit'), total: tthhSum_(rows, 'total') };
+  const cell = {}; rows.forEach(r => { const key = r.month + '|' + r.code; (cell[key] = cell[key] || { n: 0, t: 0 }); cell[key].n++; cell[key].t += r.total; });
+  const byShop = codes.map(c => { const a = rows.filter(r => r.code === c); return { code: c, shop: TTHH_SHOPS[c], n: a.length, creators: new Set(a.map(r => r.user)).size, cc: tthhSum_(a, 'cc'), ads: tthhSum_(a, 'ads'), pit: tthhSum_(a, 'pit'), total: tthhSum_(a, 'total') }; });
+  const cMap = {};
+  rows.forEach(r => { const c = cMap[r.user] || (cMap[r.user] = { user: r.user, name: r.name, shops: new Set(), n: 0, cc: 0, ads: 0, pit: 0, total: 0 }); c.shops.add(r.shop); c.n++; c.cc += r.cc; c.ads += r.ads; c.pit += r.pit; c.total += r.total; });
+  const creators = Object.values(cMap).sort((a, b) => b.total - a.total);
+  let cum = 0; creators.forEach(c => { cum += c.total; c.cumPct = k.total ? cum / k.total : 0; });
+  const pitRows = rows.filter(r => r.pit > 0);
+  const adsHeavy = creators.filter(c => c.total >= 100000 && c.ads / c.total >= 0.5);
+  const f = document.getElementById('tthh-from').value, t = document.getElementById('tthh-to').value;
+  const logIssues = TTHH.log.filter(l => (!TTHH.shop || l[0] === TTHH.shop) && (!f || l[2] >= f) && (!t || l[2] <= t) && (l[6] !== 'OK' || (+l[7] || 0) < (+l[3] || 0)));
+  return { rows, months, codes, k, cell, byShop, creators, pitRows, adsHeavy, logIssues };
+}
+function tthhPct_(x) { return (x * 100).toFixed(1).replace('.', ',') + '%'; }
+function tthhRender() {
+  if (!TTHH.rows.length) return;
+  const b = tthhBuild_(), k = b.k, F = ktvatFmt_;
+  const kpi = (cls, icon, label, val) => `<div class="kpi-card ${cls}"><div class="kpi-icon">${icon}</div><div class="kpi-label">${label}</div><div class="kpi-value" style="font-size:22px">${val}</div></div>`;
+  document.getElementById('tthh-kpis').innerHTML =
+    kpi('navy', '🧾', 'Số biên nhận', F(k.n)) + kpi('navy', '👤', 'Số creator', F(k.creators)) +
+    kpi('green', '💰', 'Hoa hồng Creator', F(k.cc)) + kpi('orange', '📣', 'Hoa hồng Shop Ads', F(k.ads) + `<div style="font-size:11px;color:var(--text2);margin-top:6px">${k.total ? tthhPct_(k.ads / k.total) : '0%'} tổng</div>`) +
+    kpi('red', '🏛️', 'Thuế TNCN khấu trừ', F(k.pit)) + kpi('green', '✅', 'Tổng phải trả (VND)', F(k.total));
+  let h = '';
+  // 1) Tháng × shop
+  h += ktvatSection_('Phải trả theo tháng × shop (VND)', `<div style="overflow-x:auto"><table class="th-shop-table"><thead><tr><th>Tháng</th>${b.codes.map(c => `<th style="text-align:right">${ktvatEsc_(TTHH_SHOPS[c])}</th>`).join('')}<th style="text-align:right">Tổng</th><th style="text-align:right">Số BN</th></tr></thead><tbody>` +
+    b.months.map(m => { let tot = 0, n = 0; const tds = b.codes.map(c => { const x = b.cell[m + '|' + c]; if (x) { tot += x.t; n += x.n; } return `<td style="text-align:right">${x ? F(x.t) : '<span style="color:#bbb">—</span>'}</td>`; }).join(''); return `<tr><td>${tthhMonthLabel_(m)}</td>${tds}<td style="text-align:right;font-weight:700">${F(tot)}</td><td style="text-align:right">${F(n)}</td></tr>`; }).join('') +
+    `<tr><td>Tổng</td>${b.codes.map(c => `<td style="text-align:right">${F(b.byShop.find(s => s.code === c).total)}</td>`).join('')}<td style="text-align:right">${F(k.total)}</td><td style="text-align:right">${F(k.n)}</td></tr></tbody></table></div>`);
+  // 2) Theo shop: cơ cấu
+  h += ktvatSection_('Cơ cấu hoa hồng theo shop', `<div style="overflow-x:auto"><table class="th-shop-table"><thead><tr><th>Shop</th><th style="text-align:right">Số BN</th><th style="text-align:right">Creator</th><th style="text-align:right">HH Creator</th><th style="text-align:right">HH Shop Ads</th><th style="text-align:right">% Shop Ads</th><th style="text-align:right">Thuế TNCN</th><th style="text-align:right">Phải trả</th><th style="text-align:right">Tỷ trọng</th></tr></thead><tbody>` +
+    b.byShop.map(s => `<tr><td>${ktvatEsc_(s.shop)}</td><td style="text-align:right">${F(s.n)}</td><td style="text-align:right">${F(s.creators)}</td><td style="text-align:right">${F(s.cc)}</td><td style="text-align:right">${F(s.ads)}</td><td style="text-align:right">${s.total ? tthhPct_(s.ads / s.total) : '—'}</td><td style="text-align:right">${F(s.pit)}</td><td style="text-align:right">${F(s.total)}</td><td style="text-align:right">${k.total ? tthhPct_(s.total / k.total) : '—'}</td></tr>`).join('') +
+    `<tr><td>Tổng</td><td style="text-align:right">${F(k.n)}</td><td style="text-align:right">${F(k.creators)}</td><td style="text-align:right">${F(k.cc)}</td><td style="text-align:right">${F(k.ads)}</td><td style="text-align:right">${k.total ? tthhPct_(k.ads / k.total) : '—'}</td><td style="text-align:right">${F(k.pit)}</td><td style="text-align:right">${F(k.total)}</td><td style="text-align:right">100%</td></tr></tbody></table></div>`);
+  // 3) Top 20 creator
+  const top = b.creators.slice(0, 20), topSum = tthhSum_(top, 'total');
+  h += ktvatSection_(`Top 20 creator nhận nhiều nhất (trên ${F(b.creators.length)} creator)`, `<div style="overflow-x:auto"><table class="th-shop-table"><thead><tr><th>#</th><th>Username</th><th>Tên</th><th>Shop</th><th style="text-align:right">Số BN</th><th style="text-align:right">HH Creator</th><th style="text-align:right">HH Shop Ads</th><th style="text-align:right">Tổng</th><th style="text-align:right">% cộng dồn</th></tr></thead><tbody>` +
+    top.map((c, i) => `<tr><td>${i + 1}</td><td>${ktvatEsc_(c.user)}</td><td>${ktvatEsc_(c.name)}</td><td style="font-size:12px">${ktvatEsc_([...c.shops].join(', '))}</td><td style="text-align:right">${c.n}</td><td style="text-align:right">${F(c.cc)}</td><td style="text-align:right">${F(c.ads)}</td><td style="text-align:right">${F(c.total)}</td><td style="text-align:right">${tthhPct_(c.cumPct)}</td></tr>`).join('') +
+    `<tr><td></td><td>Tổng top ${top.length}</td><td></td><td></td><td style="text-align:right">${F(tthhSum_(top, 'n'))}</td><td style="text-align:right">${F(tthhSum_(top, 'cc'))}</td><td style="text-align:right">${F(tthhSum_(top, 'ads'))}</td><td style="text-align:right">${F(topSum)}</td><td style="text-align:right">${k.total ? tthhPct_(topSum / k.total) : '—'}</td></tr></tbody></table></div>`);
+  // 4) Cần chú ý
+  let att = '';
+  att += `<div class="tthh-att"><b>Biên nhận có khấu trừ thuế TNCN:</b> ${b.pitRows.length ? b.pitRows.length + ' biên nhận, tổng thuế ' + F(tthhSum_(b.pitRows, 'pit')) + 'đ — ' + b.pitRows.slice(0, 8).map(r => ktvatEsc_(r.user) + ' (' + F(r.pit) + 'đ, ' + tthhMonthLabel_(r.month) + ')').join(', ') + (b.pitRows.length > 8 ? '…' : '') : 'không có.'}</div>`;
+  att += `<div class="tthh-att"><b>Creator có hoa hồng Shop Ads ≥ 50% (tổng ≥ 100.000đ):</b> ${b.adsHeavy.length ? b.adsHeavy.slice(0, 10).map(c => ktvatEsc_(c.user) + ' ' + tthhPct_(c.ads / c.total) + ' của ' + F(c.total) + 'đ').join(', ') + (b.adsHeavy.length > 10 ? '…' : '') + ' — shop vừa trả tiền quảng cáo vừa trả hoa hồng cho các creator này.' : 'không có.'}</div>`;
+  att += `<div class="tthh-att"><b>Tháng chưa đối chiếu xong / thiếu PDF gốc:</b> ${b.logIssues.length ? b.logIssues.map(l => ktvatEsc_(l[1]) + ' ' + tthhMonthLabel_(l[2]) + ' (' + (l[6] !== 'OK' ? 'LỆCH tổng' : 'PDF ' + l[7] + '/' + l[3]) + ')').join(', ') + ' — mở TikTok Seller Center của shop đó để tiện ích tải bù.' : 'không có — mọi tháng đều khớp TikTok và đủ PDF.'}</div>`;
+  h += ktvatSection_('Cần chú ý', att);
+  // 5) Chi tiết
+  h += ktvatSection_('Chi tiết biên nhận', `<div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap"><input id="tthh-q" class="tthh-sel" style="min-width:260px" placeholder="Tìm số chứng từ / username / tên creator" oninput="tthhRenderDetail_()"><span id="tthh-q-count" style="font-size:12px;color:var(--text2)"></span></div><div id="tthh-detail" style="overflow-x:auto"></div>`);
+  document.getElementById('tthh-report').innerHTML = h;
+  tthhRenderDetail_();
+}
+function tthhRenderDetail_() {
+  const box = document.getElementById('tthh-detail'); if (!box) return;
+  const q = (document.getElementById('tthh-q').value || '').trim().toLowerCase();
+  const rows = tthhFiltered_().filter(r => !q || r.sn.toLowerCase().includes(q) || r.user.toLowerCase().includes(q) || r.name.toLowerCase().includes(q)).sort((a, b) => b.total - a.total);
+  const show = rows.slice(0, 300), F = ktvatFmt_;
+  document.getElementById('tthh-q-count').textContent = `${rows.length.toLocaleString('vi-VN')} biên nhận${rows.length > 300 ? ' — hiện 300 dòng tiền lớn nhất (xuất Excel để có đủ)' : ''}`;
+  box.innerHTML = `<table class="th-shop-table"><thead><tr><th>Số chứng từ</th><th>Tháng</th><th>Shop</th><th>Username</th><th>Tên</th><th style="text-align:right">HH Creator</th><th style="text-align:right">HH Shop Ads</th><th style="text-align:right">Thuế</th><th style="text-align:right">Tổng</th><th>PDF</th></tr></thead><tbody>` +
+    show.map(r => `<tr><td style="font-size:12px">${ktvatEsc_(r.sn)}</td><td>${tthhMonthLabel_(r.month)}</td><td style="font-size:12px">${ktvatEsc_(r.shop)}</td><td>${ktvatEsc_(r.user)}</td><td style="font-size:12px">${ktvatEsc_(r.name)}</td><td style="text-align:right">${F(r.cc)}</td><td style="text-align:right">${F(r.ads)}</td><td style="text-align:right">${F(r.pit)}</td><td style="text-align:right">${F(r.total)}</td><td>${/^https:\/\//.test(r.link) ? `<a href="${ktvatEsc_(r.link)}" target="_blank" rel="noopener">Mở</a>` : '—'}</td></tr>`).join('') +
+    `<tr><td>Tổng (${rows.length})</td><td></td><td></td><td></td><td></td><td style="text-align:right">${F(tthhSum_(rows, 'cc'))}</td><td style="text-align:right">${F(tthhSum_(rows, 'ads'))}</td><td style="text-align:right">${F(tthhSum_(rows, 'pit'))}</td><td style="text-align:right">${F(tthhSum_(rows, 'total'))}</td><td></td></tr></tbody></table>`;
+}
+function tthhExportExcel() {
+  if (!TTHH.rows.length || typeof XLSX === 'undefined') return;
+  const b = tthhBuild_(), k = b.k;
+  const f = document.getElementById('tthh-from').value, t = document.getElementById('tthh-to').value;
+  const shopLabel = TTHH.shop ? TTHH_SHOPS[TTHH.shop] : 'Tất cả 4 shop';
+  const wb = XLSX.utils.book_new();
+  const add = (aoa, name) => { const ws = XLSX.utils.aoa_to_sheet(aoa); ktvatFormatNumbers_(ws); ws['!cols'] = ktvatAutoWidths_(aoa); XLSX.utils.book_append_sheet(wb, ws, name); return ws; };
+  add([
+    ['BÁO CÁO HOA HỒNG CREATOR TIKTOK (TTLK)'], ['Công ty CP Văn Hoá Huy Hoàng — MST 0101255406'],
+    ['Shop', shopLabel], ['Kỳ', tthhMonthLabel_(f) + ' → ' + tthhMonthLabel_(t)], ['Lập lúc', new Date().toLocaleString('vi-VN')], [],
+    ['Chỉ tiêu', 'Giá trị'], ['Số biên nhận', k.n], ['Số creator', k.creators], ['Hoa hồng Creator', k.cc], ['Hoa hồng Shop Ads', k.ads],
+    ['Thuế TNCN khấu trừ', k.pit], ['Tổng phải trả', k.total], [],
+    ['Nguồn: Google Sheet "TTLK TikTok 2H — Dữ liệu" (tiện ích 2H - Tải File TikTok, đã đối chiếu khớp danh sách TikTok). Biên nhận TikTok là chứng từ do máy tạo, không phải hoá đơn.']
+  ], 'Tong Quan');
+  const head = ['Tháng'].concat(b.codes.map(c => TTHH_SHOPS[c])).concat(['Tổng', 'Số biên nhận']);
+  const mx = [head].concat(b.months.map(m => { let tot = 0, n = 0; const v = b.codes.map(c => { const x = b.cell[m + '|' + c]; if (x) { tot += x.t; n += x.n; } return x ? x.t : 0; }); return [tthhMonthLabel_(m)].concat(v, [tot, n]); }));
+  mx.push(['Tổng'].concat(b.codes.map(c => b.byShop.find(s => s.code === c).total), [k.total, k.n]));
+  add(mx, 'Thang x Shop');
+  add([['Shop', 'Số biên nhận', 'Số creator', 'HH Creator', 'HH Shop Ads', 'Thuế TNCN', 'Phải trả']].concat(b.byShop.map(s => [s.shop, s.n, s.creators, s.cc, s.ads, s.pit, s.total]), [['Tổng', k.n, k.creators, k.cc, k.ads, k.pit, k.total]]), 'Theo Shop');
+  add([['#', 'Username', 'Tên creator', 'Shop', 'Số biên nhận', 'HH Creator', 'HH Shop Ads', 'Thuế TNCN', 'Tổng', '% cộng dồn']].concat(b.creators.map((c, i) => [i + 1, c.user, c.name, [...c.shops].join(', '), c.n, c.cc, c.ads, c.pit, c.total, Math.round(c.cumPct * 1000) / 10])), 'Theo Creator');
+  add([['Loại', 'Shop', 'Tháng', 'Số chứng từ / Username', 'Giá trị', 'Ghi chú']]
+    .concat(b.pitRows.map(r => ['Có thuế TNCN', r.shop, tthhMonthLabel_(r.month), r.sn + ' / ' + r.user, r.pit, 'Thuế đã khấu trừ']))
+    .concat(b.adsHeavy.map(c => ['Shop Ads ≥ 50%', [...c.shops].join(', '), '', c.user, c.ads, 'Tổng ' + c.total]))
+    .concat(b.logIssues.map(l => ['Tháng chưa xong', l[1], tthhMonthLabel_(l[2]), '', +l[4] || 0, l[6] !== 'OK' ? 'Lệch tổng với TikTok' : 'PDF ' + l[7] + '/' + l[3]])), 'Can Chu Y');
+  const det = [['Số chứng từ', 'Tháng', 'Shop', 'Mã shop', 'Ngày chứng từ', 'Username', 'Tên creator', 'HH Creator', 'HH Shop Ads', 'Thuế TNCN', 'Phải trả (trước thuế)', 'Tổng', 'Link PDF']]
+    .concat(b.rows.slice().sort((a, c) => a.month.localeCompare(c.month) || a.shop.localeCompare(c.shop) || c.total - a.total).map(r => [r.sn, r.month, r.shop, r.code, r.date, r.user, r.name, r.cc, r.ads, r.pit, r.pay, r.total, r.link]));
+  const ws = add(det, 'Chi Tiet');
+  ws['!autofilter'] = { ref: 'A1:M' + det.length };
+  const name = `BaoCao_HoaHong_TikTok_${f}_${t}${TTHH.shop ? '_' + TTHH.shop : ''}.xlsx`;
+  XLSX.writeFile(wb, name);
+  tthhLog(`📤 Đã xuất "${name}" — ${k.n.toLocaleString('vi-VN')} biên nhận, 6 sheet.`, 'ok');
 }
 
 // ==================================================================================
