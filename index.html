@@ -1306,28 +1306,15 @@
         <div style="font-size:12px;color:var(--text2);line-height:1.6">
           Đọc toàn bộ file CSV <strong>"Ad Group Data"</strong> trong Drive folder <strong>"Dữ Liệu Nhóm 2H"</strong> —
           tự nhận diện từng shop theo Mã Người Bán trong file, không cần chọn shop trước.
-          Không lưu lịch sử — mỗi lần bấm đều đọc lại từ Drive.
+          Không lưu lịch sử — mỗi lần bấm đều đọc lại từ Drive.<br>
+          <strong>📊 Đồng Bộ Từ Sheet</strong>: đọc <strong>toàn bộ</strong> dữ liệu tool tải trên Sheet "Theo Dõi ADS 2H" → mỗi shop 1 kỳ 📊 (từ ngày đầu tiên có dữ liệu đến hôm qua), nằm cạnh các kỳ Drive, không ghi đè Drive.
         </div>
         <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap">
           <button onclick="groupCampSyncFromDrive()" style="padding:6px 14px;background:#1a73e8;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
             📂 Đồng Bộ Từ Drive
           </button>
+          <button onclick="groupCampSyncFromSheet()" style="padding:6px 14px;background:#0f9d58;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">📊 Đồng Bộ Từ Sheet</button>
           <span id="gc-last-sync" style="font-size:11px;color:var(--text2)">Chưa đồng bộ lần nào</span>
-        </div>
-        <div style="margin-top:12px;padding:10px 12px;background:var(--surface);border-radius:8px;border:1px solid var(--gray3)">
-          <div style="font-size:12px;font-weight:700;color:var(--text1)">📊 Đồng Bộ Từ Sheet "Theo Dõi ADS 2H" <span style="font-weight:400;color:var(--text2)">— dữ liệu tool tải từng ngày (bổ sung cho phần Drive chưa có)</span></div>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
-            <span style="font-size:12px;color:var(--text2)">Từ</span>
-            <input type="date" id="gcsh-from" style="padding:4px 8px;border:1px solid var(--gray3);border-radius:6px;font-size:12px;background:#fff">
-            <span style="font-size:12px;color:var(--text2)">đến</span>
-            <input type="date" id="gcsh-to" style="padding:4px 8px;border:1px solid var(--gray3);border-radius:6px;font-size:12px;background:#fff">
-            <button onclick="adsShQuick('gcsh','yesterday')" style="padding:4px 9px;background:#fff;color:var(--text1);border:1px solid var(--gray3);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">Hôm qua</button>
-            <button onclick="adsShQuick('gcsh','last7')" style="padding:4px 9px;background:#fff;color:var(--text1);border:1px solid var(--gray3);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">7 ngày qua</button>
-            <button onclick="adsShQuick('gcsh','thisMonth')" style="padding:4px 9px;background:#fff;color:var(--text1);border:1px solid var(--gray3);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">Tháng này</button>
-            <button onclick="adsShQuick('gcsh','lastMonth')" style="padding:4px 9px;background:#fff;color:var(--text1);border:1px solid var(--gray3);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">Tháng trước</button>
-            <button onclick="groupCampSyncFromSheet()" style="padding:6px 14px;background:#0f9d58;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">📊 Đồng Bộ Từ Sheet</button>
-          </div>
-          <div style="font-size:11px;color:var(--text2);margin-top:6px;line-height:1.5">Mỗi shop thành 1 kỳ có biểu tượng 📊, nằm cạnh các kỳ Drive — không ghi đè Drive. Bấm lần sau sẽ thay các kỳ 📊 cũ bằng khoảng ngày mới.</div>
         </div>
         <div id="gc-log" class="drive-log" style="max-height:140px"></div>
       </div>
@@ -1488,25 +1475,11 @@
           <button onclick="gmsLoadFromDriveManual()" style="padding:6px 14px;background:#1a73e8;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
             📂 Đồng Bộ Từ Drive
           </button>
-          <span style="font-size:11px;color:var(--text2)">Đọc lại toàn bộ file trong Drive mỗi lần bấm — không lưu Firestore.</span>
+          <button onclick="gmsLoadFromSheet()" style="padding:6px 14px;background:#0f9d58;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">📊 Đồng Bộ Từ Sheet</button>
+          <span style="font-size:11px;color:var(--text2)">Drive: đọc lại toàn bộ file mỗi lần bấm. Sheet: đọc toàn bộ dữ liệu tool đã tải → mỗi shop 1 kỳ 📊.</span>
           <button onclick="gmsDeleteOldFirestoreData()" style="margin-left:auto;padding:6px 12px;background:#fff;color:#c0392b;border:1px solid #e6b3ab;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">
             🗑️ Xóa Dữ Liệu Cũ (Firestore)
           </button>
-        </div>
-        <div style="margin-top:12px;padding:10px 12px;background:var(--surface);border-radius:8px;border:1px solid var(--gray3)">
-          <div style="font-size:12px;font-weight:700;color:var(--text1)">📊 Đồng Bộ Từ Sheet "Theo Dõi ADS 2H" <span style="font-weight:400;color:var(--text2)">— dữ liệu tool tải từng ngày (bổ sung cho phần Drive chưa có)</span></div>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">
-            <span style="font-size:12px;color:var(--text2)">Từ</span>
-            <input type="date" id="acsh-from" style="padding:4px 8px;border:1px solid var(--gray3);border-radius:6px;font-size:12px;background:#fff">
-            <span style="font-size:12px;color:var(--text2)">đến</span>
-            <input type="date" id="acsh-to" style="padding:4px 8px;border:1px solid var(--gray3);border-radius:6px;font-size:12px;background:#fff">
-            <button onclick="adsShQuick('acsh','yesterday')" style="padding:4px 9px;background:#fff;color:var(--text1);border:1px solid var(--gray3);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">Hôm qua</button>
-            <button onclick="adsShQuick('acsh','last7')" style="padding:4px 9px;background:#fff;color:var(--text1);border:1px solid var(--gray3);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">7 ngày qua</button>
-            <button onclick="adsShQuick('acsh','thisMonth')" style="padding:4px 9px;background:#fff;color:var(--text1);border:1px solid var(--gray3);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">Tháng này</button>
-            <button onclick="adsShQuick('acsh','lastMonth')" style="padding:4px 9px;background:#fff;color:var(--text1);border:1px solid var(--gray3);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">Tháng trước</button>
-            <button onclick="gmsLoadFromSheet()" style="padding:6px 14px;background:#0f9d58;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">📊 Đồng Bộ Từ Sheet</button>
-          </div>
-          <div style="font-size:11px;color:var(--text2);margin-top:6px;line-height:1.5">Mỗi shop thành 1 kỳ có biểu tượng 📊, nằm cạnh các kỳ Drive — không ghi đè Drive. Bấm lần sau sẽ thay các kỳ 📊 cũ bằng khoảng ngày mới.</div>
         </div>
         <div id="ac-prod-log" class="drive-log" style="max-height:120px"></div>
       </div>
@@ -11763,34 +11736,13 @@ function adsShAddDays(ymd, n) { const [y, m, d] = ymd.split('-').map(Number); re
 function adsShYesterday() { const t = new Date(); return adsShYmd(new Date(t.getFullYear(), t.getMonth(), t.getDate() - 1)); }
 function adsShListDays(from, to) { const out = []; for (let d = from; d <= to && out.length < 400; d = adsShAddDays(d, 1)) out.push(d); return out; }
 
-function adsShQuick(prefix, kind) {
-  const fromEl = document.getElementById(prefix + '-from'), toEl = document.getElementById(prefix + '-to');
-  if (!fromEl || !toEl) return;
-  const y = adsShYesterday(), t = new Date();
-  let from = y, to = y;
-  if (kind === 'last7') from = adsShAddDays(y, -6);
-  else if (kind === 'thisMonth') { from = adsShYmd(new Date(t.getFullYear(), t.getMonth(), 1)); if (from > y) from = y; }
-  else if (kind === 'lastMonth') { from = adsShYmd(new Date(t.getFullYear(), t.getMonth() - 1, 1)); to = adsShYmd(new Date(t.getFullYear(), t.getMonth(), 0)); }
-  fromEl.value = from; toEl.value = to;
-}
-// Mặc định lần đầu mở: nếu đã đọc Drive → bắt đầu từ ngày NGAY SAU kỳ Drive mới nhất (đúng khoảng Drive chưa có); không thì 7 ngày qua
-function adsShInitDates(prefix) {
-  const fromEl = document.getElementById(prefix + '-from'), toEl = document.getElementById(prefix + '-to');
-  if (!fromEl || !toEl || fromEl.value || toEl.value) return;
-  const src = prefix === 'gcsh' ? _groupCampData : _acDriveData;
-  const driveEnd = src.filter(d => d.source !== 'sheet' && d.dateTo).map(d => d.dateTo).sort().pop();
-  const y = adsShYesterday();
-  if (driveEnd && adsShAddDays(driveEnd, 1) <= y) { fromEl.value = adsShAddDays(driveEnd, 1); toEl.value = y; }
-  else adsShQuick(prefix, 'last7');
-}
-function adsShReadRange(prefix, log) {
-  const from = (document.getElementById(prefix + '-from') || {}).value || '';
-  const to = (document.getElementById(prefix + '-to') || {}).value || '';
-  if (!from || !to) { log('❌ Chọn đủ "Từ" và "Đến" trước khi bấm.', 'err'); return null; }
-  if (from > to) { log('❌ "Từ" phải trước hoặc bằng "Đến".', 'err'); return null; }
-  if (to > adsShYesterday()) { log('❌ "Đến" tối đa là hôm qua (ngày hôm nay chưa có số liệu đầy đủ).', 'err'); return null; }
-  if (adsShListDays(from, to).length > 366) { log('❌ Khoảng ngày tối đa 366 ngày.', 'err'); return null; }
-  return { from, to };
+// Tân xác nhận 2026-10-08: bỏ bộ lọc Từ–Đến — mỗi lần bấm đọc TOÀN BỘ Sheet (từ ADS_SHEET_FROM đến hôm qua),
+// mỗi shop gộp thành 1 kỳ 📊 duy nhất (từ ngày đầu tiên có dữ liệu → ngày cuối có dữ liệu).
+const ADS_SHEET_FROM = '2026-01-01';
+function adsShFullRange() { return { from: ADS_SHEET_FROM, to: adsShYesterday() }; }
+function adsShOverlapNote(ov, labelKey) {
+  if (!ov.length) return '';
+  return ov.length <= 3 ? ov.map(o => o[labelKey]).join('; ') : ov.length + ' kỳ Drive';
 }
 // Nhận diện shop: username (khớp SAPI_SHOPS) — tên shop trong Sheet khác tên trong dashboard ("Hoạ Cụ 2H" vs "Họa Cụ 2H") nên không so theo tên
 function adsShResolveShop(username, shopName) {
@@ -11817,12 +11769,10 @@ async function groupCampSyncFromSheet() {
     logEl.innerHTML += `<div style="color:${c}">[${new Date().toLocaleTimeString('vi-VN')}] ${msg}</div>`;
     logEl.scrollTop = logEl.scrollHeight;
   };
-  const rg = adsShReadRange('gcsh', gcLog);
-  if (!rg) return;
-  gcLog(`📊 Đang đọc Sheet "Theo Dõi ADS 2H" — Nhóm, ${rg.from} → ${rg.to}...`);
+  const rg = adsShFullRange();
+  gcLog(`📊 Đang đọc toàn bộ Sheet "Theo Dõi ADS 2H" — Nhóm (đến hôm qua ${rg.to})...`);
   try {
     const resp = await adsSheetCall({ action: 'get_ads_rows', reportType: 'Nhóm', from: rg.from, to: rg.to });
-    if (resp.missingTabs && resp.missingTabs.length) gcLog(`  → Chưa có tab: ${resp.missingTabs.join(', ')}`, 'warn');
     const recs = [];
     for (const sh of (resp.shops || [])) {
       const si = adsShResolveShop(sh.username, sh.shopName);
@@ -11854,19 +11804,19 @@ async function groupCampSyncFromSheet() {
       };
       recs.push(rec);
       gcLog(`  💾 ${si.displayName}: ${groups.length} nhóm QC, ${sh.days.length} ngày (${dFrom} → ${dTo})`, 'ok');
-      const miss = adsShMissingDays(sh.days, rg.from, rg.to);
-      if (miss.length) gcLog(`     ⚠ ${si.displayName} thiếu ${miss.length} ngày trong khoảng đã chọn: ${adsShFmtMissing(miss)}`, 'warn');
+      const miss = adsShMissingDays(sh.days, dFrom, rg.to);
+      if (miss.length) gcLog(`     ⚠ ${si.displayName} thiếu ${miss.length} ngày (từ ${dFrom} đến hôm qua): ${adsShFmtMissing(miss)}`, 'warn');
       const ov = adsShOverlapDrive(_groupCampData, rec);
-      if (ov.length) gcLog(`     ⚠ Kỳ 📊 của ${si.displayName} trùng ngày với kỳ Drive: ${ov.map(o => o.dateLabel).join('; ')} — đừng chọn cùng lúc để khỏi cộng đôi`, 'warn');
+      if (ov.length) gcLog(`     ⚠ Kỳ 📊 của ${si.displayName} trùng ngày với ${adsShOverlapNote(ov, 'dateLabel')} — đừng chọn kỳ 📊 cùng lúc với kỳ Drive để khỏi cộng đôi`, 'warn');
     }
-    if (!recs.length) { gcLog('Không có dòng Nhóm nào trong khoảng ngày này (chưa tải bằng tool, hoặc sai khoảng ngày). Giữ nguyên dữ liệu đang xem.', 'warn'); return; }
+    if (!recs.length) { gcLog('Sheet chưa có dòng Nhóm nào (tool chưa tải QC Nhóm). Giữ nguyên dữ liệu đang xem.', 'warn'); return; }
 
     _groupCampData = _groupCampData.filter(d => d.source !== 'sheet').concat(recs);
     const keyOf = d => d.shopKey || ('unknown_' + d.shopApiId);
     if (!_groupCampShop || !_groupCampData.some(d => keyOf(d) === _groupCampShop)) _groupCampShop = keyOf(recs[0]);
     _gcSelectedPeriods = new Set(recs.filter(r => keyOf(r) === _groupCampShop).map(r => r.fileName));
     const lastSyncEl = document.getElementById('gc-last-sync');
-    if (lastSyncEl) lastSyncEl.textContent = `Sheet lúc ${new Date().toLocaleString('vi-VN')} — ${rg.from} → ${rg.to}, ${recs.length} shop`;
+    if (lastSyncEl) lastSyncEl.textContent = `Sheet lúc ${new Date().toLocaleString('vi-VN')} — toàn bộ đến ${rg.to}, ${recs.length} shop`;
     gcLog(`✅ Xong: ${recs.length} shop từ Sheet. Kỳ 📊 đã được chọn sẵn ở bộ lọc "Kỳ" bên dưới.`, 'ok');
     groupCampRenderShopPills();
     groupCampSelectShop(_groupCampShop);
@@ -11879,18 +11829,18 @@ async function groupCampSyncFromSheet() {
 async function gmsLoadFromSheet() {
   const logEl = document.getElementById('ac-prod-log');
   if (logEl) { logEl.innerHTML = ''; logEl.classList.add('visible'); }
+  let hadWarn = false;
   const acLog = (msg, type = 'info') => {
+    if (type === 'warn' || type === 'err') hadWarn = true;
     if (!logEl) return;
     const c = type==='ok'?'#27ae60':type==='err'?'#c0392b':type==='warn'?'#f39c12':'#555';
     logEl.innerHTML += `<div style="color:${c}">[${new Date().toLocaleTimeString('vi-VN')}] ${msg}</div>`;
     logEl.scrollTop = logEl.scrollHeight;
   };
-  const rg = adsShReadRange('acsh', acLog);
-  if (!rg) return;
-  acLog(`📊 Đang đọc Sheet "Theo Dõi ADS 2H" — GMS, ${rg.from} → ${rg.to}...`);
+  const rg = adsShFullRange();
+  acLog(`📊 Đang đọc toàn bộ Sheet "Theo Dõi ADS 2H" — GMS (đến hôm qua ${rg.to})...`);
   try {
     const resp = await adsSheetCall({ action: 'get_ads_rows', reportType: 'GMS', from: rg.from, to: rg.to });
-    if (resp.missingTabs && resp.missingTabs.length) acLog(`  → Chưa có tab: ${resp.missingTabs.join(', ')}`, 'warn');
     const recs = [];
     for (const sh of (resp.shops || [])) {
       const si = adsShResolveShop(sh.username, sh.shopName);
@@ -11914,12 +11864,12 @@ async function gmsLoadFromSheet() {
       items.forEach(p => { rec.cost += p.expense; rec.rev += p.broad_gmv; rec.imp += p.impression; rec.clk += p.clicks; rec.ord += p.broad_order; });
       recs.push(rec);
       acLog(`  → ${si.displayName} — ${sh.days.length} ngày (${dFrom} → ${dTo}), ${items.length} SP`, 'ok');
-      const miss = adsShMissingDays(sh.days, rg.from, rg.to);
-      if (miss.length) acLog(`     ⚠ ${si.displayName} thiếu ${miss.length} ngày trong khoảng đã chọn: ${adsShFmtMissing(miss)}`, 'warn');
+      const miss = adsShMissingDays(sh.days, dFrom, rg.to);
+      if (miss.length) acLog(`     ⚠ ${si.displayName} thiếu ${miss.length} ngày (từ ${dFrom} đến hôm qua): ${adsShFmtMissing(miss)}`, 'warn');
       const ov = adsShOverlapDrive(_acDriveData, rec);
-      if (ov.length) acLog(`     ⚠ Kỳ 📊 của ${si.displayName} trùng ngày với kỳ Drive: ${ov.map(o => o.label).join('; ')} — xem từng kỳ riêng, đừng cộng chung`, 'warn');
+      if (ov.length) acLog(`     ⚠ Kỳ 📊 của ${si.displayName} trùng ngày với ${adsShOverlapNote(ov, 'label')} — xem từng kỳ riêng, đừng cộng chung`, 'warn');
     }
-    if (!recs.length) { acLog('Không có dòng GMS nào trong khoảng ngày này (chưa tải bằng tool, hoặc sai khoảng ngày). Giữ nguyên dữ liệu đang xem.', 'warn'); return; }
+    if (!recs.length) { acLog('Sheet chưa có dòng GMS nào (tool chưa tải QC GMS). Giữ nguyên dữ liệu đang xem.', 'warn'); return; }
 
     _acDriveData = _acDriveData.filter(d => d.source !== 'sheet').concat(recs);
     const keyOf = d => d.shopKey || ('unknown_' + d.shopApiId);
@@ -11929,6 +11879,7 @@ async function gmsLoadFromSheet() {
     _acSelectedPeriodKey = mine[0] ? mine[0].key : '';
     acRenderPeriodOptions();
     acLog(`✅ Xong: ${recs.length} shop từ Sheet. Kỳ 📊 đã được chọn sẵn ở ô "Kỳ" bên dưới.`, 'ok');
+    if (hadWarn && logEl) logEl.classList.add('visible');   // bảng SP render xong sẽ ẩn log — giữ lại khi có cảnh báo thiếu ngày
   } catch (e) {
     acLog(`❌ Lỗi: ${e.message}`, 'err');
   }
@@ -12129,7 +12080,6 @@ function acToggleSyncCard() {
   const opening = body.style.display === 'none';
   body.style.display = opening ? '' : 'none';
   if (icon) icon.textContent = opening ? '▾ Bấm để đóng' : '▸ Bấm để mở';
-  if (opening) adsShInitDates('acsh');
 }
 
 // ★ Render pill chọn shop ở bộ lọc "Kỳ Xem" — Giai đoạn 5 (17/08): thay 2 nút cố định
@@ -12715,7 +12665,6 @@ function gcToggleSyncCard() {
   const opening = body.style.display === 'none';
   body.style.display = opening ? '' : 'none';
   if (icon) icon.textContent = opening ? '▾ Bấm để đóng' : '▸ Bấm để mở';
-  if (opening) adsShInitDates('gcsh');
 }
 
 async function groupCampSyncFromDrive() {
