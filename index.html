@@ -198,6 +198,20 @@
   .kpi-label { font-size: 11px; color: var(--text2); font-weight: 600; text-transform: uppercase; letter-spacing: .6px; margin-bottom: 10px; }
   .kpi-value { font-size: 28px; font-weight: 800; color: var(--text); line-height: 1; }
   .kpi-sub   { font-size: 11px; color: var(--text2); margin-top: 8px; }
+  /* Trang GMS — bố cục 2026-10-09 (3 KPI chính + 3 phụ, khối 62/38 biểu đồ | top 5). Prefix acr- riêng trang GMS */
+  .acr-kpi-main { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:12px; }
+  .acr-kpi-main .kpi-value { font-size:32px; }
+  .acr-kpi-main .kpi-sub { font-size:12px; min-height:15px; }
+  .acr-kpi-sub { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:16px; }
+  .acr-kpi-sub > div { background:#fff; border:1px solid var(--gray3); border-radius:var(--radius); padding:10px 16px; display:flex; align-items:baseline; gap:10px; }
+  .acr-sub-lbl { font-size:11px; color:var(--text2); font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
+  .acr-kpi-sub b { font-size:18px; color:var(--text); }
+  .acr-sub-d { font-size:11px; margin-left:auto; white-space:nowrap; }
+  .acr-split { display:grid; grid-template-columns:1.618fr 1fr; gap:16px; margin-bottom:16px; }
+  .acr-split > .card { margin:0; min-width:0; }
+  .acr-d-up { color:var(--green); font-weight:700; } .acr-d-down { color:var(--red); font-weight:700; } .acr-d-neu { color:var(--text); font-weight:700; }
+  .acr-chart-msg { font-size:12px; padding:28px 12px; text-align:center; color:var(--text2); }
+  @media (max-width:1100px) { .acr-split { grid-template-columns:1fr; } .acr-kpi-main, .acr-kpi-sub { grid-template-columns:1fr; } }
   /* Card ④ Báo Cáo Tổng Quan — số tiền dài (VD "203.659.501đ") bị tràn khỏi card ở cỡ chữ mặc
      định 28px. Thu nhỏ + cho phép xuống dòng riêng cho đúng grid này, KHÔNG đụng .kpi-value
      dùng chung toàn dashboard (xác nhận Tân 2026-08-09). */
@@ -1454,40 +1468,6 @@
       </div>
     </div>
 
-    <!-- CARD 1 — CHỈ để đồng bộ dữ liệu mới từ Shopee/Drive về, thu gọn mặc định
-         (xác nhận Tân 2026-08-07: đưa đồng bộ lên đầu, bộ lọc lúc mở card này chỉ dùng cho đồng bộ) -->
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-title" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="acToggleSyncCard()">
-        <span><span class="dot"></span> Đồng Bộ Dữ Liệu Chiến Dịch Tự Động</span>
-        <span id="ac-sync-toggle-icon" style="font-size:12px;color:var(--text2)">▸ Bấm để mở</span>
-      </div>
-      <div id="ac-sync-body" style="display:none;margin-top:14px">
-        <!-- Xác nhận Tân 2026-08-08: bỏ hẳn "Gọi API trực tiếp" (get_item_daily) — API không trả
-             đủ dữ liệu để phân tích (thiếu tên SP, không tách trực tiếp/gộp, không có Voucher
-             Amount/Vouchered Sales như CSV Seller Centre). Chỉ còn 1 đường lấy dữ liệu: Đồng Bộ Từ Drive.
-
-             Xác nhận Tân 2026-08-08 (lần 2): KHÔNG lưu Firestore nữa — Drive folder "Dữ Liệu GMS 2H"
-             là nguồn dữ liệu DUY NHẤT, mỗi lần bấm Đồng Bộ đọc lại TOÀN BỘ file trong folder (đổi lại
-             tốc độ để tránh phình dung lượng Firestore khi nhiều file). Tân cam kết không xóa file
-             CSV gốc khỏi Drive. Dữ liệu Firestore cũ (gms_days) không dùng nữa — thêm nút xóa để
-             Tân tự bấm giải phóng, agent không tự xóa dữ liệu thay Tân.
-
-             Xác nhận Tân 2026-08-08 (lần 3): bỏ luôn 2 tab chọn shop trước khi đồng bộ — cả 2 shop
-             (2HBooks + Huy Hoàng) cùng nằm 1 folder Drive "Dữ Liệu GMS 2H", mỗi file tự có "Mã Người
-             Bán" riêng trong nội dung CSV để nhận diện, không cần Tân chọn trước. 1 nút Đồng Bộ đọc
-             hết file, tự nạp CẢ 2 shop vào bộ nhớ cùng lúc — đổi "Kỳ Xem" giữa 2 shop chỉ lọc dữ liệu
-             đã có, không mất, không cần đồng bộ lại (trừ khi tải lại trang). -->
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;background:var(--surface);border-radius:8px;border:1px solid var(--gray3)">
-          <button onclick="acrReload()" style="padding:6px 14px;background:#0f9d58;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">🔄 Tải lại từ Sheet</button>
-          <span style="font-size:11px;color:var(--text2)">Nguồn duy nhất: Sheet "Theo Dõi ADS 2H". Chọn khoảng ngày ở bộ lọc bên dưới là tự đọc lại — bấm Tải lại khi vừa có dữ liệu mới.</span>
-          <button onclick="gmsDeleteOldFirestoreData()" style="margin-left:auto;padding:6px 12px;background:#fff;color:#c0392b;border:1px solid #e6b3ab;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">
-            🗑️ Xóa Dữ Liệu Cũ (Firestore)
-          </button>
-        </div>
-        <div id="ac-prod-log" class="drive-log" style="max-height:120px"></div>
-      </div>
-    </div>
-
     <!-- Bộ Lọc xem dữ liệu đã đồng bộ — DROPDOWN chọn 1 KỲ (xác nhận Tân 2026-08-08 lần 5:
          Shopee giờ xuất báo cáo theo khoảng thời gian có sẵn, không còn breakdown theo từng
          ngày để mà chọn khoảng bằng lịch nữa — chỉ chọn ĐÚNG 1 trong các kỳ đã đồng bộ).
@@ -1498,6 +1478,10 @@
       <span style="width:1px;height:18px;background:var(--gray3)"></span>
       <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">🏪 Shop:</span>
       <div id="ac-range-shops" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+      <span style="margin-left:auto;display:flex;align-items:center;gap:8px">
+        <span id="ac-last-load" style="font-size:11px;color:var(--text2)"></span>
+        <button onclick="acrReload()" title="Đọc lại Sheet cho khoảng ngày đang chọn (khi tiện ích vừa tải thêm dữ liệu)" style="padding:5px 10px;background:#fff;border:1px solid var(--gray3);border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer">🔄 Tải lại</button>
+      </span>
     </div>
 
     <div id="ac-range-miss" style="display:none;font-size:12px;padding:10px 12px;border-radius:8px;margin-bottom:12px;background:#fff8e1;color:#8a6100;border:1px solid #ffe58f"></div>
@@ -1505,37 +1489,47 @@
     <!-- ===== SINGLE VIEW ===== -->
     <div id="ac-single-view">
 
-    <!-- KPI row -->
-    <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+    <!-- KPI (2026-10-09): 3 chỉ số ra quyết định to + so với kỳ trước; 3 chỉ số phụ nhỏ -->
+    <div class="acr-kpi-main">
       <div class="kpi-card orange">
         <div class="kpi-icon">💸</div>
         <div class="kpi-label">Chi Phí</div>
         <div class="kpi-value" id="ac-kpi-cost">–</div>
+        <div class="kpi-sub" id="ac-kpi-cost-d"></div>
       </div>
       <div class="kpi-card green">
         <div class="kpi-icon">💰</div>
         <div class="kpi-label">Doanh Thu</div>
         <div class="kpi-value" id="ac-kpi-rev">–</div>
+        <div class="kpi-sub" id="ac-kpi-rev-d"></div>
       </div>
       <div class="kpi-card navy">
         <div class="kpi-icon">📈</div>
         <div class="kpi-label">ROAS</div>
         <div class="kpi-value" id="ac-kpi-roas">–</div>
+        <div class="kpi-sub" id="ac-kpi-roas-d"></div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-icon">👁</div>
-        <div class="kpi-label">Lượt Xem</div>
-        <div class="kpi-value" id="ac-kpi-imp">–</div>
+    </div>
+    <div class="acr-kpi-sub">
+      <div><span class="acr-sub-lbl">👁 Lượt xem</span><b id="ac-kpi-imp">–</b><span class="acr-sub-d" id="ac-kpi-imp-d"></span></div>
+      <div><span class="acr-sub-lbl">🖱 Lượt click</span><b id="ac-kpi-clk">–</b><span class="acr-sub-d" id="ac-kpi-clk-d"></span></div>
+      <div><span class="acr-sub-lbl">🛒 Đơn hàng</span><b id="ac-kpi-ord">–</b><span class="acr-sub-d" id="ac-kpi-ord-d"></span></div>
+    </div>
+
+    <!-- Khối chính 62/38: xu hướng theo ngày | Top 5 SP tốn chi phí nhất -->
+    <div class="acr-split">
+      <div class="card">
+        <div class="card-title"><span class="dot"></span> ROAS theo ngày <span style="font-size:11px;color:var(--text2);font-weight:400">— đường gạch: ngưỡng ROAS 10 · chấm đỏ: ngày dưới ngưỡng</span></div>
+        <div id="ac-chart-msg" class="acr-chart-msg" style="display:none"></div>
+        <div id="ac-chart-wrap">
+          <div style="height:210px;position:relative"><canvas id="ac-chart-roas"></canvas></div>
+          <div style="font-size:12px;font-weight:700;color:var(--text);margin:14px 0 4px">Chi phí theo ngày</div>
+          <div style="height:120px;position:relative"><canvas id="ac-chart-cost"></canvas></div>
+        </div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-icon">🖱</div>
-        <div class="kpi-label">Lượt Click</div>
-        <div class="kpi-value" id="ac-kpi-clk">–</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-icon">🛒</div>
-        <div class="kpi-label">Đơn Hàng</div>
-        <div class="kpi-value" id="ac-kpi-ord">–</div>
+      <div class="card">
+        <div class="card-title"><span class="dot"></span> Top 5 SP tốn chi phí nhất</div>
+        <div id="ac-top5"><div class="th-empty">Chưa có dữ liệu</div></div>
       </div>
     </div>
 
@@ -1594,6 +1588,42 @@
       </div>
     </div>
     </div><!-- /ac-single-view -->
+
+    <!-- (2026-10-09) Card đồng bộ dời xuống CUỐI trang, thu gọn mặc định — vùng nhìn đầu tiên dành cho số liệu. -->
+    <!-- CARD 1 — CHỈ để đồng bộ dữ liệu mới từ Shopee/Drive về, thu gọn mặc định
+         (xác nhận Tân 2026-08-07: đưa đồng bộ lên đầu, bộ lọc lúc mở card này chỉ dùng cho đồng bộ) -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-title" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="acToggleSyncCard()">
+        <span><span class="dot"></span> Nhật ký tải dữ liệu &amp; công cụ</span>
+        <span id="ac-sync-toggle-icon" style="font-size:12px;color:var(--text2)">▸ Bấm để mở</span>
+      </div>
+      <div id="ac-sync-body" style="display:none;margin-top:14px">
+        <!-- Xác nhận Tân 2026-08-08: bỏ hẳn "Gọi API trực tiếp" (get_item_daily) — API không trả
+             đủ dữ liệu để phân tích (thiếu tên SP, không tách trực tiếp/gộp, không có Voucher
+             Amount/Vouchered Sales như CSV Seller Centre). Chỉ còn 1 đường lấy dữ liệu: Đồng Bộ Từ Drive.
+
+             Xác nhận Tân 2026-08-08 (lần 2): KHÔNG lưu Firestore nữa — Drive folder "Dữ Liệu GMS 2H"
+             là nguồn dữ liệu DUY NHẤT, mỗi lần bấm Đồng Bộ đọc lại TOÀN BỘ file trong folder (đổi lại
+             tốc độ để tránh phình dung lượng Firestore khi nhiều file). Tân cam kết không xóa file
+             CSV gốc khỏi Drive. Dữ liệu Firestore cũ (gms_days) không dùng nữa — thêm nút xóa để
+             Tân tự bấm giải phóng, agent không tự xóa dữ liệu thay Tân.
+
+             Xác nhận Tân 2026-08-08 (lần 3): bỏ luôn 2 tab chọn shop trước khi đồng bộ — cả 2 shop
+             (2HBooks + Huy Hoàng) cùng nằm 1 folder Drive "Dữ Liệu GMS 2H", mỗi file tự có "Mã Người
+             Bán" riêng trong nội dung CSV để nhận diện, không cần Tân chọn trước. 1 nút Đồng Bộ đọc
+             hết file, tự nạp CẢ 2 shop vào bộ nhớ cùng lúc — đổi "Kỳ Xem" giữa 2 shop chỉ lọc dữ liệu
+             đã có, không mất, không cần đồng bộ lại (trừ khi tải lại trang). -->
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;background:var(--surface);border-radius:8px;border:1px solid var(--gray3)">
+          <button onclick="acrReload()" style="padding:6px 14px;background:#0f9d58;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">🔄 Tải lại từ Sheet</button>
+          <span style="font-size:11px;color:var(--text2)">Nguồn duy nhất: Sheet "Theo Dõi ADS 2H". Chọn khoảng ngày ở bộ lọc bên dưới là tự đọc lại — bấm Tải lại khi vừa có dữ liệu mới.</span>
+          <button onclick="gmsDeleteOldFirestoreData()" style="margin-left:auto;padding:6px 12px;background:#fff;color:#c0392b;border:1px solid #e6b3ab;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">
+            🗑️ Xóa Dữ Liệu Cũ (Firestore)
+          </button>
+        </div>
+        <div id="ac-prod-log" class="drive-log" style="max-height:120px"></div>
+      </div>
+    </div>
+
 
 
   </div>
@@ -11724,8 +11754,8 @@ function acRenderProductTable(list, label) {
              title="${(p.item_name||p.ad_name||'').replace(/"/g,'&quot;')}">${p.item_name||p.ad_name||'(không tên)'}</div>
         <div style="font-size:10px;color:var(--text2)">ID: ${p.item_id||p.campaign_id||'—'}</div>
       </td>
-      <td class="num" style="font-size:13px;color:var(--orange);font-weight:700;border-left:2px solid var(--gray3);background:#fffaf5">${fmtMoney(p.expense||0)}</td>
-      <td class="num" style="font-size:13px;color:var(--green);font-weight:700;background:#fffaf5">${fmtMoney(p.broad_gmv||0)}</td>
+      <td class="num" style="font-size:13px;font-weight:700;border-left:2px solid var(--gray3);background:#fffaf5">${fmtMoney(p.expense||0)}</td>
+      <td class="num" style="font-size:13px;font-weight:700;background:#fffaf5">${fmtMoney(p.broad_gmv||0)}</td>
       <td class="num" style="font-size:13px;background:#fffaf5"><span class="roas-badge ${roasClass(roasNum)}">${roas}</span></td>
       <td class="num" style="font-size:13px;border-right:2px solid var(--gray3);background:#fffaf5"><span class="acos-badge ${acosClass(acosNum)}">${acos}</span></td>
       <td class="num" style="font-size:12px">${(p.impression||0).toLocaleString('vi-VN')}</td>
@@ -11826,7 +11856,7 @@ function adrMakePicker(hostId, getSel, onPick) {
   host.innerHTML =
     `<div class="adrp-wrap" style="position:relative">
       <div class="adrp-input" style="display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--gray3);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;background:#fff;min-width:250px;user-select:none">
-        <span>📅</span><span class="adrp-label" style="flex:1;color:var(--text1)"></span><span style="font-size:10px;color:var(--text2)">▼</span>
+        <span>📅</span><span class="adrp-label" style="flex:1;color:var(--text)"></span><span style="font-size:10px;color:var(--text2)">▼</span>
       </div>
       <div class="adrp-dd" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:999;background:#fff;border:1px solid var(--gray3);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15)">
         <div style="display:flex">
@@ -11860,7 +11890,7 @@ function adrMakePicker(hostId, getSel, onPick) {
       const off = ds > yd;
       const isEnd = P.step === 1 ? ds === P.first : !!(cur && (ds === cur.from || ds === cur.to));
       const inR = P.step === 0 && cur && ds > cur.from && ds < cur.to;
-      let bg = 'transparent', color = off ? '#cbd5e1' : 'var(--text1)', fw = ds === td ? '700' : '400', rad = '50%';
+      let bg = 'transparent', color = off ? '#cbd5e1' : 'var(--text)', fw = ds === td ? '700' : '400', rad = '50%';
       if (isEnd) { bg = 'var(--navy2)'; color = '#fff'; fw = '700'; }
       else if (inR) { bg = 'rgba(196,61,44,.14)'; rad = '4px'; }
       h += `<div data-d="${off ? '' : ds}" style="line-height:28px;font-size:12px;border-radius:${rad};background:${bg};color:${color};font-weight:${fw};cursor:${off ? 'not-allowed' : 'pointer'}">${d}</div>`;
@@ -11868,7 +11898,7 @@ function adrMakePicker(hostId, getSel, onPick) {
     grid.innerHTML = h;
     Array.prototype.forEach.call(sc.children, c => {
       const on = cur && cur.key === c.getAttribute('data-s');
-      c.style.color = on ? 'var(--navy2)' : 'var(--text1)'; c.style.fontWeight = on ? '700' : '400'; c.style.background = on ? 'var(--navy3)' : '';
+      c.style.color = on ? 'var(--navy2)' : 'var(--text)'; c.style.fontWeight = on ? '700' : '400'; c.style.background = on ? 'var(--navy3)' : '';
     });
   }
   input.addEventListener('click', e => {
@@ -11896,7 +11926,7 @@ function adrMakePicker(hostId, getSel, onPick) {
 function adrShopPills(wrapId, sel, hasData, onClickFn) {
   const wrap = document.getElementById(wrapId);
   if (!wrap) return;
-  const pill = (key, text, active, dim) => `<button onclick="${onClickFn}('${key}')" style="padding:5px 12px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;border:none;background:${active ? 'var(--navy2)' : 'var(--gray2)'};color:${active ? 'white' : 'var(--text1)'};opacity:${dim && !active ? '.5' : '1'}">${text}</button>`;
+  const pill = (key, text, active, dim) => `<button onclick="${onClickFn}('${key}')" style="padding:5px 12px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;border:none;background:${active ? 'var(--navy2)' : 'var(--gray2)'};color:${active ? 'white' : 'var(--text)'};opacity:${dim && !active ? '.5' : '1'}">${text}</button>`;
   let h = pill('all', '🏬 Tất cả shop', sel === 'all', false);
   SAPI_SHOPS.forEach(s => {
     const key = SAPI_SHOP_MAP[s.id] || ('unknown_' + s.id);
@@ -11991,7 +12021,31 @@ function gcrRender() {
 }
 
 // ─────────── Trang GMS ───────────
-const _acR = { range: null, shop: 'all', recs: [], miss: {}, loading: false, picker: null, seq: 0 };
+const _acR = { range: null, shop: 'all', recs: [], miss: {}, loading: false, picker: null, seq: 0,
+  daily: {}, hasDaily: false, prev: null, charts: {} };
+const ACR_ROAS_LOW = 10;   // cùng chuẩn roasClass() toàn dashboard: ROAS < 10 = đỏ
+// Kỳ trước = cùng số ngày, liền ngay trước khoảng đang chọn (xem "Tất cả" thì không so)
+function acrPrevRange(r) {
+  if (!r || r.key === 'all') return null;
+  const n = adsShListDays(r.from, r.to).length;
+  return { from: adsShAddDays(r.from, -n), to: adsShAddDays(r.from, -1) };
+}
+function acrEsc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function acrSumDaily(keys, from, to) {
+  const t = { cost: 0, rev: 0, imp: 0, clk: 0, ord: 0 }, days = new Set();
+  keys.forEach(k => (_acR.daily[k] || []).forEach(d => {
+    if (d.d < from || d.d > to) return;
+    t.cost += +d.cost || 0; t.rev += +d.rev || 0; t.imp += +d.imp || 0; t.clk += +d.clk || 0; t.ord += +d.ord || 0; days.add(d.d);
+  }));
+  t.days = days.size; return t;
+}
+// neutral = tăng/giảm không mang nghĩa tốt/xấu (Chi phí) → không tô xanh/đỏ
+function acrDelta(cur, prev, neutral) {
+  if (!(prev > 0)) return '';
+  const pct = (cur - prev) / prev * 100, up = pct >= 0;
+  const cls = neutral ? 'acr-d-neu' : (up ? 'acr-d-up' : 'acr-d-down');
+  return `<span class="${cls}">${up ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}%</span>`;
+}
 function acrLog(msg, type) {
   const logEl = document.getElementById('ac-prod-log');
   if (!logEl) return;
@@ -12012,12 +12066,14 @@ async function acrLoad() {
   const logEl = document.getElementById('ac-prod-log'); if (logEl) logEl.innerHTML = '';
   acrLog(`📊 Đọc Sheet "Theo Dõi ADS 2H" — GMS, ${adrRangeLabel(r)}...`);
   try {
-    const resp = await adsSheetCall({ action: 'get_ads_rows', reportType: 'GMS', from: r.from, to: r.to });
+    const prev = acrPrevRange(r);
+    const resp = await adsSheetCall({ action: 'get_ads_rows', reportType: 'GMS', from: r.from, to: r.to, dailyFrom: prev ? prev.from : r.from });
     if (my !== _acR.seq) return;
-    const recs = [], miss = {};
+    const recs = [], miss = {}, daily = {};
     for (const sh of (resp.shops || [])) {
       const si = adsShResolveShop(sh.username, sh.shopName);
       if (!si) { acrLog(`  → Shop "${sh.shopName}" không khớp danh sách shop của dashboard, bỏ qua`, 'warn'); continue; }
+      if (si.shopKey && Array.isArray(sh.daily) && sh.daily.length) daily[si.shopKey] = sh.daily;
       if (!sh.items || !sh.items.length) continue;
       const items = sh.items.map(p => ({
         item_id: p.item_id, item_name: p.item_name, impression: p.impression, clicks: p.clicks,
@@ -12032,15 +12088,95 @@ async function acrLoad() {
       if (m.length) miss[si.shopKey] = m;
       acrLog(`  → ${si.displayName}: ${items.length} SP, ${(sh.days || []).length} ngày có dữ liệu`, 'ok');
     }
-    _acR.recs = recs; _acR.miss = miss;
+    _acR.recs = recs; _acR.miss = miss; _acR.daily = daily;
+    _acR.hasDaily = resp.dailyFrom !== undefined;   // Apps Script bản cũ không trả daily/dailyFrom
+    _acR.prev = _acR.hasDaily ? prev : null;
+    if (!_acR.hasDaily) acrLog('⚠ Apps Script đang là bản cũ (chưa có số theo ngày) — biểu đồ & so kỳ trước sẽ hiện sau khi Deploy bản mới.', 'warn');
     acrLog(recs.length ? `✅ Xong: ${recs.length} shop có dữ liệu GMS trong khoảng này.` : '⚠ Không có dữ liệu GMS nào trong khoảng ngày này.', recs.length ? 'ok' : 'warn');
+    const ll = document.getElementById('ac-last-load');
+    if (ll) ll.textContent = 'Đọc Sheet lúc ' + new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   } catch (e) {
     if (my !== _acR.seq) return;
-    _acR.recs = []; acrLog(`❌ Lỗi: ${e.message}`, 'err');
+    _acR.recs = []; _acR.daily = {}; acrLog(`❌ Lỗi: ${e.message}`, 'err');
+    const ll = document.getElementById('ac-last-load'); if (ll) ll.textContent = '❌ Lỗi đọc Sheet — mở "Nhật ký" cuối trang';
   }
   _acR.loading = false; acrRender();
 }
 function acrSelectShop(key) { _acR.shop = key; acrRender(); }
+// Biểu đồ theo ngày: 2 biểu đồ nhỏ chung trục ngày (ROAS | Chi phí) — KHÔNG gộp 2 trục y vào 1 hình.
+// keys = null → xoá biểu đồ, hiện msg.
+function acrRenderChart(keys, msg) {
+  Object.keys(_acR.charts).forEach(k => { try { _acR.charts[k].destroy(); } catch (e) {} delete _acR.charts[k]; });
+  const msgEl = document.getElementById('ac-chart-msg'), wrap = document.getElementById('ac-chart-wrap');
+  const show = m => { if (msgEl) { msgEl.style.display = ''; msgEl.innerHTML = m; } if (wrap) wrap.style.display = 'none'; };
+  if (!keys) { show(msg || 'Chưa có dữ liệu'); return; }
+  if (!_acR.hasDaily) { show('Biểu đồ theo ngày cần bản Apps Script mới — anh Deploy lại Apps Script là có.'); return; }
+  if (typeof Chart === 'undefined') { show('Không tải được thư viện biểu đồ.'); return; }
+  const r = _acR.range, days = adsShListDays(r.from, r.to), map = {};
+  keys.forEach(k => (_acR.daily[k] || []).forEach(d => {
+    if (d.d < r.from || d.d > r.to) return;
+    const m = map[d.d] || (map[d.d] = { cost: 0, rev: 0 }); m.cost += +d.cost || 0; m.rev += +d.rev || 0;
+  }));
+  if (!Object.keys(map).length) { show('Không có số liệu theo ngày trong khoảng đã chọn.'); return; }
+  if (msgEl) msgEl.style.display = 'none'; if (wrap) wrap.style.display = '';
+  const labels = days.map(d => d.slice(8, 10) + '/' + d.slice(5, 7));
+  const roas = days.map(d => map[d] && map[d].cost > 0 ? +(map[d].rev / map[d].cost).toFixed(2) : null);
+  const cost = days.map(d => map[d] ? map[d].cost : null);
+  const isLow = v => v != null && v < ACR_ROAS_LOW;
+  const money = v => (typeof _thCompactMoney === 'function' ? _thCompactMoney(v) : v);
+  const base = () => ({
+    responsive: true, maintainAspectRatio: false, animation: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { display: false }, datalabels: { display: false } },
+    scales: {
+      x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12, font: { size: 11 }, color: '#6b7280' } },
+      y: { beginAtZero: true, grid: { color: '#f0f0f0' }, border: { display: false }, ticks: { font: { size: 11 }, color: '#6b7280', maxTicksLimit: 5 } }
+    }
+  });
+  const o1 = base();
+  o1.plugins.tooltip = { filter: it => it.datasetIndex === 0, callbacks: {
+    title: it => it[0] ? days[it[0].dataIndex].split('-').reverse().join('/') : '',
+    label: c => c.parsed.y == null ? 'Chưa có dữ liệu' : 'ROAS ' + c.parsed.y.toFixed(2) + (isLow(c.parsed.y) ? ' — dưới ngưỡng 10' : '') } };
+  const c1 = document.getElementById('ac-chart-roas');
+  if (c1) _acR.charts.roas = new Chart(c1, { type: 'line', options: o1, data: { labels, datasets: [
+    { data: roas, borderColor: '#3A322C', borderWidth: 2, tension: 0.25, spanGaps: false,
+      pointRadius: roas.map(v => isLow(v) ? 4 : 0), pointHoverRadius: 5,
+      pointBackgroundColor: roas.map(v => isLow(v) ? '#dc2626' : '#3A322C'), pointBorderColor: '#fff', pointBorderWidth: 2 },
+    { data: days.map(() => ACR_ROAS_LOW), borderColor: '#9ca3af', borderDash: [4, 4], borderWidth: 1, pointRadius: 0, pointHoverRadius: 0 }
+  ] } });
+  const o2 = base();
+  o2.scales.y.ticks.callback = v => money(v);
+  o2.plugins.tooltip = { callbacks: {
+    title: it => it[0] ? days[it[0].dataIndex].split('-').reverse().join('/') : '',
+    label: c => c.parsed.y == null ? 'Chưa có dữ liệu' : 'Chi phí ' + fmtMoney(c.parsed.y) } };
+  const c2 = document.getElementById('ac-chart-cost');
+  if (c2) _acR.charts.cost = new Chart(c2, { type: 'bar', options: o2, data: { labels, datasets: [
+    { data: cost, backgroundColor: '#cfc8c2', hoverBackgroundColor: '#a8a29e', borderRadius: 4, maxBarThickness: 18 }
+  ] } });
+}
+// Top 5 SP tốn chi phí nhất trong khoảng đang xem — thanh xám trung tính, chỉ đỏ khi ROAS dưới ngưỡng
+function acrRenderTop5(items) {
+  const el = document.getElementById('ac-top5');
+  if (!el) return;
+  const all = items || [], top = [...all].sort((a, b) => (b.expense || 0) - (a.expense || 0)).slice(0, 5);
+  if (!top.length || !(top[0].expense > 0)) { el.innerHTML = '<div class="th-empty">Chưa có dữ liệu</div>'; return; }
+  const max = top[0].expense, total = all.reduce((a, p) => a + (p.expense || 0), 0);
+  const topSum = top.reduce((a, p) => a + (p.expense || 0), 0);
+  el.innerHTML = top.map((p, i) => {
+    const roas = p.expense > 0 ? (p.broad_gmv || 0) / p.expense : 0, low = p.expense > 0 && roas < ACR_ROAS_LOW;
+    const w = Math.max(2, (p.expense || 0) / max * 100);
+    return `<div style="padding:9px 0;border-bottom:1px solid var(--gray3)">
+      <div style="display:flex;justify-content:space-between;gap:10px;font-size:12px">
+        <span title="${acrEsc(p.item_name)}" style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i + 1}. ${acrEsc(p.item_name)}</span>
+        <span style="white-space:nowrap;font-weight:700">${fmtMoney(p.expense || 0)}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+        <div style="flex:1;height:8px;background:var(--gray2);border-radius:4px;overflow:hidden"><div style="width:${w}%;height:100%;background:#a8a29e;border-radius:4px"></div></div>
+        <span style="font-size:11px;min-width:84px;text-align:right;color:${low ? 'var(--red)' : 'var(--text2)'};font-weight:${low ? 700 : 400}">${low ? '⚠ ' : ''}ROAS ${roas > 0 ? roas.toFixed(2) : '—'}</span>
+      </div>
+    </div>`;
+  }).join('') + `<div style="font-size:11px;color:var(--text2);margin-top:10px">5 SP này chiếm ${total > 0 ? (topSum / total * 100).toFixed(0) : 0}% chi phí GMS của ${all.length} SP đang xem</div>`;
+}
 function acrReload() { if (_acR.range) acrLoad(); }
 function acrRender() {
   if (_acR.picker) _acR.picker.refresh();
@@ -12048,7 +12184,9 @@ function acrRender() {
   const setT = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   const tbody = document.getElementById('ac-trend-tbody');
   const blank = msg => {
-    ['ac-kpi-cost', 'ac-kpi-rev', 'ac-kpi-roas', 'ac-kpi-imp', 'ac-kpi-clk', 'ac-kpi-ord'].forEach(id => setT(id, '–'));
+    ['ac-kpi-cost', 'ac-kpi-rev', 'ac-kpi-roas', 'ac-kpi-imp', 'ac-kpi-clk', 'ac-kpi-ord'].forEach(id => { setT(id, '–'); setT(id + '-d', ''); });
+    acrRenderChart(null, msg);
+    const t5 = document.getElementById('ac-top5'); if (t5) t5.innerHTML = `<div class="th-empty">${msg}</div>`;
     if (tbody) tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:24px;color:#999">${msg}</td></tr>`;
     acShowEmpty(msg);
     const me = document.getElementById('ac-range-miss'); if (me) me.style.display = 'none';
@@ -12061,16 +12199,33 @@ function acrRender() {
   setT('ac-kpi-cost', fmtMoney(tot.cost)); setT('ac-kpi-rev', fmtMoney(tot.rev));
   setT('ac-kpi-roas', tot.cost > 0 ? (tot.rev / tot.cost).toFixed(2) : '—');
   setT('ac-kpi-imp', tot.imp.toLocaleString('vi-VN')); setT('ac-kpi-clk', tot.clk.toLocaleString('vi-VN')); setT('ac-kpi-ord', tot.ord.toLocaleString('vi-VN'));
+  // So với kỳ trước (cùng số ngày, liền trước) — từ daily của Apps Script
+  const dkeys = _acR.shop === 'all' ? Object.keys(_acR.daily) : [_acR.shop];
+  const setH = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
+  ['cost', 'rev', 'roas', 'imp', 'clk', 'ord'].forEach(k => setH('ac-kpi-' + k + '-d', ''));
+  if (!_acR.hasDaily) setH('ac-kpi-cost-d', 'Chưa so được kỳ trước — cần Deploy bản mới Apps Script');
+  else if (!_acR.prev) setH('ac-kpi-cost-d', 'Đang xem Tất cả — không có kỳ trước để so');
+  else {
+    const pv = acrSumDaily(dkeys, _acR.prev.from, _acR.prev.to), plen = adsShListDays(_acR.prev.from, _acR.prev.to).length;
+    const pl = `${adrFmt(_acR.prev.from).slice(0, 5)}–${adrFmt(_acR.prev.to).slice(0, 5)}`;
+    if (!pv.days) setH('ac-kpi-cost-d', `Kỳ trước (${pl}) chưa có dữ liệu trên Sheet`);
+    else {
+      const sfx = ` <span style="color:var(--text2)">so với ${pl}${pv.days < plen ? ` · kỳ trước thiếu ${plen - pv.days} ngày` : ''}</span>`;
+      setH('ac-kpi-cost-d', acrDelta(tot.cost, pv.cost, true) + sfx);
+      setH('ac-kpi-rev-d', acrDelta(tot.rev, pv.rev) + sfx);
+      setH('ac-kpi-roas-d', (tot.cost > 0 && pv.cost > 0 ? acrDelta(tot.rev / tot.cost, pv.rev / pv.cost) : '') + sfx);
+      setH('ac-kpi-imp-d', acrDelta(tot.imp, pv.imp)); setH('ac-kpi-clk-d', acrDelta(tot.clk, pv.clk)); setH('ac-kpi-ord-d', acrDelta(tot.ord, pv.ord));
+    }
+  }
   // Bảng "Hiệu Suất Theo Shop": mỗi shop 1 dòng trong khoảng ngày đã chọn (bấm dòng = xem riêng shop đó) + dòng tổng khi xem Tất cả
   const row = (name, r, key, isSel, bold) => {
     const roas = r.cost > 0 ? r.rev / r.cost : 0, acos = r.rev > 0 ? r.cost / r.rev * 100 : 0, ctr = r.imp > 0 ? r.clk / r.imp * 100 : 0;
-    const roasColor = roas >= 15 ? 'var(--green)' : roas >= 8 ? 'var(--orange)' : r.cost > 0 ? 'var(--red)' : 'var(--text2)';
-    const acosColor = acos > 0 && acos <= 7 ? 'var(--green)' : acos <= 15 ? 'var(--orange)' : r.rev > 0 ? 'var(--red)' : 'var(--text2)';
+    const low = r.cost > 0 && roas < ACR_ROAS_LOW;   // chỉ 1 điểm nhấn: ROAS dưới ngưỡng
     return `<tr style="cursor:pointer;${isSel ? 'background:var(--navy3);' : ''}${bold ? 'font-weight:700;' : ''}" onclick="acrSelectShop('${key}')">
       <td style="font-weight:600">${name}</td>
-      <td class="num" style="color:var(--orange)">${fmtMoney(r.cost)}</td><td class="num" style="color:var(--green)">${fmtMoney(r.rev)}</td>
-      <td class="num" style="font-weight:700;color:${roasColor}">${roas > 0 ? roas.toFixed(2) : '—'}</td>
-      <td class="num" style="font-weight:700;color:${acosColor}">${acos > 0 ? acos.toFixed(1) + '%' : '—'}</td>
+      <td class="num">${fmtMoney(r.cost)}</td><td class="num">${fmtMoney(r.rev)}</td>
+      <td class="num" style="font-weight:700;${low ? 'color:var(--red)' : ''}">${low ? '⚠ ' : ''}${roas > 0 ? roas.toFixed(2) : '—'}</td>
+      <td class="num">${acos > 0 ? acos.toFixed(1) + '%' : '—'}</td>
       <td class="num">${r.imp.toLocaleString('vi-VN')}</td><td class="num">${r.clk.toLocaleString('vi-VN')}</td>
       <td class="num">${ctr > 0 ? ctr.toFixed(2) + '%' : '—'}</td><td class="num">${r.ord}</td></tr>`;
   };
@@ -12081,6 +12236,8 @@ function acrRender() {
   }
   const items = _acR.shop === 'all' ? [].concat(...recs.map(x => x.items.map(p => ({ ...p, item_name: adrShortName(x) + ' · ' + p.item_name })))) : recs[0].items;
   acRenderProductTable(items, adrRangeLabel(_acR.range));
+  acrRenderTop5(items);
+  acrRenderChart(dkeys);
   const keys = _acR.shop === 'all' ? Object.keys(_acR.miss) : (_acR.miss[_acR.shop] ? [_acR.shop] : []);
   const missEl = document.getElementById('ac-range-miss');
   if (missEl) {
