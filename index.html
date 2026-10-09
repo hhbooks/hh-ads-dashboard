@@ -225,13 +225,20 @@
   .acr-donut-c { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; text-align:center; }
   .acr-donut-c b { font-size:20px; color:var(--g9); } .acr-donut-c span { font-size:12px; color:var(--text2); }
   .acr-top10 { display:grid; grid-auto-flow:column; column-gap:40px; }
-  /* Bảng màu xanh lá cho trang GMS (Tân chọn 2026-10-09 theo ảnh mẫu) — scope #page-auto-camp, không đụng trang khác */
-  #page-auto-camp { --g9:#0b3d2c; --g7:#0e8a52; --g5:#13a065; --g3:#7fd6a8; --g1:#e6f6ee; --amb:#d99a1e; }
+  /* Bảng màu trang GMS — 2026-10-09 lần 2: Tân đổi xanh lá → xanh dương/navy hiện đại (giữ tên biến --g*). Scope #page-auto-camp */
+  #page-auto-camp { --g9:#1b2a4e; --g7:#1d4ed8; --g5:#2f6fd6; --g3:#8fbaf3; --g1:#dbe4f3; --amb:#d99a1e; }
   #page-auto-camp .card-title .dot { background:var(--g5); }
   #page-auto-camp .acr-split .card-title, #page-auto-camp .acr-split2 .card-title { font-size:15.5px; color:var(--g9); }
-  #page-auto-camp .acr-kpi-main .kpi-card.acr-hero { background:linear-gradient(135deg,#0e8a52,#13a065); border-color:#0e8a52; border-top-color:#0b6b40; }
+  #page-auto-camp .acr-kpi-main .kpi-card.acr-hero { background:linear-gradient(135deg,#1b2a4e,#2b4a8f); border-color:#1b2a4e; border-top-color:#16223f; }
+  #page-auto-camp .acr-hero .kpi-icon { display:none; }
+  #page-auto-camp .acr-spark { position:absolute; top:16px; right:18px; width:46%; height:64px; pointer-events:none; }
+  /* Thẻ bo góc lớn, bỏ viền, bóng mềm (theo ảnh mẫu) — chỉ trang GMS */
+  #page-auto-camp .card, #page-auto-camp .acr-kpi-main .kpi-card, #page-auto-camp .acr-kpi-sub > div { border-radius:18px; border:none; box-shadow:0 6px 24px rgba(27,42,78,.08); }
+  #page-auto-camp #ac-filter-bar { border-radius:16px; border:none; box-shadow:0 4px 16px rgba(27,42,78,.06); background:#fff; }
+  #page-auto-camp .acr-todo.has { border-left:5px solid var(--red); }
+  #page-auto-camp .acr-kpi-main .kpi-card.acr-alert:not(.acr-hero) { box-shadow:0 0 0 2px #fecaca, 0 6px 24px rgba(27,42,78,.08); }
   #page-auto-camp .acr-kpi-main .kpi-card.acr-hero .kpi-label, #page-auto-camp .acr-kpi-main .kpi-card.acr-hero .kpi-value { color:#fff; }
-  #page-auto-camp .acr-kpi-main .kpi-card.acr-hero .kpi-sub, #page-auto-camp .acr-kpi-main .kpi-card.acr-hero .kpi-sub span { color:#e6f6ee !important; }
+  #page-auto-camp .acr-kpi-main .kpi-card.acr-hero .kpi-sub, #page-auto-camp .acr-kpi-main .kpi-card.acr-hero .kpi-sub span { color:#dbe4f3 !important; }
   #page-auto-camp .acr-kpi-main .kpi-card.acr-hero .acr-d-up, #page-auto-camp .acr-kpi-main .kpi-card.acr-hero .acr-d-down { color:#fff !important; background:rgba(255,255,255,.18); padding:1px 6px; border-radius:4px; }
   #page-auto-camp .acr-kpi-main .kpi-card.acr-hero.acr-alert { background:linear-gradient(135deg,#b91c1c,#dc2626); border-color:#b91c1c; border-top-color:#991b1b; }
   #page-auto-camp .acr-d-up { color:var(--g7); }
@@ -1519,6 +1526,7 @@
     <div class="acr-kpi-main">
       <div class="kpi-card navy acr-hero" id="ac-kpi-roas-card">
         <div class="kpi-icon">📈</div>
+        <div class="acr-spark"><canvas id="ac-kpi-spark"></canvas></div>
         <div class="kpi-label">ROAS (chỉ số chính)</div>
         <div class="kpi-value" id="ac-kpi-roas">–</div>
         <div class="kpi-sub" id="ac-kpi-roas-d"></div>
@@ -12204,7 +12212,7 @@ function acrRenderChart(keys, msg) {
   const cost = days.map(d => cur[d] ? cur[d].cost : null);
   if (msgEl) msgEl.style.display = 'none'; if (wrap) wrap.style.display = '';
   const f5 = d => d ? d.slice(8, 10) + '/' + d.slice(5, 7) : '';
-  if (lg) lg.innerHTML = `<span style="color:#0e8a52;font-weight:700">━ Kỳ này</span>` +
+  if (lg) lg.innerHTML = `<span style="color:#1d4ed8;font-weight:700">━ Kỳ này</span>` +
     (proas ? ` &nbsp;&nbsp;<span style="color:#b07a10;font-weight:700">┅ Kỳ trước (${f5(pr.from)}–${f5(pr.to)})</span>` : '') +
     ` &nbsp;&nbsp;<span style="color:#dc2626;font-weight:600">● ngày ROAS &lt; ${ACR_ROAS_LOW}</span>`;
   // Trục ROAS co theo số liệu (không bắt đầu từ 0) để thấy rõ lên/xuống; chỉ vẽ ngưỡng 10 khi số liệu chạm gần ngưỡng
@@ -12223,17 +12231,17 @@ function acrRenderChart(keys, msg) {
     [iMin, iMax, iLast].forEach(i => { if (i >= 0) lab.add(i); });
   }
   const yW = s => { s.width = 52; };   // cùng độ rộng trục y → 2 biểu đồ thẳng cột ngày
-  const xCfg = { offset: true, grid: { display: false }, border: { color: '#cfe9db' }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12, font: { size: 12.5, weight: '600' }, color: '#3f5a4f' } };
+  const xCfg = { offset: true, grid: { display: false }, border: { color: '#dbe4f3' }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12, font: { size: 12.5, weight: '600' }, color: '#475569' } };
   const title = it => it[0] ? days[it[0].dataIndex].split('-').reverse().join('/') : '';
   const c1 = document.getElementById('ac-chart-roas');
   const ds = [{
-    label: 'Kỳ này', data: roas, borderColor: '#13a065', borderWidth: 3, tension: 0.35, spanGaps: false,
-    fill: 'start', backgroundColor: c => { const ch = c.chart, a = ch.chartArea; if (!a) return 'rgba(19,160,101,0.12)';
-      const g = ch.ctx.createLinearGradient(0, a.top, 0, a.bottom); g.addColorStop(0, 'rgba(19,160,101,0.28)'); g.addColorStop(1, 'rgba(19,160,101,0.02)'); return g; },
+    label: 'Kỳ này', data: roas, borderColor: '#2f6fd6', borderWidth: 3, tension: 0.35, spanGaps: false,
+    fill: 'start', backgroundColor: c => { const ch = c.chart, a = ch.chartArea; if (!a) return 'rgba(47,111,214,0.12)';
+      const g = ch.ctx.createLinearGradient(0, a.top, 0, a.bottom); g.addColorStop(0, 'rgba(47,111,214,0.28)'); g.addColorStop(1, 'rgba(47,111,214,0.02)'); return g; },
     pointRadius: roas.map(v => v == null ? 0 : (isLow(v) ? 6 : 4.5)), pointHoverRadius: 7,
-    pointBackgroundColor: roas.map(v => isLow(v) ? '#dc2626' : '#fff'), pointBorderColor: roas.map(v => isLow(v) ? '#fff' : '#13a065'), pointBorderWidth: 2.5,
+    pointBackgroundColor: roas.map(v => isLow(v) ? '#dc2626' : '#fff'), pointBorderColor: roas.map(v => isLow(v) ? '#fff' : '#2f6fd6'), pointBorderWidth: 2.5,
     datalabels: { display: c => lab.has(c.dataIndex), align: 'top', anchor: 'end', offset: 6, clamp: true,
-      color: c => isLow(roas[c.dataIndex]) ? '#dc2626' : '#0b3d2c', font: { size: 13.5, weight: '800' },
+      color: c => isLow(roas[c.dataIndex]) ? '#dc2626' : '#1b2a4e', font: { size: 13.5, weight: '800' },
       formatter: v => v == null ? '' : v.toFixed(1) }
   }];
   if (proas) ds.push({ label: 'Kỳ trước', data: proas, borderColor: '#d99a1e', borderDash: [6, 5], borderWidth: 2, tension: 0.35,
@@ -12248,21 +12256,27 @@ function acrRenderChart(keys, msg) {
         label: c => c.dataset.label === 'Kỳ trước'
           ? `Kỳ trước (${f5(pdays[c.dataIndex])}): ROAS ${c.parsed.y == null ? '—' : c.parsed.y.toFixed(2)}`
           : `Kỳ này: ROAS ${c.parsed.y == null ? 'chưa có dữ liệu' : c.parsed.y.toFixed(2)}${isLow(c.parsed.y) ? ' — dưới ngưỡng ' + ACR_ROAS_LOW : ''}` } } },
-    scales: { x: xCfg, y: { min: yMin, max: yMax, afterFit: yW, grid: { color: '#eef5f1' }, border: { display: false },
-      ticks: { font: { size: 12.5 }, color: '#5b7369', maxTicksLimit: 5, precision: 0 } } }
+    scales: { x: xCfg, y: { min: yMin, max: yMax, afterFit: yW, grid: { color: '#eef2f8' }, border: { display: false },
+      ticks: { font: { size: 12.5 }, color: '#64748b', maxTicksLimit: 5, precision: 0 } } }
   } });
+  const sp = document.getElementById('ac-kpi-spark');   // đường ROAS mini trong ô KPI chính (navy) — chỉ hình dáng, không trục/số
+  if (sp) _acR.charts.spark = new Chart(sp, { type: 'line', data: { labels: days, datasets: [{ data: roas, borderColor: 'rgba(255,255,255,.95)', borderWidth: 2.5,
+    tension: 0.4, spanGaps: true, pointRadius: roas.map((v, i) => i === roas.length - 1 && v != null ? 3.5 : 0), pointBackgroundColor: '#fff',
+    fill: 'start', backgroundColor: 'rgba(255,255,255,.14)', datalabels: { display: false } }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: false, events: [], layout: { padding: 4 },
+      plugins: { legend: { display: false }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false, min: Math.max(0, lo - pad), max: hi + pad } } } });
   let iMaxC = -1; cost.forEach((v, i) => { if (v != null && (iMaxC < 0 || v > cost[iMaxC])) iMaxC = i; });   // điểm nhấn: ngày tốn nhất
   const c2 = document.getElementById('ac-chart-cost');
   if (c2) _acR.charts.cost = new Chart(c2, { type: 'bar', data: { labels: days.map(f5), datasets: [{
-    data: cost, backgroundColor: cost.map((v, i) => i === iMaxC ? '#0e8a52' : '#7fd6a8'), hoverBackgroundColor: '#0e8a52', borderRadius: 6, maxBarThickness: 34,
+    data: cost, backgroundColor: cost.map((v, i) => i === iMaxC ? '#1d4ed8' : '#8fbaf3'), hoverBackgroundColor: '#1d4ed8', borderRadius: 6, maxBarThickness: 34,
     datalabels: { display: c => (n <= 14 || c.dataIndex === iMaxC) && cost[c.dataIndex] != null, anchor: 'end', align: 'top', offset: 3, clamp: true,
-      color: c => c.dataIndex === iMaxC ? '#0b3d2c' : '#3f5a4f', font: c => ({ size: c.dataIndex === iMaxC ? 13 : 12, weight: c.dataIndex === iMaxC ? '800' : '600' }), formatter: v => acrMoneyShort(v) }
+      color: c => c.dataIndex === iMaxC ? '#1b2a4e' : '#475569', font: c => ({ size: c.dataIndex === iMaxC ? 13 : 12, weight: c.dataIndex === iMaxC ? '800' : '600' }), formatter: v => acrMoneyShort(v) }
   }] }, options: {
     responsive: true, maintainAspectRatio: false, animation: false, layout: { padding: { top: 22, right: 12 } },
     interaction: { mode: 'index', intersect: false },
     plugins: { legend: { display: false }, tooltip: { titleFont: { size: 13 }, bodyFont: { size: 13 }, padding: 10, callbacks: { title, label: c => c.parsed.y == null ? 'Chưa có dữ liệu' : 'Chi phí ' + fmtMoney(c.parsed.y) } } },
-    scales: { x: { ...xCfg, offset: true }, y: { beginAtZero: true, afterFit: yW, grid: { color: '#eef5f1' }, border: { display: false },
-      ticks: { font: { size: 12.5 }, color: '#5b7369', maxTicksLimit: 4, callback: v => acrMoneyShort(v) } } }
+    scales: { x: { ...xCfg, offset: true }, y: { beginAtZero: true, afterFit: yW, grid: { color: '#eef2f8' }, border: { display: false },
+      ticks: { font: { size: 12.5 }, color: '#64748b', maxTicksLimit: 4, callback: v => acrMoneyShort(v) } } }
   } });
 }
 // Top 10 SP ROAS dưới 15 (Tân chốt 2026-10-09): chỉ SP đã tốn ≥ AC_PROD_MIN_COST_FOR_FLAG (đủ dữ liệu đánh giá),
@@ -12421,7 +12435,7 @@ function acrRenderTodo(items, tot) {
 }
 // Tỉ trọng doanh số / chi phí — Tất cả shop: theo shop (màu cố định của shop); 1 shop: top 5 SP + "SP khác"
 // Màu phân loại (đã chạy kiểm tra mù màu, cặp kề nhau kể cả vòng tròn khép kín đều đạt). Màu theo SHOP cố định, không theo thứ hạng.
-const ACR_CAT = ['#1baf7a', '#eda100', '#2a78d6', '#eb6834', '#4a3aa7', '#e87ba4'], ACR_OTHER = '#c7cdd4';
+const ACR_CAT = ['#2a78d6', '#eda100', '#4a3aa7', '#eb6834', '#1fb3c9', '#e87ba4'], ACR_OTHER = '#c7cdd4';   // 2026-10-09: xanh dương đứng đầu
 function acrShopColor(key) { const i = SAPI_SHOPS.findIndex(s => SAPI_SHOP_MAP[s.id] === key); return ACR_CAT[(i < 0 ? 0 : i) % ACR_CAT.length]; }
 function acrRenderShares(items) {
   const byShop = _acR.shop === 'all';
