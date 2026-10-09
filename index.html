@@ -215,11 +215,16 @@
   .acr-sub-lbl { font-size:11px; color:var(--text2); font-weight:600; text-transform:uppercase; letter-spacing:.5px; }
   .acr-kpi-sub b { font-size:18px; color:var(--text); }
   .acr-sub-d { font-size:11px; margin-left:auto; white-space:nowrap; }
-  .acr-split { display:grid; grid-template-columns:1.618fr 1fr; gap:16px; margin-bottom:16px; }
+  .acr-split { display:grid; grid-template-columns:1fr; gap:16px; margin-bottom:16px; }   /* 2026-10-09: mỗi báo cáo 1 hàng (Tân yêu cầu) */
   .acr-split > .card { margin:0; min-width:0; }
   .acr-d-up { color:var(--green); font-weight:700; } .acr-d-down { color:var(--red); font-weight:700; } .acr-d-neu { color:var(--text); font-weight:700; }
   .acr-chart-msg { font-size:12px; padding:28px 12px; text-align:center; color:var(--text2); }
-  .acr-split2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:8px; }
+  .acr-split2 { display:grid; grid-template-columns:1fr; gap:16px; margin-bottom:8px; }
+  .acr-share-wrap { display:grid; grid-template-columns:280px 1fr; gap:32px; align-items:center; }
+  .acr-donut { position:relative; height:260px; }
+  .acr-donut-c { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; text-align:center; }
+  .acr-donut-c b { font-size:20px; color:var(--g9); } .acr-donut-c span { font-size:12px; color:var(--text2); }
+  .acr-top10 { display:grid; grid-auto-flow:column; column-gap:40px; }
   /* Bảng màu xanh lá cho trang GMS (Tân chọn 2026-10-09 theo ảnh mẫu) — scope #page-auto-camp, không đụng trang khác */
   #page-auto-camp { --g9:#0b3d2c; --g7:#0e8a52; --g5:#13a065; --g3:#7fd6a8; --g1:#e6f6ee; --amb:#d99a1e; }
   #page-auto-camp .card-title .dot { background:var(--g5); }
@@ -232,7 +237,7 @@
   #page-auto-camp .acr-d-up { color:var(--g7); }
   .acr-dl { display:block; margin-top:3px; }
   .acr-split2 > .card { margin:0; min-width:0; }
-  @media (max-width:1100px) { .acr-split, .acr-split2 { grid-template-columns:1fr; } .acr-kpi-main, .acr-kpi-sub { grid-template-columns:1fr; } }
+  @media (max-width:1100px) { .acr-split, .acr-split2, .acr-share-wrap { grid-template-columns:1fr; } .acr-top10 { grid-auto-flow:row; grid-template-rows:none !important; } .acr-kpi-main, .acr-kpi-sub { grid-template-columns:1fr; } }
   /* Card ④ Báo Cáo Tổng Quan — số tiền dài (VD "203.659.501đ") bị tràn khỏi card ở cỡ chữ mặc
      định 28px. Thu nhỏ + cho phép xuống dòng riêng cho đúng grid này, KHÔNG đụng .kpi-value
      dùng chung toàn dashboard (xác nhận Tân 2026-08-09). */
@@ -1561,11 +1566,17 @@
     <div class="acr-split2">
       <div class="card">
         <div class="card-title"><span class="dot"></span> Tỉ Trọng Doanh Số <span class="ac-share-mode" style="font-size:11px;color:var(--text2);font-weight:400"></span></div>
-        <div id="ac-share-rev"><div class="th-empty">Chưa có dữ liệu</div></div>
+        <div class="acr-share-wrap">
+          <div class="acr-donut"><canvas id="ac-donut-rev"></canvas><div class="acr-donut-c" id="ac-donut-rev-c"></div></div>
+          <div id="ac-share-rev"><div class="th-empty">Chưa có dữ liệu</div></div>
+        </div>
       </div>
       <div class="card">
         <div class="card-title"><span class="dot"></span> Tỉ Trọng Chi Phí <span class="ac-share-mode" style="font-size:11px;color:var(--text2);font-weight:400"></span></div>
-        <div id="ac-share-cost"><div class="th-empty">Chưa có dữ liệu</div></div>
+        <div class="acr-share-wrap">
+          <div class="acr-donut"><canvas id="ac-donut-cost"></canvas><div class="acr-donut-c" id="ac-donut-cost-c"></div></div>
+          <div id="ac-share-cost"><div class="th-empty">Chưa có dữ liệu</div></div>
+        </div>
       </div>
     </div>
     <div id="ac-share-note" style="display:none;font-size:12px;padding:8px 12px;border-radius:8px;margin:0 0 16px;background:#fff8e1;color:#8a6100;border:1px solid #ffe58f"></div>
@@ -12270,7 +12281,7 @@ function acrRenderTop5(items) {
   const candSum = cand.reduce((a, p) => a + (p.expense || 0), 0);
   el.innerHTML = `<div style="display:flex;gap:14px;font-size:12px;margin:-6px 0 6px;color:var(--text2)">
       <span><b style="color:#dc2626">● ${nRed}</b> ROAS &lt; ${ACR_ROAS_LOW} — nên loại</span><span><b style="color:#b45309">● ${nAmb}</b> ROAS ${ACR_ROAS_LOW}–${ACR_ROAS_OPT} — nên tối ưu</span></div>` +
-    top.map((p, i) => {
+    `<div class="acr-top10" style="grid-template-rows:repeat(${Math.ceil(top.length / 2)},auto)">` + top.map((p, i) => {
       const roas = roasOf(p), red = roas < ACR_ROAS_LOW, w = Math.max(2, (p.expense || 0) / max * 100);
       return `<div style="padding:7px 0;border-bottom:1px solid var(--gray3)">
         <div style="display:flex;justify-content:space-between;gap:10px;font-size:13px">
@@ -12282,7 +12293,7 @@ function acrRenderTop5(items) {
           <span style="font-size:12.5px;min-width:110px;text-align:right;font-weight:700;color:${red ? '#dc2626' : '#b45309'}">${red ? '⚠ ' : ''}ROAS ${roas > 0 ? roas.toFixed(2) : '0'}</span>
         </div>
       </div>`;
-    }).join('') +
+    }).join('') + '</div>' +
     `<div style="font-size:12.5px;color:var(--text2);margin-top:10px">${cand.length} SP ROAS dưới ${ACR_ROAS_OPT} đang tốn <b style="color:var(--text)">${fmtMoney(candSum)}</b> — ${total > 0 ? (candSum / total * 100).toFixed(1) : 0}% chi phí GMS${cand.length > 10 ? ` (đang hiện 10 SP tốn nhất, xem đủ ở bảng SP bên dưới)` : ''}</div>`;
 }
 function acrReload() { if (_acR.range) acrLoad(); }
@@ -12297,6 +12308,7 @@ function acrRender() {
     ['ac-top5', 'ac-share-rev', 'ac-share-cost', 'ac-todo'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = `<div class="th-empty">${msg}</div>`; });
     const td = document.getElementById('ac-todo'); if (td) td.classList.remove('has');
     const sn = document.getElementById('ac-share-note'); if (sn) sn.style.display = 'none';
+    ['ac-donut-rev-c', 'ac-donut-cost-c'].forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = ''; });
     const rc = document.getElementById('ac-kpi-roas-card'); if (rc) rc.classList.remove('acr-alert');
     if (tbody) tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:24px;color:#999">${msg}</td></tr>`;
     acShowEmpty(msg);
@@ -12408,34 +12420,51 @@ function acrRenderTodo(items, tot) {
     rows.map(x => `<div class="acr-todo-row">${x}</div>`).join('');
 }
 // Tỉ trọng doanh số / chi phí — Tất cả shop: theo shop (màu cố định của shop); 1 shop: top 5 SP + "SP khác"
+// Màu phân loại (đã chạy kiểm tra mù màu, cặp kề nhau kể cả vòng tròn khép kín đều đạt). Màu theo SHOP cố định, không theo thứ hạng.
+const ACR_CAT = ['#1baf7a', '#eda100', '#2a78d6', '#eb6834', '#4a3aa7', '#e87ba4'], ACR_OTHER = '#c7cdd4';
+function acrShopColor(key) { const i = SAPI_SHOPS.findIndex(s => SAPI_SHOP_MAP[s.id] === key); return ACR_CAT[(i < 0 ? 0 : i) % ACR_CAT.length]; }
 function acrRenderShares(items) {
   const byShop = _acR.shop === 'all';
   document.querySelectorAll('.ac-share-mode').forEach(e => { e.textContent = byShop ? '— theo shop' : '— top 5 SP của shop đang xem'; });
   let rows;
-  if (byShop) rows = _acR.recs.map(x => ({ name: ((SHOPS[x.shopKey] && SHOPS[x.shopKey].icon) || '🏪') + ' ' + ((SHOPS[x.shopKey] && SHOPS[x.shopKey].short) || x.shopName), rev: x.rev, cost: x.cost }));
+  if (byShop) rows = [..._acR.recs].sort((a, b) => SAPI_SHOPS.findIndex(s => SAPI_SHOP_MAP[s.id] === a.shopKey) - SAPI_SHOPS.findIndex(s => SAPI_SHOP_MAP[s.id] === b.shopKey))
+    .map(x => ({ name: ((SHOPS[x.shopKey] && SHOPS[x.shopKey].icon) || '🏪') + ' ' + ((SHOPS[x.shopKey] && SHOPS[x.shopKey].short) || x.shopName), color: acrShopColor(x.shopKey), rev: x.rev, cost: x.cost }));
   const build = (metric, field) => {
     let list;
-    if (byShop) list = rows.map(r => ({ name: r.name, v: r[metric] }));
+    if (byShop) list = rows.map(r => ({ name: r.name, color: r.color, v: r[metric] }));
     else {
       const sorted = [...(items || [])].sort((a, b) => (b[field] || 0) - (a[field] || 0));
-      list = sorted.slice(0, 5).map(p => ({ name: p.item_name, v: p[field] || 0 }));
+      list = sorted.slice(0, 5).map((p, i) => ({ name: p.item_name, color: ACR_CAT[i], v: p[field] || 0 }));
       const rest = sorted.slice(5).reduce((a, p) => a + (p[field] || 0), 0);
-      if (rest > 0) list.push({ name: `SP khác (${sorted.length - 5} SP)`, v: rest, other: true });
+      if (rest > 0) list.push({ name: `SP khác (${sorted.length - 5} SP)`, color: ACR_OTHER, v: rest, other: true });
     }
     const total = list.reduce((a, r) => a + r.v, 0);
+    acrDonut(metric, list, total);   // biểu đồ tròn giữ đúng thứ tự shop cố định (màu kề nhau đã kiểm tra)
     if (!(total > 0)) return '<div class="th-empty">Chưa có dữ liệu</div>';
-    if (byShop) list.sort((a, b) => b.v - a.v);
-    const maxV = Math.max(...list.filter(r => !r.other).map(r => r.v));
-    list.forEach(r => { r.color = r.other ? '#cfe9db' : (r.v === maxV ? 'var(--g7)' : 'var(--g3)'); });   // 1 điểm nhấn: phần lớn nhất
+    if (byShop) list = [...list].sort((a, b) => b.v - a.v);   // danh sách bên cạnh xếp từ lớn → nhỏ
     return list.map(r => {
       const pc = r.v / total * 100;
       return `<div class="acr-share-row">
         <span class="nm" title="${acrEsc(r.name)}"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${r.color};margin-right:6px"></span>${acrEsc(r.name)}</span>
-        <span style="display:flex;align-items:center;gap:10px"><span style="flex:1;height:14px;background:var(--g1);border-radius:7px;overflow:hidden"><span style="display:block;width:${Math.max(1, pc)}%;height:100%;background:${r.color};border-radius:7px"></span></span><span style="font-size:12.5px;color:var(--text2);min-width:64px;text-align:right">${acrMoneyShort(r.v)}</span></span>
+        <span style="display:flex;align-items:center;gap:10px"><span style="flex:1;height:14px;background:#f3f4f6;border-radius:7px;overflow:hidden"><span style="display:block;width:${Math.max(1, pc)}%;height:100%;background:${r.color};border-radius:7px"></span></span><span style="font-size:12.5px;color:var(--text2);min-width:64px;text-align:right">${acrMoneyShort(r.v)}</span></span>
         <span class="pc">${pc.toFixed(1)}%</span>
       </div>`;
     }).join('');
   };
+  function acrDonut(metric, list, total) {
+    const cv = document.getElementById('ac-donut-' + metric), ce = document.getElementById('ac-donut-' + metric + '-c');
+    const key = 'donut_' + metric;
+    if (_acR.charts[key]) { try { _acR.charts[key].destroy(); } catch (e) {} delete _acR.charts[key]; }
+    if (ce) ce.innerHTML = total > 0 ? `<span>${metric === 'rev' ? 'Tổng doanh số' : 'Tổng chi phí'}</span><b>${acrMoneyShort(total)}</b><span>${list.length} ${byShop ? 'shop' : 'phần'}</span>` : '';
+    if (!cv || typeof Chart === 'undefined' || !(total > 0)) return;
+    _acR.charts[key] = new Chart(cv, { type: 'doughnut', data: { labels: list.map(r => r.name), datasets: [{
+      data: list.map(r => r.v), backgroundColor: list.map(r => r.color), borderColor: '#fff', borderWidth: 2, hoverOffset: 6,
+      datalabels: { display: c => list[c.dataIndex].v / total >= 0.06, color: '#fff', font: { size: 13, weight: '800' },
+        formatter: v => (v / total * 100).toFixed(0) + '%' } }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, cutout: '62%', layout: { padding: 6 },
+        plugins: { legend: { display: false }, tooltip: { titleFont: { size: 13 }, bodyFont: { size: 13 }, padding: 10,
+          callbacks: { label: c => ` ${fmtMoney(c.parsed)} · ${(c.parsed / total * 100).toFixed(1)}%` } } } } });
+  }
   const er = document.getElementById('ac-share-rev'), ec = document.getElementById('ac-share-cost');
   if (er) er.innerHTML = build('rev', 'broad_gmv');
   if (ec) ec.innerHTML = build('cost', 'expense');
