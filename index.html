@@ -1305,7 +1305,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
       <div>
         <div style="font-size:20px;font-weight:700;color:var(--navy)">🧩 Chiến Dịch Nhóm Sản Phẩm</div>
-        <div style="font-size:12px;color:var(--text2);margin-top:2px">Ad Group (Dịch Vụ Hiển Thị Sản Phẩm) — đọc CSV từ Drive, không lưu lịch sử</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">Ad Group (Dịch Vụ Hiển Thị Sản Phẩm) — dữ liệu từ Sheet "Theo Dõi ADS 2H" (tiện ích tự tải mỗi ngày)</div>
       </div>
     </div>
 
@@ -1317,17 +1317,12 @@
       </div>
       <div id="gc-sync-body" style="display:none;margin-top:14px">
         <div style="font-size:12px;color:var(--text2);line-height:1.6">
-          Đọc toàn bộ file CSV <strong>"Ad Group Data"</strong> trong Drive folder <strong>"Dữ Liệu Nhóm 2H"</strong> —
-          tự nhận diện từng shop theo Mã Người Bán trong file, không cần chọn shop trước.
-          Không lưu lịch sử — mỗi lần bấm đều đọc lại từ Drive.<br>
-          <strong>📊 Đồng Bộ Từ Sheet</strong>: đọc <strong>toàn bộ</strong> dữ liệu tool tải trên Sheet "Theo Dõi ADS 2H" → mỗi shop 1 kỳ 📊 (từ ngày đầu tiên có dữ liệu đến hôm qua), nằm cạnh các kỳ Drive, không ghi đè Drive.
+          Nguồn dữ liệu duy nhất: Sheet <strong>"Theo Dõi ADS 2H"</strong> (tiện ích Tải Đơn &amp; QC tự tải từng ngày).
+          Chọn khoảng ngày ở bộ lọc bên dưới là dashboard tự đọc lại đúng khoảng đó — bấm <strong>🔄 Tải lại</strong> khi vừa có dữ liệu mới.
         </div>
         <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap">
-          <button onclick="groupCampSyncFromDrive()" style="padding:6px 14px;background:#1a73e8;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
-            📂 Đồng Bộ Từ Drive
-          </button>
-          <button onclick="groupCampSyncFromSheet()" style="padding:6px 14px;background:#0f9d58;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">📊 Đồng Bộ Từ Sheet</button>
-          <span id="gc-last-sync" style="font-size:11px;color:var(--text2)">Chưa đồng bộ lần nào</span>
+          <button onclick="gcrReload()" style="padding:6px 14px;background:#0f9d58;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">🔄 Tải lại từ Sheet</button>
+          <span id="gc-last-sync" style="font-size:11px;color:var(--text2)">Chưa tải</span>
         </div>
         <div id="gc-log" class="drive-log" style="max-height:140px"></div>
       </div>
@@ -1335,17 +1330,15 @@
 
     <!-- Bộ lọc Shop + Kỳ -->
     <div id="gc-filter-bar" style="margin-bottom:16px;padding:10px 14px;background:var(--surface);border-radius:10px;border:1px solid var(--gray3);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">🏪 Shop:</span>
-      <div id="gc-shop-pills" style="display:flex;gap:4px;flex-wrap:wrap">
-        <span style="font-size:12px;color:var(--text2)">Bấm 📂 Đồng Bộ Từ Drive hoặc 📊 Đồng Bộ Từ Sheet để tải dữ liệu</span>
-      </div>
+      <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">📅 Ngày:</span>
+      <div id="gc-range-host"></div>
       <span style="width:1px;height:18px;background:var(--gray3)"></span>
-      <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">📅 Kỳ <span style="color:var(--navy2);font-size:10px;font-weight:400">(click chọn nhiều — số liệu sẽ cộng dồn)</span>:</span>
-      <div id="gc-period-pills" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+      <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">🏪 Shop:</span>
+      <div id="gc-range-shops" style="display:flex;gap:4px;flex-wrap:wrap"></div>
     </div>
 
     <div id="gc-empty" style="color:#999;font-size:12px;padding:28px;text-align:center">
-      Bấm <strong>📂 Đồng Bộ Từ Drive</strong> hoặc <strong>📊 Đồng Bộ Từ Sheet</strong> ở khối <strong>"Đồng Bộ Dữ Liệu Nhóm Sản Phẩm"</strong> phía trên để tải dữ liệu.
+      Chọn khoảng ngày ở bộ lọc phía trên để xem dữ liệu.
     </div>
 
     <div id="gc-content" style="display:none">
@@ -1457,7 +1450,7 @@
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
       <div>
         <div style="font-size:20px;font-weight:700;color:var(--navy)">⚡ Chiến Dịch Tự Động Chọn Sản Phẩm</div>
-        <div style="font-size:12px;color:var(--text2);margin-top:2px">Shop Level — tổng hợp từ dữ liệu Shopee API</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">Shop Level — dữ liệu từ Sheet "Theo Dõi ADS 2H" (tiện ích tự tải mỗi ngày)</div>
       </div>
     </div>
 
@@ -1485,11 +1478,8 @@
              hết file, tự nạp CẢ 2 shop vào bộ nhớ cùng lúc — đổi "Kỳ Xem" giữa 2 shop chỉ lọc dữ liệu
              đã có, không mất, không cần đồng bộ lại (trừ khi tải lại trang). -->
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;background:var(--surface);border-radius:8px;border:1px solid var(--gray3)">
-          <button onclick="gmsLoadFromDriveManual()" style="padding:6px 14px;background:#1a73e8;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
-            📂 Đồng Bộ Từ Drive
-          </button>
-          <button onclick="gmsLoadFromSheet()" style="padding:6px 14px;background:#0f9d58;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">📊 Đồng Bộ Từ Sheet</button>
-          <span style="font-size:11px;color:var(--text2)">Drive: đọc lại toàn bộ file mỗi lần bấm. Sheet: đọc toàn bộ dữ liệu tool đã tải → mỗi shop 1 kỳ 📊.</span>
+          <button onclick="acrReload()" style="padding:6px 14px;background:#0f9d58;color:white;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">🔄 Tải lại từ Sheet</button>
+          <span style="font-size:11px;color:var(--text2)">Nguồn duy nhất: Sheet "Theo Dõi ADS 2H". Chọn khoảng ngày ở bộ lọc bên dưới là tự đọc lại — bấm Tải lại khi vừa có dữ liệu mới.</span>
           <button onclick="gmsDeleteOldFirestoreData()" style="margin-left:auto;padding:6px 12px;background:#fff;color:#c0392b;border:1px solid #e6b3ab;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">
             🗑️ Xóa Dữ Liệu Cũ (Firestore)
           </button>
@@ -1503,19 +1493,14 @@
          ngày để mà chọn khoảng bằng lịch nữa — chỉ chọn ĐÚNG 1 trong các kỳ đã đồng bộ).
          Chỉ đọc dữ liệu đã tải, không gọi lại Shopee/Firestore. -->
     <div id="ac-filter-bar" style="margin-bottom:16px;padding:10px 14px;background:var(--surface);border-radius:10px;border:1px solid var(--gray3);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">🏪 Shop:</span>
-      <!-- Giai đoạn 5 (17/08, xác nhận Tân): đổi từ 2 nút cố định sang pill động — tự hiện đúng
-           các shop thực sự có dữ liệu đã đồng bộ (giống pattern trang "Chiến Dịch Nhóm Sản Phẩm",
-           #gc-shop-pills), để thêm shop mới sau này không cần sửa HTML/JS nữa. -->
-      <div id="ac-shop-pills" style="display:flex;gap:4px;flex-wrap:wrap">
-        <span style="font-size:12px;color:var(--text2)">Bấm 📂 Đồng Bộ Từ Drive hoặc 📊 Đồng Bộ Từ Sheet để tải dữ liệu</span>
-      </div>
+      <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">📅 Ngày:</span>
+      <div id="ac-range-host"></div>
       <span style="width:1px;height:18px;background:var(--gray3)"></span>
-      <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">📅 Kỳ Xem:</span>
-      <select id="ac-period-select" onchange="acSelectPeriod(this.value)" style="padding:5px 10px;border-radius:6px;border:1px solid var(--gray3);font-size:12px;font-weight:600;color:var(--text1);min-width:220px">
-        <option value="">Bấm 📂 Đồng Bộ Từ Drive hoặc 📊 Đồng Bộ Từ Sheet để tải dữ liệu</option>
-      </select>
+      <span style="font-size:12px;color:var(--text2);font-weight:700;white-space:nowrap">🏪 Shop:</span>
+      <div id="ac-range-shops" style="display:flex;gap:4px;flex-wrap:wrap"></div>
     </div>
+
+    <div id="ac-range-miss" style="display:none;font-size:12px;padding:10px 12px;border-radius:8px;margin-bottom:12px;background:#fff8e1;color:#8a6100;border:1px solid #ffe58f"></div>
 
     <!-- ===== SINGLE VIEW ===== -->
     <div id="ac-single-view">
@@ -1556,11 +1541,11 @@
 
     <!-- Period trend table -->
     <div class="card" style="margin-top:16px">
-      <div class="card-title"><span class="dot"></span> Hiệu Suất Theo Kỳ</div>
+      <div class="card-title"><span class="dot"></span> Hiệu Suất Theo Shop <span style="font-size:11px;color:var(--text2);font-weight:400">(trong khoảng ngày đã chọn — bấm 1 dòng để xem riêng shop đó)</span></div>
       <div class="table-wrap" style="max-height:360px;overflow-y:auto">
         <table id="ac-trend-table">
           <thead><tr>
-            <th>Kỳ</th>
+            <th>Shop</th>
             <th class="num">Chi Phí</th>
             <th class="num">Doanh Thu</th>
             <th class="num">ROAS</th>
@@ -1586,7 +1571,7 @@
       </div>
       <div id="ac-prod-hint" style="display:none;font-size:12px;padding:10px 12px;border-radius:8px;margin-bottom:10px"></div>
       <div id="ac-prod-empty" style="color:#999;font-size:12px;padding:28px;text-align:center">
-        Bấm <strong>📂 Đồng Bộ Từ Drive</strong> hoặc <strong>📊 Đồng Bộ Từ Sheet</strong> ở khối <strong>"Đồng Bộ Dữ Liệu Chiến Dịch Tự Động"</strong> phía trên để tải dữ liệu.
+        Chọn khoảng ngày ở bộ lọc phía trên để xem dữ liệu.
       </div>
       <div class="table-wrap" style="max-height:560px;overflow-y:auto">
         <table id="ac-prod-table" style="display:none">
@@ -11657,14 +11642,8 @@ async function sapiSyncPerCampaign() {
 // đè tiếp bảng sản phẩm — 2 hệ thống chạy song song, giẫm lên nhau. Giờ chỉ còn 1 luồng
 // render duy nhất (Drive CSV / _acDriveData, mỗi entry 1 kỳ).
 function renderAutoCampPage() {
-  // Giai đoạn 5 (17/08): không còn ép cứng về shop '2hbooks' — giữ nguyên shop đang chọn nếu
-  // vẫn còn dữ liệu (đã đồng bộ Drive trong phiên này), mặc định sang shop đầu tiên có dữ liệu
-  // nếu chưa chọn gì hoặc shop cũ không còn dữ liệu. Chưa đồng bộ lần nào thì render trống
-  // (acRenderShopPills/acRenderPeriodOptions tự hiện nhắc "Bấm Đồng Bộ Từ Drive").
-  if (!_acDriveData.some(d => (d.shopKey || ('unknown_' + d.shopApiId)) === _acViewShop)) {
-    _acViewShop = _acDriveData.length ? (_acDriveData[0].shopKey || ('unknown_' + _acDriveData[0].shopApiId)) : '';
-  }
-  acSelectShop(_acViewShop);
+  // v2026-10-09: nguồn duy nhất = Sheet, lọc theo khoảng ngày (xem acrInit / khối ADR bên dưới)
+  acrInit();
 }
 
 function acShowEmpty(msg) {
@@ -11807,6 +11786,307 @@ function adsShFmtMissing(list) {
 }
 function adsShOverlapDrive(src, rec) {
   return src.filter(d => d.source !== 'sheet' && d.shopApiId === rec.shopApiId && d.dateFrom && d.dateTo && d.dateFrom <= rec.dateTo && rec.dateFrom <= d.dateTo);
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// ★ BỘ LỌC NGÀY + NGUỒN DUY NHẤT = SHEET cho 2 trang "Chiến Dịch Nhóm Sản Phẩm" + "Chiến Dịch Tự Động GMS"
+// Tân xác nhận 2026-10-09: bỏ "Đồng Bộ Từ Drive" + bỏ bộ lọc "Kỳ"; chọn khoảng ngày (lối tắt + lịch,
+// ngày chọn nền đỏ) → hỏi Sheet đúng khoảng đó (get_ads_rows cộng dồn trên server, không cộng trùng);
+// shop: "Tất cả shop" (cộng 6 shop) hoặc 1 shop. Mặc định khi mở trang: 7 ngày qua.
+// State RIÊNG (_gcR/_acR) — KHÔNG đụng _groupCampData/_acDriveData mà trang Tổng Hợp Hệ Thống còn dùng.
+// Prefix: adr / adrp- (không trùng id/hàm cũ). Bộ chọn ngày viết riêng, KHÔNG sửa ovpicker của Tổng Hợp.
+// ══════════════════════════════════════════════════════════════
+const ADR_SHORTCUTS = [['all', 'Tất cả'], ['yesterday', 'Hôm qua'], ['thisweek', 'Tuần này'], ['thismonth', 'Tháng này'], ['lastmonth', 'Tháng trước'], ['last7', '7 ngày qua']];
+function adrFmt(ds) { return ds ? ds.split('-').reverse().join('/') : ''; }
+function adrShortcutRange(t) {
+  const y = adsShYesterday(), now = new Date(), f = adsShYmd;
+  let a, b = y;
+  if (t === 'all') a = ADS_SHEET_FROM;
+  else if (t === 'yesterday') a = y;
+  else if (t === 'thisweek') { const d = now.getDay() || 7; a = f(new Date(now.getFullYear(), now.getMonth(), now.getDate() - d + 1)); }
+  else if (t === 'thismonth') a = f(new Date(now.getFullYear(), now.getMonth(), 1));
+  else if (t === 'lastmonth') { a = f(new Date(now.getFullYear(), now.getMonth() - 1, 1)); b = f(new Date(now.getFullYear(), now.getMonth(), 0)); }
+  else a = adsShAddDays(y, -6);   // last7
+  if (a > b) a = b;               // vd hôm nay là thứ 2 / ngày 1 → chỉ còn hôm qua
+  return { from: a, to: b, key: t };
+}
+function adrRangeLabel(r) {
+  if (!r) return 'Chọn khoảng ngày...';
+  const name = (ADR_SHORTCUTS.find(s => s[0] === r.key) || [])[1];
+  const days = adsShListDays(r.from, r.to).length;
+  return (name ? name + ' · ' : '') + (r.from === r.to ? adrFmt(r.from) : adrFmt(r.from) + ' – ' + adrFmt(r.to)) + ' · ' + days + ' ngày';
+}
+// Bộ chọn ngày kiểu trang Tổng Hợp Hệ Thống: lối tắt bên trái + lịch T2→CN bên phải.
+// Bấm ngày đầu → ngày cuối (bấm 2 lần cùng 1 ngày = 1 ngày). Ngày đầu/cuối nền đỏ đậm, ngày giữa nền đỏ nhạt.
+// Ngày sau hôm qua bị khoá (Sheet chỉ có dữ liệu đến hôm qua).
+function adrMakePicker(hostId, getSel, onPick) {
+  const host = document.getElementById(hostId);
+  if (!host) return null;
+  host.innerHTML =
+    `<div class="adrp-wrap" style="position:relative">
+      <div class="adrp-input" style="display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--gray3);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;background:#fff;min-width:250px;user-select:none">
+        <span>📅</span><span class="adrp-label" style="flex:1;color:var(--text1)"></span><span style="font-size:10px;color:var(--text2)">▼</span>
+      </div>
+      <div class="adrp-dd" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:999;background:#fff;border:1px solid var(--gray3);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15)">
+        <div style="display:flex">
+          <div class="adrp-sc" style="width:140px;border-right:1px solid var(--gray3);padding:8px 0">
+            ${ADR_SHORTCUTS.map(s => `<div data-s="${s[0]}" style="padding:8px 16px;font-size:12.5px;cursor:pointer">${s[1]}</div>`).join('')}
+          </div>
+          <div style="padding:10px 14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <span data-nav="-1" style="cursor:pointer;padding:2px 10px;font-size:16px">‹</span>
+              <b class="adrp-title" style="font-size:13px;min-width:120px;text-align:center"></b>
+              <span data-nav="1" style="cursor:pointer;padding:2px 10px;font-size:16px">›</span>
+            </div>
+            <div class="adrp-grid" style="display:grid;grid-template-columns:repeat(7,32px);gap:2px;text-align:center"></div>
+            <div style="font-size:10.5px;color:var(--text2);margin-top:6px;max-width:240px">Bấm ngày đầu rồi ngày cuối · bấm 2 lần cùng 1 ngày = chọn 1 ngày</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  const wrap = host.querySelector('.adrp-wrap'), input = host.querySelector('.adrp-input'), dd = host.querySelector('.adrp-dd'),
+    lbl = host.querySelector('.adrp-label'), grid = host.querySelector('.adrp-grid'), title = host.querySelector('.adrp-title'), sc = host.querySelector('.adrp-sc');
+  const P = { open: false, step: 0, first: null, y: 0, m: 0 };
+  function close() { P.open = false; P.step = 0; P.first = null; dd.style.display = 'none'; }
+  function draw() {
+    const cur = getSel(), y = P.y, m = P.m, yd = adsShYesterday(), td = adsShYmd(new Date());
+    title.textContent = 'Tháng ' + (m + 1) + ' ' + y;
+    let h = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => `<div style="font-size:10px;font-weight:700;color:var(--text2);line-height:28px">${d}</div>`).join('');
+    const fd = new Date(y, m, 1).getDay(), blanks = fd === 0 ? 6 : fd - 1, dim = new Date(y, m + 1, 0).getDate();
+    for (let i = 0; i < blanks; i++) h += '<div></div>';
+    for (let d = 1; d <= dim; d++) {
+      const ds = y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      const off = ds > yd;
+      const isEnd = P.step === 1 ? ds === P.first : !!(cur && (ds === cur.from || ds === cur.to));
+      const inR = P.step === 0 && cur && ds > cur.from && ds < cur.to;
+      let bg = 'transparent', color = off ? '#cbd5e1' : 'var(--text1)', fw = ds === td ? '700' : '400', rad = '50%';
+      if (isEnd) { bg = 'var(--navy2)'; color = '#fff'; fw = '700'; }
+      else if (inR) { bg = 'rgba(196,61,44,.14)'; rad = '4px'; }
+      h += `<div data-d="${off ? '' : ds}" style="line-height:28px;font-size:12px;border-radius:${rad};background:${bg};color:${color};font-weight:${fw};cursor:${off ? 'not-allowed' : 'pointer'}">${d}</div>`;
+    }
+    grid.innerHTML = h;
+    Array.prototype.forEach.call(sc.children, c => {
+      const on = cur && cur.key === c.getAttribute('data-s');
+      c.style.color = on ? 'var(--navy2)' : 'var(--text1)'; c.style.fontWeight = on ? '700' : '400'; c.style.background = on ? 'var(--navy3)' : '';
+    });
+  }
+  input.addEventListener('click', e => {
+    e.stopPropagation();
+    if (P.open) { close(); return; }
+    const cur = getSel(), ref = cur ? cur.to : adsShYesterday();
+    P.open = true; P.step = 0; P.first = null; P.y = +ref.slice(0, 4); P.m = +ref.slice(5, 7) - 1;
+    dd.style.display = 'block'; draw();
+  });
+  dd.addEventListener('click', e => {
+    e.stopPropagation();
+    const t = e.target, nav = t.getAttribute('data-nav'), s = t.getAttribute('data-s'), ds = t.getAttribute('data-d');
+    if (nav) { P.m += Number(nav); if (P.m > 11) { P.m = 0; P.y++; } if (P.m < 0) { P.m = 11; P.y--; } draw(); return; }
+    if (s) { close(); onPick(adrShortcutRange(s)); return; }
+    if (ds) {
+      if (P.step === 0) { P.first = ds; P.step = 1; draw(); return; }
+      const a = ds < P.first ? ds : P.first, b = ds < P.first ? P.first : ds;
+      close(); onPick({ from: a, to: b, key: '' });
+    }
+  });
+  document.addEventListener('click', e => { if (P.open && !wrap.contains(e.target)) close(); });
+  return { refresh() { lbl.textContent = adrRangeLabel(getSel()); if (P.open) draw(); } };
+}
+// Pill shop: "Tất cả shop" + 6 shop (theo SAPI_SHOPS). Shop không có dữ liệu trong khoảng → mờ đi.
+function adrShopPills(wrapId, sel, hasData, onClickFn) {
+  const wrap = document.getElementById(wrapId);
+  if (!wrap) return;
+  const pill = (key, text, active, dim) => `<button onclick="${onClickFn}('${key}')" style="padding:5px 12px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;border:none;background:${active ? 'var(--navy2)' : 'var(--gray2)'};color:${active ? 'white' : 'var(--text1)'};opacity:${dim && !active ? '.5' : '1'}">${text}</button>`;
+  let h = pill('all', '🏬 Tất cả shop', sel === 'all', false);
+  SAPI_SHOPS.forEach(s => {
+    const key = SAPI_SHOP_MAP[s.id] || ('unknown_' + s.id);
+    const icon = SHOPS[key] ? SHOPS[key].icon : '🏪';
+    h += pill(key, icon + ' ' + s.name, sel === key, !hasData(key));
+  });
+  wrap.innerHTML = h;
+}
+function adrShortName(rec) { return (rec.shopKey && SHOPS[rec.shopKey] && SHOPS[rec.shopKey].short) || rec.shopName; }
+
+// ─────────── Trang Nhóm Sản Phẩm ───────────
+const _gcR = { range: null, shop: 'all', recs: [], miss: {}, loading: false, picker: null, seq: 0 };
+function gcrLog(msg, type) {
+  const logEl = document.getElementById('gc-log');
+  if (!logEl) return;
+  const c = type === 'ok' ? '#27ae60' : type === 'err' ? '#c0392b' : type === 'warn' ? '#f39c12' : '#555';
+  logEl.classList.add('visible');
+  logEl.innerHTML += `<div style="color:${c}">[${new Date().toLocaleTimeString('vi-VN')}] ${msg}</div>`;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function gcrInit() {
+  if (!_gcR.picker) _gcR.picker = adrMakePicker('gc-range-host', () => _gcR.range, r => { _gcR.range = r; gcrLoad(); });
+  if (!_gcR.range) { _gcR.range = adrShortcutRange('last7'); gcrLoad(); return; }
+  gcrRender();
+}
+async function gcrLoad() {
+  const r = _gcR.range, my = ++_gcR.seq;
+  if (_gcR.picker) _gcR.picker.refresh();
+  _gcR.loading = true; gcrRender();
+  const logEl = document.getElementById('gc-log'); if (logEl) logEl.innerHTML = '';
+  gcrLog(`📊 Đọc Sheet "Theo Dõi ADS 2H" — Nhóm, ${adrRangeLabel(r)}...`);
+  try {
+    const resp = await adsSheetCall({ action: 'get_ads_rows', reportType: 'Nhóm', from: r.from, to: r.to });
+    if (my !== _gcR.seq) return;   // đã chọn khoảng khác trong lúc chờ → bỏ kết quả cũ
+    const recs = [], miss = {};
+    for (const sh of (resp.shops || [])) {
+      const si = adsShResolveShop(sh.username, sh.shopName);
+      if (!si) { gcrLog(`  → Shop "${sh.shopName}" không khớp danh sách shop của dashboard, bỏ qua`, 'warn'); continue; }
+      if (!sh.groups || !sh.groups.length) continue;
+      const groups = sh.groups.map(g => ({
+        name: g.name, status: g.status, adType: g.adType || '', views: g.views, clicks: g.clicks,
+        ctr: g.views > 0 ? (g.clicks / g.views * 100).toFixed(2) + '%' : '—',
+        conv: g.conv, convDirect: g.convDirect, sold: g.sold, soldDirect: g.soldDirect,
+        revenue: g.revenue, revenueDirect: g.revenueDirect, cost: g.cost,
+        roas: g.cost > 0 ? g.revenue / g.cost : 0, roasDirect: g.cost > 0 ? g.revenueDirect / g.cost : 0,
+        acos: g.revenue > 0 ? (g.cost / g.revenue * 100).toFixed(2) + '%' : '—',
+        acosDirect: g.revenueDirect > 0 ? (g.cost / g.revenueDirect * 100).toFixed(2) + '%' : '—',
+        voucherAmount: g.voucherAmount, voucheredSales: g.voucheredSales,
+        products: (g.products || []).map(p => ({ name: p.name, itemId: p.itemId, views: p.views, clicks: p.clicks, sold: p.sold, revenue: p.revenue, cost: p.cost, roas: p.cost > 0 ? p.revenue / p.cost : 0 }))
+      }));
+      recs.push({ fileName: `__range__${si.shopApiId}`, source: 'sheet', shopApiId: si.shopApiId, shopKey: si.shopKey, shopName: si.displayName, dateFrom: r.from, dateTo: r.to, dateLabel: adrRangeLabel(r), groups });
+      const m = adsShMissingDays(sh.days || [], r.from, r.to);
+      if (m.length) miss[si.shopKey] = m;
+      gcrLog(`  💾 ${si.displayName}: ${groups.length} nhóm QC, ${(sh.days || []).length} ngày có dữ liệu`, 'ok');
+    }
+    _gcR.recs = recs; _gcR.miss = miss;
+    gcrLog(recs.length ? `✅ Xong: ${recs.length} shop có dữ liệu Nhóm trong khoảng này.` : '⚠ Không có dữ liệu Nhóm nào trong khoảng ngày này.', recs.length ? 'ok' : 'warn');
+    const ls = document.getElementById('gc-last-sync');
+    if (ls) ls.textContent = `Sheet lúc ${new Date().toLocaleString('vi-VN')} — ${adrRangeLabel(r)}`;
+  } catch (e) {
+    if (my !== _gcR.seq) return;
+    _gcR.recs = []; gcrLog(`❌ Lỗi: ${e.message}`, 'err');
+  }
+  _gcR.loading = false; gcrRender();
+}
+function gcrSelectShop(key) { _gcR.shop = key; gcrRender(); }
+function gcrReload() { if (_gcR.range) gcrLoad(); }
+function gcrRender() {
+  if (_gcR.picker) _gcR.picker.refresh();
+  adrShopPills('gc-range-shops', _gcR.shop, k => _gcR.recs.some(x => x.shopKey === k), 'gcrSelectShop');
+  const emptyEl = document.getElementById('gc-empty'), contentEl = document.getElementById('gc-content');
+  const showEmpty = msg => { if (contentEl) contentEl.style.display = 'none'; if (emptyEl) { emptyEl.style.display = ''; emptyEl.innerHTML = msg; } };
+  if (_gcR.loading) { showEmpty('⏳ Đang đọc dữ liệu từ Sheet...'); return; }
+  let rec;
+  if (_gcR.shop === 'all') {
+    // cộng 6 shop: tên nhóm gắn tên shop phía trước để nhóm trùng tên ở 2 shop không bị cộng lẫn
+    const list = _gcR.recs.map(x => ({ ...x, groups: x.groups.map(g => ({ ...g, name: adrShortName(x) + ' · ' + g.name })) }));
+    if (!list.length) { showEmpty('Không có dữ liệu Nhóm Sản Phẩm trong khoảng ngày đã chọn.'); return; }
+    rec = list.length === 1 ? list[0] : gcMergeRecords(list);
+  } else {
+    rec = _gcR.recs.find(x => x.shopKey === _gcR.shop);
+    if (!rec) { showEmpty('Shop này không có dữ liệu Nhóm Sản Phẩm trong khoảng ngày đã chọn.'); return; }
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+  if (contentEl) contentEl.style.display = '';
+  groupCampRenderContent(rec);
+  const keys = _gcR.shop === 'all' ? Object.keys(_gcR.miss) : (_gcR.miss[_gcR.shop] ? [_gcR.shop] : []);
+  const al = document.getElementById('gc-alerts');
+  if (al && keys.length) {
+    al.innerHTML += `<div style="font-size:12px;padding:10px 12px;border-radius:8px;margin-bottom:8px;background:#fff8e1;color:#8a6100;border:1px solid #ffe58f">⚠️ <strong>Sheet còn thiếu ngày</strong> trong khoảng đã chọn (tiện ích chưa tải): ${keys.map(k => `${(SHOPS[k] && SHOPS[k].short) || k} thiếu ${_gcR.miss[k].length} ngày (${adsShFmtMissing(_gcR.miss[k])})`).join(' · ')}</div>`;
+  }
+}
+
+// ─────────── Trang GMS ───────────
+const _acR = { range: null, shop: 'all', recs: [], miss: {}, loading: false, picker: null, seq: 0 };
+function acrLog(msg, type) {
+  const logEl = document.getElementById('ac-prod-log');
+  if (!logEl) return;
+  const c = type === 'ok' ? '#27ae60' : type === 'err' ? '#c0392b' : type === 'warn' ? '#f39c12' : '#555';
+  logEl.classList.add('visible');
+  logEl.innerHTML += `<div style="color:${c}">[${new Date().toLocaleTimeString('vi-VN')}] ${msg}</div>`;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function acrInit() {
+  if (!_acR.picker) _acR.picker = adrMakePicker('ac-range-host', () => _acR.range, r => { _acR.range = r; acrLoad(); });
+  if (!_acR.range) { _acR.range = adrShortcutRange('last7'); acrLoad(); return; }
+  acrRender();
+}
+async function acrLoad() {
+  const r = _acR.range, my = ++_acR.seq;
+  if (_acR.picker) _acR.picker.refresh();
+  _acR.loading = true; acrRender();
+  const logEl = document.getElementById('ac-prod-log'); if (logEl) logEl.innerHTML = '';
+  acrLog(`📊 Đọc Sheet "Theo Dõi ADS 2H" — GMS, ${adrRangeLabel(r)}...`);
+  try {
+    const resp = await adsSheetCall({ action: 'get_ads_rows', reportType: 'GMS', from: r.from, to: r.to });
+    if (my !== _acR.seq) return;
+    const recs = [], miss = {};
+    for (const sh of (resp.shops || [])) {
+      const si = adsShResolveShop(sh.username, sh.shopName);
+      if (!si) { acrLog(`  → Shop "${sh.shopName}" không khớp danh sách shop của dashboard, bỏ qua`, 'warn'); continue; }
+      if (!sh.items || !sh.items.length) continue;
+      const items = sh.items.map(p => ({
+        item_id: p.item_id, item_name: p.item_name, impression: p.impression, clicks: p.clicks,
+        ctr_str: p.impression > 0 ? (p.clicks / p.impression * 100).toFixed(2) + '%' : '—',
+        expense: p.expense, broad_gmv: p.broad_gmv, broad_order: p.broad_order,
+        roas: p.expense > 0 ? p.broad_gmv / p.expense : 0, roas_str: p.expense > 0 ? (p.broad_gmv / p.expense).toFixed(2) : '—'
+      }));
+      const rec = { key: 'range_' + si.shopApiId, shopApiId: si.shopApiId, shopKey: si.shopKey, shopName: si.displayName, cost: 0, rev: 0, imp: 0, clk: 0, ord: 0, items };
+      items.forEach(p => { rec.cost += p.expense; rec.rev += p.broad_gmv; rec.imp += p.impression; rec.clk += p.clicks; rec.ord += p.broad_order; });
+      recs.push(rec);
+      const m = adsShMissingDays(sh.days || [], r.from, r.to);
+      if (m.length) miss[si.shopKey] = m;
+      acrLog(`  → ${si.displayName}: ${items.length} SP, ${(sh.days || []).length} ngày có dữ liệu`, 'ok');
+    }
+    _acR.recs = recs; _acR.miss = miss;
+    acrLog(recs.length ? `✅ Xong: ${recs.length} shop có dữ liệu GMS trong khoảng này.` : '⚠ Không có dữ liệu GMS nào trong khoảng ngày này.', recs.length ? 'ok' : 'warn');
+  } catch (e) {
+    if (my !== _acR.seq) return;
+    _acR.recs = []; acrLog(`❌ Lỗi: ${e.message}`, 'err');
+  }
+  _acR.loading = false; acrRender();
+}
+function acrSelectShop(key) { _acR.shop = key; acrRender(); }
+function acrReload() { if (_acR.range) acrLoad(); }
+function acrRender() {
+  if (_acR.picker) _acR.picker.refresh();
+  adrShopPills('ac-range-shops', _acR.shop, k => _acR.recs.some(x => x.shopKey === k), 'acrSelectShop');
+  const setT = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  const tbody = document.getElementById('ac-trend-tbody');
+  const blank = msg => {
+    ['ac-kpi-cost', 'ac-kpi-rev', 'ac-kpi-roas', 'ac-kpi-imp', 'ac-kpi-clk', 'ac-kpi-ord'].forEach(id => setT(id, '–'));
+    if (tbody) tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:24px;color:#999">${msg}</td></tr>`;
+    acShowEmpty(msg);
+    const me = document.getElementById('ac-range-miss'); if (me) me.style.display = 'none';
+  };
+  if (_acR.loading) { blank('⏳ Đang đọc dữ liệu từ Sheet...'); return; }
+  const recs = _acR.shop === 'all' ? _acR.recs : _acR.recs.filter(x => x.shopKey === _acR.shop);
+  if (!recs.length) { blank(_acR.shop === 'all' ? 'Không có dữ liệu GMS trong khoảng ngày đã chọn.' : 'Shop này không có dữ liệu GMS trong khoảng ngày đã chọn.'); return; }
+  const tot = { cost: 0, rev: 0, imp: 0, clk: 0, ord: 0 };
+  recs.forEach(x => { tot.cost += x.cost; tot.rev += x.rev; tot.imp += x.imp; tot.clk += x.clk; tot.ord += x.ord; });
+  setT('ac-kpi-cost', fmtMoney(tot.cost)); setT('ac-kpi-rev', fmtMoney(tot.rev));
+  setT('ac-kpi-roas', tot.cost > 0 ? (tot.rev / tot.cost).toFixed(2) : '—');
+  setT('ac-kpi-imp', tot.imp.toLocaleString('vi-VN')); setT('ac-kpi-clk', tot.clk.toLocaleString('vi-VN')); setT('ac-kpi-ord', tot.ord.toLocaleString('vi-VN'));
+  // Bảng "Hiệu Suất Theo Shop": mỗi shop 1 dòng trong khoảng ngày đã chọn (bấm dòng = xem riêng shop đó) + dòng tổng khi xem Tất cả
+  const row = (name, r, key, isSel, bold) => {
+    const roas = r.cost > 0 ? r.rev / r.cost : 0, acos = r.rev > 0 ? r.cost / r.rev * 100 : 0, ctr = r.imp > 0 ? r.clk / r.imp * 100 : 0;
+    const roasColor = roas >= 15 ? 'var(--green)' : roas >= 8 ? 'var(--orange)' : r.cost > 0 ? 'var(--red)' : 'var(--text2)';
+    const acosColor = acos > 0 && acos <= 7 ? 'var(--green)' : acos <= 15 ? 'var(--orange)' : r.rev > 0 ? 'var(--red)' : 'var(--text2)';
+    return `<tr style="cursor:pointer;${isSel ? 'background:var(--navy3);' : ''}${bold ? 'font-weight:700;' : ''}" onclick="acrSelectShop('${key}')">
+      <td style="font-weight:600">${name}</td>
+      <td class="num" style="color:var(--orange)">${fmtMoney(r.cost)}</td><td class="num" style="color:var(--green)">${fmtMoney(r.rev)}</td>
+      <td class="num" style="font-weight:700;color:${roasColor}">${roas > 0 ? roas.toFixed(2) : '—'}</td>
+      <td class="num" style="font-weight:700;color:${acosColor}">${acos > 0 ? acos.toFixed(1) + '%' : '—'}</td>
+      <td class="num">${r.imp.toLocaleString('vi-VN')}</td><td class="num">${r.clk.toLocaleString('vi-VN')}</td>
+      <td class="num">${ctr > 0 ? ctr.toFixed(2) + '%' : '—'}</td><td class="num">${r.ord}</td></tr>`;
+  };
+  if (tbody) {
+    let h = _acR.recs.length > 1 ? row('🏬 Tổng ' + _acR.recs.length + ' shop', (() => { const t = { cost: 0, rev: 0, imp: 0, clk: 0, ord: 0 }; _acR.recs.forEach(x => { t.cost += x.cost; t.rev += x.rev; t.imp += x.imp; t.clk += x.clk; t.ord += x.ord; }); return t; })(), 'all', _acR.shop === 'all', true) : '';
+    h += [..._acR.recs].sort((a, b) => b.cost - a.cost).map(x => row(((SHOPS[x.shopKey] && SHOPS[x.shopKey].icon) || '🏪') + ' ' + x.shopName, x, x.shopKey, _acR.shop === x.shopKey, false)).join('');
+    tbody.innerHTML = h;
+  }
+  const items = _acR.shop === 'all' ? [].concat(...recs.map(x => x.items.map(p => ({ ...p, item_name: adrShortName(x) + ' · ' + p.item_name })))) : recs[0].items;
+  acRenderProductTable(items, adrRangeLabel(_acR.range));
+  const keys = _acR.shop === 'all' ? Object.keys(_acR.miss) : (_acR.miss[_acR.shop] ? [_acR.shop] : []);
+  const missEl = document.getElementById('ac-range-miss');
+  if (missEl) {
+    missEl.style.display = keys.length ? '' : 'none';
+    missEl.innerHTML = keys.length ? `⚠️ <strong>Sheet còn thiếu ngày</strong> trong khoảng đã chọn (tiện ích chưa tải): ${keys.map(k => `${(SHOPS[k] && SHOPS[k].short) || k} thiếu ${_acR.miss[k].length} ngày (${adsShFmtMissing(_acR.miss[k])})`).join(' · ')}` : '';
+  }
 }
 
 // ── Trang Nhóm Sản Phẩm: dựng 1 "kỳ" cho mỗi shop từ số liệu đã cộng dồn theo ngày
@@ -13146,16 +13426,8 @@ function gcRenderBestWorst(groups) {
 // Gọi khi vào trang — KHÔNG tự đồng bộ, chỉ hiển thị lại dữ liệu đã có sẵn trong bộ nhớ
 // (nếu Tân đã bấm Đồng Bộ Từ Drive trước đó trong cùng phiên làm việc).
 function renderGroupCampPage() {
-  if (_groupCampData.length) {
-    groupCampRenderShopPills();
-    groupCampSelectShop(_groupCampShop);
-  } else {
-    groupCampRenderShopPills();
-    const contentEl = document.getElementById('gc-content');
-    const emptyEl = document.getElementById('gc-empty');
-    if (contentEl) contentEl.style.display = 'none';
-    if (emptyEl) emptyEl.style.display = '';
-  }
+  // v2026-10-09: nguồn duy nhất = Sheet, lọc theo khoảng ngày (xem gcrInit / khối ADR bên dưới)
+  gcrInit();
 }
 
 // ══════════════════════════════════════════════════════════════
