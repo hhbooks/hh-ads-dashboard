@@ -1540,7 +1540,7 @@
     <!-- Cần xử lý: gom việc cần hành động lên ngay dưới KPI (SP ROAS thấp, shop ROAS giảm mạnh, Sheet thiếu ngày) -->
     <div class="card acr-todo" id="ac-todo"><div class="th-empty">Chưa có dữ liệu</div></div>
 
-    <!-- Khối chính 62/38: xu hướng theo ngày | Top 5 SP tốn chi phí nhất -->
+    <!-- Khối chính 62/38: xu hướng theo ngày | Top 10 SP ROAS dưới 15 tốn tiền nhất -->
     <div class="acr-split">
       <div class="card">
         <div class="card-title" style="flex-wrap:wrap"><span class="dot"></span> ROAS theo ngày <span id="ac-chart-legend" style="font-size:12.5px;color:var(--text2);font-weight:400;margin-left:auto"></span></div>
@@ -1552,7 +1552,7 @@
         </div>
       </div>
       <div class="card">
-        <div class="card-title"><span class="dot"></span> Top 5 SP tốn chi phí nhất</div>
+        <div class="card-title" style="flex-wrap:wrap"><span class="dot"></span> Top 10 SP ROAS dưới 15 <span style="font-size:11.5px;color:var(--text2);font-weight:400">— tốn tiền nhất, chi phí ≥ 20.000đ</span></div>
         <div id="ac-top5"><div class="th-empty">Chưa có dữ liệu</div></div>
       </div>
     </div>
@@ -12254,28 +12254,36 @@ function acrRenderChart(keys, msg) {
       ticks: { font: { size: 12.5 }, color: '#5b7369', maxTicksLimit: 4, callback: v => acrMoneyShort(v) } } }
   } });
 }
-// Top 5 SP tốn chi phí nhất trong khoảng đang xem — thanh xám trung tính, chỉ đỏ khi ROAS dưới ngưỡng
+// Top 10 SP ROAS dưới 15 (Tân chốt 2026-10-09): chỉ SP đã tốn ≥ AC_PROD_MIN_COST_FOR_FLAG (đủ dữ liệu đánh giá),
+// xếp theo chi phí giảm dần (chỗ đang lãng phí nhiều nhất lên đầu). 2 mức: ROAS < 10 đỏ = nên loại; 10–15 vàng = nên tối ưu.
+const ACR_ROAS_OPT = 15;
 function acrRenderTop5(items) {
   const el = document.getElementById('ac-top5');
   if (!el) return;
-  const all = items || [], top = [...all].sort((a, b) => (b.expense || 0) - (a.expense || 0)).slice(0, 5);
-  if (!top.length || !(top[0].expense > 0)) { el.innerHTML = '<div class="th-empty">Chưa có dữ liệu</div>'; return; }
-  const max = top[0].expense, total = all.reduce((a, p) => a + (p.expense || 0), 0);
-  const topSum = top.reduce((a, p) => a + (p.expense || 0), 0);
-  el.innerHTML = top.map((p, i) => {
-    const roas = p.expense > 0 ? (p.broad_gmv || 0) / p.expense : 0, low = p.expense > 0 && roas < ACR_ROAS_LOW;
-    const w = Math.max(2, (p.expense || 0) / max * 100);
-    return `<div style="padding:11px 0;border-bottom:1px solid var(--gray3)">
-      <div style="display:flex;justify-content:space-between;gap:10px;font-size:13.5px">
-        <span title="${acrEsc(p.item_name)}" style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i + 1}. ${acrEsc(p.item_name)}</span>
-        <span style="white-space:nowrap;font-weight:700">${fmtMoney(p.expense || 0)}</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
-        <div style="flex:1;height:12px;background:var(--g1);border-radius:6px;overflow:hidden"><div style="width:${w}%;height:100%;background:${i === 0 ? 'var(--g7)' : 'var(--g3)'};border-radius:6px"></div></div>
-        <span style="font-size:12.5px;min-width:96px;text-align:right;color:${low ? 'var(--red)' : 'var(--text2)'};font-weight:${low ? 700 : 400}">${low ? '⚠ ' : ''}ROAS ${roas > 0 ? roas.toFixed(2) : '—'}</span>
-      </div>
-    </div>`;
-  }).join('') + `<div style="font-size:12.5px;color:var(--text2);margin-top:12px">5 SP này chiếm ${total > 0 ? (topSum / total * 100).toFixed(0) : 0}% chi phí GMS của ${all.length} SP đang xem</div>`;
+  const all = items || [], total = all.reduce((a, p) => a + (p.expense || 0), 0);
+  const roasOf = p => p.expense > 0 ? (p.broad_gmv || 0) / p.expense : 0;
+  const cand = all.filter(p => (p.expense || 0) >= AC_PROD_MIN_COST_FOR_FLAG && roasOf(p) < ACR_ROAS_OPT).sort((a, b) => (b.expense || 0) - (a.expense || 0));
+  if (!all.length) { el.innerHTML = '<div class="th-empty">Chưa có dữ liệu</div>'; return; }
+  if (!cand.length) { el.innerHTML = `<div class="th-empty" style="color:var(--g7)">✓ Không có SP nào tốn ≥ ${fmtMoney(AC_PROD_MIN_COST_FOR_FLAG)} mà ROAS dưới ${ACR_ROAS_OPT}</div>`; return; }
+  const top = cand.slice(0, 10), max = top[0].expense || 1;
+  const nRed = cand.filter(p => roasOf(p) < ACR_ROAS_LOW).length, nAmb = cand.length - nRed;
+  const candSum = cand.reduce((a, p) => a + (p.expense || 0), 0);
+  el.innerHTML = `<div style="display:flex;gap:14px;font-size:12px;margin:-6px 0 6px;color:var(--text2)">
+      <span><b style="color:#dc2626">● ${nRed}</b> ROAS &lt; ${ACR_ROAS_LOW} — nên loại</span><span><b style="color:#b45309">● ${nAmb}</b> ROAS ${ACR_ROAS_LOW}–${ACR_ROAS_OPT} — nên tối ưu</span></div>` +
+    top.map((p, i) => {
+      const roas = roasOf(p), red = roas < ACR_ROAS_LOW, w = Math.max(2, (p.expense || 0) / max * 100);
+      return `<div style="padding:7px 0;border-bottom:1px solid var(--gray3)">
+        <div style="display:flex;justify-content:space-between;gap:10px;font-size:13px">
+          <span title="${acrEsc(p.item_name)}" style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i + 1}. ${acrEsc(p.item_name)}</span>
+          <span style="white-space:nowrap;font-weight:700">${fmtMoney(p.expense || 0)}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+          <div style="flex:1;height:10px;background:#f3f4f6;border-radius:5px;overflow:hidden"><div style="width:${w}%;height:100%;background:${red ? '#f87171' : '#f5c26b'};border-radius:5px"></div></div>
+          <span style="font-size:12.5px;min-width:110px;text-align:right;font-weight:700;color:${red ? '#dc2626' : '#b45309'}">${red ? '⚠ ' : ''}ROAS ${roas > 0 ? roas.toFixed(2) : '0'}</span>
+        </div>
+      </div>`;
+    }).join('') +
+    `<div style="font-size:12.5px;color:var(--text2);margin-top:10px">${cand.length} SP ROAS dưới ${ACR_ROAS_OPT} đang tốn <b style="color:var(--text)">${fmtMoney(candSum)}</b> — ${total > 0 ? (candSum / total * 100).toFixed(1) : 0}% chi phí GMS${cand.length > 10 ? ` (đang hiện 10 SP tốn nhất, xem đủ ở bảng SP bên dưới)` : ''}</div>`;
 }
 function acrReload() { if (_acR.range) acrLoad(); }
 function acrRender() {
