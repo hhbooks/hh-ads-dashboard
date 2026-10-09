@@ -1691,6 +1691,7 @@
          gọi lại Drive/API. -->
     <div class="card" style="margin-top:16px">
       <div class="card-title"><span class="dot" style="background:#8E44AD"></span> So Sánh Các Loại Chiến Dịch</div>
+      <div id="th-camp-sheet-note" style="display:none;font-size:12px;padding:8px 12px;border-radius:8px;margin:6px 0 4px"></div>
       <div class="kpi-grid" style="margin-top:8px;margin-bottom:0">
         <div class="kpi-card">
           <div class="kpi-label">💰 Tổng Doanh Thu</div>
@@ -1730,9 +1731,8 @@
 
     <!-- Phân Tích Theo Loại Chiến Dịch: Nhóm SP / GMS / Đơn — Đơn = Tổng Quan trừ Nhóm SP trừ
          GMS, cùng khoảng ngày Bộ Lọc Kỳ Xem (xác nhận Tân 2026-08-11). Nhóm SP & GMS lấy theo
-         FILE Tân tải thủ công từ Shopee (mỗi file = 1 kỳ cố định, không chia theo ngày được) —
-         ưu tiên kỳ khớp/giao với khoảng đang lọc, không khớp thì dùng kỳ gần nhất đã cập nhật
-         (nhãn ⚠️ + khoảng ngày thực tế hiển thị ngay trong bảng để Tân tự đối chiếu).
+         Sheet "Theo Dõi ADS 2H" đúng khoảng Bộ Lọc Kỳ Xem (từ 2026-10-09, bỏ Drive) — cột
+         "Dữ liệu Sheet" báo shop nào còn thiếu ngày để Tân tự đối chiếu.
          Mỗi loại lặp lại đúng layout đầu trang: 4 KPI (Doanh Thu/Chi Phí/ROAS/ACOS) + bảng So
          Sánh Từng Shop bên dưới — KHÔNG dùng biểu đồ cột nữa (xác nhận Tân 2026-08-11, đổi từ
          bản chart+list trước đó). -->
@@ -4410,8 +4410,8 @@ window.addEventListener('DOMContentLoaded', () => {
     setTimeout(async () => {
       // Load lịch sử ADS từ Google Drive (data đã sync qua Chi Tiết Campaigns)
       if (typeof sapiAutoLoadFromDrive === 'function') await sapiAutoLoadFromDrive();
-      // Load GMS data từ Google Drive (Chiến Dịch Tự Động GMS)
-      if (typeof gmsAutoLoadFromDrive === 'function') await gmsAutoLoadFromDrive();
+      // (2026-10-09) Bỏ gmsAutoLoadFromDrive(): chỉ ghi vào _gmsDriveCache mà không nơi nào đọc —
+      // Nhóm SP/GMS giờ đọc duy nhất từ Sheet "Theo Dõi ADS 2H".
       ovDriveLoaded = true;
       // Nếu người dùng đã lỡ chọn khoảng ngày TRƯỚC KHI Drive đọc xong (ví dụ bấm lịch ngay khi
       // vừa mở trang), lúc đó ovFilterDays được khớp với cData().dateBlocks lúc đó CHƯA ĐẦY ĐỦ —
@@ -19098,11 +19098,67 @@ function _thPickPeriod(periods) {
   return { ...sorted[0], matched: null };
 }
 
+// ★ (Tân xác nhận 2026-10-09) Tổng Hợp Hệ Thống: Nhóm SP & GMS đọc THẲNG Sheet "Theo Dõi ADS 2H"
+// đúng khoảng Bộ Lọc Kỳ Xem (get_ads_rows cộng dồn theo ngày trên server) — bỏ Drive + bỏ
+// "chọn kỳ gần nhất" (_thPickPeriod). Sheet chỉ có tới HÔM QUA → khoảng lọc có hôm nay thì cắt
+// về hôm qua và báo rõ. Cache 10 phút theo khoảng ngày để đổi qua lại filter không gọi lại.
+const _thSheetCache = {}; // { 'from|to': { at, promise } }
+let _thLastSheet = null;  // kết quả Sheet của lần tính gần nhất (để vẽ dòng ghi chú)
+let _thCampReqId = 0;
+function _thSheetRange() {
+  const yd = adsShYesterday();
+  const from = _thFilterFrom || ADS_SHEET_FROM;
+  const to0 = _thFilterTo || yd, to = to0 > yd ? yd : to0;
+  return { from, to, cut: to0 > yd, all: !_thFilterFrom && !_thFilterTo, empty: from > to };
+}
+function _thLoadSheetAds() {
+  const rg = _thSheetRange(), key = rg.from + '|' + rg.to + '|' + rg.cut;
+  const c = _thSheetCache[key];
+  if (c && Date.now() - c.at < 10 * 60 * 1000) return c.promise;
+  const promise = (async () => {
+    const out = { range: rg, nhom: {}, gms: {}, err: [], first: { nhom: '', gms: '' } };
+    if (rg.empty) return out;
+    const [rn, rm] = await Promise.allSettled([
+      adsSheetCall({ action: 'get_ads_rows', reportType: 'Nhóm', from: rg.from, to: rg.to }),
+      adsSheetCall({ action: 'get_ads_rows', reportType: 'GMS',  from: rg.from, to: rg.to }),
+    ]);
+    const take = (res, kind) => {
+      if (res.status !== 'fulfilled') { out.err.push((kind === 'nhom' ? 'Nhóm' : 'GMS') + ': ' + (res.reason && res.reason.message || res.reason)); return; }
+      for (const sh of (res.value.shops || [])) {
+        const si = adsShResolveShop(sh.username, sh.shopName);
+        if (!si || !si.shopKey) continue;
+        const days = (sh.days || []).filter(d => d >= rg.from && d <= rg.to).sort();
+        if (days.length && (!out.first[kind] || days[0] < out.first[kind])) out.first[kind] = days[0];
+        if (kind === 'nhom') {
+          const groups = sh.groups || [];
+          out.nhom[si.shopKey] = { days, groups, chi: groups.reduce((a, g) => a + (+g.cost || 0), 0), rev: groups.reduce((a, g) => a + (+g.revenue || 0), 0) };
+        } else {
+          const items = sh.items || [];
+          out.gms[si.shopKey] = { days, items, chi: items.reduce((a, p) => a + (+p.expense || 0), 0), rev: items.reduce((a, p) => a + (+p.broad_gmv || 0), 0) };
+        }
+      }
+    };
+    take(rn, 'nhom'); take(rm, 'gms');
+    return out;
+  })();
+  _thSheetCache[key] = { at: Date.now(), promise };
+  promise.then(o => { if (o.err.length) delete _thSheetCache[key]; }, () => { delete _thSheetCache[key]; });
+  return promise;
+}
+// Độ phủ ngày của 1 shop trên Sheet trong khoảng đang lọc. Lọc "Tất cả" → tính từ ngày đầu tiên
+// Sheet có dữ liệu loại đó (không tính các tháng trước khi bắt đầu theo dõi là "thiếu").
+function _thSheetPeriod(sd, kind, shopKey) {
+  const rg = sd.range, rec = sd[kind][shopKey];
+  let from = rg.from;
+  if (rg.all && sd.first[kind] && sd.first[kind] > from) from = sd.first[kind];
+  const total = rg.empty ? 0 : adsShListDays(from, rg.to).length;
+  const have = rec ? rec.days.filter(d => d >= from).length : 0;
+  return { dateFrom: from, dateTo: rg.to, total, have, missing: Math.max(0, total - have) };
+}
+
 async function _thComputeCampaignTypeBreakdown() {
-  await Promise.all([
-    _gcDriveLoaded ? Promise.resolve() : groupCampSyncFromDrive(),
-    _thLoadGmsAllShops(),
-  ]);
+  const sd = await _thLoadSheetAds();
+  _thLastSheet = sd;
 
   const out = [];
   Object.keys(SHOPS).forEach(shopId => {
@@ -19110,20 +19166,10 @@ async function _thComputeCampaignTypeBreakdown() {
     const tong = _thGetShopTotals(shopId);
     if (!tong) return; // Không có dữ liệu Tổng Quan trong kỳ đang lọc → không tính được Đơn, bỏ qua shop
 
-    const nhomPeriods = _groupCampData.filter(d => d.shopApiId === apiId).map(d => ({
-      dateFrom: d.dateFrom, dateTo: d.dateTo,
-      chi: d.groups.reduce((s, g) => s + (g.cost || 0), 0),
-      rev: d.groups.reduce((s, g) => s + (g.revenue || 0), 0),
-    }));
-    const nhomPick = _thPickPeriod(nhomPeriods);
-
-    const gmsPeriods = _thGmsAllData.filter(d => d.shopApiId === apiId).map(d => ({
-      dateFrom: d.dateFrom, dateTo: d.dateTo, chi: d.cost, rev: d.rev,
-    }));
-    const gmsPick = _thPickPeriod(gmsPeriods);
-
-    const nhomChi = nhomPick ? nhomPick.chi : 0, nhomRev = nhomPick ? nhomPick.rev : 0;
-    const gmsChi  = gmsPick  ? gmsPick.chi  : 0, gmsRev  = gmsPick  ? gmsPick.rev  : 0;
+    const nr = sd.nhom[shopId], gr = sd.gms[shopId];
+    const nhomPick = _thSheetPeriod(sd, 'nhom', shopId), gmsPick = _thSheetPeriod(sd, 'gms', shopId);
+    const nhomChi = nr ? nr.chi : 0, nhomRev = nr ? nr.rev : 0;
+    const gmsChi  = gr ? gr.chi : 0, gmsRev  = gr ? gr.rev : 0;
     // Không âm — chênh lệch âm chỉ có thể do Nhóm SP/GMS đang lấy nhầm kỳ có chi phí cao hơn cả
     // kỳ Tổng Quan đang lọc (lệch ngày), kẹp về 0 để tránh hiện số âm gây hiểu lầm.
     const donChi = Math.max(0, tong.chi_phi - nhomChi - gmsChi);
@@ -19281,15 +19327,12 @@ function _thMakeCatItem(shopId, ten, ma_sp, chi_phi, doanh_so) {
 // (xác nhận Tân 2026-08-12, đối chiếu file Shopee thật cho thấy Nhóm SP + GMS đều đã có breakdown
 // từng SP sẵn — đọc trực tiếp từ đó, không cần dò ngược từ Tổng Quan).
 async function _thGetCategorySourceProducts() {
-  await Promise.all([
-    _gcDriveLoaded ? Promise.resolve() : groupCampSyncFromDrive(),
-    _thLoadGmsAllShops(),
-  ]);
+  const sd = await _thLoadSheetAds();   // (2026-10-09) Nhóm/GMS từ Sheet đúng khoảng Bộ Lọc Kỳ Xem
 
   // Tên các dòng "giả" đại diện cả 1 Nhóm/GMS (không phải 1 SP thật) trong Tổng Quan — loại ra
   // trước khi gộp để không đếm trùng tiền đã lấy riêng theo từng SP thật ở bước (2)+(3).
   const pseudoNames = new Set(['⚡ Chiến dịch Tự Động (Shop Level)']);
-  _groupCampData.forEach(d => (d.groups || []).forEach(g => pseudoNames.add(g.name)));
+  Object.values(sd.nhom).forEach(r => (r.groups || []).forEach(g => pseudoNames.add(g.name)));
 
   const out = [];
 
@@ -19302,11 +19345,9 @@ async function _thGetCategorySourceProducts() {
   // 2) Chiến Dịch Nhóm Sản Phẩm — dùng thẳng products[] có sẵn theo từng nhóm (đã lưu từ trước
   //    cho card "SP Tốt Nhất/Yếu Nhất"), đúng shop + kỳ khớp Bộ Lọc Kỳ Xem (dùng lại _thPickPeriod).
   Object.keys(SHOPS).forEach(shopId => {
-    const apiId = SAPI_SHOP_MAP_INV[shopId];
-    const entries = _groupCampData.filter(d => d.shopApiId === apiId);
-    const pick = _thPickPeriod(entries.map(d => ({ dateFrom: d.dateFrom, dateTo: d.dateTo, _entry: d })));
-    if (!pick) return;
-    (pick._entry.groups || []).forEach(g => {
+    const r = sd.nhom[shopId];
+    if (!r) return;
+    (r.groups || []).forEach(g => {
       (g.products || []).forEach(sp => out.push(_thMakeCatItem(shopId, sp.name, sp.itemId, sp.cost, sp.revenue)));
     });
   });
@@ -19314,11 +19355,9 @@ async function _thGetCategorySourceProducts() {
   // 3) Chiến Dịch Tự Động GMS — dùng items[] đã giữ lại (xem _thLoadGmsAllShops), cùng nguyên
   //    tắc khớp kỳ như Nhóm SP.
   Object.keys(SHOPS).forEach(shopId => {
-    const apiId = SAPI_SHOP_MAP_INV[shopId];
-    const entries = _thGmsAllData.filter(d => d.shopApiId === apiId);
-    const pick = _thPickPeriod(entries.map(d => ({ dateFrom: d.dateFrom, dateTo: d.dateTo, _entry: d })));
-    if (!pick) return;
-    (pick._entry.items || []).forEach(sp => out.push(_thMakeCatItem(shopId, sp.item_name, sp.item_id, sp.expense, sp.broad_gmv)));
+    const r = sd.gms[shopId];
+    if (!r) return;
+    (r.items || []).forEach(sp => out.push(_thMakeCatItem(shopId, sp.item_name, sp.item_id, sp.expense, sp.broad_gmv)));
   });
 
   return out.filter(p => p.doanh_so > 0 || p.chi_phi > 0);
@@ -19769,6 +19808,8 @@ function _thRenderContent() {
     const costShareList = document.getElementById('th-costshare-list');
     if (costShareList) costShareList.innerHTML = '<div class="th-empty">Chưa có dữ liệu</div>';
     if (_thChartCostShare) { _thChartCostShare.destroy(); _thChartCostShare = null; }
+    // (2026-10-09) làm mới luôn 4 card Chiến Dịch — trước đây giữ nguyên số của khoảng ngày cũ
+    if (typeof renderTHCampaignTypeSection === 'function') renderTHCampaignTypeSection();
     return;
   }
 
@@ -20004,7 +20045,7 @@ function _thCampBuildTable(rows, type) {
       <th>ROAS</th>
       <th>ACOS</th>
       <th>%CP</th>
-      ${showPeriod ? '<th>Kỳ</th>' : ''}
+      ${showPeriod ? '<th>Dữ liệu Sheet</th>' : ''}
     </tr></thead><tbody>`;
   sorted.forEach(s => {
     const d = s[type];
@@ -20014,9 +20055,9 @@ function _thCampBuildTable(rows, type) {
     let periodCell = '';
     if (showPeriod) {
       if (d.period) {
-        const warn = d.period.matched === false;
-        const label = `${gcFmtDate(d.period.dateFrom)}–${gcFmtDate(d.period.dateTo)}`;
-        periodCell = `<td style="text-align:left;white-space:nowrap;font-size:12px;color:${warn ? '#c0392b' : 'var(--text2)'};font-weight:${warn ? '700' : '400'}">${warn ? '⚠️ ' : ''}${label}</td>`;
+        const p = d.period, warn = p.missing > 0;
+        const label = warn ? `⚠️ thiếu ${p.missing}/${p.total} ngày` : `✓ đủ ${p.total} ngày`;
+        periodCell = `<td title="${gcFmtDate(p.dateFrom)}–${gcFmtDate(p.dateTo)}: Sheet có ${p.have}/${p.total} ngày" style="text-align:left;white-space:nowrap;font-size:12px;color:${warn ? '#c0392b' : 'var(--text2)'};font-weight:${warn ? '700' : '400'}">${label}</td>`;
       } else {
         periodCell = `<td style="text-align:left;white-space:nowrap;font-size:12px;color:var(--text2)">—</td>`;
       }
@@ -20197,14 +20238,40 @@ function _thRenderCampaignTypeCompareCard(rows) {
   _thRenderGenericShareChart('th-camptype-chart-cost', 'th-camptype-costshare-list', costItems, grandChi);
 }
 
+// Dòng ghi chú nguồn Sheet ở đầu card "So Sánh Các Loại Chiến Dịch": khoảng đang đọc + cảnh báo
+function _thRenderSheetNote(sd) {
+  const el = document.getElementById('th-camp-sheet-note');
+  if (!el || !sd) return;
+  const rg = sd.range, f = gcFmtDate, warns = [];
+  if (sd.err.length) warns.push('❌ Không đọc được Sheet (' + sd.err.join(' · ') + ') — Nhóm/GMS đang tính = 0');
+  if (rg.empty) warns.push('Sheet chỉ có dữ liệu đến hôm qua — khoảng đã chọn chưa có Nhóm/GMS, toàn bộ chi phí đang nằm ở Chiến Dịch Đơn');
+  else if (rg.cut) warns.push(`Hôm nay chưa có trên Sheet (tiện ích tải tới hôm qua) — Nhóm/GMS hôm nay đang tính vào Chiến Dịch Đơn`);
+  if (!rg.empty && !sd.err.length) {
+    const noN = !Object.keys(sd.nhom).length, noG = !Object.keys(sd.gms).length;
+    if (noN && noG) warns.push('Sheet chưa có dữ liệu Nhóm/GMS cho khoảng này — toàn bộ chi phí đang nằm ở Chiến Dịch Đơn');
+    else if (rg.all) warns.push(`Sheet có Nhóm từ ${sd.first.nhom ? f(sd.first.nhom) : '—'}, GMS từ ${sd.first.gms ? f(sd.first.gms) : '—'} — trước các ngày đó Nhóm/GMS = 0, chi phí nằm ở Chiến Dịch Đơn`);
+    const miss = [];
+    Object.keys(SHOPS).forEach(k => ['nhom', 'gms'].forEach(t => { if (sd[t][k]) { const p = _thSheetPeriod(sd, t, k); if (p.missing) miss.push(`${SHOPS[k].short || k} ${t === 'nhom' ? 'Nhóm' : 'GMS'} thiếu ${p.missing} ngày`); } }));
+    if (miss.length) warns.push('Sheet còn thiếu ngày: ' + miss.join(' · '));
+  }
+  const src = rg.empty ? '' : ` · ${f(rg.from)} – ${f(rg.to)}`;
+  el.style.display = '';
+  el.style.background = warns.length ? '#fff8e1' : 'var(--gray2)';
+  el.style.color = warns.length ? '#8a6100' : 'var(--text2)';
+  el.innerHTML = `📊 Nhóm SP &amp; GMS đọc từ Sheet "Theo Dõi ADS 2H"${src}` + warns.map(w => `<div style="margin-top:3px">⚠️ ${w}</div>`).join('');
+}
+
 async function renderTHCampaignTypeSection() {
   const wrapIds = ['th-camptype-table-wrap', 'th-camp-nhom-table-wrap', 'th-camp-gms-table-wrap', 'th-camp-don-table-wrap'];
   wrapIds.forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = '<div class="th-empty">⏳ Đang tải dữ liệu Nhóm SP/GMS từ Drive...</div>';
+    if (el) el.innerHTML = '<div class="th-empty">⏳ Đang đọc Nhóm SP/GMS từ Sheet "Theo Dõi ADS 2H"...</div>';
   });
 
+  const myReq = ++_thCampReqId;
   const rows = await _thComputeCampaignTypeBreakdown();
+  if (myReq !== _thCampReqId) return;   // đã đổi khoảng ngày trong lúc chờ Sheet → bỏ kết quả cũ
+  _thRenderSheetNote(_thLastSheet);
 
   if (!rows.length) {
     wrapIds.forEach(id => {
