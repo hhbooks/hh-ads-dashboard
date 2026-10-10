@@ -1564,6 +1564,12 @@
           <div style="height:180px;position:relative"><canvas id="ac-chart-cost"></canvas></div>
         </div>
       </div>
+      <!-- Doanh thu theo ngày (Tân yêu cầu 2026-10-10): cột = kỳ này, đường gạch vàng = kỳ trước, cùng 1 trục tiền -->
+      <div class="card">
+        <div class="card-title" style="flex-wrap:wrap"><span class="dot"></span> Doanh Thu Theo Ngày <span id="ac-rev-legend" style="font-size:12.5px;color:var(--text2);font-weight:400;margin-left:auto"></span></div>
+        <div id="ac-rev-msg" class="acr-chart-msg" style="display:none"></div>
+        <div id="ac-rev-wrap" style="height:300px;position:relative"><canvas id="ac-chart-rev"></canvas></div>
+      </div>
       <div class="card">
         <div class="card-title" style="flex-wrap:wrap"><span class="dot"></span> Top 10 SP ROAS dưới 15 <span style="font-size:11.5px;color:var(--text2);font-weight:400">— tốn tiền nhất, chi phí ≥ 20.000đ</span></div>
         <div id="ac-top5"><div class="th-empty">Chưa có dữ liệu</div></div>
@@ -12196,7 +12202,9 @@ function acrSelectShop(key) { _acR.shop = key; acrRender(); }
 function acrRenderChart(keys, msg) {
   Object.keys(_acR.charts).forEach(k => { try { _acR.charts[k].destroy(); } catch (e) {} delete _acR.charts[k]; });
   const msgEl = document.getElementById('ac-chart-msg'), wrap = document.getElementById('ac-chart-wrap'), lg = document.getElementById('ac-chart-legend');
-  const show = m => { if (msgEl) { msgEl.style.display = ''; msgEl.innerHTML = m; } if (wrap) wrap.style.display = 'none'; if (lg) lg.innerHTML = ''; };
+  const rvMsg = document.getElementById('ac-rev-msg'), rvWrap = document.getElementById('ac-rev-wrap'), rvLg = document.getElementById('ac-rev-legend');
+  const show = m => { if (msgEl) { msgEl.style.display = ''; msgEl.innerHTML = m; } if (wrap) wrap.style.display = 'none'; if (lg) lg.innerHTML = '';
+    if (rvMsg) { rvMsg.style.display = ''; rvMsg.innerHTML = m; } if (rvWrap) rvWrap.style.display = 'none'; if (rvLg) rvLg.innerHTML = ''; };
   if (!keys) { show(msg || 'Chưa có dữ liệu'); return; }
   if (!_acR.hasDaily) { show('Biểu đồ theo ngày cần bản Apps Script mới — anh Deploy lại Apps Script là có.'); return; }
   if (typeof Chart === 'undefined') { show('Không tải được thư viện biểu đồ.'); return; }
@@ -12211,6 +12219,7 @@ function acrRenderChart(keys, msg) {
   const proas = pr && Object.keys(prv).length ? days.map((d, i) => roasOf(prv[pdays[i]])) : null;
   const cost = days.map(d => cur[d] ? cur[d].cost : null);
   if (msgEl) msgEl.style.display = 'none'; if (wrap) wrap.style.display = '';
+  if (rvMsg) rvMsg.style.display = 'none'; if (rvWrap) rvWrap.style.display = '';
   const f5 = d => d ? d.slice(8, 10) + '/' + d.slice(5, 7) : '';
   if (lg) lg.innerHTML = `<span style="color:#1d4ed8;font-weight:700">━ Kỳ này</span>` +
     (proas ? ` &nbsp;&nbsp;<span style="color:#b07a10;font-weight:700">┅ Kỳ trước (${f5(pr.from)}–${f5(pr.to)})</span>` : '') +
@@ -12265,6 +12274,26 @@ function acrRenderChart(keys, msg) {
     fill: 'start', backgroundColor: 'rgba(255,255,255,.14)', datalabels: { display: false } }] },
     options: { responsive: true, maintainAspectRatio: false, animation: false, events: [], layout: { padding: 4 },
       plugins: { legend: { display: false }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false, min: Math.max(0, lo - pad), max: hi + pad } } } });
+  // ── Doanh thu theo ngày: cột kỳ này (ngày cao nhất tô đậm) + đường gạch kỳ trước — cùng 1 trục tiền
+  const rev = days.map(d => cur[d] ? cur[d].rev : null);
+  const prev = proas ? days.map((d, i) => prv[pdays[i]] ? prv[pdays[i]].rev : null) : null;
+  let iMaxR = -1; rev.forEach((v, i) => { if (v != null && (iMaxR < 0 || v > rev[iMaxR])) iMaxR = i; });
+  if (rvLg) rvLg.innerHTML = `<span style="color:#1d4ed8;font-weight:700">■ Kỳ này</span>` + (prev ? ` &nbsp;&nbsp;<span style="color:#b07a10;font-weight:700">┅ Kỳ trước (${f5(pr.from)}–${f5(pr.to)})</span>` : '');
+  const c3 = document.getElementById('ac-chart-rev');
+  const rds = [{ type: 'bar', label: 'Kỳ này', data: rev, order: 2, backgroundColor: rev.map((v, i) => i === iMaxR ? '#1d4ed8' : '#93b8f2'), hoverBackgroundColor: '#1d4ed8',
+    borderRadius: 7, maxBarThickness: 48,
+    datalabels: { display: c => (n <= 14 || c.dataIndex === iMaxR) && rev[c.dataIndex] != null, anchor: 'end', align: 'top', offset: 3, clamp: true,
+      color: c => c.dataIndex === iMaxR ? '#0f172a' : '#475569', font: c => ({ size: c.dataIndex === iMaxR ? 13.5 : 12, weight: c.dataIndex === iMaxR ? '800' : '600' }), formatter: v => acrMoneyShort(v) } }];
+  if (prev) rds.push({ type: 'line', label: 'Kỳ trước', data: prev, order: 1, borderColor: '#d99a1e', borderDash: [7, 5], borderWidth: 2.5, tension: 0.3,
+    pointRadius: 3.5, pointBackgroundColor: '#fff', pointBorderColor: '#d99a1e', pointBorderWidth: 2, fill: false, spanGaps: false, datalabels: { display: false } });
+  if (c3) _acR.charts.rev = new Chart(c3, { type: 'bar', data: { labels: days.map(f5), datasets: rds }, options: {
+    responsive: true, maintainAspectRatio: false, animation: false, layout: { padding: { top: 24, right: 12 } },
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { display: false }, tooltip: { titleFont: { size: 13 }, bodyFont: { size: 13 }, padding: 10, callbacks: { title,
+      label: c => c.dataset.label === 'Kỳ trước' ? `Kỳ trước (${f5(pdays[c.dataIndex])}): ${c.parsed.y == null ? '—' : fmtMoney(c.parsed.y)}` : `Kỳ này: ${c.parsed.y == null ? 'chưa có dữ liệu' : fmtMoney(c.parsed.y)}` } } },
+    scales: { x: { ...xCfg, offset: true }, y: { beginAtZero: true, afterFit: yW, grid: { color: '#eef2f8' }, border: { display: false },
+      ticks: { font: { size: 12.5 }, color: '#64748b', maxTicksLimit: 5, callback: v => acrMoneyShort(v) } } }
+  } });
   let iMaxC = -1; cost.forEach((v, i) => { if (v != null && (iMaxC < 0 || v > cost[iMaxC])) iMaxC = i; });   // điểm nhấn: ngày tốn nhất
   const c2 = document.getElementById('ac-chart-cost');
   if (c2) _acR.charts.cost = new Chart(c2, { type: 'bar', data: { labels: days.map(f5), datasets: [{
@@ -12435,7 +12464,9 @@ function acrRenderTodo(items, tot) {
 }
 // Tỉ trọng doanh số / chi phí — Tất cả shop: theo shop (màu cố định của shop); 1 shop: top 5 SP + "SP khác"
 // Màu phân loại (đã chạy kiểm tra mù màu, cặp kề nhau kể cả vòng tròn khép kín đều đạt). Màu theo SHOP cố định, không theo thứ hạng.
-const ACR_CAT = ['#2a78d6', '#eda100', '#4a3aa7', '#eb6834', '#1fb3c9', '#e87ba4'], ACR_OTHER = '#c7cdd4';   // 2026-10-09: xanh dương đứng đầu
+// 2026-10-10 Tân chọn "B + C": xem theo shop = B (xanh dương doanh nghiệp, 6 màu đã kiểm tra mù màu, kể cả cặp khép vòng);
+// xem 1 shop = C navy đơn sắc theo thứ hạng (top 1 đậm nhất → top 5 nhạt nhất, đã kiểm tra dạng thứ bậc). "SP khác" xám rất nhạt.
+const ACR_CAT = ['#2563eb', '#0d9488', '#f59e0b', '#7c3aed', '#06b6d4', '#e11d48'], ACR_RANK = ['#172554', '#1e40af', '#2563eb', '#4f8ff0', '#86b6ef'], ACR_OTHER = '#e5e7eb';
 function acrShopColor(key) { const i = SAPI_SHOPS.findIndex(s => SAPI_SHOP_MAP[s.id] === key); return ACR_CAT[(i < 0 ? 0 : i) % ACR_CAT.length]; }
 function acrRenderShares(items) {
   const byShop = _acR.shop === 'all';
@@ -12448,7 +12479,7 @@ function acrRenderShares(items) {
     if (byShop) list = rows.map(r => ({ name: r.name, color: r.color, v: r[metric] }));
     else {
       const sorted = [...(items || [])].sort((a, b) => (b[field] || 0) - (a[field] || 0));
-      list = sorted.slice(0, 5).map((p, i) => ({ name: p.item_name, color: ACR_CAT[i], v: p[field] || 0 }));
+      list = sorted.slice(0, 5).map((p, i) => ({ name: p.item_name, color: ACR_RANK[i], v: p[field] || 0 }));
       const rest = sorted.slice(5).reduce((a, p) => a + (p[field] || 0), 0);
       if (rest > 0) list.push({ name: `SP khác (${sorted.length - 5} SP)`, color: ACR_OTHER, v: rest, other: true });
     }
@@ -12460,7 +12491,7 @@ function acrRenderShares(items) {
       const pc = r.v / total * 100;
       return `<div class="acr-share-row">
         <span class="nm" title="${acrEsc(r.name)}"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${r.color};margin-right:6px"></span>${acrEsc(r.name)}</span>
-        <span style="display:flex;align-items:center;gap:10px"><span style="flex:1;height:14px;background:#f3f4f6;border-radius:7px;overflow:hidden"><span style="display:block;width:${Math.max(1, pc)}%;height:100%;background:${r.color};border-radius:7px"></span></span><span style="font-size:12.5px;color:var(--text2);min-width:64px;text-align:right">${acrMoneyShort(r.v)}</span></span>
+        <span style="display:flex;align-items:center;gap:10px"><span style="flex:1;height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden"><span style="display:block;width:${Math.max(1, pc)}%;height:100%;background:${r.color};border-radius:4px"></span></span><span style="font-size:12.5px;color:var(--text2);min-width:64px;text-align:right">${acrMoneyShort(r.v)}</span></span>
         <span class="pc">${pc.toFixed(1)}%</span>
       </div>`;
     }).join('');
@@ -12472,10 +12503,10 @@ function acrRenderShares(items) {
     if (ce) ce.innerHTML = total > 0 ? `<span>${metric === 'rev' ? 'Tổng doanh số' : 'Tổng chi phí'}</span><b>${acrMoneyShort(total)}</b><span>${list.length} ${byShop ? 'shop' : 'phần'}</span>` : '';
     if (!cv || typeof Chart === 'undefined' || !(total > 0)) return;
     _acR.charts[key] = new Chart(cv, { type: 'doughnut', data: { labels: list.map(r => r.name), datasets: [{
-      data: list.map(r => r.v), backgroundColor: list.map(r => r.color), borderColor: '#fff', borderWidth: 2, hoverOffset: 6,
-      datalabels: { display: c => list[c.dataIndex].v / total >= 0.06, color: '#fff', font: { size: 13, weight: '800' },
+      data: list.map(r => r.v), backgroundColor: list.map(r => r.color), borderColor: '#fff', borderWidth: 3, borderRadius: 3, hoverOffset: 6,
+      datalabels: { display: c => list[c.dataIndex].v / total >= 0.06, color: c => list[c.dataIndex].other ? '#475569' : '#fff', font: { size: 13, weight: '800' },
         formatter: v => (v / total * 100).toFixed(0) + '%' } }] },
-      options: { responsive: true, maintainAspectRatio: false, animation: false, cutout: '62%', layout: { padding: 6 },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, cutout: '70%', layout: { padding: 6 },
         plugins: { legend: { display: false }, tooltip: { titleFont: { size: 13 }, bodyFont: { size: 13 }, padding: 10,
           callbacks: { label: c => ` ${fmtMoney(c.parsed)} · ${(c.parsed / total * 100).toFixed(1)}%` } } } } });
   }
