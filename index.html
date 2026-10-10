@@ -224,7 +224,14 @@
   .acr-donut { position:relative; height:260px; }
   .acr-donut-c { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; text-align:center; }
   .acr-donut-c b { font-size:20px; color:var(--g9); } .acr-donut-c span { font-size:12px; color:var(--text2); }
-  .acr-top10 { display:grid; grid-auto-flow:column; column-gap:40px; }
+  .acr-top10 { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); column-gap:40px; }
+  .acr-top10 > div, .acr-split > .card, .acr-split2 > .card, .acr-share-wrap > div { min-width:0; }
+  #page-auto-camp { max-width:100%; overflow-x:hidden; }
+  #main:has(#page-auto-camp.active) { min-width:0; }   /* chỉ khi đang ở trang GMS: không cho nội dung đẩy rộng quá màn hình */
+  #page-auto-camp canvas { max-width:100%; }
+  #page-auto-camp .acr-kpi-main { grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr); }
+  #page-auto-camp .acr-kpi-sub { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  @media (max-width:1100px) { #page-auto-camp .acr-kpi-main, #page-auto-camp .acr-kpi-sub { grid-template-columns:minmax(0,1fr); } }
   /* Bảng màu trang GMS — 2026-10-09 lần 2: Tân đổi xanh lá → xanh dương/navy hiện đại (giữ tên biến --g*). Scope #page-auto-camp */
   #page-auto-camp { --g9:#1b2a4e; --g7:#1d4ed8; --g5:#2f6fd6; --g3:#8fbaf3; --g1:#dbe4f3; --amb:#d99a1e; }
   #page-auto-camp .card-title .dot { background:var(--g5); }
@@ -236,6 +243,28 @@
   #page-auto-camp .card, #page-auto-camp .acr-kpi-main .kpi-card, #page-auto-camp .acr-kpi-sub > div { border-radius:18px; border:none; box-shadow:0 6px 24px rgba(27,42,78,.08); }
   #page-auto-camp #ac-filter-bar { border-radius:16px; border:none; box-shadow:0 4px 16px rgba(27,42,78,.06); background:#fff; }
   #page-auto-camp .acr-todo.has { border-left:5px solid var(--red); }
+  /* 3 ô KPI chính nhạt dần: ROAS navy → Doanh thu xanh vừa → Chi phí xanh nhạt */
+  #page-auto-camp .acr-kpi-main .kpi-card.acr-mid { background:linear-gradient(135deg,#2f6fd6,#5b8def); }
+  #page-auto-camp .acr-kpi-main .kpi-card.acr-mid .kpi-label, #page-auto-camp .acr-kpi-main .kpi-card.acr-mid .kpi-value { color:#fff; }
+  #page-auto-camp .acr-kpi-main .kpi-card.acr-mid .kpi-sub, #page-auto-camp .acr-kpi-main .kpi-card.acr-mid .kpi-sub span { color:#e6efff !important; }
+  #page-auto-camp .acr-kpi-main .kpi-card.acr-mid .acr-d-up, #page-auto-camp .acr-kpi-main .kpi-card.acr-mid .acr-d-down, #page-auto-camp .acr-kpi-main .kpi-card.acr-mid .acr-d-neu { color:#fff !important; background:rgba(255,255,255,.2); padding:1px 6px; border-radius:4px; }
+  #page-auto-camp .acr-kpi-main .kpi-card.acr-light { background:linear-gradient(135deg,#dbe7fb,#eef4fd); }
+  #page-auto-camp .acr-kpi-main .kpi-card.acr-light .kpi-label { color:#3b5288; } #page-auto-camp .acr-kpi-main .kpi-card.acr-light .kpi-value { color:#1b2a4e; }
+  #page-auto-camp .acr-kpi-main .kpi-card .kpi-icon { opacity:.55; }
+  /* 3 ô KPI phụ có màu riêng (nền nhạt + chip biểu tượng) */
+  #page-auto-camp .acr-kpi-sub > div { align-items:center; padding:12px 16px; }
+  .acr-ic { width:34px; height:34px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+  #page-auto-camp .acr-kpi-sub b { font-size:21px; }
+  #page-auto-camp .acr-s1 { background:linear-gradient(135deg,#e0f2fe,#f5fbff) !important; } .acr-s1 .acr-ic { background:#0ea5e9; } .acr-s1 b { color:#075985 !important; }
+  #page-auto-camp .acr-s2 { background:linear-gradient(135deg,#e0e7ff,#f6f7ff) !important; } .acr-s2 .acr-ic { background:#6366f1; } .acr-s2 b { color:#3730a3 !important; }
+  #page-auto-camp .acr-s3 { background:linear-gradient(135deg,#ccfbf1,#f2fdfb) !important; } .acr-s3 .acr-ic { background:#14b8a6; } .acr-s3 b { color:#115e59 !important; }
+  #page-auto-camp .acr-sub-lbl { font-size:12px; color:#334155; }
+  #page-auto-camp .acr-sub-d { font-size:12.5px; }
+  /* Bảng Hiệu Suất Theo Shop: chữ to dễ đọc */
+  #page-auto-camp #ac-trend-table { font-size:14.5px; }
+  #page-auto-camp #ac-trend-table th { font-size:12px; padding:12px 14px; }
+  #page-auto-camp #ac-trend-table td { font-size:14.5px; padding:13px 14px; }
+  #page-auto-camp #ac-trend-table td:first-child { font-size:15px; }
   #page-auto-camp .acr-kpi-main .kpi-card.acr-alert:not(.acr-hero) { box-shadow:0 0 0 2px #fecaca, 0 6px 24px rgba(27,42,78,.08); }
   #page-auto-camp .acr-kpi-main .kpi-card.acr-hero .kpi-label, #page-auto-camp .acr-kpi-main .kpi-card.acr-hero .kpi-value { color:#fff; }
   #page-auto-camp .acr-kpi-main .kpi-card.acr-hero .kpi-sub, #page-auto-camp .acr-kpi-main .kpi-card.acr-hero .kpi-sub span { color:#dbe4f3 !important; }
@@ -1531,13 +1560,13 @@
         <div class="kpi-value" id="ac-kpi-roas">–</div>
         <div class="kpi-sub" id="ac-kpi-roas-d"></div>
       </div>
-      <div class="kpi-card green">
+      <div class="kpi-card green acr-mid">
         <div class="kpi-icon">💰</div>
         <div class="kpi-label">Doanh Thu</div>
         <div class="kpi-value" id="ac-kpi-rev">–</div>
         <div class="kpi-sub" id="ac-kpi-rev-d"></div>
       </div>
-      <div class="kpi-card orange">
+      <div class="kpi-card orange acr-light">
         <div class="kpi-icon">💸</div>
         <div class="kpi-label">Chi Phí</div>
         <div class="kpi-value" id="ac-kpi-cost">–</div>
@@ -1545,9 +1574,9 @@
       </div>
     </div>
     <div class="acr-kpi-sub">
-      <div><span class="acr-sub-lbl">👁 Lượt xem</span><b id="ac-kpi-imp">–</b><span class="acr-sub-d" id="ac-kpi-imp-d"></span></div>
-      <div><span class="acr-sub-lbl">🖱 Lượt click</span><b id="ac-kpi-clk">–</b><span class="acr-sub-d" id="ac-kpi-clk-d"></span></div>
-      <div><span class="acr-sub-lbl">🛒 Đơn hàng</span><b id="ac-kpi-ord">–</b><span class="acr-sub-d" id="ac-kpi-ord-d"></span></div>
+      <div class="acr-s1"><span class="acr-ic">👁</span><span class="acr-sub-lbl">Lượt xem</span><b id="ac-kpi-imp">–</b><span class="acr-sub-d" id="ac-kpi-imp-d"></span></div>
+      <div class="acr-s2"><span class="acr-ic">🖱</span><span class="acr-sub-lbl">Lượt click</span><b id="ac-kpi-clk">–</b><span class="acr-sub-d" id="ac-kpi-clk-d"></span></div>
+      <div class="acr-s3"><span class="acr-ic">🛒</span><span class="acr-sub-lbl">Đơn hàng</span><b id="ac-kpi-ord">–</b><span class="acr-sub-d" id="ac-kpi-ord-d"></span></div>
     </div>
 
     <!-- Cần xử lý: gom việc cần hành động lên ngay dưới KPI (SP ROAS thấp, shop ROAS giảm mạnh, Sheet thiếu ngày) -->
