@@ -12311,7 +12311,7 @@ function acrRenderChart(keys, msg) {
       plugins: { legend: { display: false }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false, min: Math.max(0, lo - pad), max: hi + pad } } } });
   const lblSize = n <= 14 ? 12.5 : n <= 31 ? 11 : 10;   // số trên cột: khoảng càng dài chữ càng nhỏ để không chồng nhau
   // ── Doanh thu / Chi phí theo ngày (2026-10-10): kỳ này = cột xanh dương; kỳ trước = biểu đồ cột xanh lá RIÊNG bên dưới,
-  //    cùng thang tiền (trục y giống nhau) để so cao/thấp bằng mắt cho đúng. Ngày cao nhất mỗi biểu đồ tô đậm.
+  //    mỗi biểu đồ tự co trục theo cột cao nhất của nó (Tân chốt 2026-10-10). Ngày cao nhất mỗi biểu đồ tô đậm.
   const niceMax = v => { if (!(v > 0)) return 1; const m = v * 1.15, e = Math.pow(10, Math.floor(Math.log10(m))), f = m / e; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * e; };
   const barChart = (key, cv, data, dates, base, strong, yMax, label) => {
     if (!cv) return;
@@ -12327,22 +12327,24 @@ function acrRenderChart(keys, msg) {
           title: it => it[0] ? dates[it[0].dataIndex].split('-').reverse().join('/') : '',
           label: c => `${label}: ${c.parsed.y == null ? 'chưa có dữ liệu' : fmtMoney(c.parsed.y)}` } } },
         scales: { x: { ...xCfg, offset: true }, y: { beginAtZero: true, max: yMax, afterFit: yW, grid: { color: '#eef2f8' }, border: { display: false },
-          ticks: { font: { size: 12.5 }, color: '#64748b', maxTicksLimit: 5, callback: v => acrMoneyShort(v) } } } } });
+          ticks: { font: { size: 12.5 }, color: '#64748b', maxTicksLimit: 5, callback: v => v >= yMax * 0.999 ? '' : acrMoneyShort(v) } } } } });
   };
   const rev = days.map(d => cur[d] ? cur[d].rev : null);   // cost[] đã có ở trên
   const hasPrev = !!(pr && Object.keys(prv).length);
   const prevRev = hasPrev ? pdays.map(d => prv[d] ? prv[d].rev : null) : null, prevCost = hasPrev ? pdays.map(d => prv[d] ? prv[d].cost : null) : null;
   const mx = arr => Math.max(0, ...(arr || []).filter(v => v != null));
-  const yRev = niceMax(Math.max(mx(rev), mx(prevRev))), yCost = niceMax(Math.max(mx(cost), mx(prevCost)));
+  // 2026-10-10 (Tân): mỗi biểu đồ tự co trục theo cột cao nhất của chính nó (+12% chỗ ghi số) — bỏ khoảng trống thừa phía trên
+  const fit = arr => { const m = mx(arr); return m > 0 ? m * 1.12 : 1; };
+  const yRev = fit(rev), yCost = fit(cost), yRevP = fit(prevRev), yCostP = fit(prevCost);
   const curLbl = `${f5(r.from)}–${f5(r.to)}`, prevLbl = hasPrev ? `${f5(pr.from)}–${f5(pr.to)}` : '';
   if (rvLg) rvLg.innerHTML = `<span style="color:#1d4ed8;font-weight:700">■ Kỳ này (${curLbl})</span>` + (hasPrev ? ` &nbsp;&nbsp;<span style="color:#15803d;font-weight:700">■ Kỳ trước (${prevLbl}) — bên dưới</span>` : '');
   const cLg = document.getElementById('ac-cost-legend');
   if (cLg) cLg.innerHTML = `<span style="color:#1d4ed8;font-weight:700">■ Kỳ này (${curLbl})</span>` + (hasPrev ? ` &nbsp;&nbsp;<span style="color:#15803d;font-weight:700">■ Kỳ trước (${prevLbl}) — bên dưới</span>` : '');
   barChart('rev', document.getElementById('ac-chart-rev'), rev, days, '#93b8f2', '#1d4ed8', yRev, 'Kỳ này');
   barChart('cost', document.getElementById('ac-chart-cost'), cost, days, '#8fbaf3', '#1d4ed8', yCost, 'Kỳ này');
-  [['ac-chart-rev-prev-box', 'ac-rev-prev-lbl', 'revp', 'ac-chart-rev-prev', prevRev, yRev], ['ac-chart-cost-prev-box', 'ac-cost-prev-lbl', 'costp', 'ac-chart-cost-prev', prevCost, yCost]].forEach(([box, lbl, key, cvId, data, ym]) => {
+  [['ac-chart-rev-prev-box', 'ac-rev-prev-lbl', 'revp', 'ac-chart-rev-prev', prevRev, yRevP], ['ac-chart-cost-prev-box', 'ac-cost-prev-lbl', 'costp', 'ac-chart-cost-prev', prevCost, yCostP]].forEach(([box, lbl, key, cvId, data, ym]) => {
     const bx = document.getElementById(box); if (bx) bx.style.display = hasPrev ? '' : 'none';
-    const lb = document.getElementById(lbl); if (lb) lb.textContent = hasPrev ? `(${prevLbl}) · cùng thang tiền với kỳ này để so cao/thấp` : '';
+    const lb = document.getElementById(lbl); if (lb) lb.textContent = hasPrev ? `(${prevLbl}) · mỗi biểu đồ tự co theo cột cao nhất — so 2 kỳ bằng số ghi trên cột` : '';
     if (hasPrev) barChart(key, document.getElementById(cvId), data, pdays, '#a7e3bd', '#22a35a', ym, 'Kỳ trước');
   });
 }
