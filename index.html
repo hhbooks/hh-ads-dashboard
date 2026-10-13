@@ -1677,6 +1677,8 @@
           <div style="height:230px;position:relative"><canvas id="ac-chart-cost"></canvas></div>
           <div id="ac-chart-cost-prev-box" style="display:none"><div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0 4px;padding-top:12px;border-top:1px dashed #e2e8f0"><span style="font-size:13.5px;font-weight:700;color:#15803d">Kỳ trước</span><span id="ac-cost-prev-lbl" style="font-size:12.5px;color:var(--text2)"></span></div>
           <div style="height:230px;position:relative"><canvas id="ac-chart-cost-prev"></canvas></div></div>
+          <div id="ac-chart-cost-mom-box" style="display:none"><div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0 4px;padding-top:12px;border-top:1px dashed #e2e8f0"><span style="font-size:13.5px;font-weight:700;color:#6d28d9">Cùng kỳ tháng trước</span><span id="ac-cost-mom-lbl" style="font-size:12.5px;color:var(--text2)"></span></div>
+          <div style="height:230px;position:relative"><canvas id="ac-chart-cost-mom"></canvas></div></div>
         </div>
       </div>
       <!-- Doanh thu theo ngày (Tân yêu cầu 2026-10-10): kỳ này (cột xanh dương) ở trên, kỳ trước (cột xanh lá) tách riêng bên dưới, cùng thang tiền -->
@@ -1687,6 +1689,8 @@
           <div style="height:280px;position:relative"><canvas id="ac-chart-rev"></canvas></div>
           <div id="ac-chart-rev-prev-box" style="display:none"><div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0 4px;padding-top:12px;border-top:1px dashed #e2e8f0"><span style="font-size:13.5px;font-weight:700;color:#15803d">Kỳ trước</span><span id="ac-rev-prev-lbl" style="font-size:12.5px;color:var(--text2)"></span></div>
           <div style="height:280px;position:relative"><canvas id="ac-chart-rev-prev"></canvas></div></div>
+          <div id="ac-chart-rev-mom-box" style="display:none"><div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0 4px;padding-top:12px;border-top:1px dashed #e2e8f0"><span style="font-size:13.5px;font-weight:700;color:#6d28d9">Cùng kỳ tháng trước</span><span id="ac-rev-mom-lbl" style="font-size:12.5px;color:var(--text2)"></span></div>
+          <div style="height:280px;position:relative"><canvas id="ac-chart-rev-mom"></canvas></div></div>
         </div>
       </div>
       <div class="card">
@@ -12357,15 +12361,22 @@ function acrRenderChart(keys, msg) {
   const roasOf = m => m && m.cost > 0 ? +(m.rev / m.cost).toFixed(2) : null;
   const roas = days.map(d => roasOf(cur[d]));
   const proas = pr && Object.keys(prv).length ? days.map((d, i) => roasOf(prv[pdays[i]])) : null;
+  // Cùng kỳ tháng trước (Tân chốt 2026-10-13): VD đang xem 01–12/10 → 01–12/09; hiện song song với kỳ trước
+  const mm = _acR.mom, mdays = mm ? adsShListDays(mm.from, mm.to) : [], mv = mm ? sumBy(mm.from, mm.to) : {};
+  const hasMom = !!(mm && Object.keys(mv).length);
+  const mroas = hasMom ? days.map((d, i) => roasOf(mv[mdays[i]])) : null;
   const cost = days.map(d => cur[d] ? cur[d].cost : null);
   if (msgEl) msgEl.style.display = 'none'; if (wrap) wrap.style.display = '';
   if (rvMsg) rvMsg.style.display = 'none'; if (rvWrap) rvWrap.style.display = '';
   const f5 = d => d ? d.slice(8, 10) + '/' + d.slice(5, 7) : '';
+  const momTxt = mm ? `${f5(mm.from)}–${f5(mm.to)}` : '';
+  const momMiss = hasMom ? mdays.filter(d => !mv[d]).length : 0;
   if (lg) lg.innerHTML = `<span style="color:#1d4ed8;font-weight:700">━ Kỳ này</span>` +
     (proas ? ` &nbsp;&nbsp;<span style="color:#b07a10;font-weight:700">┅ Kỳ trước (${f5(pr.from)}–${f5(pr.to)})</span>` : '') +
+    (hasMom ? ` &nbsp;&nbsp;<span style="color:#6d28d9;font-weight:700">┅ Cùng kỳ tháng trước (${momTxt}${momMiss ? ` · thiếu ${momMiss} ngày` : ''})</span>` : (mm ? ` &nbsp;&nbsp;<span style="color:var(--text2)">Cùng kỳ tháng trước (${momTxt}): Sheet chưa có dữ liệu</span>` : '')) +
     ` &nbsp;&nbsp;<span style="color:#dc2626;font-weight:600">● ngày ROAS &lt; ${ACR_ROAS_LOW}</span>`;
   // Trục ROAS co theo số liệu (không bắt đầu từ 0) để thấy rõ lên/xuống; chỉ vẽ ngưỡng 10 khi số liệu chạm gần ngưỡng
-  const vals = roas.concat(proas || []).filter(v => v != null);
+  const vals = roas.concat(proas || [], mroas || []).filter(v => v != null);
   const lo = Math.min(...vals), hi = Math.max(...vals), pad = Math.max((hi - lo) * 0.35, 1);
   const showTh = lo <= ACR_ROAS_LOW * 1.3;
   let yMin = Math.max(0, Math.floor(lo - pad)), yMax = Math.ceil(hi + pad);
@@ -12395,6 +12406,8 @@ function acrRenderChart(keys, msg) {
   }];
   if (proas) ds.push({ label: 'Kỳ trước', data: proas, borderColor: '#d99a1e', borderDash: [6, 5], borderWidth: 2, tension: 0.35,
     pointRadius: 0, pointHoverRadius: 4, fill: false, spanGaps: false, datalabels: { display: false } });
+  if (mroas) ds.push({ label: 'Tháng trước', data: mroas, borderColor: '#7c3aed', borderDash: [2, 4], borderWidth: 2, tension: 0.35,
+    pointRadius: 0, pointHoverRadius: 4, fill: false, spanGaps: false, datalabels: { display: false } });
   if (showTh) ds.push({ label: 'Ngưỡng', data: days.map(() => ACR_ROAS_LOW), borderColor: '#f87171', borderDash: [3, 3], borderWidth: 1.5,
     pointRadius: 0, pointHoverRadius: 0, fill: false, datalabels: { display: false } });
   if (c1) _acR.charts.roas = new Chart(c1, { type: 'line', data: { labels: days.map(f5), datasets: ds }, options: {
@@ -12402,7 +12415,9 @@ function acrRenderChart(keys, msg) {
     interaction: { mode: 'index', intersect: false },
     plugins: { legend: { display: false },
       tooltip: { titleFont: { size: 13 }, bodyFont: { size: 13 }, padding: 10, filter: it => it.dataset.label !== 'Ngưỡng', callbacks: { title,
-        label: c => c.dataset.label === 'Kỳ trước'
+        label: c => c.dataset.label === 'Tháng trước'
+          ? `Cùng kỳ tháng trước (${f5(mdays[c.dataIndex])}): ROAS ${c.parsed.y == null ? '—' : c.parsed.y.toFixed(2)}`
+          : c.dataset.label === 'Kỳ trước'
           ? `Kỳ trước (${f5(pdays[c.dataIndex])}): ROAS ${c.parsed.y == null ? '—' : c.parsed.y.toFixed(2)}`
           : `Kỳ này: ROAS ${c.parsed.y == null ? 'chưa có dữ liệu' : c.parsed.y.toFixed(2)}${isLow(c.parsed.y) ? ' — dưới ngưỡng ' + ACR_ROAS_LOW : ''}` } } },
     scales: { x: xCfg, y: { min: yMin, max: yMax, afterFit: yW, grid: { color: '#eef2f8' }, border: { display: false },
@@ -12440,17 +12455,23 @@ function acrRenderChart(keys, msg) {
   const mx = arr => Math.max(0, ...(arr || []).filter(v => v != null));
   // 2026-10-10 (Tân): mỗi biểu đồ tự co trục theo cột cao nhất của chính nó (+12% chỗ ghi số) — bỏ khoảng trống thừa phía trên
   const fit = arr => { const m = mx(arr); return m > 0 ? m * 1.12 : 1; };
-  const yRev = fit(rev), yCost = fit(cost), yRevP = fit(prevRev), yCostP = fit(prevCost);
+  const momRev = hasMom ? mdays.map(d => mv[d] ? mv[d].rev : null) : null, momCost = hasMom ? mdays.map(d => mv[d] ? mv[d].cost : null) : null;
+  const yRev = fit(rev), yCost = fit(cost), yRevP = fit(prevRev), yCostP = fit(prevCost), yRevM = fit(momRev), yCostM = fit(momCost);
   const curLbl = `${f5(r.from)}–${f5(r.to)}`, prevLbl = hasPrev ? `${f5(pr.from)}–${f5(pr.to)}` : '';
-  if (rvLg) rvLg.innerHTML = `<span style="color:#1d4ed8;font-weight:700">■ Kỳ này (${curLbl})</span>` + (hasPrev ? ` &nbsp;&nbsp;<span style="color:#15803d;font-weight:700">■ Kỳ trước (${prevLbl}) — bên dưới</span>` : '');
+  const momLg = hasMom ? ` &nbsp;&nbsp;<span style="color:#6d28d9;font-weight:700">■ Cùng kỳ tháng trước (${momTxt}) — bên dưới</span>` : (mm ? ` &nbsp;&nbsp;<span style="color:var(--text2)">Cùng kỳ tháng trước (${momTxt}): Sheet chưa có dữ liệu</span>` : '');
+  if (rvLg) rvLg.innerHTML = `<span style="color:#1d4ed8;font-weight:700">■ Kỳ này (${curLbl})</span>` + (hasPrev ? ` &nbsp;&nbsp;<span style="color:#15803d;font-weight:700">■ Kỳ trước (${prevLbl}) — bên dưới</span>` : '') + momLg;
   const cLg = document.getElementById('ac-cost-legend');
-  if (cLg) cLg.innerHTML = `<span style="color:#1d4ed8;font-weight:700">■ Kỳ này (${curLbl})</span>` + (hasPrev ? ` &nbsp;&nbsp;<span style="color:#15803d;font-weight:700">■ Kỳ trước (${prevLbl}) — bên dưới</span>` : '');
+  if (cLg) cLg.innerHTML = `<span style="color:#1d4ed8;font-weight:700">■ Kỳ này (${curLbl})</span>` + (hasPrev ? ` &nbsp;&nbsp;<span style="color:#15803d;font-weight:700">■ Kỳ trước (${prevLbl}) — bên dưới</span>` : '') + momLg;
   barChart('rev', document.getElementById('ac-chart-rev'), rev, days, '#93b8f2', '#1d4ed8', yRev, 'Kỳ này');
   barChart('cost', document.getElementById('ac-chart-cost'), cost, days, '#8fbaf3', '#1d4ed8', yCost, 'Kỳ này');
-  [['ac-chart-rev-prev-box', 'ac-rev-prev-lbl', 'revp', 'ac-chart-rev-prev', prevRev, yRevP], ['ac-chart-cost-prev-box', 'ac-cost-prev-lbl', 'costp', 'ac-chart-cost-prev', prevCost, yCostP]].forEach(([box, lbl, key, cvId, data, ym]) => {
-    const bx = document.getElementById(box); if (bx) bx.style.display = hasPrev ? '' : 'none';
-    const lb = document.getElementById(lbl); if (lb) lb.textContent = hasPrev ? `(${prevLbl}) · mỗi biểu đồ tự co theo cột cao nhất — so 2 kỳ bằng số ghi trên cột` : '';
-    if (hasPrev) barChart(key, document.getElementById(cvId), data, pdays, '#a7e3bd', '#22a35a', ym, 'Kỳ trước');
+  [['ac-chart-rev-prev-box', 'ac-rev-prev-lbl', 'revp', 'ac-chart-rev-prev', prevRev, yRevP, pdays, hasPrev, prevLbl, '#a7e3bd', '#22a35a', 'Kỳ trước'],
+   ['ac-chart-cost-prev-box', 'ac-cost-prev-lbl', 'costp', 'ac-chart-cost-prev', prevCost, yCostP, pdays, hasPrev, prevLbl, '#a7e3bd', '#22a35a', 'Kỳ trước'],
+   ['ac-chart-rev-mom-box', 'ac-rev-mom-lbl', 'revm', 'ac-chart-rev-mom', momRev, yRevM, mdays, hasMom, momTxt, '#cdbdf7', '#7c3aed', 'Cùng kỳ tháng trước'],
+   ['ac-chart-cost-mom-box', 'ac-cost-mom-lbl', 'costm', 'ac-chart-cost-mom', momCost, yCostM, mdays, hasMom, momTxt, '#cdbdf7', '#7c3aed', 'Cùng kỳ tháng trước']
+  ].forEach(([box, lbl, key, cvId, data, ym, dts, ok, rgLbl, base, strong, name]) => {
+    const bx = document.getElementById(box); if (bx) bx.style.display = ok ? '' : 'none';
+    const lb = document.getElementById(lbl); if (lb) lb.textContent = ok ? `(${rgLbl}${name === 'Cùng kỳ tháng trước' && momMiss ? ` · thiếu ${momMiss} ngày` : ''}) · mỗi biểu đồ tự co theo cột cao nhất — so các kỳ bằng số ghi trên cột` : '';
+    if (ok) barChart(key, document.getElementById(cvId), data, dts, base, strong, ym, name);
   });
 }
 // Top 10 SP ROAS dưới 15 (Tân chốt 2026-10-09): chỉ SP đã tốn ≥ AC_PROD_MIN_COST_FOR_FLAG (đủ dữ liệu đánh giá),
