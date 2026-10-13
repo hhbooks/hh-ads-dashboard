@@ -271,6 +271,92 @@
   #page-auto-camp .acr-kpi-main .kpi-card.acr-hero .acr-d-up, #page-auto-camp .acr-kpi-main .kpi-card.acr-hero .acr-d-down { color:#fff !important; background:rgba(255,255,255,.18); padding:1px 6px; border-radius:4px; }
   #page-auto-camp .acr-kpi-main .kpi-card.acr-hero.acr-alert { background:linear-gradient(135deg,#b91c1c,#dc2626); border-color:#b91c1c; border-top-color:#991b1b; }
   #page-auto-camp .acr-d-up { color:var(--g7); }
+  #page-auto-camp .acr-prod-search input { flex:1 1 360px; min-width:240px; padding:11px 14px; border:1px solid #cbd5e1; border-radius:12px; font-size:14.5px; outline:none; background:#fff; color:#0f172a; }
+  #page-auto-camp .acr-prod-search input:focus { border-color:#2f6fd6; box-shadow:0 0 0 3px rgba(47,111,214,.16); }
+  #page-auto-camp .acr-prod-search button { padding:8px 14px; border:1px solid #cbd5e1; background:#fff; border-radius:10px; font-size:13px; font-weight:600; color:#334155; cursor:pointer; }
+  /* ===== Trang Nhóm: tái dùng giao diện GMS (sinh từ khối GMS, đổi scope) ===== */
+  #page-group-camp { max-width:100%; overflow-x:hidden; }
+  #main:has(#page-group-camp.active) { min-width:0; }   /* chỉ khi đang ở trang GMS: không cho nội dung đẩy rộng quá màn hình */
+  #page-group-camp canvas { max-width:100%; }
+  #page-group-camp .acr-kpi-main { grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1fr); }
+  #page-group-camp .acr-kpi-sub { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  @media (max-width:1100px) { #page-group-camp .acr-kpi-main, #page-group-camp .acr-kpi-sub { grid-template-columns:minmax(0,1fr); } }
+  /* Bảng màu trang Nhóm (tái dùng của GMS) — 2026-10-09 lần 2: Tân đổi xanh lá → xanh dương/navy hiện đại (giữ tên biến --g*). Scope #page-group-camp */
+  #page-group-camp { --g9:#1b2a4e; --g7:#1d4ed8; --g5:#2f6fd6; --g3:#8fbaf3; --g1:#dbe4f3; --amb:#d99a1e; }
+  #page-group-camp .card-title .dot { background:var(--g5); }
+  #page-group-camp .acr-kpi-main .kpi-card.acr-hero { background:linear-gradient(135deg,#1b2a4e,#2b4a8f); border-color:#1b2a4e; border-top-color:#16223f; }
+  #page-group-camp .acr-hero .kpi-icon { display:none; }
+  /* Thẻ bo góc lớn, bỏ viền, bóng mềm (theo ảnh mẫu) — chỉ trang GMS */
+  #page-group-camp .card, #page-group-camp .acr-kpi-main .kpi-card, #page-group-camp .acr-kpi-sub > div { border-radius:18px; border:none; box-shadow:0 6px 24px rgba(27,42,78,.08); }
+  #page-group-camp #gc-filter-bar { border-radius:16px; border:none; box-shadow:0 4px 16px rgba(27,42,78,.06); background:#fff; }
+  #page-group-camp .acr-todo.has { border-left:5px solid var(--red); }
+  /* 3 ô KPI chính nhạt dần: ROAS navy → Doanh thu xanh vừa → Chi phí xanh nhạt */
+  #page-group-camp .acr-kpi-main .kpi-card.acr-mid { background:linear-gradient(135deg,#2f6fd6,#5b8def); }
+  #page-group-camp .acr-kpi-main .kpi-card.acr-mid .kpi-label, #page-group-camp .acr-kpi-main .kpi-card.acr-mid .kpi-value { color:#fff; }
+  #page-group-camp .acr-kpi-main .kpi-card.acr-mid .kpi-sub, #page-group-camp .acr-kpi-main .kpi-card.acr-mid .kpi-sub span { color:#e6efff !important; }
+  #page-group-camp .acr-kpi-main .kpi-card.acr-mid .acr-d-up, #page-group-camp .acr-kpi-main .kpi-card.acr-mid .acr-d-down, #page-group-camp .acr-kpi-main .kpi-card.acr-mid .acr-d-neu { color:#fff !important; background:rgba(255,255,255,.2); padding:1px 6px; border-radius:4px; }
+  #page-group-camp .acr-kpi-main .kpi-card.acr-light { background:linear-gradient(135deg,#dbe7fb,#eef4fd); }
+  #page-group-camp .acr-kpi-main .kpi-card.acr-light .kpi-label { color:#3b5288; } #page-group-camp .acr-kpi-main .kpi-card.acr-light .kpi-value { color:#1b2a4e; }
+  #page-group-camp .acr-kpi-main .kpi-card .kpi-icon { opacity:.55; }
+  /* 3 ô KPI phụ có màu riêng (nền nhạt + chip biểu tượng) */
+  #page-group-camp .acr-kpi-sub > div { align-items:center; padding:12px 16px; }
+  .acr-ic { width:34px; height:34px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+  #page-group-camp .acr-kpi-sub b { font-size:21px; }
+  #page-group-camp .acr-s1 { background:linear-gradient(135deg,#e0f2fe,#f5fbff) !important; } .acr-s1 .acr-ic { background:#0ea5e9; } .acr-s1 b { color:#075985 !important; }
+  #page-group-camp .acr-s2 { background:linear-gradient(135deg,#e0e7ff,#f6f7ff) !important; } .acr-s2 .acr-ic { background:#6366f1; } .acr-s2 b { color:#3730a3 !important; }
+  #page-group-camp .acr-s3 { background:linear-gradient(135deg,#ccfbf1,#f2fdfb) !important; } .acr-s3 .acr-ic { background:#14b8a6; } .acr-s3 b { color:#115e59 !important; }
+  #page-group-camp .acr-sub-lbl { font-size:12px; color:#334155; }
+  #page-group-camp .acr-sub-d { font-size:12.5px; }
+  /* Bảng Hiệu Suất Theo Shop: chữ to dễ đọc */
+  #page-group-camp .acr-kpi-main .kpi-card.acr-alert:not(.acr-hero) { box-shadow:0 0 0 2px #fecaca, 0 6px 24px rgba(27,42,78,.08); }
+  #page-group-camp .acr-kpi-main .kpi-card.acr-hero .kpi-label, #page-group-camp .acr-kpi-main .kpi-card.acr-hero .kpi-value { color:#fff; }
+  #page-group-camp .acr-kpi-main .kpi-card.acr-hero .kpi-sub, #page-group-camp .acr-kpi-main .kpi-card.acr-hero .kpi-sub span { color:#dbe4f3 !important; }
+  #page-group-camp .acr-kpi-main .kpi-card.acr-hero .acr-d-up, #page-group-camp .acr-kpi-main .kpi-card.acr-hero .acr-d-down { color:#fff !important; background:rgba(255,255,255,.18); padding:1px 6px; border-radius:4px; }
+  #page-group-camp .acr-kpi-main .kpi-card.acr-hero.acr-alert { background:linear-gradient(135deg,#b91c1c,#dc2626); border-color:#b91c1c; border-top-color:#991b1b; }
+  #page-group-camp .acr-d-up { color:var(--g7); }
+  /* ── Trang Nhóm 2026-10-13: cột Số SP, ô tìm kiếm, card SP trong nhóm (prefix gcr-, scope #page-group-camp) ── */
+  #page-group-camp .acr-kpi-main .kpi-card .kpi-sub b { font-size:13px; }
+  #page-group-camp .gcr-search { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 16px; margin-bottom:0; }
+  #page-group-camp .gcr-search input { flex:1 1 360px; min-width:240px; padding:11px 14px; border:1px solid #cbd5e1; border-radius:12px; font-size:14.5px; outline:none; background:#fff; color:#0f172a; }
+  #page-group-camp .gcr-search input:focus { border-color:#2f6fd6; box-shadow:0 0 0 3px rgba(47,111,214,.16); }
+  #page-group-camp .gcr-search button { padding:8px 14px; border:1px solid #cbd5e1; background:#fff; border-radius:10px; font-size:13px; font-weight:600; color:#334155; cursor:pointer; }
+  #page-group-camp .gcr-info { font-size:13px; color:var(--text2); }
+  #page-group-camp .gcr-btn { padding:5px 12px; border:1px solid #cbd5e1; background:#fff; border-radius:8px; font-size:12.5px; font-weight:600; color:#334155; cursor:pointer; }
+  #page-group-camp .gcr-btn:hover { background:#f1f5f9; }
+  #page-group-camp #gc-group-table, #page-group-camp #gc-rev-pie-table { font-size:14px; }
+  #page-group-camp #gc-group-table th, #page-group-camp #gc-rev-pie-table th { font-size:12px; padding:12px 12px; }
+  #page-group-camp #gc-group-table td, #page-group-camp #gc-rev-pie-table td { font-size:14px; padding:12px 12px; border-bottom:1px solid #eef2f7; }
+  #page-group-camp #gc-group-table td.c { text-align:center; color:var(--text2); font-size:12.5px; }
+  #page-group-camp #gc-group-table td.nm, #page-group-camp #gc-rev-pie-table td.nm { font-weight:600; color:#1b2a4e; }
+  #page-group-camp .k1 { font-weight:700; color:#1b2a4e; } #page-group-camp .k2 { font-weight:700; color:#1d4ed8; } #page-group-camp .k3 { font-weight:800; }
+  #page-group-camp .gcr-shop { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:6px; background:#e6efff; color:#1d4ed8; margin-right:8px; white-space:nowrap; vertical-align:1px; }
+  #page-group-camp .gcr-pc { display:inline-flex; align-items:baseline; gap:4px; padding:3px 11px; border-radius:999px; background:#e6efff; color:#1d4ed8; font-weight:600; white-space:nowrap; font-size:13.5px; }
+  #page-group-camp .gcr-pc b { font-size:15px; font-weight:800; }
+  #page-group-camp .gcr-pc small { font-size:12px; font-weight:600; color:#64748b; }
+  #page-group-camp .gcr-pc.zero { background:#f1f5f9; color:#64748b; }
+  #page-group-camp .gcr-st { font-size:12.5px; color:#64748b; white-space:nowrap; }
+  #page-group-camp .gcr-st.on { color:#1d4ed8; font-weight:700; }
+  #page-group-camp .gcr-st.on::before { content:''; display:inline-block; width:7px; height:7px; border-radius:50%; background:#2f6fd6; margin-right:6px; vertical-align:1px; }
+  #page-group-camp .gcr-hit { font-size:12px; color:#2f6fd6; font-weight:600; margin-top:2px; }
+  #page-group-camp .gcr-grp { border:1px solid #e2e8f0; border-radius:14px; margin-bottom:10px; overflow:hidden; background:#fff; }
+  #page-group-camp .gcr-grp.open { border-color:#8fbaf3; box-shadow:0 4px 14px rgba(47,111,214,.12); }
+  #page-group-camp .gcr-grp-h { display:grid; grid-template-columns:22px minmax(0,1fr) 150px 120px 120px 80px; gap:12px; align-items:center; padding:13px 16px; cursor:pointer; font-size:14.5px; }
+  #page-group-camp .gcr-grp-h:hover { background:#f5f8fe; }
+  #page-group-camp .gcr-grp-hd { cursor:default; background:transparent !important; padding:4px 16px 8px; font-size:12px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:.5px; }
+  #page-group-camp .gcr-caret { color:#2f6fd6; font-size:13px; display:inline-block; transition:transform .15s; }
+  #page-group-camp .gcr-grp.open .gcr-caret { transform:rotate(90deg); }
+  #page-group-camp .gcr-grp-name { font-weight:700; color:#1b2a4e; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #page-group-camp .gcr-m { text-align:right; }
+  #page-group-camp .gcr-grp-b { padding:2px 16px 14px; background:#fafcff; border-top:1px solid #e2e8f0; }
+  #page-group-camp .gcr-pt { font-size:13.5px; }
+  #page-group-camp .gcr-pt th { font-size:11.5px; padding:10px 10px; background:#fafcff; }
+  #page-group-camp .gcr-pt td { font-size:13.5px; padding:9px 10px; border-bottom:1px solid #eef2f7; }
+  #page-group-camp .gcr-pt td.c { text-align:center; color:var(--text2); font-size:12px; }
+  #page-group-camp .gcr-pt .pn { font-weight:600; color:#1b2a4e; max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #page-group-camp .gcr-pt .pid { font-size:11.5px; color:var(--text2); }
+  #page-group-camp .gcr-pt tr.idle td { opacity:.5; }
+  @media (max-width:900px) { #page-group-camp .gcr-grp-h { grid-template-columns:22px minmax(0,1fr) auto; } #page-group-camp .gcr-grp-h .gcr-m { display:none; } }
+
   .acr-dl { display:block; margin-top:3px; }
   .acr-split2 > .card { margin:0; min-width:0; }
   @media (max-width:1100px) { .acr-split, .acr-split2, .acr-share-wrap { grid-template-columns:1fr; } .acr-top10 { grid-auto-flow:row; grid-template-rows:none !important; } .acr-kpi-main, .acr-kpi-sub { grid-template-columns:1fr; } }
@@ -1418,48 +1504,49 @@
     </div>
 
     <div id="gc-content" style="display:none">
-      <!-- KPI row -->
-      <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
-        <div class="kpi-card orange">
-          <div class="kpi-icon">💸</div>
-          <div class="kpi-label">Chi Phí</div>
-          <div class="kpi-value" id="gc-kpi-cost">–</div>
+      <!-- KPI (2026-10-13): giống trang GMS — 3 chỉ số chính nhạt dần + 3 chỉ số phụ, mỗi ô có so sánh kỳ trước / cùng kỳ tháng trước -->
+      <div class="acr-kpi-main">
+        <div class="kpi-card navy acr-hero" id="gc-kpi-roas-card">
+          <div class="kpi-icon">📈</div>
+          <div class="kpi-label">ROAS (chỉ số chính)</div>
+          <div class="kpi-value" id="gc-kpi-roas">–</div>
+          <div class="kpi-sub" style="margin-top:6px">ACOS gộp: <b id="gc-kpi-acos">–</b></div>
+          <div class="kpi-sub" id="gc-kpi-roas-d"></div>
         </div>
-        <div class="kpi-card green">
+        <div class="kpi-card green acr-mid">
           <div class="kpi-icon">💰</div>
           <div class="kpi-label">Doanh Số (Gộp)</div>
           <div class="kpi-value" id="gc-kpi-rev">–</div>
+          <div class="kpi-sub" id="gc-kpi-rev-d"></div>
         </div>
-        <div class="kpi-card navy">
-          <div class="kpi-icon">📈</div>
-          <div class="kpi-label">ROAS (Gộp)</div>
-          <div class="kpi-value" id="gc-kpi-roas">–</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-icon">🎯</div>
-          <div class="kpi-label">ACOS (Gộp)</div>
-          <div class="kpi-value" id="gc-kpi-acos">–</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-icon">👁</div>
-          <div class="kpi-label">Lượt Xem</div>
-          <div class="kpi-value" id="gc-kpi-imp">–</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-icon">🛒</div>
-          <div class="kpi-label">Đơn Hàng</div>
-          <div class="kpi-value" id="gc-kpi-ord">–</div>
+        <div class="kpi-card orange acr-light">
+          <div class="kpi-icon">💸</div>
+          <div class="kpi-label">Chi Phí</div>
+          <div class="kpi-value" id="gc-kpi-cost">–</div>
+          <div class="kpi-sub" id="gc-kpi-cost-d"></div>
         </div>
       </div>
+      <div class="acr-kpi-sub">
+        <div class="acr-s1"><span class="acr-ic">👁</span><span class="acr-sub-lbl">Lượt xem</span><b id="gc-kpi-imp">–</b><span class="acr-sub-d" id="gc-kpi-imp-d"></span></div>
+        <div class="acr-s2"><span class="acr-ic">🖱</span><span class="acr-sub-lbl">Lượt click</span><b id="gc-kpi-clk">–</b><span class="acr-sub-d" id="gc-kpi-clk-d"></span></div>
+        <div class="acr-s3"><span class="acr-ic">🛒</span><span class="acr-sub-lbl">Đơn hàng</span><b id="gc-kpi-ord">–</b><span class="acr-sub-d" id="gc-kpi-ord-d"></span></div>
+      </div>
 
-      <!-- Cảnh báo tự động -->
-      <div id="gc-alerts" style="margin-top:16px"></div>
+      <!-- Cần xử lý (nhóm 0 đơn / ROAS thấp / 0 lượt xem / ROAS shop giảm mạnh / Sheet thiếu ngày) -->
+      <div class="card acr-todo" id="gc-alerts"></div>
 
-      <!-- Bảng nhóm quảng cáo -->
+      <!-- Ô tìm kiếm: lọc cả bảng nhóm lẫn card sản phẩm trong nhóm (tên nhóm, tên SP, ID SP; không phân biệt hoa thường/dấu) -->
+      <div class="card gcr-search">
+        <input id="gc-search" type="search" autocomplete="off" placeholder="🔍 Tìm nhóm quảng cáo hoặc sản phẩm trong nhóm (tên / ID)…" oninput="gcrSearch(this.value)">
+        <button id="gc-search-clear" type="button" onclick="gcrClearSearch()" style="display:none">✕ Xóa</button>
+        <span class="gcr-info" id="gc-search-info"></span>
+      </div>
+
+      <!-- Bảng nhóm quảng cáo (có cột Số SP) -->
       <div class="card" style="margin-top:16px">
         <div class="card-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span class="dot"></span> Danh Sách Nhóm Quảng Cáo
-          <span id="gc-group-count" style="font-size:11px;color:var(--text2);margin-left:2px"></span>
+          <span id="gc-group-count" style="font-size:12.5px;color:var(--text2);font-weight:400;margin-left:2px"></span>
         </div>
         <div class="table-wrap" style="max-height:560px;overflow-y:auto">
           <table id="gc-group-table">
@@ -1467,12 +1554,11 @@
               <th style="width:36px">#</th>
               <th>Nhóm Quảng Cáo</th>
               <th>Trạng Thái</th>
-              <!-- 4 chỉ số quan trọng dời lên trước, tô nền nhẹ để nhóm trực quan tách khỏi
-                   chỉ số phụ bên phải (xác nhận Tân 2026-08-10) -->
-              <th class="num" style="border-left:2px solid var(--gray3);background:#fffaf5">Chi Phí</th>
-              <th class="num" style="background:#fffaf5">Doanh Số</th>
-              <th class="num" style="background:#fffaf5">ROAS</th>
-              <th class="num" style="border-right:2px solid var(--gray3);background:#fffaf5">ACOS</th>
+              <th class="num" title="Số SP đang chạy (có lượt xem/chi phí trong kỳ); nếu có SP không chạy thì hiện thêm '/ tổng'">Số SP</th>
+              <th class="num" style="border-left:2px solid #e2e8f0">Chi Phí</th>
+              <th class="num">Doanh Số</th>
+              <th class="num">ROAS</th>
+              <th class="num" style="border-right:2px solid #e2e8f0">ACOS</th>
               <th class="num">Lượt Xem</th>
               <th class="num">Lượt Click</th>
               <th class="num">CTR</th>
@@ -1483,25 +1569,20 @@
         </div>
       </div>
 
-      <!-- Tỷ trọng doanh số theo nhóm (xác nhận Tân 2026-08-08: pie chart + số liệu Doanh số/%/Chi phí/ROAS/ACOS kèm theo) -->
+      <!-- Tỷ trọng doanh số theo nhóm -->
       <div class="card" style="margin-top:16px">
         <div class="card-title"><span class="dot"></span> Tỷ Trọng Doanh Số Theo Nhóm</div>
-        <!-- 50/50 cố định bằng width % (không dùng flex-basis co giãn theo nội dung — đó là
-             nguyên nhân canvas Chart.js tự giãn cao rồi đẩy bảng xuống dòng dưới, Tân báo 2026-08-08 lần 3).
-             Chart dùng maintainAspectRatio:false để bám đúng khung 50% cố định, không tự tính theo tỷ lệ vuông. -->
-        <div style="display:flex;align-items:flex-start;margin-top:8px">
-          <div style="width:50%;box-sizing:border-box;padding-right:16px;height:320px;position:relative">
-            <canvas id="gc-rev-pie"></canvas>
-          </div>
-          <div style="width:50%;box-sizing:border-box;padding-left:16px;overflow-x:auto">
-            <table style="width:100%;border-collapse:collapse">
-              <thead><tr style="font-size:11px;color:var(--text2);text-align:left;border-bottom:1px solid var(--gray3)">
-                <th style="padding:5px 8px 5px 0">Nhóm</th>
-                <th class="num" style="padding:5px 8px">Doanh Số</th>
-                <th class="num" style="padding:5px 8px">%</th>
-                <th class="num" style="padding:5px 8px">Chi Phí</th>
-                <th class="num" style="padding:5px 8px">ROAS</th>
-                <th class="num" style="padding:5px 8px">ACOS</th>
+        <div class="acr-share-wrap">
+          <div class="acr-donut"><canvas id="gc-rev-pie"></canvas><div class="acr-donut-c" id="gc-rev-pie-c"></div></div>
+          <div class="table-wrap">
+            <table id="gc-rev-pie-table">
+              <thead><tr>
+                <th>Nhóm</th>
+                <th class="num">Doanh Số</th>
+                <th class="num">%</th>
+                <th class="num">Chi Phí</th>
+                <th class="num">ROAS</th>
+                <th class="num">ACOS</th>
               </tr></thead>
               <tbody id="gc-rev-pie-tbody"></tbody>
             </table>
@@ -1509,13 +1590,16 @@
         </div>
       </div>
 
-      <!-- SP tốt nhất / yếu nhất mỗi nhóm (xác nhận Tân 2026-08-08: xếp theo Doanh Số,
-           top 10 tốt nhất + top 10 yếu nhất mỗi nhóm, nhóm <20 SP có thể trùng ở giữa,
-           nhóm chỉ 1 SP vẫn hiện kèm nhãn "chỉ có 1 SP") -->
+      <!-- Sản phẩm trong từng nhóm (thay card Tốt Nhất / Yếu Nhất đã xóa 2026-10-13): bấm 1 nhóm → xổ danh sách SP -->
       <div class="card" style="margin-top:16px">
-        <div class="card-title"><span class="dot"></span> Sản Phẩm Tốt Nhất / Yếu Nhất Trong Từng Nhóm</div>
-        <div style="font-size:11px;color:var(--text2);margin:4px 0 10px">Xếp theo Doanh Số. Mỗi nhóm hiện tối đa 10 SP tốt nhất và 10 SP yếu nhất.</div>
-        <div id="gc-best-worst-wrap"></div>
+        <div class="card-title" style="flex-wrap:wrap"><span class="dot"></span> Sản Phẩm Trong Từng Nhóm
+          <span style="font-size:12.5px;color:var(--text2);font-weight:400">— bấm vào nhóm để xem sản phẩm · "SP đang chạy" = có lượt xem hoặc chi phí trong kỳ</span>
+          <span style="margin-left:auto;display:flex;gap:6px">
+            <button type="button" class="gcr-btn" onclick="gcrToggleAll(true)">Mở tất cả</button>
+            <button type="button" class="gcr-btn" onclick="gcrToggleAll(false)">Thu gọn</button>
+          </span>
+        </div>
+        <div id="gc-prod-wrap"></div>
       </div>
     </div>
   </div>
@@ -1661,6 +1745,11 @@
         <span class="dot"></span> Sản Phẩm Trong Chiến Dịch Tự Động
         <span id="ac-prod-date-label" style="font-size:11px;color:var(--orange);font-weight:600"></span>
         <span id="ac-prod-count" style="font-size:11px;color:var(--text2);margin-left:2px"></span>
+      </div>
+      <div class="acr-prod-search" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 12px">
+        <input id="ac-prod-search" type="search" autocomplete="off" placeholder="🔍 Tìm sản phẩm theo tên hoặc ID…" oninput="acProdSearch(this.value)">
+        <button id="ac-prod-search-clear" type="button" onclick="acProdSearchClear()" style="display:none">✕ Xóa</button>
+        <span id="ac-prod-search-info" style="font-size:13px;color:var(--text2)"></span>
       </div>
       <div id="ac-prod-hint" style="display:none;font-size:12px;padding:10px 12px;border-radius:8px;margin-bottom:10px"></div>
       <div id="ac-prod-empty" style="color:#999;font-size:12px;padding:28px;text-align:center">
@@ -11803,7 +11892,13 @@ async function acSaveCampaignId(shopKey, campaignId) {
 // dùng chung ngưỡng với cột "Cần tối ưu" của bảng "Tất Cả Sản Phẩm ADS").
 const AC_PROD_MIN_COST_FOR_FLAG = 20000;
 
+// Ô tìm kiếm bảng SP GMS (2026-10-13): khớp tên hoặc ID, không phân biệt hoa thường/dấu. Chỉ lọc BẢNG — gợi ý "SP ROAS<10" vẫn tính trên toàn bộ danh sách.
+let _acProdQ = '', _acProdLast = null;
+function acProdNorm(s) { return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd'); }
+function acProdSearch(v) { _acProdQ = v || ''; if (_acProdLast) acRenderProductTable(_acProdLast.list, _acProdLast.label); }
+function acProdSearchClear() { const el = document.getElementById('ac-prod-search'); if (el) el.value = ''; acProdSearch(''); }
 function acRenderProductTable(list, label) {
+  _acProdLast = { list, label };
   const empty = document.getElementById('ac-prod-empty');
   const table = document.getElementById('ac-prod-table');
   const tbody = document.getElementById('ac-prod-tbody');
@@ -11815,14 +11910,19 @@ function acRenderProductTable(list, label) {
   if (table) table.style.display = '';
   if (labelEl) labelEl.textContent = '— ' + label;
   const countEl = document.getElementById('ac-prod-count');
-  if (countEl) countEl.textContent = `(${list.length} sản phẩm)`;
 
-  const sorted = [...list].sort((a, b) => (b.expense||0) - (a.expense||0));
+  const sortedAll = [...list].sort((a, b) => (b.expense||0) - (a.expense||0));
+  const qToks = acProdNorm(_acProdQ).split(/\s+/).filter(Boolean);
+  const sorted = qToks.length ? sortedAll.filter(p => { const h = acProdNorm((p.item_name || p.ad_name || '') + ' ' + (p.item_id || p.campaign_id || '')); return qToks.every(t => h.includes(t)); }) : sortedAll;
+  if (countEl) countEl.textContent = qToks.length ? `(${sorted.length} / ${list.length} sản phẩm khớp)` : `(${list.length} sản phẩm)`;
+  const sInfo = document.getElementById('ac-prod-search-info'), sClr = document.getElementById('ac-prod-search-clear');
+  if (sInfo) sInfo.textContent = qToks.length ? (sorted.length ? `Khớp ${sorted.length}/${list.length} sản phẩm` : 'Không có sản phẩm nào khớp') : `${list.length} sản phẩm · gõ tên hoặc ID để tìm`;
+  if (sClr) sClr.style.display = qToks.length ? '' : 'none';
 
   // Gợi ý tối ưu: SP tốn đủ nhiều (≥20.000đ) nhưng ROAS <10 → đề xuất cân nhắc loại khỏi chiến
   // dịch. CHỈ hiển thị + gợi ý — không tự động gọi API xóa SP, Tân tự quyết định trong Shopee
   // Seller Centre (xác nhận Tân 2026-08-07, cùng nguyên tắc với toàn bộ trang ADS).
-  const flagged = sorted.filter(p => {
+  const flagged = sortedAll.filter(p => {
     const roasNum = p.roas || (p.expense>0 ? p.broad_gmv/p.expense : 0);
     return (p.expense||0) >= AC_PROD_MIN_COST_FOR_FLAG && roasNum < 10;
   });
@@ -11838,6 +11938,7 @@ function acRenderProductTable(list, label) {
     }
   }
 
+  if (!sorted.length) { tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:26px;color:#999">Không có sản phẩm nào khớp “${acrEsc(_acProdQ.trim())}”.</td></tr>`; return; }
   tbody.innerHTML = sorted.map((p, i) => {
     const ctr     = p.ctr_str || (p.impression>0 ? (p.clicks/p.impression*100).toFixed(2)+'%' : '—');
     const roasNum = p.roas || (p.expense>0 ? p.broad_gmv/p.expense : 0);
@@ -12037,7 +12138,8 @@ function adrShopPills(wrapId, sel, hasData, onClickFn) {
 function adrShortName(rec) { return (rec.shopKey && SHOPS[rec.shopKey] && SHOPS[rec.shopKey].short) || rec.shopName; }
 
 // ─────────── Trang Nhóm Sản Phẩm ───────────
-const _gcR = { range: null, shop: 'all', recs: [], miss: {}, loading: false, picker: null, seq: 0 };
+const _gcR = { range: null, shop: 'all', recs: [], miss: {}, loading: false, picker: null, seq: 0,
+  daily: {}, hasDaily: false, prev: null, mom: null, q: '', open: {}, view: null };
 function gcrLog(msg, type) {
   const logEl = document.getElementById('gc-log');
   if (!logEl) return;
@@ -12058,12 +12160,15 @@ async function gcrLoad() {
   const logEl = document.getElementById('gc-log'); if (logEl) logEl.innerHTML = '';
   gcrLog(`📊 Đọc Sheet "Theo Dõi ADS 2H" — Nhóm, ${adrRangeLabel(r)}...`);
   try {
-    const resp = await adsSheetCall({ action: 'get_ads_rows', reportType: 'Nhóm', from: r.from, to: r.to });
+    const prev = acrPrevRange(r), mom = acrMomRange(r);   // kỳ trước + cùng kỳ tháng trước (như trang GMS)
+    const dailyFrom = [r.from, prev && prev.from, mom && mom.from].filter(Boolean).sort()[0];
+    const resp = await adsSheetCall({ action: 'get_ads_rows', reportType: 'Nhóm', from: r.from, to: r.to, dailyFrom });
     if (my !== _gcR.seq) return;   // đã chọn khoảng khác trong lúc chờ → bỏ kết quả cũ
-    const recs = [], miss = {};
+    const recs = [], miss = {}, daily = {};
     for (const sh of (resp.shops || [])) {
       const si = adsShResolveShop(sh.username, sh.shopName);
       if (!si) { gcrLog(`  → Shop "${sh.shopName}" không khớp danh sách shop của dashboard, bỏ qua`, 'warn'); continue; }
+      if (si.shopKey && Array.isArray(sh.daily) && sh.daily.length) daily[si.shopKey] = sh.daily;
       if (!sh.groups || !sh.groups.length) continue;
       const groups = sh.groups.map(g => ({
         name: g.name, status: g.status, adType: g.adType || '', views: g.views, clicks: g.clicks,
@@ -12081,13 +12186,16 @@ async function gcrLoad() {
       if (m.length) miss[si.shopKey] = m;
       gcrLog(`  💾 ${si.displayName}: ${groups.length} nhóm QC, ${(sh.days || []).length} ngày có dữ liệu`, 'ok');
     }
-    _gcR.recs = recs; _gcR.miss = miss;
+    _gcR.recs = recs; _gcR.miss = miss; _gcR.daily = daily;
+    _gcR.hasDaily = resp.dailyFrom !== undefined;   // Apps Script bản cũ không trả daily/dailyFrom
+    _gcR.prev = _gcR.hasDaily ? prev : null; _gcR.mom = _gcR.hasDaily ? mom : null;
+    if (!_gcR.hasDaily) gcrLog('⚠ Apps Script đang là bản cũ (chưa có số theo ngày) — so sánh kỳ trước sẽ hiện sau khi Deploy bản mới.', 'warn');
     gcrLog(recs.length ? `✅ Xong: ${recs.length} shop có dữ liệu Nhóm trong khoảng này.` : '⚠ Không có dữ liệu Nhóm nào trong khoảng ngày này.', recs.length ? 'ok' : 'warn');
     const ls = document.getElementById('gc-last-sync');
     if (ls) ls.textContent = `Sheet lúc ${new Date().toLocaleString('vi-VN')} — ${adrRangeLabel(r)}`;
   } catch (e) {
     if (my !== _gcR.seq) return;
-    _gcR.recs = []; gcrLog(`❌ Lỗi: ${e.message}`, 'err');
+    _gcR.recs = []; _gcR.daily = {}; gcrLog(`❌ Lỗi: ${e.message}`, 'err');
   }
   _gcR.loading = false; gcrRender();
 }
@@ -12111,12 +12219,9 @@ function gcrRender() {
   }
   if (emptyEl) emptyEl.style.display = 'none';
   if (contentEl) contentEl.style.display = '';
-  groupCampRenderContent(rec);
-  const keys = _gcR.shop === 'all' ? Object.keys(_gcR.miss) : (_gcR.miss[_gcR.shop] ? [_gcR.shop] : []);
-  const al = document.getElementById('gc-alerts');
-  if (al && keys.length) {
-    al.innerHTML += `<div style="font-size:12px;padding:10px 12px;border-radius:8px;margin-bottom:8px;background:#fff8e1;color:#8a6100;border:1px solid #ffe58f">⚠️ <strong>Sheet còn thiếu ngày</strong> trong khoảng đã chọn (tiện ích chưa tải): ${keys.map(k => `${(SHOPS[k] && SHOPS[k].short) || k} thiếu ${_gcR.miss[k].length} ngày (${adsShFmtMissing(_gcR.miss[k])})`).join(' · ')}</div>`;
-  }
+  const mkeys = _gcR.shop === 'all' ? Object.keys(_gcR.miss) : (_gcR.miss[_gcR.shop] ? [_gcR.shop] : []);
+  const extraRows = mkeys.length ? [`⚠️ <b>Sheet còn thiếu ngày</b> trong khoảng đã chọn (tiện ích chưa tải): ${mkeys.map(k => `${(SHOPS[k] && SHOPS[k].short) || k} thiếu ${_gcR.miss[k].length} ngày (${adsShFmtMissing(_gcR.miss[k])})`).join(' · ')}`] : [];
+  groupCampRenderContent(rec, { allShops: _gcR.shop === 'all', keys: _gcR.shop === 'all' ? Object.keys(_gcR.daily) : [_gcR.shop], extraRows });
 }
 
 // ─────────── Trang GMS ───────────
@@ -12422,17 +12527,19 @@ function acrRender() {
   if (!_acR.hasDaily) setH('ac-kpi-roas-d', 'Chưa so sánh được — cần Deploy bản mới Apps Script');
   else if (!_acR.prev && !_acR.mom) setH('ac-kpi-roas-d', 'Đang xem Tất cả — không có kỳ để so');
   else {
-    const lines = { cost: '', rev: '', roas: '' };
-    [[cmp(_acR.prev, 'so với kỳ trước'), true], [cmp(_acR.mom, 'so với cùng kỳ tháng trước'), false]].forEach(([c, isPrev]) => {
+    const lines = { cost: '', rev: '', roas: '', imp: '', clk: '', ord: '' };
+    const subL = (d, nm) => d ? `<span class="acr-dl">${d} <span style="color:var(--text2)">${nm}</span></span>` : '';
+    [[cmp(_acR.prev, 'so với kỳ trước'), 'kỳ trước'], [cmp(_acR.mom, 'so với cùng kỳ tháng trước'), 'tháng trước']].forEach(([c, short]) => {
       if (!c) return;
       if (c.none) { lines.roas += c.none; return; }
       const pv = c.pv;
       lines.cost += c.line(acrDelta(tot.cost, pv.cost, true));
       lines.rev += c.line(acrDelta(tot.rev, pv.rev));
       lines.roas += c.line(tot.cost > 0 && pv.cost > 0 ? acrDelta(tot.rev / tot.cost, pv.rev / pv.cost) : '');
-      if (isPrev) { setH('ac-kpi-imp-d', acrDelta(tot.imp, pv.imp)); setH('ac-kpi-clk-d', acrDelta(tot.clk, pv.clk)); setH('ac-kpi-ord-d', acrDelta(tot.ord, pv.ord)); }
+      lines.imp += subL(acrDelta(tot.imp, pv.imp), short); lines.clk += subL(acrDelta(tot.clk, pv.clk), short); lines.ord += subL(acrDelta(tot.ord, pv.ord), short);
     });
     setH('ac-kpi-cost-d', lines.cost); setH('ac-kpi-rev-d', lines.rev); setH('ac-kpi-roas-d', lines.roas);
+    setH('ac-kpi-imp-d', lines.imp); setH('ac-kpi-clk-d', lines.clk); setH('ac-kpi-ord-d', lines.ord);
   }
   const curRoas = tot.cost > 0 ? tot.rev / tot.cost : 0;
   const pvAll = acrPrevOf(dkeys);
@@ -13697,208 +13804,263 @@ function gcMergeRecords(records) {
   };
 }
 
-function groupCampRenderContent(rec) {
+// ═══════════ Trang Nhóm Sản Phẩm — giao diện/logic mới 2026-10-13 (theo giao diện trang GMS) ═══════════
+// Tân chốt 2026-10-13: (1) cột "Số SP" trong bảng nhóm; (2) card "Sản Phẩm Trong Từng Nhóm" (bấm nhóm → xổ SP)
+// thay card Tốt Nhất/Yếu Nhất đã xóa; (3) ô tìm kiếm nhóm + SP; (4) thẻ KPI so kỳ trước & cùng kỳ tháng trước.
+const GC_PROD_MIN_COST = 20000;   // cùng ngưỡng AC_PROD_MIN_COST_FOR_FLAG của GMS
+const GC_ROAS_LOW = 10;           // ROAS < 10 = đỏ (chuẩn chung dashboard)
+function gcNorm(s) { return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd'); }
+// Tổng theo ngày của các shop trong [from,to]; hasSold = Apps Script đã trả thêm trường "sold" (Sản phẩm đã bán)
+function gcSumDaily(keys, from, to) {
+  const t = { cost: 0, rev: 0, imp: 0, clk: 0, sold: 0, hasSold: false }, days = new Set();
+  keys.forEach(k => (_gcR.daily[k] || []).forEach(d => {
+    if (d.d < from || d.d > to) return;
+    t.cost += +d.cost || 0; t.rev += +d.rev || 0; t.imp += +d.imp || 0; t.clk += +d.clk || 0;
+    if (d.sold !== undefined) { t.sold += +d.sold || 0; t.hasSold = true; }
+    days.add(d.d);
+  }));
+  t.days = days.size; return t;
+}
+// SP "đang chạy" = có lượt xem hoặc chi phí trong kỳ (Sheet không có trạng thái riêng từng SP)
+function gcActiveCount(g) { return (g.products || []).filter(p => p.views > 0 || p.cost > 0).length; }
+// Chế độ "Tất cả shop": tên nhóm đã gắn "TênShop · " ở đầu → tách ra làm chip riêng
+function gcSplitName(name, allShops) {
+  const s = String(name || '');
+  if (!allShops) return { tag: '', base: s };
+  const i = s.indexOf(' · ');
+  return i > 0 && i <= 24 ? { tag: s.slice(0, i), base: s.slice(i + 3) } : { tag: '', base: s };
+}
+function gcSubLine(d, name) { return d ? `<span class="acr-dl">${d} <span style="color:var(--text2)">${name}</span></span>` : ''; }
+
+function groupCampRenderContent(rec, opts) {
+  opts = opts || {};
   const groups = rec.groups || [];
-  const totalCost = groups.reduce((s, g) => s + g.cost, 0);
-  const totalRev  = groups.reduce((s, g) => s + g.revenue, 0);
-  const totalImp  = groups.reduce((s, g) => s + g.views, 0);
-  const totalOrd  = groups.reduce((s, g) => s + g.sold, 0);
-  const roas = totalCost > 0 ? (totalRev / totalCost) : 0;
-  const acos = totalRev > 0 ? (totalCost / totalRev * 100) : 0;
-
+  const tot = { cost: 0, rev: 0, imp: 0, clk: 0, sold: 0 };
+  groups.forEach(g => { tot.cost += g.cost; tot.rev += g.revenue; tot.imp += g.views; tot.clk += g.clicks; tot.sold += g.sold; });
+  const roas = tot.cost > 0 ? tot.rev / tot.cost : 0;
+  const acos = tot.rev > 0 ? tot.cost / tot.rev * 100 : 0;
   const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-  setTxt('gc-kpi-cost', fmtMoney(totalCost));
-  setTxt('gc-kpi-rev',  fmtMoney(totalRev));
-  setTxt('gc-kpi-roas', totalCost > 0 ? roas.toFixed(2) : '—');
-  setTxt('gc-kpi-acos', totalRev > 0 ? acos.toFixed(2) + '%' : '—');
-  setTxt('gc-kpi-imp',  fmtNum(totalImp));
-  setTxt('gc-kpi-ord',  fmtNum(totalOrd));
+  const setH = (id, h) => { const el = document.getElementById(id); if (el) el.innerHTML = h; };
+  setTxt('gc-kpi-cost', fmtMoney(tot.cost));
+  setTxt('gc-kpi-rev', fmtMoney(tot.rev));
+  setTxt('gc-kpi-roas', tot.cost > 0 ? roas.toFixed(2) : '—');
+  setTxt('gc-kpi-acos', tot.rev > 0 ? acos.toFixed(2) + '%' : '—');
+  setTxt('gc-kpi-imp', fmtNum(tot.imp));
+  setTxt('gc-kpi-clk', fmtNum(tot.clk));
+  setTxt('gc-kpi-ord', fmtNum(tot.sold));
 
-  // Cảnh báo: (1) tốn chi phí nhưng 0 đơn, (2) đang chạy nhưng 0 lượt xem
-  const zeroOrderCost     = groups.filter(g => g.cost > 0 && g.sold === 0);
-  const zeroTrafficActive = groups.filter(g => g.status === 'Đang diễn ra' && g.views === 0);
+  // ── So sánh: kỳ trước (cùng số ngày, liền trước) + cùng kỳ tháng trước ──
+  ['cost', 'rev', 'roas', 'imp', 'clk', 'ord'].forEach(k => setH('gc-kpi-' + k + '-d', ''));
+  const keys = opts.keys || null;
+  let roasDrop = null;
+  if (keys) {
+    const f5 = d => adrFmt(d).slice(0, 5);
+    const cmp = (rg, name, short) => {
+      if (!rg) return null;
+      const pv = gcSumDaily(keys, rg.from, rg.to), len = adsShListDays(rg.from, rg.to).length, lbl = `${f5(rg.from)}–${f5(rg.to)}`;
+      if (!pv.days) return { none: `<span class="acr-dl" style="color:var(--text2)">${name} (${lbl}): Sheet chưa có dữ liệu</span>` };
+      const sfx = ` <span style="color:var(--text2)">${name} ${lbl}${pv.days < len ? ` · thiếu ${len - pv.days} ngày` : ''}</span>`;
+      return { pv, short, line: d => `<span class="acr-dl">${d || '—'}${sfx}</span>` };
+    };
+    if (!_gcR.hasDaily) setH('gc-kpi-roas-d', 'Chưa so sánh được — cần Deploy bản mới Apps Script');
+    else if (!_gcR.prev && !_gcR.mom) setH('gc-kpi-roas-d', 'Đang xem Tất cả — không có kỳ để so');
+    else {
+      const L = { cost: '', rev: '', roas: '', imp: '', clk: '', ord: '' };
+      [cmp(_gcR.prev, 'so với kỳ trước', 'kỳ trước'), cmp(_gcR.mom, 'so với cùng kỳ tháng trước', 'tháng trước')].forEach(c => {
+        if (!c) return;
+        if (c.none) { L.roas += c.none; return; }
+        const pv = c.pv;
+        L.cost += c.line(acrDelta(tot.cost, pv.cost, true));
+        L.rev += c.line(acrDelta(tot.rev, pv.rev));
+        L.roas += c.line(tot.cost > 0 && pv.cost > 0 ? acrDelta(roas, pv.rev / pv.cost) : '');
+        L.imp += gcSubLine(acrDelta(tot.imp, pv.imp), c.short);
+        L.clk += gcSubLine(acrDelta(tot.clk, pv.clk), c.short);
+        L.ord += pv.hasSold ? gcSubLine(acrDelta(tot.sold, pv.sold), c.short) : '';
+      });
+      Object.keys(L).forEach(k => setH('gc-kpi-' + k + '-d', L[k]));
+    }
+    const pvAll = _gcR.hasDaily && _gcR.prev ? gcSumDaily(keys, _gcR.prev.from, _gcR.prev.to) : null;
+    if (pvAll && pvAll.days && pvAll.cost > 0 && tot.cost > 0) roasDrop = acrPct(roas, pvAll.rev / pvAll.cost);
+  }
+  const rc = document.getElementById('gc-kpi-roas-card');
+  if (rc) rc.classList.toggle('acr-alert', (tot.cost > 0 && roas < GC_ROAS_LOW) || (roasDrop != null && roasDrop <= -ACR_DROP_PCT));
+
+  // ── Cần xử lý ──
+  const rows = [];
+  const names = (arr, n) => arr.slice(0, n).map(g => acrEsc(gcSplitName(g.name, opts.allShops).base)).join(', ') + (arr.length > n ? ` … (+${arr.length - n})` : '');
+  const zeroOrderCost = groups.filter(g => g.cost > 0 && g.sold === 0).sort((a, b) => b.cost - a.cost);
+  if (zeroOrderCost.length) rows.push(`🔴 <b>${zeroOrderCost.length} nhóm tốn chi phí nhưng 0 đơn</b> — lãng phí <b>${fmtMoney(zeroOrderCost.reduce((s, g) => s + g.cost, 0))}</b>: ${names(zeroOrderCost, 5)}`);
+  const lowRoas = groups.filter(g => g.cost >= GC_PROD_MIN_COST && !(g.sold === 0) && g.roas < GC_ROAS_LOW).sort((a, b) => b.cost - a.cost);
+  if (lowRoas.length) rows.push(`🔴 <b>${lowRoas.length} nhóm ROAS dưới ${GC_ROAS_LOW}</b> (chi phí ≥ ${fmtMoney(GC_PROD_MIN_COST)}): ${lowRoas.slice(0, 3).map(g => `${acrEsc(gcSplitName(g.name, opts.allShops).base)} <span style="color:var(--text2)">(${fmtMoney(g.cost)} · ROAS ${g.roas.toFixed(2)})</span>`).join(', ')}${lowRoas.length > 3 ? ' …' : ''}`);
+  const zeroTraffic = groups.filter(g => g.status === 'Đang diễn ra' && g.views === 0);
+  if (zeroTraffic.length) rows.push(`🟡 <b>${zeroTraffic.length} nhóm đang chạy nhưng 0 lượt xem</b> — kiểm tra ngân sách / duyệt quảng cáo: ${names(zeroTraffic, 5)}`);
+  if (keys && _gcR.hasDaily && _gcR.prev) {
+    const drops = [];
+    keys.forEach(k => {
+      const sr = _gcR.recs.find(x => x.shopKey === k); if (!sr) return;
+      const c = sr.groups.reduce((s, g) => s + g.cost, 0), v = sr.groups.reduce((s, g) => s + g.revenue, 0);
+      const pv = gcSumDaily([k], _gcR.prev.from, _gcR.prev.to);
+      if (!pv.days || !(pv.cost > 0) || !(c > 0)) return;
+      const d = acrPct(v / c, pv.rev / pv.cost);
+      if (d != null && d <= -ACR_DROP_PCT) drops.push(`${(SHOPS[k] && SHOPS[k].short) || k}: ROAS ${(v / c).toFixed(2)} (▼ ${Math.abs(d).toFixed(1)}% so với ${(pv.rev / pv.cost).toFixed(2)})`);
+    });
+    if (drops.length) rows.push(`📉 <b>ROAS giảm ≥ ${ACR_DROP_PCT}%</b> so với kỳ trước: ${drops.join(' · ')}`);
+  }
+  (opts.extraRows || []).forEach(h => rows.push(h));
   const alertsEl = document.getElementById('gc-alerts');
   if (alertsEl) {
-    let html = '';
-    if (zeroOrderCost.length) {
-      const wasted = zeroOrderCost.reduce((s, g) => s + g.cost, 0);
-      html += `<div style="font-size:12px;padding:10px 12px;border-radius:8px;margin-bottom:8px;background:#fdecea;color:#c0392b;border:1px solid #f5c6cb">
-        ⚠️ <strong>${zeroOrderCost.length} nhóm tốn chi phí nhưng 0 đơn</strong> — tổng chi phí lãng phí <strong>${fmtMoney(wasted)}</strong>: ${zeroOrderCost.map(g=>g.name).join(', ')}</div>`;
-    }
-    if (zeroTrafficActive.length) {
-      html += `<div style="font-size:12px;padding:10px 12px;border-radius:8px;margin-bottom:8px;background:#fff8e1;color:#8a6100;border:1px solid #ffe58f">
-        ⚠️ <strong>${zeroTrafficActive.length} nhóm đang chạy nhưng 0 lượt xem</strong> — kiểm tra ngân sách/duyệt quảng cáo: ${zeroTrafficActive.map(g=>g.name).join(', ')}</div>`;
-    }
-    alertsEl.innerHTML = html;
+    alertsEl.className = 'card acr-todo' + (rows.length ? ' has' : '');
+    alertsEl.innerHTML = rows.length ? rows.map(h => `<div class="acr-todo-row">${h}</div>`).join('') : '<div class="acr-todo-row" style="color:var(--text2)">✅ Chưa có gì cần xử lý trong khoảng này.</div>';
   }
 
-  setTxt('gc-group-count', `${groups.length} nhóm`);
+  // ── Danh sách nhóm + card SP trong nhóm (có ô tìm kiếm) ──
+  const sorted = [...groups].sort((a, b) => b.cost - a.cost).map(g => ({
+    ...g, _n: gcNorm(g.name),
+    products: (g.products || []).map(p => ({ ...p, _n: gcNorm((p.name || '') + ' ' + (p.itemId || '')) }))
+  }));
+  _gcR.view = { sorted, allShops: !!opts.allShops };
+  gcrRenderLists();
+  gcRenderRevPie(groups, tot.rev);
+}
 
-  const sorted = [...groups].sort((a, b) => b.cost - a.cost);
-  const tbody = document.getElementById('gc-group-tbody');
+// ── Tìm kiếm: khớp tên nhóm HOẶC tên/ID sản phẩm trong nhóm (không phân biệt hoa thường, bỏ dấu) ──
+function gcrSearch(v) { _gcR.q = v || ''; gcrRenderLists(); }
+function gcrClearSearch() { const el = document.getElementById('gc-search'); if (el) el.value = ''; gcrSearch(''); }
+function gcrMatches() {
+  const v = _gcR.view; if (!v) return null;
+  const toks = gcNorm(_gcR.q).split(/\s+/).filter(Boolean);
+  const list = [];
+  v.sorted.forEach((g, i) => {
+    if (!toks.length) { list.push({ g, i, nameHit: true, prods: g.products, prodHit: 0 }); return; }
+    const nameHit = toks.every(t => g._n.includes(t));
+    const hits = g.products.filter(p => toks.every(t => p._n.includes(t)));
+    if (nameHit || hits.length) list.push({ g, i, nameHit, prods: nameHit ? g.products : hits, prodHit: hits.length });
+  });
+  return { toks, list };
+}
+function gcrToggleGroup(i) {
+  const g = _gcR.view && _gcR.view.sorted[i]; if (!g) return;
+  _gcR.open[g.name] = !_gcR.open[g.name];
+  gcrRenderLists();
+}
+function gcrToggleAll(on) {
+  const m = gcrMatches(); if (!m) return;
+  m.list.forEach(x => { if (on) _gcR.open[x.g.name] = true; else delete _gcR.open[x.g.name]; });
+  gcrRenderLists();
+}
+function gcrRenderLists() {
+  const v = _gcR.view, m = gcrMatches();
+  const tbody = document.getElementById('gc-group-tbody'), wrap = document.getElementById('gc-prod-wrap');
+  if (!v || !m) return;
+  const q = _gcR.q.trim(), total = v.sorted.length;
+  const setTxt = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+  setTxt('gc-group-count', q ? `${m.list.length} / ${total} nhóm khớp` : `${total} nhóm`);
+  const nProd = m.list.reduce((s, x) => s + (q ? x.prodHit : 0), 0);
+  setTxt('gc-search-info', q ? (m.list.length ? `Khớp ${m.list.length}/${total} nhóm${nProd ? ` · ${nProd} sản phẩm khớp` : ''}` : 'Không có nhóm hay sản phẩm nào khớp') : `${total} nhóm · gõ tên nhóm, tên sản phẩm hoặc ID để tìm`);
+  const clr = document.getElementById('gc-search-clear'); if (clr) clr.style.display = q ? '' : 'none';
+  const qEsc = acrEsc(q);
+
+  // Bảng nhóm
   if (tbody) {
-    tbody.innerHTML = sorted.map((g, i) => {
-      const isZeroOrder = g.cost > 0 && g.sold === 0;
-      const isZeroTraffic = g.status === 'Đang diễn ra' && g.views === 0;
-      const warnIcon = isZeroOrder ? ' 🔴' : (isZeroTraffic ? ' 🟡' : '');
-      const roasStr = g.cost > 0 ? g.roas.toFixed(2) : '—';
-      const roasColor = g.cost === 0 ? '#999' : (g.roas >= 20 ? '#27ae60' : g.roas >= 10 ? '#f39c12' : '#e74c3c');
-      return `<tr style="border-bottom:1px solid #f0f0f0">
-        <td style="padding:6px 10px;font-size:11px">${i+1}</td>
-        <td style="padding:6px 10px;font-size:11.5px;font-weight:600">${g.name}${warnIcon}</td>
-        <td style="padding:6px 10px;font-size:11px;color:var(--text2)">${g.status}</td>
-        <td class="num" style="padding:6px 10px;font-size:12.5px;font-weight:700;color:var(--orange);border-left:2px solid var(--gray3);background:#fffaf5">${fmtMoney(g.cost)}</td>
-        <td class="num" style="padding:6px 10px;font-size:12.5px;font-weight:700;color:var(--green);background:#fffaf5">${fmtMoney(g.revenue)}</td>
-        <td class="num" style="padding:6px 10px;font-size:12.5px;font-weight:700;color:${roasColor};background:#fffaf5">${roasStr}</td>
-        <td class="num" style="padding:6px 10px;font-size:12.5px;font-weight:700;color:var(--text);background:#fffaf5;border-right:2px solid var(--gray3)">${g.acos}</td>
-        <td class="num" style="padding:6px 10px;font-size:11px">${fmtNum(g.views)}</td>
-        <td class="num" style="padding:6px 10px;font-size:11px">${fmtNum(g.clicks)}</td>
-        <td class="num" style="padding:6px 10px;font-size:11px">${g.ctr}</td>
-        <td class="num" style="padding:6px 10px;font-size:11px">${fmtNum(g.sold)}</td>
+    tbody.innerHTML = m.list.length ? m.list.map((x, n) => {
+      const g = x.g, sp = gcSplitName(g.name, v.allShops), act = gcActiveCount(g), all = g.products.length;
+      const zeroOrder = g.cost > 0 && g.sold === 0, zeroTraffic = g.status === 'Đang diễn ra' && g.views === 0;
+      const low = g.cost > 0 && g.roas < GC_ROAS_LOW;
+      const pc = all ? `<span class="gcr-pc${act ? '' : ' zero'}" title="${act} SP có lượt xem/chi phí trong kỳ · tổng ${all} SP có dòng dữ liệu"><b>${act}</b>${act !== all ? `<small>/ ${all}</small>` : ''}</span>` : '<span class="gcr-pc zero" title="Chưa có dữ liệu SP của nhóm này"><b>0</b></span>';
+      return `<tr>
+        <td class="c">${n + 1}</td>
+        <td class="nm">${sp.tag ? `<span class="gcr-shop">${acrEsc(sp.tag)}</span>` : ''}${acrEsc(sp.base)}${zeroOrder ? ' 🔴' : (zeroTraffic ? ' 🟡' : '')}${q && !x.nameHit ? `<div class="gcr-hit">↳ ${x.prodHit} SP khớp “${qEsc}”</div>` : ''}</td>
+        <td><span class="gcr-st${g.status === 'Đang diễn ra' ? ' on' : ''}">${acrEsc(g.status || '—')}</span></td>
+        <td class="num">${pc}</td>
+        <td class="num k1">${fmtMoney(g.cost)}</td>
+        <td class="num k2">${fmtMoney(g.revenue)}</td>
+        <td class="num k3" style="${low ? 'color:var(--red)' : ''}">${low ? '⚠ ' : ''}${g.cost > 0 ? g.roas.toFixed(2) : '—'}</td>
+        <td class="num">${g.acos}</td>
+        <td class="num">${fmtNum(g.views)}</td><td class="num">${fmtNum(g.clicks)}</td><td class="num">${g.ctr}</td><td class="num">${fmtNum(g.sold)}</td>
       </tr>`;
+    }).join('') : `<tr><td colspan="12" style="text-align:center;padding:26px;color:#999">Không có nhóm hay sản phẩm nào khớp “${qEsc}”.</td></tr>`;
+  }
+
+  // Card "Sản Phẩm Trong Từng Nhóm": mỗi nhóm 1 dòng, bấm để xổ danh sách SP
+  if (wrap) {
+    if (!m.list.length) { wrap.innerHTML = `<div class="th-empty">Không có nhóm hay sản phẩm nào khớp “${qEsc}”.</div>`; return; }
+    const head = `<div class="gcr-grp-h gcr-grp-hd"><span></span><span>Nhóm</span><span style="text-align:right">SP đang chạy</span><span class="gcr-m">Chi phí</span><span class="gcr-m">Doanh số</span><span class="gcr-m">ROAS</span></div>`;
+    wrap.innerHTML = head + m.list.map(x => {
+      const g = x.g, sp = gcSplitName(g.name, v.allShops), act = gcActiveCount(g), all = g.products.length;
+      const forced = !!q && !x.nameHit && x.prodHit > 0;
+      const isOpen = forced || !!_gcR.open[g.name];
+      const low = g.cost > 0 && g.roas < GC_ROAS_LOW;
+      let body = '';
+      if (isOpen) {
+        if (!x.prods.length) body = '<div class="th-empty" style="padding:14px">Chưa có dữ liệu sản phẩm cho nhóm này trong khoảng đã chọn.</div>';
+        else body = `<div class="table-wrap"><table class="gcr-pt"><thead><tr><th style="width:34px">#</th><th>Sản Phẩm</th><th class="num">Chi Phí</th><th class="num">Doanh Số</th><th class="num">ROAS</th><th class="num">ACOS</th><th class="num">Lượt Xem</th><th class="num">Lượt Click</th><th class="num">Đơn</th></tr></thead><tbody>${
+          [...x.prods].sort((a, b) => b.cost - a.cost || b.revenue - a.revenue).map((p, k) => {
+            const r = p.cost > 0 ? p.revenue / p.cost : 0, plow = p.cost >= GC_PROD_MIN_COST && r < GC_ROAS_LOW, idle = !(p.views > 0 || p.cost > 0);
+            return `<tr${idle ? ' class="idle" title="Không có lượt xem/chi phí trong kỳ"' : ''}><td class="c">${k + 1}</td><td><div class="pn" title="${acrEsc(p.name)}">${acrEsc(p.name)}</div><div class="pid">ID: ${acrEsc(p.itemId || '—')}</div></td>
+              <td class="num k1">${fmtMoney(p.cost)}</td><td class="num k2">${fmtMoney(p.revenue)}</td>
+              <td class="num k3" style="${plow ? 'color:var(--red)' : ''}">${plow ? '⚠ ' : ''}${p.cost > 0 ? r.toFixed(2) : '—'}</td>
+              <td class="num">${p.revenue > 0 ? (p.cost / p.revenue * 100).toFixed(1) + '%' : '—'}</td>
+              <td class="num">${fmtNum(p.views)}</td><td class="num">${fmtNum(p.clicks)}</td><td class="num">${fmtNum(p.sold)}</td></tr>`;
+          }).join('')}</tbody></table></div>${forced ? `<div class="gcr-hit" style="padding:6px 2px 0">Đang lọc: chỉ hiện ${x.prods.length}/${all} SP khớp “${qEsc}”.</div>` : ''}`;
+      }
+      return `<div class="gcr-grp${isOpen ? ' open' : ''}">
+        <div class="gcr-grp-h" onclick="gcrToggleGroup(${x.i})">
+          <span class="gcr-caret">▸</span>
+          <span class="gcr-grp-name" title="${acrEsc(g.name)}">${sp.tag ? `<span class="gcr-shop">${acrEsc(sp.tag)}</span>` : ''}${acrEsc(sp.base)}</span>
+          <span style="text-align:right"><span class="gcr-pc${act ? '' : ' zero'}"><b>${act}</b> SP${act !== all ? `<small>/ ${all}</small>` : ''}</span></span>
+          <span class="gcr-m k1">${fmtMoney(g.cost)}</span><span class="gcr-m k2">${fmtMoney(g.revenue)}</span>
+          <span class="gcr-m k3" style="${low ? 'color:var(--red)' : ''}">${g.cost > 0 ? g.roas.toFixed(2) : '—'}</span>
+        </div>${isOpen ? `<div class="gcr-grp-b">${body}</div>` : ''}
+      </div>`;
     }).join('');
   }
-
-  gcRenderRevPie(groups, totalRev);
-  gcRenderBestWorst(groups);
 }
 
-// Card "Tỷ Trọng Doanh Số Theo Nhóm" — pie chart + bảng số liệu kèm theo
-// (xác nhận Tân 2026-08-08: doanh số + % + chi phí + ROAS + ACOS mỗi nhóm)
+// Card "Tỷ Trọng Doanh Số Theo Nhóm" — doughnut + bảng số liệu. Chỉ đổi màu theo bộ xanh dương của GMS
+// (tối đa 6 màu: 5 nhóm doanh số cao nhất + "Các nhóm khác" màu xám; bảng bên cạnh vẫn liệt kê ĐỦ mọi nhóm)
 function gcRenderRevPie(groups, totalRev) {
   const canvas = document.getElementById('gc-rev-pie');
-  const tbody  = document.getElementById('gc-rev-pie-tbody');
+  const tbody = document.getElementById('gc-rev-pie-tbody');
+  const cen = document.getElementById('gc-rev-pie-c');
   if (!canvas || !tbody) return;
-
   const withRev = groups.filter(g => g.revenue > 0).sort((a, b) => b.revenue - a.revenue);
-  const COLORS = ['#1F3864','#2E4D7B','#3D6898','#E67E22','#F39C12','#27AE60','#E74C3C','#8E44AD','#7F8C8D','#16A085','#D35400','#2980B9'];
-
-  if (gcRevPieChart) { gcRevPieChart.destroy(); gcRevPieChart = null; }
+  if (gcRevPieChart) { try { gcRevPieChart.destroy(); } catch (e) {} gcRevPieChart = null; }
+  if (cen) cen.innerHTML = '';
   if (!withRev.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;font-size:12px">Chưa có nhóm nào có doanh số trong kỳ này</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#999">Chưa có nhóm nào có doanh số trong kỳ này</td></tr>';
     return;
   }
-
-  gcRevPieChart = new Chart(canvas, {
-    type: 'doughnut',
-    data: {
-      labels: withRev.map(g => g.name),
-      datasets: [{ data: withRev.map(g => g.revenue), backgroundColor: COLORS, borderWidth: 2 }]
-    },
-    options: {
-      // maintainAspectRatio:false — bám đúng khung 50%/320px cố định của div cha,
-      // KHÔNG tự tính chiều cao theo tỷ lệ vuông nữa (nguyên nhân đẩy bảng xuống dòng dưới).
-      responsive: true, maintainAspectRatio: false, cutout: '58%',
-      plugins: {
-        legend: { display: false },
-        // Hiện "Tên nhóm + %" trên từng lát bánh (Tân yêu cầu 2026-08-08 lần 2).
-        // Chỉ hiện nhãn cho lát ≥4% tổng doanh số — lát nhỏ hơn để trống trên chart
-        // (tránh chữ chồng lên nhau), tên/số liệu đầy đủ vẫn xem ở bảng bên dưới.
-        datalabels: {
-          color: '#fff',
-          font: { size: 10, weight: '700' },
-          textAlign: 'center',
-          formatter: (value, ctx) => {
-            const pct = totalRev > 0 ? (value / totalRev * 100) : 0;
-            if (pct < 4) return '';
-            const label = ctx.chart.data.labels[ctx.dataIndex] || '';
-            const shortLabel = label.length > 16 ? label.slice(0, 16) + '…' : label;
-            return `${shortLabel}\n${pct.toFixed(1)}%`;
-          }
-        },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => `${ctx.label}: ${fmtMoney(ctx.parsed)} (${(ctx.parsed/totalRev*100).toFixed(1)}%)`
-          }
-        }
-      }
-    }
-  });
-
-  tbody.innerHTML = withRev.map((g, i) => {
-    const pct = totalRev > 0 ? (g.revenue / totalRev * 100) : 0;
-    const roasStr = g.cost > 0 ? g.roas.toFixed(2) : '—';
-    const roasColor = g.cost === 0 ? '#999' : (g.roas >= 20 ? '#27ae60' : g.roas >= 10 ? '#f39c12' : '#e74c3c');
-    const color = COLORS[i % COLORS.length];
-    return `<tr style="border-bottom:1px solid #f0f0f0">
-      <td style="padding:5px 8px 5px 0;font-size:11.5px;font-weight:600">
-        <span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${color};margin-right:6px"></span>${g.name}
-      </td>
-      <td class="num" style="padding:5px 8px;font-size:11px">${fmtMoney(g.revenue)}</td>
-      <td class="num" style="padding:5px 8px;font-size:11px;font-weight:700">${pct.toFixed(1)}%</td>
-      <td class="num" style="padding:5px 8px;font-size:11px">${fmtMoney(g.cost)}</td>
-      <td class="num" style="padding:5px 8px;font-size:11px;font-weight:700;color:${roasColor}">${roasStr}</td>
-      <td class="num" style="padding:5px 8px;font-size:11px">${g.acos}</td>
+  const MAXC = ACR_CAT.length;
+  const top = withRev.length > MAXC ? withRev.slice(0, MAXC - 1) : withRev;
+  const rest = withRev.slice(top.length);
+  const slices = top.map((g, i) => ({ name: g.name, v: g.revenue, color: ACR_CAT[i] }));
+  if (rest.length) slices.push({ name: `Các nhóm khác (${rest.length})`, v: rest.reduce((s, g) => s + g.revenue, 0), color: ACR_OTHER, other: true });
+  const colorOf = new Map(top.map((g, i) => [g, ACR_CAT[i]]));
+  const darkTxt = c => c === '#f59e0b' || c === '#06b6d4' || c === ACR_OTHER;
+  if (cen) cen.innerHTML = `<span>Tổng doanh số</span><b>${acrMoneyShort(totalRev)}</b><span>${withRev.length} nhóm có doanh số</span>`;
+  if (typeof Chart !== 'undefined') {
+    gcRevPieChart = new Chart(canvas, {
+      type: 'doughnut',
+      data: { labels: slices.map(s => s.name), datasets: [{
+        data: slices.map(s => s.v), backgroundColor: slices.map(s => s.color), borderColor: '#fff', borderWidth: 3, borderRadius: 3, hoverOffset: 6,
+        datalabels: { display: c => totalRev > 0 && slices[c.dataIndex].v / totalRev >= 0.06, color: c => darkTxt(slices[c.dataIndex].color) ? '#1b2a4e' : '#fff', font: { size: 13, weight: '800' },
+          formatter: v => (v / totalRev * 100).toFixed(0) + '%' } }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false, cutout: '68%', layout: { padding: 6 },
+        plugins: { legend: { display: false }, tooltip: { titleFont: { size: 13 }, bodyFont: { size: 13 }, padding: 10,
+          callbacks: { label: c => ` ${fmtMoney(c.parsed)} · ${totalRev > 0 ? (c.parsed / totalRev * 100).toFixed(1) : 0}%` } } } }
+    });
+  }
+  tbody.innerHTML = withRev.map(g => {
+    const pct = totalRev > 0 ? g.revenue / totalRev * 100 : 0, low = g.cost > 0 && g.roas < GC_ROAS_LOW;
+    const color = colorOf.get(g) || ACR_OTHER;
+    return `<tr>
+      <td class="nm"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};margin-right:8px"></span>${acrEsc(g.name)}</td>
+      <td class="num k2">${fmtMoney(g.revenue)}</td>
+      <td class="num" style="font-weight:700">${pct.toFixed(1)}%</td>
+      <td class="num k1">${fmtMoney(g.cost)}</td>
+      <td class="num k3" style="${low ? 'color:var(--red)' : ''}">${g.cost > 0 ? g.roas.toFixed(2) : '—'}</td>
+      <td class="num">${g.acos}</td>
     </tr>`;
-  }).join('');
-}
-
-// Card "Đề Xuất Tách QC Đơn / Loại Khỏi Nhóm" — xếp theo ROAS (đổi từ Doanh Số 2026-08-10,
-// theo yêu cầu Tân: top 5 ROAS cao nhất = ứng viên tách ra chạy Quảng Cáo Đơn riêng; phần còn
-// lại (đã loại 5 SP trên) lấy tối đa 10 ROAS thấp nhất = ứng viên loại khỏi chiến dịch nhóm.
-// Không đặt ngưỡng chi phí tối thiểu (xác nhận Tân). Bỏ chung 1 pool trước khi chia 2 danh sách
-// để 1 SP không xuất hiện ở cả 2 bên cùng lúc (khác bản cũ theo Doanh Số hay bị trùng ở giữa
-// khi nhóm <20 SP — xác nhận Tân 2026-08-10).
-function gcRenderBestWorst(groups) {
-  const wrap = document.getElementById('gc-best-worst-wrap');
-  if (!wrap) return;
-
-  // table-layout:fixed + cột % cố định + tên SP cắt gọn bằng ellipsis (full tên xem qua title=)
-  // để 2 bảng Tốt Nhất/Yếu Nhất đặt cạnh nhau không bị tràn chữ đè lên nhau (Tân báo 2026-08-08).
-  const acosOf = (p) => (p.revenue > 0 ? (p.cost / p.revenue * 100).toFixed(1) + '%' : '—');
-  const miniRow = (p) => `<tr style="border-bottom:1px solid #f5f5f5">
-    <td style="padding:4px 6px 4px 0;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.name.replace(/"/g,'&quot;')}">${p.name}</td>
-    <td class="num" style="padding:4px 6px;font-size:11px;font-weight:600;white-space:nowrap">${fmtMoney(p.revenue)}</td>
-    <td class="num" style="padding:4px 6px;font-size:11px;white-space:nowrap">${fmtMoney(p.cost)}</td>
-    <td class="num" style="padding:4px 6px;font-size:11px;white-space:nowrap">${p.cost > 0 ? (p.revenue / p.cost).toFixed(2) : '—'}</td>
-    <td class="num" style="padding:4px 0 4px 6px;font-size:11px;white-space:nowrap">${acosOf(p)}</td>
-  </tr>`;
-  const miniHead = `<thead><tr style="font-size:10.5px;color:var(--text2);text-align:left;border-bottom:1px solid var(--gray3)">
-    <th style="padding:4px 6px 4px 0;width:38%">Sản Phẩm</th>
-    <th class="num" style="padding:4px 6px;width:18%">Doanh Số</th>
-    <th class="num" style="padding:4px 6px;width:16%">Chi Phí</th>
-    <th class="num" style="padding:4px 6px;width:14%">ROAS</th>
-    <th class="num" style="padding:4px 0 4px 6px;width:14%">ACOS</th>
-  </tr></thead>`;
-  const miniTable = (rows) => `<table style="width:100%;table-layout:fixed;border-collapse:collapse">${miniHead}<tbody>${rows.map(miniRow).join('')}</tbody></table>`;
-
-  const sortedGroups = [...groups].sort((a, b) => b.revenue - a.revenue);
-  wrap.innerHTML = sortedGroups.map(g => {
-    const products = g.products || [];
-    let bodyHtml;
-    if (!products.length) {
-      bodyHtml = `<div style="font-size:11.5px;color:#999;padding:10px 0">Chưa có dữ liệu sản phẩm trong nhóm này.</div>`;
-    } else if (products.length === 1) {
-      bodyHtml = `<div style="font-size:11px;color:var(--text2);margin-bottom:4px">Nhóm chỉ có 1 sản phẩm:</div>
-        ${miniTable([products[0]])}`;
-    } else {
-      // roas tính riêng cho sort (cost=0 → coi như 0, không chia cho 0)
-      const withRoas = products.map(p => ({ ...p, _roas: p.cost > 0 ? p.revenue / p.cost : 0 }));
-      const byRoasDesc = [...withRoas].sort((a, b) => b._roas - a._roas);
-      const best = byRoasDesc.slice(0, 5);
-      const bestNames = new Set(best.map(p => p.name));
-      // Loại các SP đã nằm trong "best" trước khi chọn "worst" → 2 danh sách không trùng nhau
-      // (xác nhận Tân 2026-08-10)
-      const remaining = byRoasDesc.filter(p => !bestNames.has(p.name));
-      // Chỉ đề xuất loại SP có ROAS < 10 (thực sự kém, đồng bộ ngưỡng đỏ dùng chung toàn dashboard)
-      // — không lấy đủ 10 con bất kể tốt/xấu như bản cũ (xác nhận Tân 2026-08-11: SP còn lãi tốt
-      // (VD ROAS 16-24) không nên bị gắn nhãn "loại khỏi nhóm" chỉ vì đứng ngoài top 5).
-      const worst = remaining.filter(p => p._roas < 10).sort((a, b) => a._roas - b._roas).slice(0, 10);
-      bodyHtml = `<div style="display:flex;gap:20px;flex-wrap:wrap">
-        <div style="flex:1 1 45%;min-width:320px;max-width:100%;box-sizing:border-box;overflow-x:auto">
-          <div style="font-size:11px;font-weight:700;color:#27ae60;margin-bottom:4px">🏆 Đề Xuất Tách Chạy QC Đơn (${best.length})</div>
-          ${miniTable(best)}
-        </div>
-        <div style="flex:1 1 45%;min-width:320px;max-width:100%;box-sizing:border-box;overflow-x:auto">
-          <div style="font-size:11px;font-weight:700;color:#e74c3c;margin-bottom:4px">⚠️ Đề Xuất Loại Khỏi Nhóm (${worst.length})</div>
-          ${worst.length ? miniTable(worst) : '<div style="font-size:11px;color:#999;padding:6px 0">Không có SP nào ROAS dưới 10 — chưa cần loại SP nào khỏi nhóm.</div>'}
-        </div>
-      </div>`;
-    }
-    return `<div style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--gray3)">
-      <div style="font-size:12.5px;font-weight:700;color:var(--navy);margin-bottom:6px">${g.name} <span style="font-weight:400;color:var(--text2);font-size:11px">(${products.length} SP)</span></div>
-      ${bodyHtml}
-    </div>`;
   }).join('');
 }
 
