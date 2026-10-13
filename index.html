@@ -931,6 +931,20 @@
   .acos-shop-kpi-value { font-size: 22px; font-weight: 800; color: var(--text); margin-bottom: 2px; }
   .acos-shop-kpi-sub { font-size: 11px; color: var(--text2); }
   .acos-shop-hint { font-size: 11px; color: var(--text2); margin-top: 10px; line-height: 1.6; }
+
+  /* ── BÁO CÁO KHO VẬN (prefix kvr-, chỉ dùng cho 2 trang Báo Cáo SG/HN) ── */
+  .kvr-bar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  .kvr-sel { padding:7px 10px; border:1.5px solid var(--text); border-radius:8px; font-size:12px; background:#fff; cursor:pointer; }
+  .kvr-link { font-size:12px; color:#2563eb; text-decoration:none; }
+  .kvr-link:hover { text-decoration:underline; }
+  .kvr-msg { margin-top:10px; font-size:12px; color:var(--text2); }
+  .kvr-msg.ok { color:#059669; } .kvr-msg.err { color:#dc2626; } .kvr-msg.warn { color:#b45309; } .kvr-msg.info { color:#2563eb; }
+  .kvr-period { margin-top:4px; font-size:11px; color:var(--text2); }
+  .kvr-grid2 { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); gap:16px; align-items:center; }
+  .kvr-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:7px; }
+  .kvr-up { color:#059669; font-weight:600; } .kvr-down { color:#dc2626; font-weight:600; } .kvr-neu { color:var(--text2); }
+  .kvr-total td { font-weight:700; border-top:2px solid var(--text); }
+  @media (max-width:1100px) { .kvr-grid2 { grid-template-columns:minmax(0,1fr); } }
 </style>
 </head>
 <body>
@@ -1016,6 +1030,23 @@
         </div>
         <div class="nav-item" onclick="showPage('tonkho-bao-cao-san-luong',this)">
           <span class="icon">📊</span> Báo Cáo Sản Lượng
+        </div>
+      </div>
+    </div>
+
+    <!-- Khối Báo Cáo (kho vận SG/HN — đọc Google Sheet "Đơn Kho Vận SW") -->
+    <div class="sidebar-block" id="block-baocao">
+      <div class="block-header" onclick="toggleSidebarBlock('baocao')">
+        <span class="block-icon">📈</span>
+        <span class="block-title">Báo Cáo</span>
+        <span class="block-arrow">▶</span>
+      </div>
+      <div class="block-body" id="block-body-baocao" style="display:none">
+        <div class="nav-item" onclick="showPage('bc-sg',this)">
+          <span class="icon">🏬</span> Báo Cáo SG
+        </div>
+        <div class="nav-item" onclick="showPage('bc-hn',this)">
+          <span class="icon">🏬</span> Báo Cáo HN
         </div>
       </div>
     </div>
@@ -3085,6 +3116,10 @@
     </div>
 
   </div>
+
+  <!-- BÁO CÁO KHO VẬN SG / HN — nội dung dựng bằng JS (kvrBuildHtml), prefix kvr -->
+  <div class="page" id="page-bc-sg"><div id="kvr-root-SG"></div></div>
+  <div class="page" id="page-bc-hn"><div id="kvr-root-HN"></div></div>
 
   <!-- BÁO CÁO SẢN LƯỢNG — nơi làm việc riêng với 2 file "Thống kê sản phẩm" tải từ Salework. Tách riêng khỏi các trang Tồn Kho khác. -->
   <div class="page" id="page-tonkho-bao-cao-san-luong">
@@ -17893,7 +17928,7 @@ function dspDeliRenderTable() {
 }
 
 function toggleSidebarBlock(name) {
-  const blocks = ['ads', 'dangsp', 'gia', 'tonkho', 'marketing', 'nghiep-vu', 'ke-toan'];
+  const blocks = ['ads', 'dangsp', 'gia', 'tonkho', 'baocao', 'marketing', 'nghiep-vu', 'ke-toan'];
   blocks.forEach(b => {
     const header = document.querySelector(`#block-${b} .block-header`);
     const body   = document.getElementById(`block-body-${b}`);
@@ -17928,6 +17963,8 @@ function showPage(name, el) {
   if (name === 'tonghop')  initTongHopPage();
   if (name === 'tonkho-tong-quan') tqInitPage();
   if (name === 'tonkho-bao-cao-san-luong') bcslInitPage();
+  if (name === 'bc-sg') kvrInitPage('SG');
+  if (name === 'bc-hn') kvrInitPage('HN');
   if (name === 'gia-canh-bao') giaInitPage();
   if (name === 'overview')  { sapiRenderShops(); ovUpdateGate(); updateDriveSyncStatus(); } // cập nhật card Kết Nối API + Cập Nhật CSV + gate chọn Shop/ngày ở đầu Tổng Quan
   if (name === 'ads-hourly') adshInitPage();
@@ -25410,6 +25447,350 @@ function ccExportExcel() {
   ccLog(`📤 Đã xuất "${outName}" — 6 sheet.`, 'ok');
 }
 
+
+// ══════════════════════════════════════════════════════════════
+// BÁO CÁO KHO VẬN SG / HN  (prefix kvr) — Tân xác nhận 2026-10-13
+//  Nguồn: Google Sheet "Đơn Kho Vận SW YYYY-MM" (do tiện ích tải về, mỗi tháng 1 file,
+//  mỗi kênh×kho 1 tab: "Shopee - SÀI GÒN", "TikTok - Kho Mặc Định"...). Id file lấy qua Apps Script
+//  action sw_kv_list; đọc Sheet bằng OAuth spreadsheets.readonly (token RIÊNG: KVR.token).
+//  Cột dùng: A=Mã đơn, B=Trạng thái, C=Ngày tạo đơn, L=Doanh thu thực (Shopee)/ước tính (TikTok), Z=Tổng giá trị.
+// ══════════════════════════════════════════════════════════════
+const KVR_WH = {
+  SG: { kho: 'SÀI GÒN',       title: 'Báo Cáo SG', sub: 'Kho SÀI GÒN' },
+  HN: { kho: 'Kho Mặc Định',  title: 'Báo Cáo HN', sub: 'Kho Mặc Định (HN)' },
+};
+const KVR_PRI = ['THÀNH CÔNG', 'ĐANG GIAO', 'HỦY', 'THẤT THU'];
+const KVR_COL = { 'THÀNH CÔNG': '#059669', 'ĐANG GIAO': '#2563eb', 'HỦY': '#dc2626', 'THẤT THU': '#E67E22' };
+const KVR_EXTRA = ['#6b7280', '#8e44ad', '#0ea5e9', '#a16207', '#be185d', '#0d9488'];
+const KVR = { token: null, tokenExp: 0, months: null, monthsAt: 0, files: {}, tabs: {}, data: {}, st: { SG: null, HN: null } };
+
+function kvrEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function kvrNowVN() { const d = new Date(Date.now() + 7 * 3600 * 1000); return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate() }; }
+function kvrPrevMonth(k) { const [y, m] = k.split('-').map(Number); return m === 1 ? (y - 1) + '-12' : y + '-' + String(m - 1).padStart(2, '0'); }
+function kvrMonthLabel(k) { const [y, m] = k.split('-'); return 'Tháng ' + Number(m) + '/' + y; }
+function kvrPct(x) { return (x * 100).toFixed(1).replace('.', ',') + '%'; }
+function kvrShort(v) {
+  v = Number(v) || 0; const a = Math.abs(v);
+  if (a >= 1e9) return (v / 1e9).toFixed(2).replace('.', ',') + ' tỷ';
+  if (a >= 1e6) return (v / 1e6).toFixed(1).replace('.', ',') + ' tr';
+  return fmtMoney(v);
+}
+function kvrColor(s, all) { if (KVR_COL[s]) return KVR_COL[s]; const i = all.filter(x => !KVR_COL[x]).indexOf(s); return KVR_EXTRA[(i < 0 ? 0 : i) % KVR_EXTRA.length]; }
+function kvrDelta(cur, prev, bad) {
+  if (prev == null) return '<span class="kvr-neu">—</span>';
+  if (!prev) return '<span class="kvr-neu">' + (cur ? 'mới' : '—') + '</span>';
+  const p = (cur - prev) / prev;
+  const cls = Math.abs(p) < 0.0005 ? 'kvr-neu' : ((p > 0) !== !!bad ? 'kvr-up' : 'kvr-down');
+  return '<span class="' + cls + '">' + (p > 0 ? '▲ +' : p < 0 ? '▼ ' : '• ') + (p * 100).toFixed(1).replace('.', ',') + '%</span>';
+}
+
+// ── Xác thực Google (gọi TRỰC TIẾP trong sự kiện click) ──
+function kvrTokenOk() { return !!KVR.token && Date.now() < KVR.tokenExp - 60000; }
+function kvrGetToken() {
+  return new Promise((resolve, reject) => {
+    if (kvrTokenOk()) return resolve(KVR.token);
+    const clientId = getDriveClientId();
+    if (!clientId) return reject(new Error('Chưa có OAuth Client ID (nhập ở trang Cập Nhật Dữ Liệu)'));
+    if (typeof google === 'undefined' || !google.accounts) return reject(new Error('Thư viện Google chưa tải — F5 rồi thử lại'));
+    try {
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+        callback: (resp) => {
+          if (resp.error) {
+            let m = resp.error;
+            if (m === 'access_denied') m = 'access_denied — tài khoản chưa được cấp quyền (liên hệ admin)';
+            return reject(new Error('Lỗi đăng nhập Google: ' + m));
+          }
+          KVR.token = resp.access_token; KVR.tokenExp = Date.now() + (Number(resp.expires_in) || 3600) * 1000;
+          resolve(KVR.token);
+        },
+        error_callback: (e) => reject(new Error('Đăng nhập Google bị hủy' + (e && e.type ? ' (' + e.type + ')' : '') + ' — bấm Tải dữ liệu để thử lại')),
+      });
+      client.requestAccessToken({ prompt: KVR.token ? '' : 'consent' });
+    } catch (e) { reject(e); }
+  });
+}
+
+async function kvrSheets(path) {
+  const r = await fetch('https://sheets.googleapis.com/v4/spreadsheets/' + path, { headers: { Authorization: 'Bearer ' + KVR.token } });
+  if (r.status === 401) { KVR.token = null; throw new Error('Phiên đăng nhập Google hết hạn — bấm 📥 Tải dữ liệu để đăng nhập lại'); }
+  if (!r.ok) {
+    const t = await r.text().catch(() => ''); let msg = t.slice(0, 200);
+    try { msg = JSON.parse(t).error.message; } catch (e) { /* giữ text */ }
+    let hint = '';
+    if (r.status === 403 && /has not been used|disabled|API.*project/i.test(msg)) hint = ' — Google Sheets API chưa bật cho project của Client ID này';
+    else if (r.status === 403 || r.status === 404) hint = ' — tài khoản Google đang đăng nhập có thể chưa được chia sẻ file Sheet này';
+    throw new Error('Sheets API ' + r.status + ': ' + msg + hint);
+  }
+  return r.json();
+}
+async function kvrTabNames(id) {
+  if (KVR.tabs[id]) return KVR.tabs[id];
+  const j = await kvrSheets(id + '?fields=' + encodeURIComponent('sheets.properties.title'));
+  return (KVR.tabs[id] = (j.sheets || []).map(s => s.properties.title));
+}
+async function kvrReadTab(id, title) {
+  const q = c => encodeURIComponent("'" + title.replace(/'/g, "''") + "'!" + c);
+  const ranges = ['A2:A', 'B2:B', 'C2:C', 'L2:L', 'Z2:Z'].map(c => 'ranges=' + q(c)).join('&');
+  const j = await kvrSheets(id + '/values:batchGet?' + ranges + '&majorDimension=COLUMNS&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER');
+  const g = i => { const v = (j.valueRanges || [])[i]; return (v && v.values && v.values[0]) || []; };
+  const A = g(0), B = g(1), C = g(2), L = g(3), Z = g(4);
+  const n = Math.max(A.length, B.length, C.length);
+  const map = new Map(); let last = null;
+  for (let i = 0; i < n; i++) {
+    const code = A[i];
+    if (code !== undefined && code !== '') {
+      const k = String(code); let o = map.get(k);
+      if (!o) {
+        const ser = C[i];
+        o = { s: String(B[i] == null ? '' : B[i]).trim().toUpperCase() || '(KHÔNG RÕ)', d: typeof ser === 'number' ? new Date((Math.floor(ser) - 25569) * 86400000).getUTCDate() : 0, v: 0, r: 0, hv: false, hr: false };
+        map.set(k, o);
+      }
+      last = o;
+    } else if (!last) continue;
+    // Tiền chỉ nằm ở dòng đầu của đơn: lấy giá trị số đầu tiên gặp
+    if (!last.hv && typeof Z[i] === 'number') { last.v = Z[i]; last.hv = true; }
+    if (!last.hr && typeof L[i] === 'number') { last.r = L[i]; last.hr = true; }
+  }
+  return Array.from(map.values());
+}
+async function kvrLoadMonth(wh, month) {
+  const key = month + '|' + wh;
+  if (KVR.data[key]) return KVR.data[key];
+  const f = KVR.files[month]; if (!f) return null;
+  const tabs = await kvrTabNames(f.id);
+  const out = { S: null, T: null };
+  for (const [c, name] of [['S', 'Shopee'], ['T', 'TikTok']]) {
+    const want = (name + ' - ' + KVR_WH[wh].kho).toUpperCase().normalize('NFC');
+    const title = tabs.find(t => t.toUpperCase().normalize('NFC') === want);
+    out[c] = title ? { orders: await kvrReadTab(f.id, title) } : { orders: [], missing: true };
+  }
+  return (KVR.data[key] = out);
+}
+async function kvrLoadMonths(force) {
+  if (KVR.months && !force && Date.now() - KVR.monthsAt < 300000) return;
+  const j = await adsSheetCall({ action: 'sw_kv_list' });
+  KVR.months = j.months || []; KVR.files = {};
+  KVR.months.forEach(m => { KVR.files[m.month] = m; });
+  KVR.monthsAt = Date.now();
+}
+
+// ── Giao diện ──
+function kvrSetStatus(wh, msg, type) {
+  const el = document.getElementById('kvr-' + wh + '-status'); if (!el) return;
+  el.className = 'kvr-msg' + (type ? ' ' + type : ''); el.textContent = msg || '';
+}
+function kvrBuildHtml(wh) {
+  const P = 'kvr-' + wh + '-';
+  return `
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--navy2)"></span> 📈 ${KVR_WH[wh].title}
+      <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:8px">— ${KVR_WH[wh].sub} · đơn tạo trong tháng, Shopee + TikTok</span></div>
+    <div class="kvr-bar">
+      <select id="${P}month" class="kvr-sel" onchange="kvrOnMonth('${wh}',this.value)"></select>
+      <span id="${P}chbtns">
+        <button class="filter-btn active" data-ch="ALL" onclick="kvrSetCh('${wh}','ALL')">Tất cả</button>
+        <button class="filter-btn" data-ch="S" onclick="kvrSetCh('${wh}','S')">Shopee</button>
+        <button class="filter-btn" data-ch="T" onclick="kvrSetCh('${wh}','T')">TikTok</button>
+      </span>
+      <button class="sw-btn-sm neutral" onclick="kvrLoad('${wh}',true)">📥 Tải / làm mới dữ liệu</button>
+      <a id="${P}link" class="kvr-link" href="#" target="_blank" rel="noopener" style="display:none">🔗 Mở Sheet tháng này</a>
+    </div>
+    <div id="${P}status" class="kvr-msg"></div>
+    <div id="${P}period" class="kvr-period"></div>
+  </div>
+  <div id="${P}body" style="display:none">
+    <div class="kpi-grid" id="${P}kpi"></div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:#2563eb"></span> Đơn &amp; doanh thu theo trạng thái <span id="${P}cmp1" style="font-size:11px;font-weight:400;color:var(--text2);margin-left:8px"></span></div>
+      <div class="kvr-grid2">
+        <div style="overflow-x:auto"><table class="th-shop-table" id="${P}tbl"></table></div>
+        <div style="position:relative;height:280px"><canvas id="${P}donut"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--orange)"></span> Xu hướng theo ngày tạo đơn
+        <span style="margin-left:auto;display:flex;gap:6px">
+          <button class="filter-btn active" data-tm="count" onclick="kvrSetTm('${wh}','count')">Số đơn</button>
+          <button class="filter-btn" data-tm="value" onclick="kvrSetTm('${wh}','value')">Giá trị đơn</button>
+        </span></div>
+      <div style="position:relative;height:340px"><canvas id="${P}trend"></canvas></div>
+    </div>
+  </div>`;
+}
+async function kvrInitPage(wh) {
+  const root = document.getElementById('kvr-root-' + wh); if (!root) return;
+  if (!KVR.st[wh]) {
+    KVR.st[wh] = { month: null, ch: 'ALL', tm: 'count', cur: null, prev: null, seq: 0, charts: {} };
+    root.innerHTML = kvrBuildHtml(wh);
+  }
+  const st = KVR.st[wh];
+  try {
+    kvrSetStatus(wh, '⏳ Đang lấy danh sách tháng có dữ liệu…');
+    await kvrLoadMonths(false);
+  } catch (e) {
+    kvrSetStatus(wh, '❌ ' + e.message + ' — nếu báo "Không nhận diện được action" thì cần Deploy bản Apps Script mới (action sw_kv_list).', 'err'); return;
+  }
+  const sel = document.getElementById('kvr-' + wh + '-month');
+  if (!KVR.months.length) { sel.innerHTML = ''; kvrSetStatus(wh, 'Chưa có tháng nào được tải. Dùng tiện ích → "Đơn hàng Kho Vận" để tải đơn về Sheet trước.', 'warn'); return; }
+  const want = KVR.months.map(m => m.month).join(',');
+  if (sel.dataset.list !== want) {
+    sel.innerHTML = KVR.months.map(m => '<option value="' + m.month + '">' + kvrMonthLabel(m.month) + '</option>').join('');
+    sel.dataset.list = want;
+  }
+  if (!st.month || !KVR.files[st.month]) st.month = KVR.months[0].month;
+  sel.value = st.month;
+  kvrUpdateLink(wh);
+  if (st.cur) { kvrRender(wh); return; }
+  if (kvrTokenOk()) kvrLoad(wh, false);
+  else kvrSetStatus(wh, '👆 Bấm "📥 Tải / làm mới dữ liệu" để đăng nhập Google và đọc Sheet (chỉ cần 1 lần mỗi phiên).', 'info');
+}
+function kvrUpdateLink(wh) {
+  const st = KVR.st[wh], a = document.getElementById('kvr-' + wh + '-link'); if (!a) return;
+  const f = KVR.files[st.month];
+  if (f) { a.href = f.url; a.style.display = ''; } else a.style.display = 'none';
+}
+function kvrOnMonth(wh, month) {
+  const st = KVR.st[wh]; st.month = month; st.cur = null; st.prev = null; kvrUpdateLink(wh);
+  document.getElementById('kvr-' + wh + '-body').style.display = 'none';
+  if (kvrTokenOk()) kvrLoad(wh, false);
+  else kvrSetStatus(wh, '👆 Bấm "📥 Tải / làm mới dữ liệu" để đọc ' + kvrMonthLabel(month) + '.', 'info');
+}
+function kvrSetCh(wh, ch) {
+  const st = KVR.st[wh]; st.ch = ch;
+  document.querySelectorAll('#kvr-' + wh + '-chbtns .filter-btn').forEach(b => b.classList.toggle('active', b.dataset.ch === ch));
+  if (st.cur) kvrRender(wh);
+}
+function kvrSetTm(wh, tm) {
+  const st = KVR.st[wh]; st.tm = tm;
+  document.querySelectorAll('#page-bc-' + wh.toLowerCase() + ' [data-tm]').forEach(b => b.classList.toggle('active', b.dataset.tm === tm));
+  if (st.cur) kvrRenderTrend(wh);
+}
+async function kvrLoad(wh, force) {
+  const st = KVR.st[wh]; if (!st || !st.month) return;
+  const seq = ++st.seq, month = st.month, pm = kvrPrevMonth(month);
+  try {
+    await kvrGetToken(); // phải là lệnh đầu tiên khi bấm nút (để popup đăng nhập không bị chặn)
+    if (force) {
+      delete KVR.data[month + '|' + wh]; delete KVR.data[pm + '|' + wh];
+      if (KVR.files[month]) delete KVR.tabs[KVR.files[month].id];
+      if (KVR.files[pm]) delete KVR.tabs[KVR.files[pm].id];
+      try { await kvrLoadMonths(true); } catch (e) { /* giữ danh sách cũ */ }
+      if (!KVR.files[month]) { kvrSetStatus(wh, '⚠️ Tháng ' + month + ' không còn trong danh sách.', 'warn'); return; }
+    }
+    kvrSetStatus(wh, '⏳ Đang đọc ' + kvrMonthLabel(month) + ' từ Google Sheet…');
+    const cur = await kvrLoadMonth(wh, month);
+    if (seq !== st.seq) return;
+    kvrSetStatus(wh, '⏳ Đang đọc ' + kvrMonthLabel(pm) + ' để so sánh…');
+    const prev = KVR.files[pm] ? await kvrLoadMonth(wh, pm) : null;
+    if (seq !== st.seq) return;
+    st.cur = cur; st.prev = prev; kvrRender(wh);
+  } catch (e) {
+    if (seq === st.seq) kvrSetStatus(wh, '❌ ' + e.message, 'err');
+  }
+}
+
+// ── Tổng hợp ──
+function kvrAgg(data, ch, maxDay) {
+  if (!data) return null;
+  const a = { n: 0, v: 0, r: 0, rS: 0, rT: 0, by: new Map(), days: [] };
+  for (const c of ['S', 'T']) {
+    if (ch !== 'ALL' && ch !== c) continue;
+    const x = data[c]; if (!x) continue;
+    for (const o of x.orders) {
+      if (maxDay && o.d > maxDay) continue;
+      a.n++; a.v += o.v; a.r += o.r; if (c === 'S') a.rS += o.r; else a.rT += o.r;
+      let b = a.by.get(o.s); if (!b) { b = { n: 0, v: 0, r: 0 }; a.by.set(o.s, b); }
+      b.n++; b.v += o.v; b.r += o.r;
+      let dm = a.days[o.d]; if (!dm) { dm = new Map(); a.days[o.d] = dm; }
+      let e = dm.get(o.s); if (!e) { e = { n: 0, v: 0 }; dm.set(o.s, e); }
+      e.n++; e.v += o.v;
+    }
+  }
+  return a;
+}
+function kvrStatesOf(a, b) {
+  const set = new Set(); [a, b].forEach(x => x && x.by.forEach((_, k) => set.add(k)));
+  return [...set].sort((p, q) => {
+    const ip = KVR_PRI.indexOf(p), iq = KVR_PRI.indexOf(q);
+    if (ip >= 0 || iq >= 0) return (ip < 0 ? 99 : ip) - (iq < 0 ? 99 : iq);
+    return ((a && a.by.get(q) || { n: 0 }).n) - ((a && a.by.get(p) || { n: 0 }).n);
+  });
+}
+function kvrRender(wh) {
+  const st = KVR.st[wh], P = 'kvr-' + wh + '-';
+  const now = kvrNowVN(), isCur = st.month === now.y + '-' + String(now.m).padStart(2, '0');
+  const maxDay = isCur ? now.d : 0, pm = kvrPrevMonth(st.month);
+  const cur = kvrAgg(st.cur, st.ch, 0), prev = st.prev ? kvrAgg(st.prev, st.ch, maxDay) : null;
+  st.view = { cur, prev, isCur, maxDay, pm, states: kvrStatesOf(cur, prev) };
+  const missing = ['S', 'T'].filter(c => st.cur[c] && st.cur[c].missing).map(c => c === 'S' ? 'Shopee' : 'TikTok');
+  kvrSetStatus(wh, missing.length ? '⚠️ Chưa có tab ' + missing.join(', ') + ' của kho này trong Sheet tháng này (coi như 0 đơn).' : '✅ Đã đọc ' + kvrMonthLabel(st.month) + (st.prev ? ' + ' + kvrMonthLabel(pm) + ' (so sánh)' : ' (không có dữ liệu ' + kvrMonthLabel(pm) + ' để so sánh)') + ' · ' + new Date().toLocaleTimeString('vi-VN'), missing.length ? 'warn' : 'ok');
+  document.getElementById(P + 'period').textContent = 'Đang xem ' + kvrMonthLabel(st.month) + ' · so với ' + kvrMonthLabel(pm) + (isCur ? ' (cùng khoảng ngày 1–' + now.d + ')' : '') + ' · kênh: ' + (st.ch === 'ALL' ? 'Shopee + TikTok' : st.ch === 'S' ? 'Shopee' : 'TikTok');
+  document.getElementById(P + 'body').style.display = '';
+  const revName = st.ch === 'S' ? 'Doanh thu thực (Shopee)' : st.ch === 'T' ? 'Doanh thu ước tính (TikTok)' : 'Doanh thu (Shopee thực + TikTok ước tính)';
+  const okC = cur.by.get('THÀNH CÔNG'), okP = prev && prev.by.get('THÀNH CÔNG');
+  const rate = cur.n ? (okC ? okC.n : 0) / cur.n : 0, rateP = prev && prev.n ? (okP ? okP.n : 0) / prev.n : null;
+  const dPts = rateP == null ? '<span class="kvr-neu">—</span>' : (() => { const d = (rate - rateP) * 100; return '<span class="' + (Math.abs(d) < 0.05 ? 'kvr-neu' : d > 0 ? 'kvr-up' : 'kvr-down') + '">' + (d > 0 ? '▲ +' : d < 0 ? '▼ ' : '• ') + d.toFixed(1).replace('.', ',') + ' điểm %</span>'; })();
+  const cmpTxt = ' so với ' + kvrMonthLabel(pm).replace('Tháng ', 'T');
+  const canc = (cur.by.get('HỦY') || { n: 0 }).n + (cur.by.get('THẤT THU') || { n: 0 }).n;
+  const revSub = st.ch === 'ALL' ? 'Shopee thực: ' + kvrShort(cur.rS) + ' · TikTok ước tính: ' + kvrShort(cur.rT) : 'Cột "' + (st.ch === 'S' ? 'Doanh thu thực' : 'Doanh thu ước tính') + '" trong Sheet';
+  document.getElementById(P + 'kpi').innerHTML = `
+    <div class="kpi-card navy"><div class="kpi-label">Tổng số đơn</div><div class="kpi-value">${fmtNum(cur.n)}</div>
+      <div class="kpi-sub">${kvrDelta(cur.n, prev ? prev.n : null)}${cmpTxt}</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">Giá trị đơn (Tổng giá trị)</div><div class="kpi-value" title="${fmtMoney(cur.v)}">${kvrShort(cur.v)}</div>
+      <div class="kpi-sub">${kvrDelta(cur.v, prev ? prev.v : null)}${cmpTxt}</div></div>
+    <div class="kpi-card green"><div class="kpi-label">${revName}</div><div class="kpi-value" title="${fmtMoney(cur.r)}">${kvrShort(cur.r)}</div>
+      <div class="kpi-sub">${kvrDelta(cur.r, prev ? prev.r : null)}${cmpTxt}<br>${revSub}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Tỷ lệ thành công</div><div class="kpi-value">${kvrPct(rate)}</div>
+      <div class="kpi-sub">${dPts}${cmpTxt}<br>Hủy + thất thu: ${fmtNum(canc)} đơn (${kvrPct(cur.n ? canc / cur.n : 0)})</div></div>`;
+  document.getElementById(P + 'cmp1').textContent = '— so với ' + kvrMonthLabel(pm) + (isCur ? ' (ngày 1–' + now.d + ')' : '');
+  // Bảng trạng thái
+  const states = st.view.states;
+  let h = `<thead><tr><th style="text-align:left">Trạng thái</th><th>Số đơn</th><th>% đơn</th><th>Giá trị đơn</th><th>${st.ch === 'S' ? 'Doanh thu thực' : st.ch === 'T' ? 'Doanh thu ước tính' : 'Doanh thu'}</th><th>Số đơn ${kvrMonthLabel(pm).replace('Tháng ', 'T')}</th><th>Chênh lệch</th></tr></thead><tbody>`;
+  states.forEach(s => {
+    const c = cur.by.get(s) || { n: 0, v: 0, r: 0 }, p = prev ? (prev.by.get(s) || { n: 0 }) : null;
+    h += `<tr><td style="text-align:left"><span class="kvr-dot" style="background:${kvrColor(s, states)}"></span>${kvrEsc(s)}</td><td>${fmtNum(c.n)}</td><td>${kvrPct(cur.n ? c.n / cur.n : 0)}</td><td>${fmtMoney(c.v)}</td><td>${fmtMoney(c.r)}</td><td>${p ? fmtNum(p.n) : '—'}</td><td>${kvrDelta(c.n, p ? p.n : null, s === 'HỦY' || s === 'THẤT THU')}</td></tr>`;
+  });
+  h += `<tr class="kvr-total"><td style="text-align:left">Tổng</td><td>${fmtNum(cur.n)}</td><td>100%</td><td>${fmtMoney(cur.v)}</td><td>${fmtMoney(cur.r)}</td><td>${prev ? fmtNum(prev.n) : '—'}</td><td>${kvrDelta(cur.n, prev ? prev.n : null)}</td></tr></tbody>`;
+  document.getElementById(P + 'tbl').innerHTML = h;
+  // Donut
+  if (st.charts.donut) st.charts.donut.destroy();
+  st.charts.donut = new Chart(document.getElementById(P + 'donut'), {
+    type: 'doughnut',
+    data: { labels: states, datasets: [{ data: states.map(s => (cur.by.get(s) || { n: 0 }).n), backgroundColor: states.map(s => kvrColor(s, states)), borderWidth: 1 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '58%',
+      plugins: { datalabels: { display: false }, legend: { position: 'bottom' },
+        tooltip: { callbacks: { label: ctx => ' ' + ctx.label + ': ' + fmtNum(ctx.parsed) + ' đơn (' + kvrPct(cur.n ? ctx.parsed / cur.n : 0) + ')' } } } }
+  });
+  kvrRenderTrend(wh);
+}
+function kvrRenderTrend(wh) {
+  const st = KVR.st[wh], P = 'kvr-' + wh + '-', v = st.view; if (!v) return;
+  const [y, m] = st.month.split('-').map(Number), dim = new Date(y, m, 0).getDate();
+  const key = st.tm === 'count' ? 'n' : 'v';
+  const labels = Array.from({ length: dim }, (_, i) => String(i + 1));
+  const ds = v.states.map(s => ({
+    type: 'bar', label: s, backgroundColor: kvrColor(s, v.states), stack: 's',
+    data: labels.map((_, i) => { const dm = v.cur.days[i + 1]; const e = dm && dm.get(s); return e ? e[key] : 0; })
+  }));
+  if (v.prev) {
+    const lim = v.isCur ? v.maxDay : dim;
+    ds.push({
+      type: 'line', label: kvrMonthLabel(v.pm) + ' (tổng)', borderColor: '#111827', backgroundColor: '#111827', borderDash: [5, 4], borderWidth: 2, pointRadius: 2, tension: .25, order: -1,
+      data: labels.map((_, i) => { if (i + 1 > lim) return null; const dm = v.prev.days[i + 1]; let t = 0; if (dm) dm.forEach(e => { t += e[key]; }); return t; })
+    });
+  }
+  if (st.charts.trend) st.charts.trend.destroy();
+  st.charts.trend = new Chart(document.getElementById(P + 'trend'), {
+    data: { labels, datasets: ds },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      scales: { x: { stacked: true, title: { display: true, text: 'Ngày tạo đơn' } },
+        y: { stacked: true, beginAtZero: true, ticks: { callback: val => st.tm === 'count' ? fmtNum(val) : kvrShort(val) } } },
+      plugins: { datalabels: { display: false }, legend: { position: 'bottom' },
+        tooltip: { callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + (st.tm === 'count' ? fmtNum(ctx.parsed.y) + ' đơn' : fmtMoney(ctx.parsed.y)) } } } }
+  });
+}
 </script>
 </body>
 </html>
