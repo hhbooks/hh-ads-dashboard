@@ -415,6 +415,39 @@
   #page-group-camp .acr-light .acr-col-n, #page-group-camp .acr-light .acr-col-r { color:#3b5288; }
   #page-group-camp .acr-light .acr-col-v, #page-group-camp .acr-light .acr-col-abs, #page-group-camp .acr-light .acr-tri .kpi-value { color:#1b2a4e; }
   #page-group-camp .acr-d-up { color:#15803d; } #page-group-camp .acr-d-down { color:#dc2626; }
+  /* v17: báo cáo theo ngày cho trang Nhóm (sao từ GMS) */
+  @media (max-width:1100px) { #page-group-camp .acr-rep-body { grid-template-columns:minmax(0,1fr); } #page-group-camp .acr-rep-tbl { max-height:380px; } }
+  @media (max-width:1100px) { #page-group-camp .acr-rep-body { grid-template-columns:minmax(0,1fr); } }
+  #page-group-camp .acr-split .card-title, #page-group-camp .acr-split2 .card-title { font-size:15.5px; color:var(--g9); }
+  #page-group-camp .acr-rep-body { display:grid; grid-template-columns:minmax(0,.8fr) minmax(0,1.3fr); gap:18px; align-items:start; }
+  #page-group-camp .acr-rep-charts { min-width:0; }
+  #page-group-camp .acr-rep-row { margin-bottom:6px; }
+  #page-group-camp .acr-rep-lbl { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13.5px; margin-bottom:0; }
+  #page-group-camp .acr-rep-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  #page-group-camp .acr-rep-rg { color:var(--text2); font-size:12.5px; }
+  #page-group-camp .acr-rep-sum { margin-left:auto; font-weight:800; color:#1b2a4e; }
+  #page-group-camp .acr-rep-cv { height:112px; position:relative; }
+  #page-group-camp .acr-rep-tbl { min-width:0; max-height:468px; overflow:auto; border:1px solid #e6edf7; border-radius:12px; }
+  #page-group-camp table.acr-dtbl { font-size:13px; width:100%; border-collapse:separate; border-spacing:0; }
+  #page-group-camp .acr-dtbl th { position:sticky; top:0; z-index:2; background:#f4f8fe; font-size:11.5px; padding:8px 6px; vertical-align:bottom; text-transform:none; letter-spacing:0; white-space:nowrap; }
+  #page-group-camp .acr-dtbl th small { display:block; font-weight:500; color:var(--text2); font-size:11px; }
+  #page-group-camp .acr-dtbl td { padding:6px 6px; border-bottom:1px solid #eef2f8; white-space:nowrap; font-size:12.5px; }
+  #page-group-camp .acr-dtbl td small { color:var(--text2); font-size:10.5px; margin-left:2px; }
+  #page-group-camp .acr-dtbl td.dd { font-weight:600; color:#334155; }
+  #page-group-camp .acr-dtbl td.cv { font-weight:800; color:#1b2a4e; }
+  #page-group-camp .acr-dtbl tfoot td.num { text-align:right; }
+  #page-group-camp .acr-dtbl tfoot td { position:sticky; bottom:0; background:#eaf1fc; font-weight:800; border-top:2px solid #cfdcf3; border-bottom:none; }
+  #page-group-camp .acr-rep-body { grid-template-columns:minmax(0,1fr) 450px; gap:26px; }
+  #page-group-camp .acr-rep-row { margin-bottom:14px; }
+  #page-group-camp .acr-rep-lbl { flex-wrap:nowrap; white-space:nowrap; margin-bottom:2px; }
+  #page-group-camp .acr-rep-cv { height:122px; }
+  #page-group-camp .acr-dtbl td { padding:7px 6px; }
+  #page-group-camp .acr-dtbl td.num, #page-group-camp .acr-dtbl th.num { text-align:right; }
+  #page-group-camp .acr-dtbl .acr-tv { display:inline-block; min-width:62px; text-align:right; }
+  #page-group-camp .acr-dtbl td small { margin:0 4px 0 3px; }
+  #page-group-camp .acr-pc { display:inline-block; min-width:44px; text-align:right; font-size:11.5px; font-weight:800; }
+  #page-group-camp .acr-pc.up, #page-group-camp .acr-d-up { color:#15803d; } #page-group-camp .acr-pc.down, #page-group-camp .acr-d-down { color:#dc2626; } #page-group-camp .acr-pc.flat { color:#64748b; }
+  #page-group-camp .acr-dtbl tfoot td.num { text-align:right; }
   /* ── v16 (2026-10-13): Doanh thu + Chi phí dùng cùng nền navy như ROAS cho dễ nhìn ── */
   #page-group-camp .acr-kpi-main .kpi-card.acr-mid, #page-group-camp .acr-kpi-main .kpi-card.acr-light { background:linear-gradient(135deg,#1b2a4e,#2b4a8f); border-color:#1b2a4e; border-top-color:#16223f; }
   #page-group-camp .acr-mid .kpi-icon, #page-group-camp .acr-light .kpi-icon { display:none; }
@@ -1649,6 +1682,46 @@
 
       <!-- Cần xử lý (nhóm 0 đơn / ROAS thấp / 0 lượt xem / ROAS shop giảm mạnh / Sheet thiếu ngày) -->
       <div class="card acr-todo" id="gc-alerts"></div>
+
+      <!-- 3 báo cáo theo ngày (giống GMS): Kỳ này / Cùng kỳ / Kỳ trước + bảng số từng ngày -->
+      <div class="acr-split" style="margin-top:16px">
+      <div class="card acr-rep" id="gc-rep-roas">
+        <div class="card-title" style="flex-wrap:wrap"><span class="dot"></span> ROAS theo ngày <span style="font-size:12.5px;color:var(--text2);font-weight:400;margin-left:auto">đường · 3 kỳ dùng chung thang trục · Cùng kỳ = cùng ngày của tháng trước · ● đỏ = ngày ROAS &lt; 10</span></div>
+        <div id="gc-roas-msg" class="acr-chart-msg" style="display:none"></div>
+        <div id="gc-roas-wrap" class="acr-rep-body">
+          <div class="acr-rep-charts">
+          <div class="acr-rep-row" id="gc-roas-row0"><div class="acr-rep-lbl" id="gc-roas-lbl0"></div><div class="acr-rep-cv" id="gc-roas-cvw0"><canvas id="gc-roas-c0"></canvas></div></div>
+          <div class="acr-rep-row" id="gc-roas-row1"><div class="acr-rep-lbl" id="gc-roas-lbl1"></div><div class="acr-rep-cv" id="gc-roas-cvw1"><canvas id="gc-roas-c1"></canvas></div></div>
+          <div class="acr-rep-row" id="gc-roas-row2"><div class="acr-rep-lbl" id="gc-roas-lbl2"></div><div class="acr-rep-cv" id="gc-roas-cvw2"><canvas id="gc-roas-c2"></canvas></div></div>
+          </div>
+          <div class="acr-rep-tbl" id="gc-roas-tbl"></div>
+        </div>
+      </div>
+      <div class="card acr-rep" id="gc-rep-cost">
+        <div class="card-title" style="flex-wrap:wrap"><span class="dot"></span> Chi Phí Theo Ngày <span style="font-size:12.5px;color:var(--text2);font-weight:400;margin-left:auto">cột · mỗi kỳ tự co theo cột cao nhất · Cùng kỳ = cùng ngày của tháng trước</span></div>
+        <div id="gc-cost-msg" class="acr-chart-msg" style="display:none"></div>
+        <div id="gc-cost-wrap" class="acr-rep-body">
+          <div class="acr-rep-charts">
+          <div class="acr-rep-row" id="gc-cost-row0"><div class="acr-rep-lbl" id="gc-cost-lbl0"></div><div class="acr-rep-cv" id="gc-cost-cvw0"><canvas id="gc-cost-c0"></canvas></div></div>
+          <div class="acr-rep-row" id="gc-cost-row1"><div class="acr-rep-lbl" id="gc-cost-lbl1"></div><div class="acr-rep-cv" id="gc-cost-cvw1"><canvas id="gc-cost-c1"></canvas></div></div>
+          <div class="acr-rep-row" id="gc-cost-row2"><div class="acr-rep-lbl" id="gc-cost-lbl2"></div><div class="acr-rep-cv" id="gc-cost-cvw2"><canvas id="gc-cost-c2"></canvas></div></div>
+          </div>
+          <div class="acr-rep-tbl" id="gc-cost-tbl"></div>
+        </div>
+      </div>
+      <div class="card acr-rep" id="gc-rep-rev">
+        <div class="card-title" style="flex-wrap:wrap"><span class="dot"></span> Doanh Thu Theo Ngày <span style="font-size:12.5px;color:var(--text2);font-weight:400;margin-left:auto">cột · mỗi kỳ tự co theo cột cao nhất · Cùng kỳ = cùng ngày của tháng trước</span></div>
+        <div id="gc-rev-msg" class="acr-chart-msg" style="display:none"></div>
+        <div id="gc-rev-wrap" class="acr-rep-body">
+          <div class="acr-rep-charts">
+          <div class="acr-rep-row" id="gc-rev-row0"><div class="acr-rep-lbl" id="gc-rev-lbl0"></div><div class="acr-rep-cv" id="gc-rev-cvw0"><canvas id="gc-rev-c0"></canvas></div></div>
+          <div class="acr-rep-row" id="gc-rev-row1"><div class="acr-rep-lbl" id="gc-rev-lbl1"></div><div class="acr-rep-cv" id="gc-rev-cvw1"><canvas id="gc-rev-c1"></canvas></div></div>
+          <div class="acr-rep-row" id="gc-rev-row2"><div class="acr-rep-lbl" id="gc-rev-lbl2"></div><div class="acr-rep-cv" id="gc-rev-cvw2"><canvas id="gc-rev-c2"></canvas></div></div>
+          </div>
+          <div class="acr-rep-tbl" id="gc-rev-tbl"></div>
+        </div>
+      </div>
+      </div>
 
       <!-- Ô tìm kiếm: lọc cả bảng nhóm lẫn card sản phẩm trong nhóm (tên nhóm, tên SP, ID SP; không phân biệt hoa thường/dấu) -->
       <div class="card gcr-search">
@@ -12276,7 +12349,7 @@ function adrShortName(rec) { return (rec.shopKey && SHOPS[rec.shopKey] && SHOPS[
 
 // ─────────── Trang Nhóm Sản Phẩm ───────────
 const _gcR = { range: null, shop: 'all', recs: [], miss: {}, loading: false, picker: null, seq: 0,
-  daily: {}, hasDaily: false, prev: null, mom: null, q: '', open: {}, view: null };
+  daily: {}, hasDaily: false, prev: null, mom: null, q: '', open: {}, view: null, charts: {} };
 function gcrLog(msg, type) {
   const logEl = document.getElementById('gc-log');
   if (!logEl) return;
@@ -12526,23 +12599,25 @@ function acrCmpKpis(tot, periods) {
   return { cost: acrCmpCols(out.cost), rev: acrCmpCols(out.rev), roas: acrCmpCols(out.roas) };
 }
 
-function acrRenderChart(keys, msg) {
-  Object.keys(_acR.charts).forEach(k => { try { _acR.charts[k].destroy(); } catch (e) {} delete _acR.charts[k]; });
+// Dùng chung cho GMS (P='ac', st=st) và Nhóm (P='gc', st=_gcR): 3 báo cáo ROAS / Chi phí / Doanh thu theo ngày, mỗi báo cáo 3 hàng biểu đồ + bảng số
+function acrRenderReports(ctx, keys, msg) {
+  const P = ctx.p, st = ctx.st;
+  Object.keys(st.charts).forEach(k => { try { st.charts[k].destroy(); } catch (e) {} delete st.charts[k]; });
   const $ = id => document.getElementById(id);
-  const show = m => ACR_MET.forEach(M => { const a = $('ac-' + M.id + '-msg'), w = $('ac-' + M.id + '-wrap'); if (a) { a.style.display = ''; a.innerHTML = m; } if (w) w.style.display = 'none'; });
+  const show = m => ACR_MET.forEach(M => { const a = $(P + '-' + M.id + '-msg'), w = $(P + '-' + M.id + '-wrap'); if (a) { a.style.display = ''; a.innerHTML = m; } if (w) w.style.display = 'none'; });
   if (!keys) { show(msg || 'Chưa có dữ liệu'); return; }
-  if (!_acR.hasDaily) { show('Biểu đồ theo ngày cần bản Apps Script mới — anh Deploy lại Apps Script là có.'); return; }
+  if (!st.hasDaily) { show('Biểu đồ theo ngày cần bản Apps Script mới — anh Deploy lại Apps Script là có.'); return; }
   if (typeof Chart === 'undefined') { show('Không tải được thư viện biểu đồ.'); return; }
-  const r = _acR.range, days = adsShListDays(r.from, r.to), n = days.length;
-  const sumBy = (from, to) => { const m = {}; keys.forEach(k => (_acR.daily[k] || []).forEach(d => {
+  const r = st.range, days = adsShListDays(r.from, r.to), n = days.length;
+  const sumBy = (from, to) => { const m = {}; keys.forEach(k => (st.daily[k] || []).forEach(d => {
     if (d.d < from || d.d > to) return; const x = m[d.d] || (m[d.d] = { cost: 0, rev: 0 }); x.cost += +d.cost || 0; x.rev += +d.rev || 0; })); return m; };
   const curMap = sumBy(r.from, r.to);
   if (!Object.keys(curMap).length) { show('Không có số liệu theo ngày trong khoảng đã chọn.'); return; }
-  ACR_MET.forEach(M => { const a = $('ac-' + M.id + '-msg'), w = $('ac-' + M.id + '-wrap'); if (a) a.style.display = 'none'; if (w) w.style.display = ''; });
+  ACR_MET.forEach(M => { const a = $(P + '-' + M.id + '-msg'), w = $(P + '-' + M.id + '-wrap'); if (a) a.style.display = 'none'; if (w) w.style.display = ''; });
   const f5 = d => d ? d.slice(8, 10) + '/' + d.slice(5, 7) : '';
   // Các kỳ hiển thị theo thứ tự: Kỳ này → Cùng kỳ tháng trước → Kỳ trước
   const per = [{ ...ACR_PER[0], rg: r, days, map: curMap, has: true }];
-  [[ACR_PER[1], _acR.mom], [ACR_PER[2], _acR.prev]].forEach(([P, rg]) => {
+  [[ACR_PER[1], st.mom], [ACR_PER[2], st.prev]].forEach(([P, rg]) => {
     if (!rg) return;
     const dd = adsShListDays(rg.from, rg.to), mp = sumBy(rg.from, rg.to);
     per.push({ ...P, rg, days: dd, map: mp, has: Object.keys(mp).length > 0, miss: dd.filter(d => !mp[d]).length });
@@ -12571,18 +12646,18 @@ function acrRenderChart(keys, msg) {
     const ct = totOf(M, cur);
     const foot = `<tr><td class="dd">Cả kỳ</td><td class="num cv">${nz(ct)}</td>${cmps.map(p => { const v = totOf(M, p);
       return `<td class="num"><span class="acr-tv">${nz(v)}</span>${acrPc(ct, v)}</td>`; }).join('')}</tr>`;
-    const tb = $('ac-' + M.id + '-tbl');
+    const tb = $(P + '-' + M.id + '-tbl');
     if (tb) tb.innerHTML = `<table class="acr-dtbl"><thead>${head}</thead><tbody>${rows}</tbody><tfoot>${foot}</tfoot></table>`;
   };
   ACR_MET.forEach(M => {
     const series = per.map(p => p.has ? p.days.map(d => valOf(M, p.map[d])) : null);
     // Nhãn mỗi hàng + ẩn/hiện hàng
     [0, 1, 2].forEach(i => {
-      const row = $(`ac-${M.id}-row${i}`); if (!row) return;
+      const row = $(`${P}-${M.id}-row${i}`); if (!row) return;
       const p = per[i];
       row.style.display = p ? '' : 'none';
       if (!p) return;
-      const lb = $(`ac-${M.id}-lbl${i}`), cw = $(`ac-${M.id}-cvw${i}`);
+      const lb = $(`${P}-${M.id}-lbl${i}`), cw = $(`${P}-${M.id}-cvw${i}`);
       const tot = p.has ? totOf(M, p) : null;
       lb.innerHTML = `<span class="acr-rep-dot" style="background:${p.line}"></span><b style="color:${p.txt}">${p.name}</b><span class="acr-rep-rg">${f5(p.rg.from)}–${f5(p.rg.to)}${p.has && p.miss ? ` · thiếu ${p.miss}ng` : ''}</span>` +
         (p.has ? `<span class="acr-rep-sum">Cả kỳ: ${tot == null ? '—' : M.fmt(tot)}</span>` : '<span class="acr-rep-sum" style="font-weight:500;color:var(--text2)">Sheet chưa có dữ liệu</span>');
@@ -12601,7 +12676,7 @@ function acrRenderChart(keys, msg) {
     }
     per.forEach((p, i) => {
       if (!p.has) return;
-      const data = series[i], cv = $(`ac-${M.id}-c${i}`), key = `${M.id}_${i}`;
+      const data = series[i], cv = $(`${P}-${M.id}-c${i}`), key = `${M.id}_${i}`;
       if (!cv) return;
       if (M.line) {
         const isLow = v => v != null && v < ACR_ROAS_LOW, lab = new Set();
@@ -12613,7 +12688,7 @@ function acrRenderChart(keys, msg) {
           datalabels: { display: c => lab.has(c.dataIndex), align: 'top', anchor: 'end', offset: 4, clamp: true,
             color: c => isLow(data[c.dataIndex]) ? '#dc2626' : '#1b2a4e', font: { size: lblSize, weight: '800' }, formatter: v => v == null ? '' : v.toFixed(2) } }];
         if (showTh) ds.push({ label: 'Ngưỡng', data: p.days.map(() => ACR_ROAS_LOW), borderColor: '#f87171', borderDash: [3, 3], borderWidth: 1.2, pointRadius: 0, pointHoverRadius: 0, fill: false, datalabels: { display: false } });
-        _acR.charts[key] = new Chart(cv, { type: 'line', data: { labels: p.days.map(f5), datasets: ds }, options: {
+        st.charts[key] = new Chart(cv, { type: 'line', data: { labels: p.days.map(f5), datasets: ds }, options: {
           responsive: true, maintainAspectRatio: false, animation: false, layout: { padding: { top: 20, right: 10 } }, interaction: { mode: 'index', intersect: false },
           plugins: { legend: { display: false }, tooltip: { titleFont: { size: 13 }, bodyFont: { size: 13 }, padding: 10, filter: it => it.dataset.label !== 'Ngưỡng',
             callbacks: { title: title(p.days), label: c => `${p.name}: ROAS ${c.parsed.y == null ? 'chưa có dữ liệu' : c.parsed.y.toFixed(2)}${isLow(c.parsed.y) ? ' — dưới ngưỡng ' + ACR_ROAS_LOW : ''}` } } },
@@ -12621,7 +12696,7 @@ function acrRenderChart(keys, msg) {
       } else {
         let iMax = -1; data.forEach((v, j) => { if (v != null && (iMax < 0 || v > data[iMax])) iMax = j; });
         const mx = iMax >= 0 ? data[iMax] : 0, ym = mx > 0 ? mx * 1.12 : 1;   // mỗi hàng tự co theo cột cao nhất của nó (+12% chỗ ghi số)
-        _acR.charts[key] = new Chart(cv, { type: 'bar', data: { labels: p.days.map(f5), datasets: [{ label: p.name, data,
+        st.charts[key] = new Chart(cv, { type: 'bar', data: { labels: p.days.map(f5), datasets: [{ label: p.name, data,
           backgroundColor: data.map((v, j) => j === iMax ? p.strong : p.base), hoverBackgroundColor: p.strong, borderRadius: 5, maxBarThickness: 56, categoryPercentage: 0.88, barPercentage: 0.94,
           datalabels: { display: c => (p.days.length <= ACR_LABEL_MAX || c.dataIndex === iMax) && data[c.dataIndex] != null, anchor: 'end', align: 'top', offset: 2, clamp: true,
             color: c => c.dataIndex === iMax ? '#0f172a' : '#334155', font: c => ({ size: c.dataIndex === iMax ? lblSize + 1 : lblSize, weight: c.dataIndex === iMax ? '800' : '700' }), formatter: v => acrMoneyShort(v) } }] },
@@ -12637,14 +12712,15 @@ function acrRenderChart(keys, msg) {
   // Đường ROAS mini trong ô KPI chính (navy) — chỉ hình dáng, không trục/số
   const roasCur = days.map(d => valOf(ACR_MET[0], curMap[d]));
   const rv = roasCur.filter(v => v != null);
-  const sp = $('ac-kpi-spark');
+  const sp = $(P + '-kpi-spark');
   if (sp && rv.length) { const lo = Math.min(...rv), hi = Math.max(...rv), pad = Math.max((hi - lo) * 0.35, 1);
-    _acR.charts.spark = new Chart(sp, { type: 'line', data: { labels: days, datasets: [{ data: roasCur, borderColor: 'rgba(255,255,255,.95)', borderWidth: 2.5,
+    st.charts.spark = new Chart(sp, { type: 'line', data: { labels: days, datasets: [{ data: roasCur, borderColor: 'rgba(255,255,255,.95)', borderWidth: 2.5,
       tension: 0.4, spanGaps: true, pointRadius: roasCur.map((v, i) => i === roasCur.length - 1 && v != null ? 3.5 : 0), pointBackgroundColor: '#fff',
       fill: 'start', backgroundColor: 'rgba(255,255,255,.14)', datalabels: { display: false } }] },
       options: { responsive: true, maintainAspectRatio: false, animation: false, events: [], layout: { padding: 4 },
         plugins: { legend: { display: false }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false, min: Math.max(0, lo - pad), max: hi + pad } } } }); }
 }
+function acrRenderChart(keys, msg) { acrRenderReports({ p: 'ac', st: _acR }, keys, msg); }
 // Top 10 SP ROAS dưới 15 (Tân chốt 2026-10-09): chỉ SP đã tốn ≥ AC_PROD_MIN_COST_FOR_FLAG (đủ dữ liệu đánh giá),
 // xếp theo chi phí giảm dần (chỗ đang lãng phí nhiều nhất lên đầu). 2 mức: ROAS < 10 đỏ = nên loại; 10–15 vàng = nên tối ưu.
 const ACR_ROAS_OPT = 15;
@@ -14053,6 +14129,7 @@ function groupCampRenderContent(rec, opts) {
     const pvAll = _gcR.hasDaily && _gcR.prev ? gcSumDaily(keys, _gcR.prev.from, _gcR.prev.to) : null;
     if (pvAll && pvAll.days && pvAll.cost > 0 && tot.cost > 0) roasDrop = acrPct(roas, pvAll.rev / pvAll.cost);
   }
+  acrRenderReports({ p: 'gc', st: _gcR }, keys, 'Chưa có dữ liệu theo ngày (chỉ có khi đọc từ Sheet).');
   const rc = document.getElementById('gc-kpi-roas-card');
   if (rc) rc.classList.toggle('acr-alert', (tot.cost > 0 && roas < GC_ROAS_LOW) || (roasDrop != null && roasDrop <= -ACR_DROP_PCT));
 
