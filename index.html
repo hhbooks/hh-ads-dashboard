@@ -22009,14 +22009,23 @@ async function bcspLoad(force) {
     bcspStatus('⏳ Đang đăng nhập Google…');
     await kvrGetToken();
     bcspStatus('⏳ Đang đọc Google Sheet…');
-    if (!BCSP.mainId || force) {
-      const j = await adsSheetCall({ action: 'sw_info' });
-      BCSP.mainId = j.mainId; BCSP.mainUrl = j.mainUrl || '';
+    if (!BCSP.mainId) {
+      // ID file chính đổi rất hiếm → nhớ lại trong trình duyệt, khỏi gọi Apps Script mỗi lần
+      try { BCSP.mainId = localStorage.getItem('bcsp_main_id') || null; } catch (e) { BCSP.mainId = null; }
     }
+    if (!BCSP.mainId) {
+      let j;
+      try { j = await adsSheetCall({ action: 'sw_main_id' }); }                       // đọc nhanh, không chờ khóa (cần Apps Script bản mới)
+      catch (e) { if (/nhận diện/.test(e.message)) j = await adsSheetCall({ action: 'sw_info' }); else throw e; }   // Apps Script bản cũ → dùng sw_info
+      BCSP.mainId = j.mainId;
+      try { localStorage.setItem('bcsp_main_id', j.mainId); } catch (e) { /* bỏ qua */ }
+    }
+    BCSP.mainUrl = 'https://docs.google.com/spreadsheets/d/' + BCSP.mainId + '/edit';
     let j;
     try {
       j = await kvrSheets(BCSP.mainId + '/values/' + encodeURIComponent("'" + BCSP_TAB + "'!A1:H") + '?valueRenderOption=UNFORMATTED_VALUE');
     } catch (e) {
+      if (/Sheets API 404/.test(e.message)) { BCSP.mainId = null; try { localStorage.removeItem('bcsp_main_id'); } catch (e2) { /* bỏ qua */ } throw new Error('Không mở được file Sheet đã nhớ (có thể đã đổi) — bấm Tải lại 1 lần nữa.'); }
       if (/Unable to parse range|400/.test(e.message)) throw new Error('Chưa có tab "' + BCSP_TAB + '" trong Sheet — chạy mục "Thống kê SP Salework" của tiện ích "Tải File SW" trước.');
       throw e;
     }
