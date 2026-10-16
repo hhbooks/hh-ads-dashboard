@@ -939,6 +939,14 @@
   .kvr-up { color:#059669; font-weight:600; } .kvr-down { color:#dc2626; font-weight:600; } .kvr-neu { color:var(--text2); }
   .kvr-total td { font-weight:700; border-top:2px solid var(--text); }
   @media (max-width:1100px) { .kvr-grid2 { grid-template-columns:minmax(0,1fr); } }
+  /* Pha 1 (2026-10-16): bảng Shop × Kênh — class riêng tiền tố kvr-, không đụng class toàn cục */
+  .kvr-note { font-size:11px; color:var(--text2); margin:-4px 0 10px; line-height:1.6; }
+  .kvr-ch { display:inline-block; font-size:10px; font-weight:700; color:#fff; padding:1px 6px; border-radius:4px; margin-right:7px; vertical-align:1px; }
+  .kvr-cbar { position:relative; display:inline-block; width:90px; height:8px; margin-left:8px; background:#f3f4f6; border-radius:4px; vertical-align:middle; }
+  .kvr-cbar::after { content:''; position:absolute; left:50%; top:-2px; bottom:-2px; width:1px; background:#9ca3af; }
+  .kvr-cbar > span { position:absolute; top:0; bottom:0; }
+  .kvr-cbar > span.pos { left:50%; background:#059669; border-radius:0 4px 4px 0; }
+  .kvr-cbar > span.neg { right:50%; background:#dc2626; border-radius:4px 0 0 4px; }
 </style>
 </head>
 <body>
@@ -24558,7 +24566,10 @@ function ccExportExcel() {
 //  Nguồn: Google Sheet "Đơn Kho Vận SW YYYY-MM" (do tiện ích tải về, mỗi tháng 1 file,
 //  mỗi kênh×kho 1 tab: "Shopee - SÀI GÒN", "TikTok - Kho Mặc Định"...). Id file lấy qua Apps Script
 //  action sw_kv_list; đọc Sheet bằng OAuth spreadsheets.readonly (token RIÊNG: KVR.token).
-//  Cột dùng: A=Mã đơn, B=Trạng thái, C=Ngày tạo đơn, L=Doanh thu thực (Shopee)/ước tính (TikTok), Z=Tổng giá trị.
+//  Cột dùng: A=Mã đơn, B=Trạng thái, C=Ngày tạo đơn, L=Doanh thu thực (Shopee)/ước tính (TikTok), Z=Tổng giá trị,
+//  + cột "Shop" (tìm theo tên tiêu đề dòng 1) — thêm 2026-10-16 cho Pha 1 (KPI hàng 2 + bảng Shop × Kênh).
+//  LƯU Ý: TikTok ghi "Doanh thu ước tính" cả cho đơn HỦY/THẤT THU (Shopee ghi 0) → các chỉ số MỚI chỉ tính doanh thu đơn THÀNH CÔNG;
+//  4 ô KPI cũ + bảng trạng thái giữ nguyên cách tính theo yêu cầu của Tân (2026-10-16).
 // ══════════════════════════════════════════════════════════════
 const KVR_WH = {
   SG: { kho: 'SÀI GÒN',       title: 'Báo Cáo SG', sub: 'Kho SÀI GÒN' },
@@ -24635,12 +24646,24 @@ async function kvrTabNames(id) {
   const j = await kvrSheets(id + '?fields=' + encodeURIComponent('sheets.properties.title'));
   return (KVR.tabs[id] = (j.sheets || []).map(s => s.properties.title));
 }
+// Số thứ tự cột (0-based) → chữ cột Sheet (0 → A, 21 → V, 26 → AA)
+function kvrColLetter(i) { let s = ''; i++; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
+// Tìm cột theo TÊN tiêu đề ở dòng 1 (tab Shopee và TikTok lệch cột từ cột thứ 35 trở đi → không dùng chữ cột cố định cho cột mới)
+async function kvrHeaderCol(id, title, name, q) {
+  const j = await kvrSheets(id + '/values/' + q('1:1') + '?valueRenderOption=UNFORMATTED_VALUE');
+  const row = ((j.values || [])[0] || []).map(x => String(x == null ? '' : x).trim().normalize('NFC').toUpperCase());
+  const i = row.indexOf(name.normalize('NFC').toUpperCase());
+  return i < 0 ? null : kvrColLetter(i);
+}
 async function kvrReadTab(id, title) {
   const q = c => encodeURIComponent("'" + title.replace(/'/g, "''") + "'!" + c);
-  const ranges = ['A2:A', 'B2:B', 'C2:C', 'L2:L', 'Z2:Z'].map(c => 'ranges=' + q(c)).join('&');
+  const shopCol = await kvrHeaderCol(id, title, 'Shop', q).catch(() => null);
+  const cols = ['A2:A', 'B2:B', 'C2:C', 'L2:L', 'Z2:Z'];
+  if (shopCol) cols.push(shopCol + '2:' + shopCol);
+  const ranges = cols.map(c => 'ranges=' + q(c)).join('&');
   const j = await kvrSheets(id + '/values:batchGet?' + ranges + '&majorDimension=COLUMNS&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER');
   const g = i => { const v = (j.valueRanges || [])[i]; return (v && v.values && v.values[0]) || []; };
-  const A = g(0), B = g(1), C = g(2), L = g(3), Z = g(4);
+  const A = g(0), B = g(1), C = g(2), L = g(3), Z = g(4), SH = shopCol ? g(5) : [];
   const n = Math.max(A.length, B.length, C.length);
   const map = new Map(); let last = null;
   for (let i = 0; i < n; i++) {
@@ -24649,7 +24672,8 @@ async function kvrReadTab(id, title) {
       const k = String(code); let o = map.get(k);
       if (!o) {
         const ser = C[i];
-        o = { s: String(B[i] == null ? '' : B[i]).trim().toUpperCase() || '(KHÔNG RÕ)', d: typeof ser === 'number' ? new Date((Math.floor(ser) - 25569) * 86400000).getUTCDate() : 0, v: 0, r: 0, hv: false, hr: false };
+        o = { s: String(B[i] == null ? '' : B[i]).trim().toUpperCase() || '(KHÔNG RÕ)', d: typeof ser === 'number' ? new Date((Math.floor(ser) - 25569) * 86400000).getUTCDate() : 0, v: 0, r: 0, hv: false, hr: false,
+          sh: String(SH[i] == null ? '' : SH[i]).trim() || '(Không rõ shop)' };
         map.set(k, o);
       }
       last = o;
@@ -24707,6 +24731,18 @@ function kvrBuildHtml(wh) {
   </div>
   <div id="${P}body" style="display:none">
     <div class="kpi-grid" id="${P}kpi"></div>
+    <div class="kpi-grid" id="${P}kpi2"></div>
+    <div class="card">
+      <div class="card-title"><span class="dot" style="background:var(--navy2)"></span> Kết quả theo Shop × Kênh
+        <span id="${P}shopsub" style="font-size:11px;font-weight:400;color:var(--text2);margin-left:8px"></span>
+        <span id="${P}smbtns" style="margin-left:auto;display:flex;gap:6px">
+          <button class="filter-btn" data-sm="ok" onclick="kvrSetSm('${wh}','ok')">Giá trị thành công</button>
+          <button class="filter-btn" data-sm="v" onclick="kvrSetSm('${wh}','v')">Giá trị đặt</button>
+          <button class="filter-btn" data-sm="n" onclick="kvrSetSm('${wh}','n')">Số đơn</button>
+        </span></div>
+      <div id="${P}shopnote" class="kvr-note"></div>
+      <div style="overflow-x:auto"><table class="th-shop-table kvr-shop-tbl" id="${P}shoptbl"></table></div>
+    </div>
     <div class="card">
       <div class="card-title"><span class="dot" style="background:#2563eb"></span> Đơn &amp; doanh thu theo trạng thái <span id="${P}cmp1" style="font-size:11px;font-weight:400;color:var(--text2);margin-left:8px"></span></div>
       <div class="kvr-grid2">
@@ -24727,7 +24763,7 @@ function kvrBuildHtml(wh) {
 async function kvrInitPage(wh) {
   const root = document.getElementById('kvr-root-' + wh); if (!root) return;
   if (!KVR.st[wh]) {
-    KVR.st[wh] = { month: null, ch: 'ALL', tm: 'count', cur: null, prev: null, seq: 0, charts: {} };
+    KVR.st[wh] = { month: null, ch: 'ALL', tm: 'count', sm: null, cur: null, prev: null, seq: 0, charts: {} };
     root.innerHTML = kvrBuildHtml(wh);
   }
   const st = KVR.st[wh];
@@ -24767,6 +24803,11 @@ function kvrSetCh(wh, ch) {
   document.querySelectorAll('#kvr-' + wh + '-chbtns .filter-btn').forEach(b => b.classList.toggle('active', b.dataset.ch === ch));
   if (st.cur) kvrRender(wh);
 }
+// sm = chỉ số so sánh của bảng Shop × Kênh; null = tự chọn (tháng đang chạy → Giá trị đặt, tháng đã qua → Giá trị thành công)
+function kvrSetSm(wh, sm) {
+  const st = KVR.st[wh]; st.sm = sm;
+  if (st.cur && st.view) kvrRenderShop(wh);
+}
 function kvrSetTm(wh, tm) {
   const st = KVR.st[wh]; st.tm = tm;
   document.querySelectorAll('#page-bc-' + wh.toLowerCase() + ' [data-tm]').forEach(b => b.classList.toggle('active', b.dataset.tm === tm));
@@ -24799,13 +24840,23 @@ async function kvrLoad(wh, force) {
 // ── Tổng hợp ──
 function kvrAgg(data, ch, maxDay) {
   if (!data) return null;
-  const a = { n: 0, v: 0, r: 0, rS: 0, rT: 0, by: new Map(), days: [] };
+  const a = { n: 0, v: 0, r: 0, rS: 0, rT: 0, by: new Map(), days: [],
+    // Chỉ số mới (Pha 1): ok* = đơn THÀNH CÔNG, loss* = HỦY + THẤT THU, shops = theo Kênh|Shop, lastD = ngày tạo đơn muộn nhất có dữ liệu
+    okN: 0, okV: 0, okR: 0, okRS: 0, okRT: 0, lossN: 0, lossV: 0, closedN: 0, lastD: 0, shops: new Map() };
   for (const c of ['S', 'T']) {
     if (ch !== 'ALL' && ch !== c) continue;
     const x = data[c]; if (!x) continue;
     for (const o of x.orders) {
       if (maxDay && o.d > maxDay) continue;
       a.n++; a.v += o.v; a.r += o.r; if (c === 'S') a.rS += o.r; else a.rT += o.r;
+      if (o.d > a.lastD) a.lastD = o.d;
+      const isOk = o.s === 'THÀNH CÔNG', isLoss = o.s === 'HỦY' || o.s === 'THẤT THU';
+      if (isOk) { a.okN++; a.okV += o.v; a.okR += o.r; if (c === 'S') a.okRS += o.r; else a.okRT += o.r; }
+      if (isLoss) { a.lossN++; a.lossV += o.v; }
+      if (isOk || isLoss) a.closedN++;
+      const sk = c + '|' + (o.sh || '(Không rõ shop)');
+      let sp = a.shops.get(sk); if (!sp) { sp = { c, name: o.sh || '(Không rõ shop)', n: 0, v: 0, okN: 0, okV: 0, lossN: 0, closedN: 0 }; a.shops.set(sk, sp); }
+      sp.n++; sp.v += o.v; if (isOk) { sp.okN++; sp.okV += o.v; } if (isLoss) sp.lossN++; if (isOk || isLoss) sp.closedN++;
       let b = a.by.get(o.s); if (!b) { b = { n: 0, v: 0, r: 0 }; a.by.set(o.s, b); }
       b.n++; b.v += o.v; b.r += o.r;
       let dm = a.days[o.d]; if (!dm) { dm = new Map(); a.days[o.d] = dm; }
@@ -24850,6 +24901,8 @@ function kvrRender(wh) {
     <div class="kpi-card"><div class="kpi-label">Tỷ lệ thành công</div><div class="kpi-value">${kvrPct(rate)}</div>
       <div class="kpi-sub">${dPts}${cmpTxt}<br>Hủy + thất thu: ${fmtNum(canc)} đơn (${kvrPct(cur.n ? canc / cur.n : 0)})</div></div>`;
   document.getElementById(P + 'cmp1').textContent = '— so với ' + kvrMonthLabel(pm) + (isCur ? ' (ngày 1–' + now.d + ')' : '');
+  kvrRenderKpi2(wh);
+  kvrRenderShop(wh);
   // Bảng trạng thái
   const states = st.view.states;
   let h = `<thead><tr><th style="text-align:left">Trạng thái</th><th>Số đơn</th><th>% đơn</th><th>Giá trị đơn</th><th>${st.ch === 'S' ? 'Doanh thu thực' : st.ch === 'T' ? 'Doanh thu ước tính' : 'Doanh thu'}</th><th>Số đơn ${kvrMonthLabel(pm).replace('Tháng ', 'T')}</th><th>Chênh lệch</th></tr></thead><tbody>`;
@@ -24869,6 +24922,95 @@ function kvrRender(wh) {
         tooltip: { callbacks: { label: ctx => ' ' + ctx.label + ': ' + fmtNum(ctx.parsed) + ' đơn (' + kvrPct(cur.n ? ctx.parsed / cur.n : 0) + ')' } } } }
   });
   kvrRenderTrend(wh);
+}
+// Chênh lệch tính bằng điểm % (cho tỷ lệ). bad = true: tăng là xấu
+function kvrPts(cur, prev, bad) {
+  if (prev == null) return '<span class="kvr-neu">—</span>';
+  const d = (cur - prev) * 100;
+  const cls = Math.abs(d) < 0.05 ? 'kvr-neu' : ((d > 0) !== !!bad ? 'kvr-up' : 'kvr-down');
+  return '<span class="' + cls + '">' + (d > 0 ? '▲ +' : d < 0 ? '▼ ' : '• ') + d.toFixed(1).replace('.', ',') + ' điểm %</span>';
+}
+// ── KPI hàng 2 (Pha 1, 2026-10-16): chỉ số dành cho Ban giám đốc ──
+function kvrRenderKpi2(wh) {
+  const st = KVR.st[wh], P = 'kvr-' + wh + '-', v = st.view, cur = v.cur, prev = v.prev;
+  const cmpTxt = ' so với ' + kvrMonthLabel(v.pm).replace('Tháng ', 'T');
+  const [y, m] = st.month.split('-').map(Number), dim = new Date(y, m, 0).getDate();
+  // Card 1 — Doanh thu đơn thành công
+  let sub1 = cur.okV ? 'Bằng ' + kvrPct(cur.okR / cur.okV) + ' giá trị đơn thành công' : '';
+  if (st.ch === 'ALL') sub1 += (sub1 ? '<br>' : '') + 'Shopee thực: ' + kvrShort(cur.okRS) + ' · TikTok ước tính: ' + kvrShort(cur.okRT);
+  if (v.isCur) sub1 += '<br>Đơn đang giao chưa được tính';
+  // Card 2 — Giá trị thất thoát
+  const sub2 = kvrPct(cur.v ? cur.lossV / cur.v : 0) + ' giá trị đặt · ' + fmtNum(cur.lossN) + ' đơn hủy / thất thu';
+  // Card 3 — Giá trị TB 1 đơn thành công
+  const aovC = cur.okN ? cur.okV / cur.okN : 0, aovP = prev && prev.okN ? prev.okV / prev.okN : null;
+  // Card 4 — Dự phóng (tháng đang chạy) hoặc Tỷ lệ thành công trên đơn đã có kết quả (tháng đã qua)
+  let card4;
+  if (v.isCur && cur.lastD) {
+    const proj = cur.v / cur.lastD * dim;
+    const pf = st.prev ? kvrAgg(st.prev, st.ch, 0) : null;
+    const okRateP = pf && (pf.okV + pf.lossV) ? pf.okV / (pf.okV + pf.lossV) : null;
+    card4 = `<div class="kpi-card orange"><div class="kpi-label">Dự phóng giá trị đặt cuối tháng</div><div class="kpi-value" title="${fmtMoney(proj)}">${kvrShort(proj)}</div>
+      <div class="kpi-sub">${pf ? kvrDelta(proj, pf.v) + ' so với cả ' + kvrMonthLabel(v.pm).replace('Tháng ', 'T') + ' (' + kvrShort(pf.v) + ')' : '<span class="kvr-neu">—</span>'}
+      <br>Theo tốc độ ngày 1–${cur.lastD}: TB ${kvrShort(cur.v / cur.lastD)}/ngày${okRateP != null ? '<br>Ước tính thành công ≈ ' + kvrShort(proj * okRateP) + ' (tỷ lệ TC ' + kvrMonthLabel(v.pm).replace('Tháng ', 'T') + ')' : ''}</div></div>`;
+  } else {
+    const rc = cur.closedN ? cur.okN / cur.closedN : 0, rp = prev && prev.closedN ? prev.okN / prev.closedN : null;
+    const pending = cur.n - cur.closedN;
+    card4 = `<div class="kpi-card orange"><div class="kpi-label">Tỷ lệ TC (đơn đã có kết quả)</div><div class="kpi-value">${kvrPct(rc)}</div>
+      <div class="kpi-sub">${kvrPts(rc, rp)}${cmpTxt}<br>= Thành công / (Thành công + Hủy + Thất thu)${pending ? '<br>Không tính ' + fmtNum(pending) + ' đơn chưa có kết quả' : ''}</div></div>`;
+  }
+  document.getElementById(P + 'kpi2').innerHTML = `
+    <div class="kpi-card green"><div class="kpi-label">Doanh thu đơn thành công</div><div class="kpi-value" title="${fmtMoney(cur.okR)}">${kvrShort(cur.okR)}</div>
+      <div class="kpi-sub">${kvrDelta(cur.okR, prev ? prev.okR : null)}${cmpTxt}<br>${sub1}</div></div>
+    <div class="kpi-card red"><div class="kpi-label">Giá trị thất thoát (Hủy + Thất thu)</div><div class="kpi-value" title="${fmtMoney(cur.lossV)}">${kvrShort(cur.lossV)}</div>
+      <div class="kpi-sub">${kvrDelta(cur.lossV, prev ? prev.lossV : null, true)}${cmpTxt}<br>${sub2}</div></div>
+    <div class="kpi-card navy"><div class="kpi-label">Giá trị TB 1 đơn thành công</div><div class="kpi-value" title="${fmtMoney(aovC)}">${fmtMoney(Math.round(aovC))}</div>
+      <div class="kpi-sub">${kvrDelta(aovC, aovP)}${cmpTxt}<br>TB tất cả đơn: ${fmtMoney(Math.round(cur.n ? cur.v / cur.n : 0))}</div></div>
+    ${card4}`;
+}
+// ── Bảng Shop × Kênh + đóng góp vào biến động (Pha 1, 2026-10-16) ──
+const KVR_CH = { S: { name: 'Shopee', col: '#EE4D2D' }, T: { name: 'TikTok', col: '#111827' } };
+function kvrRenderShop(wh) {
+  const st = KVR.st[wh], P = 'kvr-' + wh + '-', v = st.view, cur = v.cur, prev = v.prev;
+  const sm = st.sm || (v.isCur ? 'v' : 'ok');
+  document.querySelectorAll('#' + P + 'smbtns .filter-btn').forEach(b => b.classList.toggle('active', b.dataset.sm === sm));
+  const SM = { ok: { lab: 'Giá trị thành công', f: x => x.okV }, v: { lab: 'Giá trị đặt', f: x => x.v }, n: { lab: 'Số đơn', f: x => x.n } }[sm];
+  const fmtM = x => sm === 'n' ? fmtNum(x) : fmtMoney(x);
+  const keys = new Set([...cur.shops.keys(), ...(prev ? prev.shops.keys() : [])]);
+  const curT = SM.f(cur), prevT = prev ? SM.f(prev) : null;
+  const rows = [...keys].map(k => {
+    const c = cur.shops.get(k), p = prev ? prev.shops.get(k) : null;
+    const base = c || p;
+    const cm = c ? SM.f(c) : 0, pmv = prev ? (p ? SM.f(p) : 0) : null;
+    return { k, c, p, ch: base.c, name: base.name, cm, pmv, contrib: prevT ? (cm - pmv) / prevT : null };
+  }).sort((a, b) => (b.cm - a.cm) || ((b.pmv || 0) - (a.pmv || 0)));
+  const maxAbs = Math.max(0.0001, ...rows.map(r => Math.abs(r.contrib || 0)));
+  const pmLab = kvrMonthLabel(v.pm).replace('Tháng ', 'T');
+  const cbar = x => {
+    if (x == null) return '';
+    const w = Math.min(50, Math.abs(x) / maxAbs * 50);
+    return '<span class="kvr-cbar"><span class="' + (x >= 0 ? 'pos' : 'neg') + '" style="width:' + w.toFixed(1) + '%"></span></span>';
+  };
+  const ctxt = x => x == null ? '<span class="kvr-neu">—</span>' : '<span class="' + (Math.abs(x) < 0.0005 ? 'kvr-neu' : x > 0 ? 'kvr-up' : 'kvr-down') + '">' + (x > 0 ? '+' : '') + (x * 100).toFixed(1).replace('.', ',') + '</span>';
+  let h = `<thead><tr><th style="text-align:left">Shop</th><th>Số đơn</th><th>Giá trị đặt</th><th>Giá trị thành công</th><th>Tỷ trọng</th>
+    <th title="(Hủy + Thất thu) / đơn đã có kết quả">Tỷ lệ hủy + TT</th><th>TB 1 đơn TC</th><th>${SM.lab} ${pmLab}</th><th>Chênh lệch</th>
+    <th title="Shop này làm tổng tăng/giảm bao nhiêu điểm %. Cộng tất cả dòng = chênh lệch của dòng Tổng">Đóng góp (điểm %)</th></tr></thead><tbody>`;
+  rows.forEach(r => {
+    const c = r.c || { n: 0, v: 0, okN: 0, okV: 0, lossN: 0, closedN: 0 };
+    h += `<tr><td style="text-align:left;white-space:nowrap"><span class="kvr-ch" style="background:${KVR_CH[r.ch].col}">${KVR_CH[r.ch].name}</span>${kvrEsc(r.name)}</td>
+      <td>${fmtNum(c.n)}</td><td>${fmtMoney(c.v)}</td><td>${fmtMoney(c.okV)}</td><td>${kvrPct(curT ? r.cm / curT : 0)}</td>
+      <td>${c.closedN ? kvrPct(c.lossN / c.closedN) : '—'}</td><td>${c.okN ? fmtMoney(Math.round(c.okV / c.okN)) : '—'}</td>
+      <td>${r.pmv == null ? '—' : fmtM(r.pmv)}</td><td>${kvrDelta(r.cm, r.pmv)}</td>
+      <td style="white-space:nowrap">${ctxt(r.contrib)}${cbar(r.contrib)}</td></tr>`;
+  });
+  h += `<tr class="kvr-total"><td style="text-align:left">Tổng</td><td>${fmtNum(cur.n)}</td><td>${fmtMoney(cur.v)}</td><td>${fmtMoney(cur.okV)}</td><td>100%</td>
+    <td>${cur.closedN ? kvrPct(cur.lossN / cur.closedN) : '—'}</td><td>${cur.okN ? fmtMoney(Math.round(cur.okV / cur.okN)) : '—'}</td>
+    <td>${prevT == null ? '—' : fmtM(prevT)}</td><td>${kvrDelta(curT, prevT)}</td><td>${prevT ? ctxt((curT - prevT) / prevT) : '<span class="kvr-neu">—</span>'}</td></tr></tbody>`;
+  document.getElementById(P + 'shoptbl').innerHTML = h;
+  document.getElementById(P + 'shopsub').textContent = '— ' + rows.length + ' shop · so theo ' + SM.lab.toLowerCase() + ' với ' + kvrMonthLabel(v.pm) + (v.isCur ? ' (ngày 1–' + v.maxDay + ')' : '');
+  const notes = ['Tỷ trọng, chênh lệch và đóng góp tính theo <b>' + SM.lab.toLowerCase() + '</b>. Đóng góp = shop đó làm tổng tăng/giảm bao nhiêu điểm %; cộng các dòng ra đúng chênh lệch của dòng Tổng.'];
+  if (v.isCur && sm === 'ok') notes.push('⚠️ Tháng đang chạy còn nhiều đơn đang giao nên giá trị thành công thấp hơn tháng trước là bình thường. Nên xem theo <b>Giá trị đặt</b>.');
+  if (cur.n && [...cur.shops.values()].every(x => x.name === '(Không rõ shop)')) notes.push('⚠️ Không tìm thấy cột "Shop" trong Sheet → chưa tách được theo shop.');
+  document.getElementById(P + 'shopnote').innerHTML = notes.join('<br>');
 }
 function kvrRenderTrend(wh) {
   const st = KVR.st[wh], P = 'kvr-' + wh + '-', v = st.view; if (!v) return;
