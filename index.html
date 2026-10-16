@@ -2417,7 +2417,7 @@
     <div class="card" style="margin-top:18px;border-top:3px solid #2980b9">
       <div class="card-title"><span class="dot" style="background:#2980b9"></span> Tạo Sản Phẩm SW</div>
       <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-        Đọc file nguồn (Mega Book cho Sách Liên Kết, file "Thông tin sách mới - tái bản" cho Sách Huy Hoàng, hoặc sheet "Giá nhập Deli" trong file triển khai VPP Deli), tự tính <b>Giá Nhập</b> (Sách Liên Kết: theo % chiết khấu lấy từ file, làm tròn về mức 5% gần nhất; Sách Huy Hoàng: mặc định cố định 55%; VPP Deli: lấy thẳng giá trị có sẵn ở cột "Giá nhập T8" trong file, không qua công thức), xuất ra file đúng 12 cột Template tạo sản phẩm Salework. Mỗi lần upload xuất 1 file riêng, không lưu lại giữa các lần.
+        Sách Liên Kết / Sách Huy Hoàng: đọc file nguồn (Mega Book; file "Thông tin sách mới - tái bản"), tự tính <b>Giá Nhập</b> (Liên Kết: theo % chiết khấu trong file, làm tròn về mức 5% gần nhất; Huy Hoàng: cố định 55%). <b>VPP Deli</b>: không cần chọn file — bấm <b>Đồng bộ Sheet SKU Tổng</b>, dashboard lấy các mã ở tab "Triển Khai Deli" <b>chưa tick "Đẩy Lên Salework"</b> (Giá nhập = cột "Giá nhập T8"); mã chưa có trong tab SKU sẽ bị loại và cảnh báo. Upload SW xong bấm <b>Đánh dấu đã đẩy</b> để tự tick cột đó. Xuất ra file đúng 12 cột Template tạo sản phẩm Salework.
       </p>
       <div id="spm-mode-toggle" style="display:flex;gap:8px;margin-bottom:12px">
         <button class="filter-btn active" onclick="spmSetMode('lienket',this)">📗 Sách Liên Kết</button>
@@ -2428,6 +2428,7 @@
         <div>
           <input type="file" id="spm-input" accept=".xlsx,.xls" style="display:none" onchange="spmHandleFile(this)">
           <button class="sw-upload-btn" id="spm-input-btn" onclick="document.getElementById('spm-input').click()">📂 Chọn File Liên Kết</button>
+          <button class="sw-upload-btn" id="spm-deli-sync-btn" style="display:none" onclick="spmDeliSync()">🔄 Đồng bộ Sheet SKU Tổng</button>
         </div>
         <div id="spm-sheet-picker-wrap" style="display:none">
           <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px">Chọn đúng tab/sheet:</label>
@@ -2438,7 +2439,7 @@
       <div style="font-size:12px;color:var(--text2);margin-bottom:10px">File nguồn: <b id="spm-status-file">chưa chọn</b></div>
 
       <div id="spm-excluded-box" style="display:none;margin-bottom:14px;border:2px solid #f39c12;border-radius:8px;padding:14px;background:#fffaf0">
-        <div style="font-size:13px;font-weight:700;color:#c87f0a;margin-bottom:8px">⚠️ <span id="spm-excluded-count">0</span> dòng bị loại vì Ghi chú là "Sách liên kết" (không thuộc Sách Huy Hoàng tự xuất bản)</div>
+        <div style="font-size:13px;font-weight:700;color:#c87f0a;margin-bottom:8px">⚠️ <span id="spm-excluded-count">0</span> <span id="spm-excluded-title">dòng bị loại vì Ghi chú là "Sách liên kết" (không thuộc Sách Huy Hoàng tự xuất bản)</span></div>
         <div class="table-wrap" style="max-height:180px;overflow-y:auto;border:1px solid var(--gray3);border-radius:8px;background:white">
           <table>
             <thead><tr><th>#</th><th style="text-align:left">Mã Hàng</th><th style="text-align:left">Tên Sách</th><th>Ghi Chú</th></tr></thead>
@@ -2464,6 +2465,7 @@
         <button id="spm-export-btn" class="btn-drive-sync" style="display:none;max-width:320px" onclick="spmExportFile()">📤 Xuất File Salework (.xlsx)</button>
         <button id="spm-export-phieunhap-btn" class="btn-drive-sync" style="display:none;max-width:320px" onclick="spmExportPhieuNhap()">📥 Xuất Phiếu Nhập</button>
         <button id="spm-push-sheet-btn" class="btn-drive-sync" style="display:none;max-width:320px;background:#8e44ad;border-color:#8e44ad" onclick="spmPushToSheet()">🔗 Đẩy Vào Sheet SKU</button>
+        <button id="spm-deli-mark-btn" class="btn-drive-sync" style="display:none;max-width:360px;background:#16a34a;border-color:#16a34a" onclick="spmDeliMark()">✅ Đánh dấu đã đẩy lên SW</button>
       </div>
     </div>
   </div>
@@ -6846,7 +6848,10 @@ function spmSetMode(mode, btnEl) {
   SPM.mode = mode;
   document.querySelectorAll('#spm-mode-toggle .filter-btn').forEach(b => b.classList.remove('active'));
   if (btnEl) btnEl.classList.add('active');
-  document.getElementById('spm-input-btn').textContent = mode === 'lienket' ? '📂 Chọn File Liên Kết' : mode === 'huyhoang' ? '📂 Chọn File Thông Tin Sách Huy Hoàng' : '📂 Chọn File Giá Nhập Deli';
+  document.getElementById('spm-input-btn').textContent = mode === 'lienket' ? '📂 Chọn File Liên Kết' : '📂 Chọn File Thông Tin Sách Huy Hoàng';
+  // VPP Deli (2026-10-16): không chọn file nữa — đồng bộ thẳng từ Sheet SKU Tổng
+  document.getElementById('spm-input-btn').style.display = mode === 'deli' ? 'none' : '';
+  document.getElementById('spm-deli-sync-btn').style.display = mode === 'deli' ? '' : 'none';
   spmResetAll();
 }
 
@@ -6865,6 +6870,9 @@ function spmResetAll() {
   document.getElementById('spm-export-btn').style.display = 'none';
   document.getElementById('spm-export-phieunhap-btn').style.display = 'none';
   document.getElementById('spm-push-sheet-btn').style.display = 'none';
+  document.getElementById('spm-deli-mark-btn').style.display = 'none';
+  SPM.exported = false;
+  if (SPM.mode === 'deli') document.getElementById('spm-status-file').textContent = 'Sheet SKU Tổng · tab "Triển Khai Deli" (chưa đồng bộ)';
   const logEl = document.getElementById('spm-log');
   logEl.innerHTML = '';
   logEl.classList.remove('visible');
@@ -7166,6 +7174,9 @@ function spmRenderExcluded() {
   const tbody = document.getElementById('spm-excluded-tbody');
   if (!SPM.excluded.length) { box.style.display = 'none'; return; }
   document.getElementById('spm-excluded-count').textContent = SPM.excluded.length;
+  document.getElementById('spm-excluded-title').textContent = SPM.mode === 'deli'
+    ? 'mã chưa tick "Đẩy Lên Salework" nhưng KHÔNG xuất (chưa có trong tab SKU / thiếu giá) — xử lý xong rồi Đồng bộ lại'
+    : 'dòng bị loại vì Ghi chú là "Sách liên kết" (không thuộc Sách Huy Hoàng tự xuất bản)';
   tbody.innerHTML = SPM.excluded.map((e, i) => `<tr><td>${i + 1}</td><td style="text-align:left">${e.ma}</td><td style="text-align:left">${e.ten}</td><td>${e.ghiChu}</td></tr>`).join('');
   box.style.display = 'block';
 }
@@ -7187,7 +7198,9 @@ function spmRenderPreview() {
   wrap.style.display = 'block';
   exportBtn.style.display = 'inline-block';
   phieuNhapBtn.style.display = 'inline-block';
-  pushSheetBtn.style.display = 'inline-block';
+  // VPP Deli: mã đã có sẵn trong tab SKU → không cần "Đẩy Vào Sheet SKU"; nút Đánh dấu chỉ hiện SAU khi đã xuất file
+  pushSheetBtn.style.display = SPM.mode === 'deli' ? 'none' : 'inline-block';
+  document.getElementById('spm-deli-mark-btn').style.display = SPM.mode === 'deli' && SPM.exported ? 'inline-block' : 'none';
 }
 
 // Xuất file .xlsx đúng 12 cột Template Salework. Giá Nhập ghi CÔNG THỨC EXCEL THẬT (không chỉ số
@@ -7199,7 +7212,8 @@ function spmExportFile() {
   const isTextMa = SPM.mode === 'deli'; // mã Deli có chữ - không ép định dạng số nguyên như 2 mode sách
   const aoa = [SPM_HEADERS];
   SPM.rows.forEach(row => {
-    aoa.push([row.ma, row.ten, row.dvt, null, null, null, row.giaBanLe, null, 1, null, null, null]);
+    // VPP Deli (2026-10-16): thêm BARCODE (chỉ khi là dãy 8–14 chữ số) + LINK ẢNH từ tab Triển Khai Deli
+    aoa.push([row.ma, row.ten, row.dvt, null, null, null, row.giaBanLe, isTextMa ? (row.barcode || null) : null, 1, isTextMa ? (row.anh || null) : null, null, null]);
   });
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   SPM.rows.forEach((row, i) => {
@@ -7227,6 +7241,13 @@ function spmExportFile() {
   const outName = `SP_${modeLabel}_len_Salework_${dateStr}.xlsx`;
   XLSX.writeFile(wbOut, outName);
   spmLog(`📤 Đã xuất "${outName}" (${SPM.rows.length} dòng).`, 'ok');
+  if (SPM.mode === 'deli') {
+    SPM.exported = true;
+    const mb = document.getElementById('spm-deli-mark-btn');
+    mb.textContent = `✅ Đánh dấu đã đẩy lên SW (${SPM.rows.length} mã)`;
+    mb.style.display = 'inline-block';
+    spmLog('👉 Upload file lên Salework. Khi SW báo tạo thành công, bấm "✅ Đánh dấu đã đẩy lên SW" để tự tick cột "Đẩy Lên Salework" cho các mã này.', 'info');
+  }
 }
 
 // Xuất file "Tạo Phiếu Nhập" (đúng cấu trúc Template_exchange.xlsx Tân gửi 2026-09-21) - DÙNG LUÔN
@@ -7417,6 +7438,81 @@ function spmPollResult_(url, requestId, opts) {
     };
     tryOnce();
   });
+}
+
+// ══════════════════════════════════════════════════════════════
+// VPP DELI — đồng bộ thẳng từ Sheet "SKU Tổng" (Tân chốt 2026-10-16, thay cho cách chọn file)
+//  • Gọi Apps Script SKU Tổng (file DeliSW.gs, action deliSwList / deliSwMark) qua JSONP — chạy
+//    bằng quyền chủ Sheet, không cần đăng nhập Google trên dashboard.
+//  • Lấy MỌI mã ở tab "Triển Khai Deli" chưa tick "Đẩy Lên Salework" (không xét Nhập kho).
+//  • Giá nhập = cột "Giá nhập T8" (Triển Khai Deli). Mã chưa có trong tab SKU → loại + cảnh báo.
+//  • Nút "Đánh dấu đã đẩy" chỉ hiện sau khi đã Xuất File — Tân bấm khi SW tạo thành công.
+// ══════════════════════════════════════════════════════════════
+function spmDeliBarcode_(v) {
+  const s = String(v == null ? '' : v).trim();
+  return /^\d{8,14}$/.test(s) ? s : ''; // chỉ nhận dãy số thật (loại kiểu "ET850-01-TR-01")
+}
+async function spmDeliSync() {
+  const btn = document.getElementById('spm-deli-sync-btn');
+  if (btn) btn.disabled = true;
+  const keepMode = SPM.mode;
+  spmResetAll();
+  spmLog('🔄 Đang đọc tab "Triển Khai Deli" từ Sheet SKU Tổng…');
+  try {
+    const d = await spmJsonpCall_(SKU_SHEET_APPS_SCRIPT_URL, { action: 'deliSwList' }, 30000);
+    if (SPM.mode !== keepMode) return;
+    if (!d || d.ok === false) throw new Error((d && d.error) || 'Không rõ lỗi');
+    if (!Array.isArray(d.rows)) throw new Error('Apps Script chưa có action "deliSwList" — cần thêm file DeliSW.gs và Deploy phiên bản mới.');
+    const rows = [], excluded = [];
+    let ci = 0;
+    d.rows.forEach(r => {
+      const why = [];
+      if (!r.inSku) why.push('Chưa có trong tab SKU');
+      if (!r.ten) why.push('Thiếu tên hàng');
+      if (typeof r.giaNhap !== 'number' || !(r.giaNhap > 0)) why.push('Thiếu Giá nhập T8');
+      if (typeof r.giaBia !== 'number' || !(r.giaBia > 0)) why.push('Thiếu Giá bìa');
+      if (why.length) { excluded.push({ ma: r.ma, ten: r.ten || '', ghiChu: 'Dòng ' + r.row + ' · ' + why.join(', ') }); return; }
+      if (r.inSku === 'ci') ci++;
+      rows.push({ ma: r.ma, ten: r.ten, dvt: r.dvt || 'Cái', giaBanLe: Number(r.giaBia), giaNhap: Math.round(Number(r.giaNhap)),
+        barcode: spmDeliBarcode_(r.maVach), anh: r.anh || '', row: r.row, ckRate: r.giaBia > 0 ? 1 - r.giaNhap / r.giaBia : 0 });
+    });
+    SPM.rows = rows; SPM.excluded = excluded;
+    document.getElementById('spm-status-file').textContent = 'Sheet SKU Tổng · tab "Triển Khai Deli" · đồng bộ lúc ' + new Date().toLocaleTimeString('vi-VN');
+    spmRenderExcluded();
+    spmRenderPreview();
+    spmLog(`✅ Tab có ${d.total} mã: ${d.done} mã đã tick "${d.dayHeader || 'Đẩy Lên Salework'}", ${d.rows.length} mã chưa tick → xuất được ${rows.length} mã` +
+      (excluded.length ? `, loại ${excluded.length} mã (xem khung cảnh báo).` : '.'), rows.length ? 'ok' : 'warn');
+    if (ci) spmLog(`⚠️ ${ci} mã khớp tab SKU nhưng khác chữ hoa/thường — vẫn xuất theo đúng mã ở Triển Khai Deli, nên kiểm tra lại.`, 'warn');
+    if (!rows.length && !excluded.length) spmLog('Không còn mã nào cần đẩy lên SW.', 'ok');
+  } catch (err) {
+    spmLog('❌ Lỗi đồng bộ: ' + err.message, 'err');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+async function spmDeliMark() {
+  if (SPM.mode !== 'deli' || !SPM.rows.length || !SPM.exported) return;
+  const codes = SPM.rows.map(r => r.ma);
+  if (!confirm('Tick "Đẩy Lên Salework" cho ' + codes.length + ' mã vừa xuất?\nChỉ bấm khi Salework đã tạo sản phẩm thành công.')) return;
+  const btn = document.getElementById('spm-deli-mark-btn');
+  btn.disabled = true;
+  let marked = 0; const notFound = [];
+  try {
+    for (let i = 0; i < codes.length; i += 40) { // chia nhỏ để URL JSONP không quá dài
+      const part = codes.slice(i, i + 40);
+      spmLog(`⏳ Đang tick ${i + 1}–${i + part.length}/${codes.length}…`);
+      const d = await spmJsonpCall_(SKU_SHEET_APPS_SCRIPT_URL, { action: 'deliSwMark', codes: JSON.stringify(part) }, 30000);
+      if (!d || d.ok === false) throw new Error((d && d.error) || 'Không rõ lỗi');
+      if (typeof d.marked !== 'number') throw new Error('Apps Script chưa có action "deliSwMark" — cần Deploy phiên bản mới.');
+      marked += d.marked; notFound.push(...(d.notFound || []));
+    }
+    spmLog(`✅ Đã tick "Đẩy Lên Salework" cho ${marked} mã.` + (notFound.length ? ` Không tìm thấy: ${notFound.join(', ')}` : ''), notFound.length ? 'warn' : 'ok');
+    btn.style.display = 'none'; SPM.exported = false;
+  } catch (err) {
+    spmLog('❌ Lỗi khi tick: ' + err.message + (marked ? ` (đã tick được ${marked} mã trước khi lỗi)` : ''), 'err');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 async function spmPushToSheet() {
