@@ -947,6 +947,20 @@
   .kvr-cbar > span { position:absolute; top:0; bottom:0; }
   .kvr-cbar > span.pos { left:50%; background:#059669; border-radius:0 4px 4px 0; }
   .kvr-cbar > span.neg { right:50%; background:#dc2626; border-radius:4px 0 0 4px; }
+  /* 2026-10-16: 8 ô KPI Báo Cáo SG/HN theo giao diện thẻ navy của trang GMS (Tân chọn: cả 8 ô navy).
+     CHỈ scope #page-bc-sg / #page-bc-hn — không sửa .kpi-card toàn cục. Badge % chỉ áp trong .kpi-card (bảng giữ chữ màu như cũ) */
+  #page-bc-sg .card, #page-bc-hn .card { border-radius:18px; border:none; box-shadow:0 6px 24px rgba(27,42,78,.08); }
+  #page-bc-sg .kpi-grid, #page-bc-hn .kpi-grid { margin-bottom:16px; }
+  #page-bc-sg .kpi-card, #page-bc-hn .kpi-card { background:linear-gradient(135deg,#1b2a4e,#2b4a8f); border:none; border-top:none; border-radius:18px; box-shadow:0 6px 24px rgba(27,42,78,.14); padding:22px 24px; }
+  #page-bc-sg .kpi-card .kpi-label, #page-bc-hn .kpi-card .kpi-label { color:#fff; opacity:.92; font-size:12.5px; font-weight:700; letter-spacing:.3px; margin-bottom:12px; }
+  @media (max-width:1750px) { #page-bc-sg .kpi-card .kpi-label, #page-bc-hn .kpi-card .kpi-label { min-height:2.7em; } } /* nhãn dài xuống 2 dòng → giữ các con số thẳng hàng */
+  #page-bc-sg .kpi-card .kpi-value, #page-bc-hn .kpi-card .kpi-value { color:#fff; font-size:clamp(28px,2.5vw,40px); font-weight:800; letter-spacing:-.02em; line-height:1.05; }
+  #page-bc-sg .kpi-card .kpi-sub, #page-bc-hn .kpi-card .kpi-sub { color:#dbe4f3; font-size:13px; line-height:1.75; margin-top:12px; }
+  #page-bc-sg .kpi-card .kvr-up, #page-bc-sg .kpi-card .kvr-down, #page-bc-sg .kpi-card .kvr-neu,
+  #page-bc-hn .kpi-card .kvr-up, #page-bc-hn .kpi-card .kvr-down, #page-bc-hn .kpi-card .kvr-neu { display:inline-block; padding:2px 8px; border-radius:6px; font-size:13px; font-weight:800; color:#fff; white-space:nowrap; margin-right:4px; }
+  #page-bc-sg .kpi-card .kvr-up, #page-bc-hn .kpi-card .kvr-up { background:#16a34a; }
+  #page-bc-sg .kpi-card .kvr-down, #page-bc-hn .kpi-card .kvr-down { background:#dc2626; }
+  #page-bc-sg .kpi-card .kvr-neu, #page-bc-hn .kpi-card .kvr-neu { background:rgba(148,163,184,.45); }
 </style>
 </head>
 <body>
