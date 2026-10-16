@@ -951,6 +951,7 @@
      CHỈ scope #page-bc-sg / #page-bc-hn — không sửa .kpi-card toàn cục. Badge % chỉ áp trong .kpi-card (bảng giữ chữ màu như cũ) */
   #page-bc-sg .card, #page-bc-hn .card { border-radius:18px; border:none; box-shadow:0 6px 24px rgba(27,42,78,.08); }
   #page-bc-sg .kpi-grid, #page-bc-hn .kpi-grid { margin-bottom:16px; }
+  #page-bc-sg .card-title .dot, #page-bc-hn .card-title .dot { background:#2f6fd6 !important; } /* chấm tiêu đề cùng màu xanh GMS */
   #page-bc-sg .kpi-card, #page-bc-hn .kpi-card { background:linear-gradient(135deg,#1b2a4e,#2b4a8f); border:none; border-top:none; border-radius:18px; box-shadow:0 6px 24px rgba(27,42,78,.14); padding:22px 24px; }
   #page-bc-sg .kpi-card .kpi-label, #page-bc-hn .kpi-card .kpi-label { color:#fff; opacity:.92; font-size:12.5px; font-weight:700; letter-spacing:.3px; margin-bottom:12px; }
   @media (max-width:1750px) { #page-bc-sg .kpi-card .kpi-label, #page-bc-hn .kpi-card .kpi-label { min-height:2.7em; } } /* nhãn dài xuống 2 dòng → giữ các con số thẳng hàng */
@@ -24590,7 +24591,8 @@ const KVR_WH = {
   HN: { kho: 'Kho Mặc Định',  title: 'Báo Cáo HN', sub: 'Kho Mặc Định (HN)' },
 };
 const KVR_PRI = ['THÀNH CÔNG', 'ĐANG GIAO', 'HỦY', 'THẤT THU'];
-const KVR_COL = { 'THÀNH CÔNG': '#059669', 'ĐANG GIAO': '#2563eb', 'HỦY': '#dc2626', 'THẤT THU': '#E67E22' };
+// 2026-10-16: đổi sang bảng màu navy của trang GMS (Tân: màu cũ xanh lá/đỏ/cam chói). TC = xanh dương GMS, Đang giao = xanh nhạt, Hủy = đỏ trầm, Thất thu = vàng hổ phách
+const KVR_COL = { 'THÀNH CÔNG': '#2f6fd6', 'ĐANG GIAO': '#8fbaf3', 'HỦY': '#e0525b', 'THẤT THU': '#d99a1e' };
 const KVR_EXTRA = ['#6b7280', '#8e44ad', '#0ea5e9', '#a16207', '#be185d', '#0d9488'];
 const KVR = { token: null, tokenExp: 0, months: null, monthsAt: 0, files: {}, tabs: {}, data: {}, st: { SG: null, HN: null } };
 
@@ -24930,9 +24932,9 @@ function kvrRender(wh) {
   if (st.charts.donut) st.charts.donut.destroy();
   st.charts.donut = new Chart(document.getElementById(P + 'donut'), {
     type: 'doughnut',
-    data: { labels: states, datasets: [{ data: states.map(s => (cur.by.get(s) || { n: 0 }).n), backgroundColor: states.map(s => kvrColor(s, states)), borderWidth: 1 }] },
-    options: { responsive: true, maintainAspectRatio: false, cutout: '58%',
-      plugins: { datalabels: { display: false }, legend: { position: 'bottom' },
+    data: { labels: states, datasets: [{ data: states.map(s => (cur.by.get(s) || { n: 0 }).n), backgroundColor: states.map(s => kvrColor(s, states)), borderColor: '#fff', borderWidth: 3, hoverOffset: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '64%',
+      plugins: { datalabels: { display: false }, legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, color: '#334155', font: { size: 12.5 } } },
         tooltip: { callbacks: { label: ctx => ' ' + ctx.label + ': ' + fmtNum(ctx.parsed) + ' đơn (' + kvrPct(cur.n ? ctx.parsed / cur.n : 0) + ')' } } } }
   });
   kvrRenderTrend(wh);
@@ -25032,13 +25034,13 @@ function kvrRenderTrend(wh) {
   const key = st.tm === 'count' ? 'n' : 'v';
   const labels = Array.from({ length: dim }, (_, i) => String(i + 1));
   const ds = v.states.map(s => ({
-    type: 'bar', label: s, backgroundColor: kvrColor(s, v.states), stack: 's',
+    type: 'bar', label: s, backgroundColor: kvrColor(s, v.states), stack: 's', borderColor: '#fff', borderWidth: { top: 1 }, maxBarThickness: 34,
     data: labels.map((_, i) => { const dm = v.cur.days[i + 1]; const e = dm && dm.get(s); return e ? e[key] : 0; })
   }));
   if (v.prev) {
     const lim = v.isCur ? v.maxDay : dim;
     ds.push({
-      type: 'line', label: kvrMonthLabel(v.pm) + ' (tổng)', borderColor: '#111827', backgroundColor: '#111827', borderDash: [5, 4], borderWidth: 2, pointRadius: 2, tension: .25, order: -1,
+      type: 'line', label: kvrMonthLabel(v.pm) + ' (tổng)', borderColor: '#1b2a4e', backgroundColor: '#1b2a4e', borderDash: [5, 4], borderWidth: 2, pointRadius: 2.5, tension: .25, order: -1,
       data: labels.map((_, i) => { if (i + 1 > lim) return null; const dm = v.prev.days[i + 1]; let t = 0; if (dm) dm.forEach(e => { t += e[key]; }); return t; })
     });
   }
@@ -25046,9 +25048,9 @@ function kvrRenderTrend(wh) {
   st.charts.trend = new Chart(document.getElementById(P + 'trend'), {
     data: { labels, datasets: ds },
     options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-      scales: { x: { stacked: true, title: { display: true, text: 'Ngày tạo đơn' } },
-        y: { stacked: true, beginAtZero: true, ticks: { callback: val => st.tm === 'count' ? fmtNum(val) : kvrShort(val) } } },
-      plugins: { datalabels: { display: false }, legend: { position: 'bottom' },
+      scales: { x: { stacked: true, grid: { display: false }, ticks: { color: '#475569' }, title: { display: true, text: 'Ngày tạo đơn', color: '#475569' } },
+        y: { stacked: true, beginAtZero: true, grid: { color: '#eef2f8' }, border: { display: false }, ticks: { color: '#475569', callback: val => st.tm === 'count' ? fmtNum(val) : kvrShort(val) } } },
+      plugins: { datalabels: { display: false }, legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', padding: 16, color: '#334155', font: { size: 12.5 } } },
         tooltip: { callbacks: { label: ctx => ' ' + ctx.dataset.label + ': ' + (st.tm === 'count' ? fmtNum(ctx.parsed.y) + ' đơn' : fmtMoney(ctx.parsed.y)) } } } }
   });
 }
