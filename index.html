@@ -939,6 +939,14 @@
   .kvr-up { color:#059669; font-weight:600; } .kvr-down { color:#dc2626; font-weight:600; } .kvr-neu { color:var(--text2); }
   .kvr-total td { font-weight:700; border-top:2px solid var(--text); }
   @media (max-width:1100px) { .kvr-grid2 { grid-template-columns:minmax(0,1fr); } }
+  /* 2026-10-19: 8 thẻ KPI trang Báo Cáo Doanh Thu — nền navy giống GMS, giữ nguyên cỡ chữ. Chỉ scope #page-bc-dt */
+  #page-bc-dt .bcdt-navy { background:linear-gradient(135deg,#1b2a4e,#2b4a8f); box-shadow:0 6px 24px rgba(27,42,78,.14); }
+  #page-bc-dt .bcdt-navy .kpi-label { color:#fff; opacity:.92; }
+  #page-bc-dt .bcdt-navy .bcdt-v { color:#fff; }
+  #page-bc-dt .bcdt-navy .bcdt-sub, #page-bc-dt .bcdt-navy .bcdt-cmp { color:#dbe4f3 !important; }
+  #page-bc-dt .bcdt-navy .bcdt-pos { color:#86efac; } #page-bc-dt .bcdt-navy .bcdt-neg { color:#fca5a5; } #page-bc-dt .bcdt-navy .bcdt-warn { color:#fcd34d; }
+  #page-bc-dt .bcdt-navy .bcdt-d { display:inline-block; padding:1px 7px; border-radius:6px; color:#fff !important; font-weight:800; }
+  #page-bc-dt .bcdt-navy .bcdt-d-up { background:#16a34a; } #page-bc-dt .bcdt-navy .bcdt-d-down { background:#dc2626; } #page-bc-dt .bcdt-navy .bcdt-d-neu { background:rgba(148,163,184,.45); }
   /* Pha 1 (2026-10-16): bảng Shop × Kênh — class riêng tiền tố kvr-, không đụng class toàn cục */
   .kvr-note { font-size:11px; color:var(--text2); margin:-4px 0 10px; line-height:1.6; }
   .kvr-ch { display:inline-block; font-size:10px; font-weight:700; color:#fff; padding:1px 6px; border-radius:4px; margin-right:7px; vertical-align:1px; }
@@ -2854,35 +2862,16 @@
   <div class="page" id="page-tonkho-tong-quan">
     <div class="card" style="margin-bottom:18px">
       <div class="card-title"><span class="dot"></span> Đồng Bộ Dữ Liệu</div>
+      <!-- 2026-10-19 (Tân chốt): gộp 1 nút duy nhất "Đồng Bộ SKU Tổng" = Danh mục SKU (tab SKU) + Map Salework (tab MAP SW do
+           tiện ích Tải Đơn ghi) + Black List. Bỏ nút tải file MAP Shopee / MAP TikTok (TikTok do bạn khác phát triển). -->
+      <p style="font-size:12px;color:var(--text2);margin:0 0 12px;line-height:1.6">Bấm 1 lần để kéo toàn bộ từ Sheet <b>SKU Tổng</b>: Danh mục SKU (tab SKU) → Map Salework (tab MAP SW, tiện ích Tải Đơn ghi lên) → Black List.</p>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
-        <button class="sw-upload-btn" onclick="_catalogLogTarget='tq-catalog-log';tqSyncCatalog()" id="tq-sync-btn">🔄 Đồng Bộ Danh Mục SKU (Google Sheet)</button>
+        <button class="sw-upload-btn" onclick="_catalogLogTarget='tq-catalog-log';tqSyncCatalog()" id="tq-sync-btn">🔄 Đồng Bộ SKU Tổng</button>
       </div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:6px"><span id="tq-catalog-last-sync"></span></div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px"><span id="tq-catalog-last-sync"></span></div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">🗺️ Map Salework — cập nhật lúc: <b id="tqo-status-map">chưa có dữ liệu</b></div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">🚫 Black List — <span id="bl-last-sync"></span></div>
       <div id="tq-catalog-log" class="drive-log"></div>
-      <!-- Map Salework + Map TikTok — đây là nơi DUY NHẤT trong toàn dashboard upload 2 file này,
-           dùng chung cho mọi tính năng khác (Cập Nhật Tồn Kho, Cập Nhật Đơn Hằng Ngày, Trả Hàng,
-           Chương Trình Của Shop, khuyến mãi Shopee...). -->
-      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;padding-top:14px;border-top:1px dashed var(--border)">
-        <div>
-          <input type="file" id="tqo-map-input" accept=".xlsx,.xls" style="display:none" onchange="tqoHandleMapFile(this)">
-          <button class="sw-upload-btn" onclick="document.getElementById('tqo-map-input').click()">📂 Tải file MAP Shopee</button>
-          <button id="mapsw-push-btn" class="sw-upload-btn" style="display:none" onclick="mapSwPushToSheet()">📤 Đẩy lên SKU Tổng (Tab MAP SW)</button>
-        </div>
-        <div>
-          <input type="file" id="tqo-map-tiktok-input" accept=".xlsx,.xls" style="display:none" onchange="mapTkHandleFile(this)">
-          <button class="sw-upload-btn" onclick="document.getElementById('tqo-map-tiktok-input').click()">📂 Tải File MAP TikTok</button>
-          <button id="maptk-push-btn" class="sw-upload-btn" style="display:none" onclick="mapTkPushToSheet()">📤 Đẩy lên SKU Tổng (Tab MAP TIKTOK)</button>
-        </div>
-      </div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Map Salework — cập nhật lúc: <b id="tqo-status-map">chưa có dữ liệu</b></div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:6px">Map TikTok — cập nhật lúc: <b id="tqo-status-maptk">chưa có dữ liệu</b></div>
-      <div id="mapsw-log" class="drive-log"></div>
-      <div id="maptk-log" class="drive-log"></div>
-      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:14px;padding-top:14px;border-top:1px dashed var(--border)">
-        <button class="sw-upload-btn" onclick="blSyncBlacklist()" id="bl-sync-btn">🚫 Đồng Bộ Black List (Google Sheet)</button>
-      </div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:6px"><span id="bl-last-sync"></span></div>
-      <div id="bl-log" class="drive-log"></div>
     </div>
 
     <div class="card" style="display:none">
@@ -2979,6 +2968,10 @@
           <input type="file" id="tfm-mass-input" accept=".xlsx,.xls" multiple style="display:none" onchange="tfmHandleMassFile(this)">
           <button class="sw-upload-btn" onclick="document.getElementById('tfm-mass-input').click()">📂 2. Chọn File Mass (1 hoặc nhiều shop)</button>
         </div>
+        <div>
+          <!-- v2026-10-19: lấy 6 file Mass do tiện ích "Tải Đơn & Quảng Cáo" (card Tải Thông Tin SP) lưu trên Drive — chỉ nhận file lưu TRONG NGÀY. Xác nhận Tân 2026-10-19. -->
+          <button class="sw-upload-btn" id="tfm-drive-btn" onclick="tfmLoadMassFromDrive()">☁ 2. Lấy File Mass 6 shop (từ tiện ích)</button>
+        </div>
         <button onclick="tfmResetAll()" style="padding:6px 14px;border:1px solid var(--text);color:var(--text);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
       </div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:4px">File tồn: <b id="tfm-status-ton">chưa chọn</b></div>
@@ -3000,7 +2993,9 @@
 
       <div id="tfm-preview" style="display:none;background:#f8f4fd;border:1px solid #d5b8f0;border-radius:8px;padding:10px 14px;margin-bottom:10px"></div>
       <div id="tfm-log" class="drive-log"></div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px;align-items:stretch">
+        <!-- ★ 2026-10-19 (xác nhận Tân): chọn xuất TẤT CẢ shop đã tải hoặc RIÊNG 1 shop -->
+        <select id="tfm-export-shop" onchange="tfmOnExportShopChange()" style="display:none;min-width:240px;padding:9px 12px;border:1.5px solid var(--text);border-radius:8px;font-size:13px;font-weight:600;background:white;cursor:pointer"></select>
         <button id="tfm-export-btn" class="btn-drive-sync" style="display:none;max-width:380px" onclick="tfmExportFile()">📤 Xuất File Mass (Tất Cả Shop Đã Tải)</button>
       </div>
     </div>
@@ -3024,6 +3019,9 @@
         <div>
           <input type="file" id="skuloi-result-input" accept=".xlsx,.xls" multiple style="display:none" onchange="skuloiHandleResultFiles(this)">
           <button class="sw-upload-btn" onclick="document.getElementById('skuloi-result-input').click()">📂 1. Chọn File Result Shopee (nhiều file)</button>
+        </div>
+        <div>
+          <button class="sw-upload-btn" id="skuloi-drive-btn" onclick="skuloiLoadResultsFromDrive()" title="File Result tiện ích Tải Đơn lưu sau khi đẩy file Final lên Shopee (chỉ nhận file hôm nay)">☁ 1. Lấy File Result (từ tiện ích)</button>
         </div>
         <div>
           <input type="file" id="skuloi-ton-input" accept=".xlsx,.xls" multiple style="display:none" onchange="skuloiHandleTonFiles(this)">
@@ -3206,7 +3204,7 @@
         Upload <b>file discount_nominate</b> (tải từ Shopee xuống) và <b>file Map Salework</b> (DS_SanPham_MAP_Salework...xlsx). Hệ thống map theo <b>Mã phân loại hàng</b> ↔ <b>Mã Salework liên kết</b> (kể cả combo gồm nhiều SKU), tra giá bán từng SKU trong <b>Danh Mục SKU</b> (đồng bộ từ Google Sheet "Trung Tâm Dữ Liệu"), rồi đề xuất <b>Giá đã giảm</b> mới = tổng giá bán các SKU thành phần. Bảng hiển thị đầy đủ để bạn xem trước — chỉ xuất file khi bạn quyết định.
       </p>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:12px;padding-bottom:12px;border-bottom:1px dashed var(--gray3)">
-        <button class="sw-upload-btn" style="background:white;color:var(--navy);border:1px solid var(--navy)" onclick="_catalogLogTarget='mkt-sync-log';tqSyncCatalog()" id="mkt-sync-btn">🔄 Đồng Bộ Danh Mục SKU (Google Sheet)</button>
+        <button class="sw-upload-btn" style="background:white;color:var(--navy);border:1px solid var(--navy)" onclick="_catalogLogTarget='mkt-sync-log';tqSyncCatalog()" id="mkt-sync-btn">🔄 Đồng Bộ SKU Tổng</button>
         <span style="font-size:12px;color:var(--text2)">Bấm trước khi đối chiếu nếu giá trong "Trung Tâm Dữ Liệu" mới thay đổi — nếu không, hệ thống dùng dữ liệu đã đồng bộ lần gần nhất.</span>
       </div>
       <div id="mkt-sync-log" class="drive-log"></div>
@@ -3296,7 +3294,7 @@
         Upload <b>file Eligible Product List</b> (tải từ Shopee xuống) và <b>file Map Salework</b> (DS_SanPham_MAP_Salework...xlsx). Hệ thống map theo <b>Mã phân loại hàng</b> ↔ <b>Mã Salework liên kết</b> (kể cả combo), tra giá bán trong <b>Danh Mục SKU</b> (đồng bộ từ Google Sheet "Trung Tâm Dữ Liệu") để điền cột <b>Giá khuyến mãi</b>. Cột <b>Kho hàng dự trữ cho khuyến mãi</b> = Kho hàng ÷ 2 (làm tròn xuống), cột <b>Giới hạn mua hàng</b> = bằng Kho hàng dự trữ. Bảng hiển thị đầy đủ để bạn xem trước — chỉ xuất file khi bạn quyết định.
       </p>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:12px;padding-bottom:12px;border-bottom:1px dashed var(--gray3)">
-        <button class="sw-upload-btn" style="background:white;color:var(--navy);border:1px solid var(--navy)" onclick="_catalogLogTarget='shopee-sync-log';tqSyncCatalog()" id="shopee-sync-btn">🔄 Đồng Bộ Danh Mục SKU (Google Sheet)</button>
+        <button class="sw-upload-btn" style="background:white;color:var(--navy);border:1px solid var(--navy)" onclick="_catalogLogTarget='shopee-sync-log';tqSyncCatalog()" id="shopee-sync-btn">🔄 Đồng Bộ SKU Tổng</button>
         <span style="font-size:12px;color:var(--text2)">Bấm trước khi đối chiếu nếu giá trong "Trung Tâm Dữ Liệu" mới thay đổi — nếu không, hệ thống dùng dữ liệu đã đồng bộ lần gần nhất.</span>
       </div>
       <div id="shopee-sync-log" class="drive-log"></div>
@@ -5223,6 +5221,135 @@ async function sharedLoadTonLookup(force) {
 }
 
 // ── Tải file Map Salework dùng chung (1 file áp dụng cho cả Deli/Liên Kết/Huy Hoàng) ──
+// ★ Lõi dùng chung (tách 2026-10-19, xác nhận Tân): dựng 3 tầng Map Salework (Mã phân loại / ID SP / Shop+Tên SP)
+// từ 1 workbook rồi lưu Firestore map_salework_ton. Dùng cho CẢ 2 đường: (1) nút "Tải file MAP Shopee" (dự phòng),
+// (2) "Đồng Bộ Danh Mục SKU" đọc tab MAP SW của SKU Tổng (tiện ích Tải Đơn ghi lên) — cùng 1 hàm nên map ra y hệt.
+async function tqoSaveSaleworkMapFromWb(wb, fileName) {
+  const map = new Map();
+  const byIdSp = new Map();
+  const byName = new Map(); // Tầng 3 — xem giải thích ở khai báo SHARED phía trên
+  let totalRows = 0;
+  wb.SheetNames.forEach(sheetName => {
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+    if (!rows.length) return;
+    let headerRow = -1, header = null;
+    for (let i = 0; i < Math.min(rows.length, 5); i++) {
+      if (rows[i] && rows[i].some(c => String(c||'').trim() === 'Mã phân loại')) {
+        headerRow = i; header = rows[i].map(c => String(c||'').trim()); break;
+      }
+    }
+    if (headerRow === -1) return;
+    const idx = {
+      maPhanLoai: header.indexOf('Mã phân loại'),
+      maSalework: header.indexOf('Mã Salework liên kết'),
+      comboQty:   header.indexOf('Số lượng combo'),
+      tenSp:      header.indexOf('Tên sản phẩm'),
+      idSp:       header.indexOf('ID SP Shopee'),
+      // Cột phân loại/combo trong file thực tế tên là "Phân loại / Combo" — so khớp qua
+      // giaNormText để không trượt vì hoa/thường hay khoảng trắng (bản vá cũ từ trang
+      // "Cập nhật đơn hằng ngày", gộp về đây 2026-08-09).
+      tenPhanLoai: (() => {
+        let i = header.findIndex(h => giaNormText(h) === 'phân loại / combo');
+        if (i === -1) i = header.findIndex(h => giaNormText(h).includes('tên phân loại'));
+        if (i === -1) i = header.findIndex(h => giaNormText(h).includes('phân loại') && !giaNormText(h).includes('mã'));
+        return i;
+      })(),
+      // Cột Shop tường minh (nếu có) — dùng cho Tầng 3, KHÔNG coi cả sheet thuộc về đúng 1 shop.
+      shop: header.findIndex(h => { const n = giaNormText(h); return n === 'shop' || n === 'tên shop' || n === 'ten shop'; }),
+    };
+    if (idx.maPhanLoai === -1 || idx.maSalework === -1) return;
+    for (let i = headerRow + 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r) continue;
+      const key = r[idx.maPhanLoai], maSalework = r[idx.maSalework];
+      if (key == null || String(key).trim() === '') continue;
+      const keyStr = String(key).trim();
+      const comboQty = Number(r[idx.comboQty]) || 1;
+      const maSaleworkStr = (maSalework != null && String(maSalework).trim() !== '') ? String(maSalework).trim() : null;
+      const tenPhanLoaiStr = (idx.tenPhanLoai !== -1 && r[idx.tenPhanLoai] != null) ? String(r[idx.tenPhanLoai]).trim() : '';
+      const comp = { maSalework: maSaleworkStr, comboQty, tenSp: r[idx.tenSp] || '', tenPhanLoai: tenPhanLoaiStr, maPhanLoai: keyStr, sheet: sheetName };
+      if (!map.has(keyStr)) map.set(keyStr, []);
+      map.get(keyStr).push(comp);
+      const idSpVal = (idx.idSp !== -1 && r[idx.idSp] != null) ? String(r[idx.idSp]).trim() : '';
+      if (idSpVal) {
+        if (!byIdSp.has(idSpVal)) byIdSp.set(idSpVal, []);
+        byIdSp.get(idSpVal).push(comp);
+      }
+      // Tầng 3 (gộp từ giaHandleSaleworkMapFile cũ, 2026-08-09, xác nhận Tân): khớp theo
+      // Shop + Tên sản phẩm — dùng cho đơn hàng Shopee ở trang "Cập nhật đơn hằng ngày"
+      // (file order không có sẵn Mã phân loại/ID SP Shopee như file Tồn Kho).
+      if (comp.tenSp) {
+        const shopVal = (idx.shop !== -1 && r[idx.shop] != null && String(r[idx.shop]).trim() !== '')
+          ? String(r[idx.shop]).trim()
+          : sheetName;
+        const nameKey = giaNormText(shopVal) + '||' + giaNormText(comp.tenSp);
+        if (!byName.has(nameKey)) byName.set(nameKey, []);
+        byName.get(nameKey).push({ tenPhanLoaiNorm: giaStripBrackets(tenPhanLoaiStr), maSalework: maSaleworkStr, comboQty });
+      }
+      totalRows++;
+    }
+  });
+  if (!map.size) throw new Error('Không tìm thấy dữ liệu hợp lệ ở bất kỳ sheet nào (cần cột "Mã phân loại" và "Mã Salework liên kết")');
+
+  const mapJson = JSON.stringify(Array.from(map.entries()));
+  const byIdSpJson = JSON.stringify(Array.from(byIdSp.entries()));
+  const byNameJson = JSON.stringify(Array.from(byName.entries()));
+  const oldSnap = await db.collection('map_salework_ton').doc('all').get();
+  const oldData = oldSnap.exists ? oldSnap.data() : {};
+  const mapChunkCount = await giaSaveChunkedField('map_salework_ton_chunks', 'map', mapJson);
+  const idSpChunkCount = await giaSaveChunkedField('map_salework_ton_chunks', 'idsp', byIdSpJson);
+  const byNameChunkCount = await giaSaveChunkedField('map_salework_ton_chunks', 'byname', byNameJson);
+  const cleanupDeletes = [];
+  for (let i = mapChunkCount; i < (oldData.mapChunkCount || 0); i++) cleanupDeletes.push(db.collection('map_salework_ton_chunks').doc(`map_${i}`).delete());
+  for (let i = idSpChunkCount; i < (oldData.idSpChunkCount || 0); i++) cleanupDeletes.push(db.collection('map_salework_ton_chunks').doc(`idsp_${i}`).delete());
+  for (let i = byNameChunkCount; i < (oldData.byNameChunkCount || 0); i++) cleanupDeletes.push(db.collection('map_salework_ton_chunks').doc(`byname_${i}`).delete());
+  if (cleanupDeletes.length) await Promise.all(cleanupDeletes);
+
+  const updatedAt = new Date().toISOString();
+  await db.collection('map_salework_ton').doc('all').set({
+    fileName: fileName, rowCount: totalRows, sheetCount: wb.SheetNames.length,
+    mapChunkCount, idSpChunkCount, byNameChunkCount, updatedAt
+  });
+
+  SHARED.saleworkMap = map; SHARED.saleworkByIdSp = byIdSp; SHARED.saleworkByName = byName;
+  SHARED.saleworkFileName = fileName; SHARED.saleworkUpdatedAt = updatedAt;
+
+  // Lưu raw rows để dùng cho tính năng đẩy lên Google Sheet tab MAP SW
+  const header = ['STT','Sàn','Tên shop','Tên sản phẩm','ID SP Shopee','Mã phân loại','Phân loại / Combo','SKU Shopee','Mã Salework liên kết','Số lượng combo'];
+  const rawRows = [header];
+  let sttCounter = 1;
+  wb.SheetNames.forEach(sheetName => {
+    const ws2 = wb.Sheets[sheetName];
+    const rows2 = XLSX.utils.sheet_to_json(ws2, { header: 1, defval: null });
+    let hRow = -1;
+    for (let i = 0; i < Math.min(rows2.length, 5); i++) {
+      if (rows2[i] && rows2[i].some(c => String(c||'').trim() === 'Mã phân loại')) { hRow = i; break; }
+    }
+    if (hRow === -1) return;
+    const h2 = rows2[hRow].map(c => String(c||'').trim());
+    const idxR = { stt: h2.indexOf('STT'), san: h2.indexOf('Sàn'), tenShop: h2.indexOf('Tên shop'), tenSp: h2.indexOf('Tên sản phẩm'), idSp: h2.indexOf('ID SP Shopee'), maPL: h2.indexOf('Mã phân loại'), plCombo: h2.indexOf('Phân loại / Combo'), skuShopee: h2.indexOf('SKU Shopee'), maSW: h2.indexOf('Mã Salework liên kết'), comboQty2: h2.indexOf('Số lượng combo') };
+    for (let i = hRow + 1; i < rows2.length; i++) {
+      const r = rows2[i];
+      if (!r || r.every(v => v == null || String(v).trim() === '')) continue;
+      rawRows.push([
+        sttCounter++,
+        idxR.san !== -1 ? (r[idxR.san] ?? '') : '',
+        idxR.tenShop !== -1 ? (r[idxR.tenShop] ?? '') : '',
+        idxR.tenSp !== -1 ? (r[idxR.tenSp] ?? '') : '',
+        idxR.idSp !== -1 ? (r[idxR.idSp] ?? '') : '',
+        idxR.maPL !== -1 ? (r[idxR.maPL] ?? '') : '',
+        idxR.plCombo !== -1 ? (r[idxR.plCombo] ?? '') : '',
+        idxR.skuShopee !== -1 ? (r[idxR.skuShopee] ?? '') : '',
+        idxR.maSW !== -1 ? (r[idxR.maSW] ?? '') : '',
+        idxR.comboQty2 !== -1 ? (r[idxR.comboQty2] ?? 1) : 1,
+      ]);
+    }
+  });
+  SHARED.mapRawRows = rawRows;
+  return { totalRows, mapSize: map.size, idSpSize: byIdSp.size, updatedAt, rawRows };
+}
+
 function tqoHandleMapFile(input) {
   const file = input.files[0];
   if (!file) return;
@@ -5232,128 +5359,7 @@ function tqoHandleMapFile(input) {
   reader.onload = async (e) => {
     try {
       const wb = XLSX.read(e.target.result, { type: 'array' });
-      const map = new Map();
-      const byIdSp = new Map();
-      const byName = new Map(); // Tầng 3 — xem giải thích ở khai báo SHARED phía trên
-      let totalRows = 0;
-      wb.SheetNames.forEach(sheetName => {
-        const ws = wb.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-        if (!rows.length) return;
-        let headerRow = -1, header = null;
-        for (let i = 0; i < Math.min(rows.length, 5); i++) {
-          if (rows[i] && rows[i].some(c => String(c||'').trim() === 'Mã phân loại')) {
-            headerRow = i; header = rows[i].map(c => String(c||'').trim()); break;
-          }
-        }
-        if (headerRow === -1) return;
-        const idx = {
-          maPhanLoai: header.indexOf('Mã phân loại'),
-          maSalework: header.indexOf('Mã Salework liên kết'),
-          comboQty:   header.indexOf('Số lượng combo'),
-          tenSp:      header.indexOf('Tên sản phẩm'),
-          idSp:       header.indexOf('ID SP Shopee'),
-          // Cột phân loại/combo trong file thực tế tên là "Phân loại / Combo" — so khớp qua
-          // giaNormText để không trượt vì hoa/thường hay khoảng trắng (bản vá cũ từ trang
-          // "Cập nhật đơn hằng ngày", gộp về đây 2026-08-09).
-          tenPhanLoai: (() => {
-            let i = header.findIndex(h => giaNormText(h) === 'phân loại / combo');
-            if (i === -1) i = header.findIndex(h => giaNormText(h).includes('tên phân loại'));
-            if (i === -1) i = header.findIndex(h => giaNormText(h).includes('phân loại') && !giaNormText(h).includes('mã'));
-            return i;
-          })(),
-          // Cột Shop tường minh (nếu có) — dùng cho Tầng 3, KHÔNG coi cả sheet thuộc về đúng 1 shop.
-          shop: header.findIndex(h => { const n = giaNormText(h); return n === 'shop' || n === 'tên shop' || n === 'ten shop'; }),
-        };
-        if (idx.maPhanLoai === -1 || idx.maSalework === -1) return;
-        for (let i = headerRow + 1; i < rows.length; i++) {
-          const r = rows[i];
-          if (!r) continue;
-          const key = r[idx.maPhanLoai], maSalework = r[idx.maSalework];
-          if (key == null || String(key).trim() === '') continue;
-          const keyStr = String(key).trim();
-          const comboQty = Number(r[idx.comboQty]) || 1;
-          const maSaleworkStr = (maSalework != null && String(maSalework).trim() !== '') ? String(maSalework).trim() : null;
-          const tenPhanLoaiStr = (idx.tenPhanLoai !== -1 && r[idx.tenPhanLoai] != null) ? String(r[idx.tenPhanLoai]).trim() : '';
-          const comp = { maSalework: maSaleworkStr, comboQty, tenSp: r[idx.tenSp] || '', tenPhanLoai: tenPhanLoaiStr, maPhanLoai: keyStr, sheet: sheetName };
-          if (!map.has(keyStr)) map.set(keyStr, []);
-          map.get(keyStr).push(comp);
-          const idSpVal = (idx.idSp !== -1 && r[idx.idSp] != null) ? String(r[idx.idSp]).trim() : '';
-          if (idSpVal) {
-            if (!byIdSp.has(idSpVal)) byIdSp.set(idSpVal, []);
-            byIdSp.get(idSpVal).push(comp);
-          }
-          // Tầng 3 (gộp từ giaHandleSaleworkMapFile cũ, 2026-08-09, xác nhận Tân): khớp theo
-          // Shop + Tên sản phẩm — dùng cho đơn hàng Shopee ở trang "Cập nhật đơn hằng ngày"
-          // (file order không có sẵn Mã phân loại/ID SP Shopee như file Tồn Kho).
-          if (comp.tenSp) {
-            const shopVal = (idx.shop !== -1 && r[idx.shop] != null && String(r[idx.shop]).trim() !== '')
-              ? String(r[idx.shop]).trim()
-              : sheetName;
-            const nameKey = giaNormText(shopVal) + '||' + giaNormText(comp.tenSp);
-            if (!byName.has(nameKey)) byName.set(nameKey, []);
-            byName.get(nameKey).push({ tenPhanLoaiNorm: giaStripBrackets(tenPhanLoaiStr), maSalework: maSaleworkStr, comboQty });
-          }
-          totalRows++;
-        }
-      });
-      if (!map.size) throw new Error('Không tìm thấy dữ liệu hợp lệ ở bất kỳ sheet nào (cần cột "Mã phân loại" và "Mã Salework liên kết")');
-
-      const mapJson = JSON.stringify(Array.from(map.entries()));
-      const byIdSpJson = JSON.stringify(Array.from(byIdSp.entries()));
-      const byNameJson = JSON.stringify(Array.from(byName.entries()));
-      const oldSnap = await db.collection('map_salework_ton').doc('all').get();
-      const oldData = oldSnap.exists ? oldSnap.data() : {};
-      const mapChunkCount = await giaSaveChunkedField('map_salework_ton_chunks', 'map', mapJson);
-      const idSpChunkCount = await giaSaveChunkedField('map_salework_ton_chunks', 'idsp', byIdSpJson);
-      const byNameChunkCount = await giaSaveChunkedField('map_salework_ton_chunks', 'byname', byNameJson);
-      const cleanupDeletes = [];
-      for (let i = mapChunkCount; i < (oldData.mapChunkCount || 0); i++) cleanupDeletes.push(db.collection('map_salework_ton_chunks').doc(`map_${i}`).delete());
-      for (let i = idSpChunkCount; i < (oldData.idSpChunkCount || 0); i++) cleanupDeletes.push(db.collection('map_salework_ton_chunks').doc(`idsp_${i}`).delete());
-      for (let i = byNameChunkCount; i < (oldData.byNameChunkCount || 0); i++) cleanupDeletes.push(db.collection('map_salework_ton_chunks').doc(`byname_${i}`).delete());
-      if (cleanupDeletes.length) await Promise.all(cleanupDeletes);
-
-      const updatedAt = new Date().toISOString();
-      await db.collection('map_salework_ton').doc('all').set({
-        fileName: file.name, rowCount: totalRows, sheetCount: wb.SheetNames.length,
-        mapChunkCount, idSpChunkCount, byNameChunkCount, updatedAt
-      });
-
-      SHARED.saleworkMap = map; SHARED.saleworkByIdSp = byIdSp; SHARED.saleworkByName = byName;
-      SHARED.saleworkFileName = file.name; SHARED.saleworkUpdatedAt = updatedAt;
-
-      // Lưu raw rows để dùng cho tính năng đẩy lên Google Sheet tab MAP SW
-      const header = ['STT','Sàn','Tên shop','Tên sản phẩm','ID SP Shopee','Mã phân loại','Phân loại / Combo','SKU Shopee','Mã Salework liên kết','Số lượng combo'];
-      const rawRows = [header];
-      let sttCounter = 1;
-      wb.SheetNames.forEach(sheetName => {
-        const ws2 = wb.Sheets[sheetName];
-        const rows2 = XLSX.utils.sheet_to_json(ws2, { header: 1, defval: null });
-        let hRow = -1;
-        for (let i = 0; i < Math.min(rows2.length, 5); i++) {
-          if (rows2[i] && rows2[i].some(c => String(c||'').trim() === 'Mã phân loại')) { hRow = i; break; }
-        }
-        if (hRow === -1) return;
-        const h2 = rows2[hRow].map(c => String(c||'').trim());
-        const idxR = { stt: h2.indexOf('STT'), san: h2.indexOf('Sàn'), tenShop: h2.indexOf('Tên shop'), tenSp: h2.indexOf('Tên sản phẩm'), idSp: h2.indexOf('ID SP Shopee'), maPL: h2.indexOf('Mã phân loại'), plCombo: h2.indexOf('Phân loại / Combo'), skuShopee: h2.indexOf('SKU Shopee'), maSW: h2.indexOf('Mã Salework liên kết'), comboQty2: h2.indexOf('Số lượng combo') };
-        for (let i = hRow + 1; i < rows2.length; i++) {
-          const r = rows2[i];
-          if (!r || r.every(v => v == null || String(v).trim() === '')) continue;
-          rawRows.push([
-            sttCounter++,
-            idxR.san !== -1 ? (r[idxR.san] ?? '') : '',
-            idxR.tenShop !== -1 ? (r[idxR.tenShop] ?? '') : '',
-            idxR.tenSp !== -1 ? (r[idxR.tenSp] ?? '') : '',
-            idxR.idSp !== -1 ? (r[idxR.idSp] ?? '') : '',
-            idxR.maPL !== -1 ? (r[idxR.maPL] ?? '') : '',
-            idxR.plCombo !== -1 ? (r[idxR.plCombo] ?? '') : '',
-            idxR.skuShopee !== -1 ? (r[idxR.skuShopee] ?? '') : '',
-            idxR.maSW !== -1 ? (r[idxR.maSW] ?? '') : '',
-            idxR.comboQty2 !== -1 ? (r[idxR.comboQty2] ?? 1) : 1,
-          ]);
-        }
-      });
-      SHARED.mapRawRows = rawRows;
+      const { updatedAt } = await tqoSaveSaleworkMapFromWb(wb, file.name);
       const pushBtn = document.getElementById('mapsw-push-btn');
       if (pushBtn) pushBtn.style.display = 'inline-flex';
 
@@ -5492,6 +5498,20 @@ async function mapSwDoWrite() {
       mapSwLog(`✏️ Đã ghi dòng ${startRow} → ${start + chunk.length}...`);
     }
 
+    // ★ 2026-10-19: ghi DẤU HOÀN TẤT L1:R1 (cùng quy ước với tiện ích Tải Đơn — Apps Script push_map_sw) để
+    // "Đồng Bộ Danh Mục SKU" biết tab đã ghi xong và nạp được. Bước clear ở trên đã xoá dấu cũ.
+    const markNow = new Date();
+    const markStamp = markNow.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(',', '');
+    const markRange = `${tabName}!L1:R1`;
+    const markResp = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(markRange)}?valueInputOption=RAW`,
+      {
+        method: 'PUT',
+        headers: { Authorization: 'Bearer ' + _mapSwToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ range: markRange, majorDimension: 'ROWS', values: [['Cập nhật lúc', markStamp, 'Số dòng', rows.length - 1, 'Nguồn', 'Dashboard (tải file MAP)', markNow.getTime()]] })
+      }
+    );
+    if (!markResp.ok) mapSwLog('⚠ Đã ghi dữ liệu nhưng chưa ghi được dấu hoàn tất (L1:R1) — "Đồng Bộ Danh Mục SKU" sẽ chưa nạp bản này.', 'warn');
     mapSwLog(`✅ Xong! Đã đẩy ${rows.length - 1} dòng lên tab "${tabName}" trong SKU Tổng.`, 'ok');
   } catch (err) {
     mapSwLog('❌ Lỗi: ' + err.message, 'err');
@@ -7212,8 +7232,8 @@ function spmExportFile() {
   const isTextMa = SPM.mode === 'deli'; // mã Deli có chữ - không ép định dạng số nguyên như 2 mode sách
   const aoa = [SPM_HEADERS];
   SPM.rows.forEach(row => {
-    // Thuế GTGT, Barcode, Link ảnh: để TRỐNG cho mọi mode (Tân chốt 2026-10-16)
-    aoa.push([row.ma, row.ten, row.dvt, null, null, null, row.giaBanLe, null, 1, null, null, null]);
+    // VPP Deli (2026-10-16): thêm BARCODE (chỉ khi là dãy 8–14 chữ số) + LINK ẢNH từ tab Triển Khai Deli
+    aoa.push([row.ma, row.ten, row.dvt, null, null, null, row.giaBanLe, isTextMa ? (row.barcode || null) : null, 1, isTextMa ? (row.anh || null) : null, null, null]);
   });
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   SPM.rows.forEach((row, i) => {
@@ -8237,8 +8257,34 @@ let TFM = {
   tonFileNames: [],     // list tên tất cả file tồn đã nạp
   previewRows: [],      // kết quả tính toán preview của file mass đang chọn (chưa ghi file)
   previewFilter: 'all', // 'all' | 'matched' | 'missing-component' | 'unmatched'
-  previewSearch: ''     // text tìm kiếm theo SKU / tên SP / mã phân loại
+  previewSearch: '',    // text tìm kiếm theo SKU / tên SP / mã phân loại
+  exportSel: 'all'      // ★ 2026-10-19: 'all' hoặc chỉ số file trong massFiles (xuất riêng 1 shop)
 };
+
+// ★ 2026-10-19 (xác nhận Tân): ô chọn shop cạnh nút Xuất — "Tất cả shop đã tải" hoặc riêng 1 shop.
+function tfmEntryLabel(entry) {
+  return entry.driveShop || entry.shopName || String(entry.fileName || '').replace(/\.xlsx?$/i, '').replace(/^MASS - /, '') || 'File';
+}
+function tfmRenderExportShop(show) {
+  const sel = document.getElementById('tfm-export-shop');
+  const btn = document.getElementById('tfm-export-btn');
+  if (!sel) return;
+  sel.style.display = show ? '' : 'none';
+  if (!show) return;
+  if (TFM.exportSel !== 'all' && !(Number(TFM.exportSel) < TFM.massFiles.length)) TFM.exportSel = 'all';
+  sel.innerHTML = `<option value="all">🏪 Tất cả shop đã tải (${TFM.massFiles.length})</option>` +
+    TFM.massFiles.map((f, i) => `<option value="${i}">${escHtmlTfm(tfmEntryLabel(f))}</option>`).join('');
+  sel.value = String(TFM.exportSel);
+  if (btn) btn.textContent = TFM.exportSel === 'all'
+    ? '📤 Xuất File Mass (Tất Cả Shop Đã Tải)'
+    : '📤 Xuất File Mass — ' + tfmEntryLabel(TFM.massFiles[Number(TFM.exportSel)]);
+}
+function tfmOnExportShopChange() {
+  const sel = document.getElementById('tfm-export-shop');
+  TFM.exportSel = sel && sel.value !== 'all' ? Number(sel.value) : 'all';
+  tfmRenderExportShop(true);
+}
+function escHtmlTfm(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
 function tfmLog(msg, type) {
   const el = document.getElementById('tfm-log');
@@ -8254,6 +8300,7 @@ function tfmCheckReady() {
   const filesReady = TFM.massFiles.length > 0 && TFM.tonMap.size > 0 && !!TFM.kho;
   const btn = document.getElementById('tfm-export-btn');
   if (btn) btn.style.display = filesReady ? 'inline-flex' : 'none';
+  tfmRenderExportShop(filesReady);
   if (filesReady) tfmRunPreview();
 }
 
@@ -8459,6 +8506,41 @@ function tfmSelectFile(i) {
   tfmRunPreview();
 }
 
+// Đọc 1 workbook file Mass (bản mẫu "Thông tin bán hàng") → {wb, ws, fileName, headerRow, idx, khoCols}; lỗi → throw.
+// Dùng chung cho "Chọn File Mass" (file trên máy) và "Lấy File Mass 6 shop (từ tiện ích)".
+function tfmParseMassWb(wb, fileName) {
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+  let headerRow = -1;
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    if (rows[i] && rows[i].some(c => String(c||'').trim() === 'Mã Sản phẩm')) { headerRow = i; break; }
+  }
+  if (headerRow === -1) throw new Error('Không tìm thấy dòng header (cột "Mã Sản phẩm") trong file mass');
+  const header = rows[headerRow].map(c => String(c||'').trim());
+  const idx = {
+    maSp:        header.indexOf('Mã Sản phẩm'),
+    maPhanLoai:  header.indexOf('Mã Phân loại'),
+    sku:         header.indexOf('SKU'),
+    skuParent:   header.indexOf('SKU Sản phẩm'),
+    tenSp:       header.findIndex(h => h.toLowerCase() === 'tên sản phẩm'),
+    tenPhanLoai: header.findIndex(h => h.toLowerCase().includes('tên phân loại') && !h.toLowerCase().includes('mã')),
+  };
+  const khoCols = [];
+  header.forEach((h, ci) => {
+    if (h.startsWith('Số lượng:')) {
+      const kho = classifyKho(h.slice('Số lượng:'.length).trim());
+      if (kho) khoCols.push({ col: ci, kho, whName: h.slice('Số lượng:'.length).trim() });
+    }
+  });
+  if (!khoCols.length) throw new Error('Không nhận diện được cột "Số lượng:<kho>" nào trong file mass');
+  // ★ 2026-10-19: ô D2 của bản mẫu Shopee = shop_id của shop tạo ra file → biết chắc file thuộc shop nào
+  const shopId = String(((rows[1] || [])[3]) || '').trim();
+  return { wb, ws, fileName, headerRow, idx, khoCols, shopId, shopName: TFM_SHOP_BY_ID[shopId] || '' };
+}
+// shop_id Shopee của 6 shop (tên theo tiện ích Tải Đơn / Apps Script) — dùng đối chiếu file Mass/Final đúng shop
+const TFM_SHOP_IDS = { '2H Home Living': '1624586997', 'Hoạ Cụ 2H': '1330480487', 'Nhà Sách 2HBooks': '1289235612', '2H Books': '1096078460', '2H Books Store': '1092895286', 'Huy Hoàng Bookstore': '371873832' };
+const TFM_SHOP_BY_ID = Object.fromEntries(Object.entries(TFM_SHOP_IDS).map(([n, id]) => [id, n]));
+
 function tfmHandleMassFile(input) {
   // Hỗ trợ chọn NHIỀU file mass cùng lúc (nhiều shop) — xác nhận Tân 2026-09-28.
   // Mỗi lần chọn lại input này sẽ THAY THẾ toàn bộ danh sách file mass đang nạp.
@@ -8473,31 +8555,10 @@ function tfmHandleMassFile(input) {
     reader.onload = (e) => {
       try {
         const wb = XLSX.read(e.target.result, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-        let headerRow = -1;
-        for (let i = 0; i < Math.min(rows.length, 10); i++) {
-          if (rows[i] && rows[i].some(c => String(c||'').trim() === 'Mã Sản phẩm')) { headerRow = i; break; }
-        }
-        if (headerRow === -1) throw new Error('Không tìm thấy dòng header (cột "Mã Sản phẩm") trong file mass');
-        const header = rows[headerRow].map(c => String(c||'').trim());
-        const idx = {
-          maSp:        header.indexOf('Mã Sản phẩm'),
-          maPhanLoai:  header.indexOf('Mã Phân loại'),
-          sku:         header.indexOf('SKU'),
-          skuParent:   header.indexOf('SKU Sản phẩm'),
-          tenSp:       header.findIndex(h => h.toLowerCase() === 'tên sản phẩm'),
-          tenPhanLoai: header.findIndex(h => h.toLowerCase().includes('tên phân loại') && !h.toLowerCase().includes('mã')),
-        };
-        const khoCols = [];
-        header.forEach((h, ci) => {
-          if (h.startsWith('Số lượng:')) {
-            const kho = classifyKho(h.slice('Số lượng:'.length).trim());
-            if (kho) khoCols.push({ col: ci, kho, whName: h.slice('Số lượng:'.length).trim() });
-          }
-        });
-        if (!khoCols.length) throw new Error('Không nhận diện được cột "Số lượng:<kho>" nào trong file mass');
-        TFM.massFiles.push({ wb, ws, fileName: file.name, headerRow, idx, khoCols });
+        const entry = tfmParseMassWb(wb, file.name);
+        const { headerRow, khoCols } = entry;
+        const rows = XLSX.utils.sheet_to_json(entry.ws, { header: 1, defval: null });
+        TFM.massFiles.push(entry);
         tfmLog(`✅ Đọc file mass: ${file.name} (${rows.length - headerRow - 1} dòng, cột kho: ${khoCols.map(k=>k.whName).join(', ')})`, 'ok');
       } catch (err) {
         tfmLog(`❌ Lỗi đọc file mass "${file.name}": ${err.message}`, 'err');
@@ -8513,6 +8574,63 @@ function tfmHandleMassFile(input) {
     };
     reader.readAsArrayBuffer(file);
   });
+}
+
+// ☁ Lấy 6 file Mass từ tiện ích "Tải Đơn & Quảng Cáo" (card Tải Thông Tin SP lưu NGUYÊN file bản mẫu lên Drive
+// qua Apps Script ADS_SHEET_BACKEND_URL). Chỉ nhận file lưu TRONG NGÀY (giờ VN) — file cũ có thể chứa giá cũ,
+// tải lên Shopee sẽ ghi đè giá mới → CHẶN, báo anh bấm "Tải Thông Tin SP" lại. Xác nhận Tân 2026-10-19.
+// Thay thế toàn bộ danh sách file mass đang nạp (giống chọn lại file).
+async function tfmLoadMassFromDrive() {
+  const btn = document.getElementById('tfm-drive-btn');
+  if (btn && btn.disabled) return;
+  if (btn) { btn.disabled = true; btn.style.opacity = .6; }
+  const vnDay = (ms) => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+  try {
+    tfmLog('☁ Đang hỏi danh sách file Mass tiện ích đã lưu trên Drive...');
+    const list = await adsSheetCall({ action: 'list_mass_templates' });
+    const today = vnDay(Date.now());
+    const fresh = [], stale = [], none = [];
+    (list.files || []).forEach(f => {
+      if (!f.fileId) none.push(f.shop);
+      else if (vnDay(f.savedAtMs) !== today) stale.push(f);
+      else fresh.push(f);
+    });
+    if (none.length) tfmLog(`⚠ Chưa có file Mass của: ${none.join(', ')} — bấm "Tải Thông Tin SP" trên tiện ích cho shop này.`, 'warn');
+    stale.forEach(f => tfmLog(`⛔ ${f.shop}: file Mass lưu lúc ${f.savedAt} — CŨ hơn hôm nay, KHÔNG dùng (giá trong file có thể đã đổi). Bấm "Tải Thông Tin SP" trên tiện ích rồi lấy lại.`, 'err'));
+    if (!fresh.length) { tfmLog('❌ Không có file Mass nào lưu trong hôm nay — chưa nạp được file nào.', 'err'); return; }
+    const loaded = [];
+    for (const f of fresh) {
+      try {
+        tfmLog(`⏳ Đang tải file Mass ${f.shop} (lưu lúc ${f.savedAt}${f.size ? ', ' + (f.size / 1048576).toFixed(1) + ' MB' : ''})...`);
+        const g = await adsSheetCall({ action: 'get_mass_template', shop: f.shop });
+        if (vnDay(g.savedAtMs) !== today) { tfmLog(`⛔ ${f.shop}: file vừa bị thay bằng bản cũ hơn hôm nay — bỏ qua.`, 'err'); continue; }
+        const wb = XLSX.read(g.b64, { type: 'base64' });
+        const entry = tfmParseMassWb(wb, g.fileName || ('MASS - ' + f.shop + '.xlsx'));
+        // ★ 2026-10-19 (lỗi thật): file Mass lưu dưới tên shop A nhưng thực ra là bản mẫu của shop B (tab Shopee
+        // khác đổi shop lúc tiện ích đang tải) → xuất ra Final sai shop, Shopee từ chối. Chặn ngay khi nạp.
+        if (TFM_SHOP_IDS[f.shop] && entry.shopId && entry.shopId !== TFM_SHOP_IDS[f.shop]) {
+          tfmLog(`⛔ ${f.shop}: file Mass trên Drive thực ra là của shop "${entry.shopName || entry.shopId}" — KHÔNG dùng. Bấm "Tải Thông Tin SP" lại cho ${f.shop} trên tiện ích (đừng đổi shop ở tab Shopee khác khi tiện ích đang chạy).`, 'err');
+          continue;
+        }
+        entry.driveShop = f.shop; entry.savedAt = g.savedAt;
+        const nRows = XLSX.utils.sheet_to_json(entry.ws, { header: 1, defval: null }).length - entry.headerRow - 1;
+        loaded.push(entry);
+        tfmLog(`✅ ${f.shop}: ${nRows} dòng, cột kho: ${entry.khoCols.map(k => k.whName).join(', ')} (lưu lúc ${g.savedAt}).`, 'ok');
+      } catch (err) {
+        tfmLog(`❌ ${f.shop}: không đọc được file Mass — ${err.message}`, 'err');
+      }
+    }
+    if (!loaded.length) return;
+    TFM.massFiles = loaded;
+    TFM.previewFileIndex = 0;
+    document.getElementById('tfm-status-mass').textContent = `${loaded.length} file từ tiện ích — ${loaded.map(x => x.driveShop + ' (' + String(x.savedAt || '').slice(0, 5) + ')').join(', ')}`;
+    tfmLog(`☁ Đã nạp ${loaded.length}/6 file Mass từ tiện ích${loaded.length < 6 ? ' — shop còn thiếu xem các dòng cảnh báo ở trên' : ''}.`, loaded.length === 6 ? 'ok' : 'warn');
+    tfmCheckReady();
+  } catch (err) {
+    tfmLog('❌ Lấy file Mass từ tiện ích thất bại: ' + err.message, 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = 1; }
+  }
 }
 
 function tfmHandleTonFile(input) {
@@ -8669,7 +8787,11 @@ async function tfmExportFile() {
   const isDual = TFM.kho === 'dual';
   const usedNames = new Set(); // chống trùng tên file khi suy ra shop label giống nhau — xác nhận Tân 2026-09-28
   let fileIdx = 0;
-  for (const entry of TFM.massFiles) {
+  // ★ 2026-10-19: chỉ xuất shop đang chọn ở ô chọn (mặc định: tất cả shop đã tải)
+  const exportList = TFM.exportSel === 'all' ? TFM.massFiles : [TFM.massFiles[Number(TFM.exportSel)]].filter(Boolean);
+  if (!exportList.length) { tfmLog('⚠ Shop đã chọn không còn trong danh sách file Mass — chọn lại.', 'warn'); return; }
+  if (TFM.exportSel !== 'all') tfmLog(`▶ Xuất riêng shop: ${tfmEntryLabel(exportList[0])}`);
+  for (const entry of exportList) {
     const ws = entry.ws;
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
     const { headerRow, idx, khoCols } = entry;
@@ -8704,7 +8826,9 @@ async function tfmExportFile() {
       });
     }
 
-    const shopLabel = tfmDeriveShopLabel(entry.khoCols);
+    // ★ 2026-10-19: đặt tên file theo SHOP (biết từ tiện ích hoặc từ shop_id trong file), không theo tên cột kho
+    // (cũ: "Kho HCM/Kho Hà Nội" → "Kho_Final.xlsx", không biết shop nào). Không xác định được shop thì giữ cách cũ.
+    const shopLabel = entry.driveShop || entry.shopName || tfmDeriveShopLabel(entry.khoCols);
     let outName = `${shopLabel}_Final.xlsx`;
     let dupIdx = 2;
     while (usedNames.has(outName)) { outName = `${shopLabel}_${dupIdx}_Final.xlsx`; dupIdx++; }
@@ -8712,12 +8836,27 @@ async function tfmExportFile() {
     if (fileIdx > 0) await new Promise(res => setTimeout(res, 300));
     XLSX.writeFile(entry.wb, outName);
     tfmLog(`📤 Đã xuất "${outName}" — Kho ${khoLabel}: ${matched} khớp Map SW, ${fallback} khớp dự phòng SKU, ${skipped} không có trong file tồn (giữ nguyên), ${notInMap} không tìm thấy mã SW (giữ nguyên).`, 'ok');
+    // ★ 2026-10-19 (xác nhận Tân): file Mass lấy từ tiện ích (biết đúng shop) → lưu thêm bản Final lên Drive để tiện ích
+    // Tải Đơn (card "Cập Nhật Tồn Lên Shopee") tự tải lên Cập Nhật Hàng Loạt của đúng shop. File chọn tay từ máy không
+    // biết chắc thuộc shop nào → chỉ tải về như cũ, không lưu Drive.
+    if (entry.driveShop) {
+      try {
+        const b64 = XLSX.write(entry.wb, { type: 'base64', bookType: 'xlsx' });
+        await adsSheetCall({ action: 'save_final_file', shop: entry.driveShop, b64, meta: { kho: khoLabel, label: shopLabel, outName, matched, fallback, skipped, notInMap, massSavedAt: entry.savedAt || '' } });
+        tfmLog(`☁ ${entry.driveShop}: đã lưu file Final lên Drive — mở tiện ích Tải Đơn › "Cập Nhật Tồn Lên Shopee" để đẩy lên Shopee.`, 'ok');
+      } catch (e) {
+        tfmLog(`⚠ ${entry.driveShop}: CHƯA lưu được file Final lên Drive (${e.message}) — tiện ích sẽ không đẩy được shop này; file đã tải về máy vẫn dùng tay được.`, 'warn');
+      }
+    } else {
+      tfmLog(`ℹ "${outName}" là file chọn tay từ máy — không lưu lên Drive cho tiện ích (muốn đẩy tự động thì dùng "Lấy File Mass 6 shop (từ tiện ích)").`);
+    }
     fileIdx++;
   }
 }
 
 function tfmResetAll() {
-  TFM.massFiles = []; TFM.previewFileIndex = 0;
+  TFM.massFiles = []; TFM.previewFileIndex = 0; TFM.exportSel = 'all';
+  tfmRenderExportShop(false);
   TFM.tonMap = new Map(); TFM.tonMapHn = new Map(); TFM.tonMapHcm = new Map(); TFM.kho = null; TFM.tonFileName = ''; TFM.tonFileNames = [];
   ['tfm-status-mass','tfm-status-ton'].forEach(id => {
     const el = document.getElementById(id); if (el) el.textContent = 'chưa chọn';
@@ -9833,6 +9972,59 @@ function skuloiParseResultSheet(ws) {
   return failed;
 }
 
+// ★ 2026-10-19: tách lõi đọc 1 workbook Result để dùng chung cho "Chọn File Result" (máy) và "Lấy File Result (từ tiện ích)".
+function skuloiIngestResultWb(wb, fileName) {
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const failed = skuloiParseResultSheet(ws);
+  if (failed === null) throw new Error('Không nhận diện được cột "Lý do thất bại" — có đúng là file Result Shopee không?');
+  let added = 0;
+  failed.forEach(f => {
+    const key = f.sku.toUpperCase();
+    if (!SKULOI.failedMap.has(key)) { SKULOI.failedMap.set(key, { sku: f.sku, tenSp: f.tenSp, reasons: new Set() }); added++; }
+    const entry = SKULOI.failedMap.get(key);
+    if (!entry.tenSp && f.tenSp) entry.tenSp = f.tenSp;
+    entry.reasons.add(f.reason);
+  });
+  SKULOI.resultFileNames.push(fileName);
+  skuloiLog(`✅ Đọc file Result: ${fileName} — ${failed.length} dòng lỗi (${added} SKU mới, ${failed.length - added} trùng SKU đã có)`, 'ok');
+}
+function skuloiUpdateResultStatus() {
+  const el = document.getElementById('skuloi-status-result');
+  if (el) el.textContent = `${SKULOI.resultFileNames.length} file — ${SKULOI.failedMap.size} SKU lỗi (đã loại trùng)`;
+  skuloiCheckReady();
+}
+// ★ 2026-10-19 (xác nhận Tân): lấy file Result tiện ích Tải Đơn đã lưu Drive sau khi đẩy file Final lên Shopee.
+// Chỉ nhận file lưu HÔM NAY (giờ VN) — file cũ là kết quả lượt cập nhật trước, không còn đúng.
+async function skuloiLoadResultsFromDrive() {
+  const btn = document.getElementById('skuloi-drive-btn');
+  if (btn && btn.disabled) return;
+  if (btn) { btn.disabled = true; btn.style.opacity = .6; }
+  const vnDay = (ms) => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+  try {
+    skuloiLog('☁ Đang hỏi danh sách file Result tiện ích đã lưu trên Drive...');
+    const list = await adsSheetCall({ action: 'list_result_files' });
+    const today = vnDay(Date.now());
+    let n = 0;
+    for (const f of (list.files || [])) {
+      if (!f.fileId) continue;
+      if (vnDay(f.savedAtMs) !== today) { skuloiLog(`⏭ ${f.shop}: file Result lưu lúc ${f.savedAt} — không phải hôm nay, bỏ qua.`, 'warn'); continue; }
+      const m = f.meta || {};
+      const already = `${f.shop} · Result ${f.savedAt}`;
+      if (SKULOI.resultFileNames.includes(already)) { skuloiLog(`⏭ ${f.shop}: file Result này đã nạp rồi.`); continue; }
+      if (m.failed === 0) { skuloiLog(`✅ ${f.shop}: ${m.success}/${m.total} dòng thành công — không có SKU bị từ chối.`, 'ok'); continue; }
+      const g = await adsSheetCall({ action: 'get_result_file', shop: f.shop });
+      try { skuloiIngestResultWb(XLSX.read(g.b64, { type: 'base64' }), already); n++; }
+      catch (err) { skuloiLog(`❌ ${f.shop}: lỗi đọc file Result — ${err.message}`, 'err'); }
+    }
+    if (!n) skuloiLog('ℹ Không có file Result mới hôm nay cần xử lý.');
+    skuloiUpdateResultStatus();
+  } catch (e) {
+    skuloiLog('❌ Không lấy được file Result từ Drive: ' + e.message, 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+  }
+}
+
 function skuloiHandleResultFiles(input) {
   const files = [...input.files];
   if (!files.length) return;
@@ -9841,20 +10033,7 @@ function skuloiHandleResultFiles(input) {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const wb = XLSX.read(e.target.result, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const failed = skuloiParseResultSheet(ws);
-        if (failed === null) throw new Error('Không nhận diện được cột "Lý do thất bại" — có đúng là file Result Shopee không?');
-        let added = 0;
-        failed.forEach(f => {
-          const key = f.sku.toUpperCase();
-          if (!SKULOI.failedMap.has(key)) { SKULOI.failedMap.set(key, { sku: f.sku, tenSp: f.tenSp, reasons: new Set() }); added++; }
-          const entry = SKULOI.failedMap.get(key);
-          if (!entry.tenSp && f.tenSp) entry.tenSp = f.tenSp;
-          entry.reasons.add(f.reason);
-        });
-        SKULOI.resultFileNames.push(file.name);
-        skuloiLog(`✅ Đọc file Result: ${file.name} — ${failed.length} dòng lỗi (${added} SKU mới, ${failed.length - added} trùng SKU đã có)`, 'ok');
+        skuloiIngestResultWb(XLSX.read(e.target.result, { type: 'array' }), file.name);
       } catch (err) {
         skuloiLog(`❌ Lỗi đọc file Result (${file.name}): ${err.message}`, 'err');
       }
@@ -14554,7 +14733,7 @@ async function mktCompare() {
     MKT.catalog = MKT.catalog || {};
   }
   if (!MKT.catalog || !Object.keys(MKT.catalog).length) {
-    mktLog('⚠ Danh Mục SKU (sku_catalog) đang rỗng — vào trang Tổng Quan Tồn Kho và bấm "Đồng Bộ Danh Mục SKU" trước.', 'warn');
+    mktLog('⚠ Danh Mục SKU (sku_catalog) đang rỗng — vào trang Tổng Quan Tồn Kho và bấm "Đồng Bộ SKU Tổng" trước.', 'warn');
   }
 
   const rows = XLSX.utils.sheet_to_json(MKT.discountWs, { header: 1, defval: null });
@@ -14923,7 +15102,7 @@ async function shopeeCompare() {
     SHOPEE_FS.catalog = SHOPEE_FS.catalog || {};
   }
   if (!SHOPEE_FS.catalog || !Object.keys(SHOPEE_FS.catalog).length) {
-    shopeeLog('⚠ Danh Mục SKU (sku_catalog) đang rỗng — bấm "Đồng Bộ Danh Mục SKU" ở trên trước.', 'warn');
+    shopeeLog('⚠ Danh Mục SKU (sku_catalog) đang rỗng — bấm "Đồng Bộ SKU Tổng" ở trên trước.', 'warn');
   }
 
   const rows = XLSX.utils.sheet_to_json(SHOPEE_FS.ws, { header: 1, defval: null });
@@ -15329,6 +15508,54 @@ function tqBuildRows() {
   TQ.newSkuRows = newSkuRows;
 }
 
+// ── MAP SW từ Google Sheet (2026-10-19, xác nhận Tân) ─────────────────────────────────────────────
+// Tiện ích Tải Đơn (card "Tải Thông Tin SP" → "Lấy MAP SW") lấy liên kết SKU Salework 6 shop rồi ghi đè tab
+// "MAP SW" của SKU Tổng, cuối cùng mới ghi DẤU HOÀN TẤT L1:R1 = [Cập nhật lúc | thời điểm | Số dòng | n | Nguồn | nguồn | epoch ms].
+// Hàm này (gọi trong "Đồng Bộ Danh Mục SKU") chỉ nạp khi có dấu + số dòng khớp, rồi dựng Map bằng ĐÚNG hàm của nút
+// upload file (tqoSaveSaleworkMapFromWb) → kết quả map y hệt. Không nạp đè khi: thiếu dấu/lệch dòng (đang ghi dở),
+// bản trên Sheet đã nạp rồi (cùng epoch), hoặc Map trên dashboard MỚI HƠN (vừa tải file MAP tay — nút dự phòng).
+async function tqSyncMapSwFromSheet(token) {
+  tqCatalogLog('📥 Đang tải tab "MAP SW" (Map Salework) từ Google Sheet...');
+  const ranges = ["'MAP SW'!A:J", "'MAP SW'!L1:R1"].map(r => 'ranges=' + encodeURIComponent(r)).join('&');
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SKU_CATALOG_SHEET_ID}/values:batchGet?${ranges}&majorDimension=ROWS&valueRenderOption=UNFORMATTED_VALUE`;
+  const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+  if (resp.status === 403) {
+    const t = await resp.text().catch(() => '');
+    let reason = ''; try { reason = JSON.parse(t).error.message; } catch (e) { reason = t.slice(0, 200); }
+    tqCatalogLog('❌ Không đọc được tab MAP SW (403): ' + (reason || 'không có quyền') + ' — Map Salework giữ nguyên.', 'err');
+    return;
+  }
+  if (resp.status === 400 || resp.status === 404) { tqCatalogLog('❌ Không tìm thấy tab "MAP SW" trong SKU Tổng — Map Salework giữ nguyên.', 'err'); return; }
+  if (!resp.ok) { const t = await resp.text().catch(() => ''); throw new Error('HTTP ' + resp.status + (t ? ' — ' + t.slice(0, 200) : '')); }
+  const data = await resp.json();
+  const vr = data.valueRanges || [];
+  const rows = (vr[0] && vr[0].values) || [];
+  const mark = ((vr[1] && vr[1].values) || [[]])[0] || [];
+  const n = Number(mark[3]) || 0, ms = Number(mark[6]) || 0, stamp = String(mark[1] || ''), src = String(mark[5] || '');
+  const dataRows = rows.slice(1).filter(r => r && r.some(v => v !== '' && v != null)).length;
+  if (!n || !ms) { tqCatalogLog('⚠ Tab MAP SW chưa có dấu hoàn tất (ô L1:R1) — có thể đang ghi dở. Map Salework giữ nguyên bản cũ. Bấm "Lấy MAP SW" trên tiện ích Tải Đơn rồi đồng bộ lại.', 'warn'); return; }
+  if (dataRows !== n) { tqCatalogLog(`⚠ Tab MAP SW lệch số dòng (dấu hoàn tất ghi ${n}, đọc được ${dataRows}) — Map Salework giữ nguyên bản cũ. Bấm lại "Lấy MAP SW" trên tiện ích.`, 'warn'); return; }
+  let curMs = 0, curMarkMs = 0, curAt = '';
+  try {
+    const snap = await db.collection('map_salework_ton').doc('all').get();
+    if (snap.exists) { const d = snap.data(); curAt = d.updatedAt || ''; curMs = Date.parse(curAt) || 0; curMarkMs = Number(d.sheetMarkMs) || 0; }
+  } catch (e) { /* không đọc được → coi như chưa có */ }
+  if (curMarkMs && curMarkMs === ms) { tqCatalogLog(`✅ Map Salework đã là bản MAP SW ${stamp} (${n.toLocaleString('vi-VN')} dòng) — không cần nạp lại.`, 'ok'); return; }
+  if (curMs > ms) {
+    tqCatalogLog(`⚠ Map Salework trên dashboard (${new Date(curMs).toLocaleString('vi-VN')}) MỚI HƠN tab MAP SW (${stamp}) — giữ nguyên (thường do vừa tải file MAP tay).`, 'warn');
+    return;
+  }
+  const vnDay = t => new Date(t + 7 * 3600000).toISOString().slice(0, 10);
+  if (vnDay(ms) !== vnDay(Date.now())) tqCatalogLog(`⚠ MAP SW là bản ${stamp}, KHÔNG phải hôm nay — vẫn nạp, nhưng nên bấm "Lấy MAP SW" trên tiện ích để có liên kết mới nhất.`, 'warn');
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'MAP SW');
+  const res = await tqoSaveSaleworkMapFromWb(wb, `Google Sheet SKU Tổng · tab MAP SW (${stamp})`);
+  await db.collection('map_salework_ton').doc('all').set({ sheetMarkMs: ms, sheetSource: src }, { merge: true });
+  const statusEl = document.getElementById('tqo-status-map');
+  if (statusEl) statusEl.textContent = new Date(res.updatedAt).toLocaleString('vi-VN');
+  tqCatalogLog(`✅ Đã nạp Map Salework từ tab MAP SW (${stamp} · ${src}): ${res.totalRows.toLocaleString('vi-VN')} dòng, ${res.mapSize.toLocaleString('vi-VN')} mã phân loại, ${res.idSpSize.toLocaleString('vi-VN')} ID SP.`, 'ok');
+}
+
 // ── Đồng bộ Danh Mục SKU từ Google Sheet "Trung Tâm Dữ Liệu" (tái dùng OAuth Drive readonly có sẵn) ──
 function tqSyncCatalog() {
   const clientId = getDriveClientId();
@@ -15463,6 +15690,13 @@ async function tqDoCatalogSync() {
     } else {
       tqCatalogLog('✅ Không có SKU mới nào đang thiếu tồn kho thật.', 'ok');
     }
+    // ★ 2026-10-19 (xác nhận Tân): đồng bộ danh mục kéo luôn tab "MAP SW" (tiện ích Tải Đơn ghi lên) vào Map Salework
+    try { await tqSyncMapSwFromSheet(_catalogDriveToken); }
+    catch (mErr) { tqCatalogLog('❌ Lỗi nạp MAP SW: ' + mErr.message + ' — Map Salework giữ nguyên bản cũ.', 'err'); }
+    // ★ 2026-10-19 (Tân chốt): gộp Black List vào cùng nút "Đồng Bộ SKU Tổng" — dùng chung token (drive.readonly đọc được Sheets API, như MAP SW)
+    try { _blDriveToken = _catalogDriveToken; await blDoBlacklistSync(tqCatalogLog); }
+    catch (bErr) { tqCatalogLog('❌ Lỗi đồng bộ Black List: ' + bErr.message, 'err'); }
+    tqCatalogLog('🏁 Hoàn tất Đồng Bộ SKU Tổng.', 'ok');
   } catch (err) {
     tqCatalogLog('❌ Lỗi đồng bộ: ' + err.message, 'err');
   } finally {
@@ -15689,7 +15923,8 @@ function blSyncBlacklist() {
   _blTokenClient.requestAccessToken({ prompt: _blDriveToken ? '' : 'consent' });
 }
 
-async function blDoBlacklistSync() {
+async function blDoBlacklistSync(logFn) {
+  const blLog = logFn || window.blLog; // gọi từ "Đồng Bộ SKU Tổng" thì ghi chung log của nút đó
   const btn = document.getElementById('bl-sync-btn');
   try {
     blLog('📥 Đang tải tab "Black List" từ Google Sheet...');
@@ -16578,7 +16813,7 @@ async function giaComputeCheckRows(tab, thresholdPct, fromDateStr, logFn) {
   if (logFn) logFn('🔄 Đang tải Danh Mục SKU (sku_catalog)...', 'info');
   const catalog = await giaLoadCatalogIfNeeded();
   if (logFn && (!catalog || !Object.keys(catalog).length)) {
-    logFn('⚠ Danh Mục SKU (sku_catalog) đang rỗng — vào trang Tổng Quan Tồn Kho và bấm "Đồng Bộ Danh Mục SKU" trước.', 'warn');
+    logFn('⚠ Danh Mục SKU (sku_catalog) đang rỗng — vào trang Tổng Quan Tồn Kho và bấm "Đồng Bộ SKU Tổng" trước.', 'warn');
   }
 
   const out = [];
@@ -25177,12 +25412,14 @@ function bcdtDelta(cur, prev, inv) {
   const p = (cur - prev) / Math.abs(prev);
   const good = inv ? p < 0 : p > 0;
   const c = Math.abs(p) < 0.0005 ? 'var(--text2)' : good ? 'var(--green)' : 'var(--red)';
-  return `<span style="color:${c};font-weight:700">${p > 0 ? '▲ +' : p < 0 ? '▼ ' : '• '}${(p * 100).toFixed(1).replace('.', ',')}%</span>`;
+  const k = Math.abs(p) < 0.0005 ? 'neu' : good ? 'up' : 'down'; // class bcdt-d-*: thẻ navy hiện thành nút màu (bảng vẫn dùng màu chữ inline)
+  return `<span class="bcdt-d bcdt-d-${k}" style="color:${c};font-weight:700">${p > 0 ? '▲ +' : p < 0 ? '▼ ' : '• '}${(p * 100).toFixed(1).replace('.', ',')}%</span>`;
 }
 function bcdtPts(cur, prev, inv) {
   if (prev == null) return '';
   const d = cur - prev, good = inv ? d < 0 : d > 0;
-  return `<span style="color:${Math.abs(d) < 0.05 ? 'var(--text2)' : good ? 'var(--green)' : 'var(--red)'};font-weight:700">${d > 0 ? '▲ +' : d < 0 ? '▼ ' : '• '}${d.toFixed(1).replace('.', ',')} điểm %</span>`;
+  const k = Math.abs(d) < 0.05 ? 'neu' : good ? 'up' : 'down';
+  return `<span class="bcdt-d bcdt-d-${k}" style="color:${Math.abs(d) < 0.05 ? 'var(--text2)' : good ? 'var(--green)' : 'var(--red)'};font-weight:700">${d > 0 ? '▲ +' : d < 0 ? '▼ ' : '• '}${d.toFixed(1).replace('.', ',')} điểm %</span>`;
 }
 
 async function bcdtResolveMain() {
@@ -25333,11 +25570,12 @@ async function bcdtRender() {
   const P = prevKey && BCDT.prod[prevKey] ? bcdtSum(BCDT.prod[prevKey]) : null;
   const K = bcdtKqGet(BCDT.cur), KP = prevKey ? bcdtKqGet(prevKey) : null;
   const pl = prevKey ? bcspMonthLabel(prevKey).replace('Tháng ', 'T') : '';
-  const cmp = '<span style="color:var(--text2);font-size:11px"> so với ' + pl + '</span>';
-  const card = (label, val, sub, topC) => `<div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border:1px solid var(--gray3);border-top:3px solid ${topC}">
+  const cmp = '<span class="bcdt-cmp" style="color:var(--text2);font-size:11px"> so với ' + pl + '</span>';
+  // 2026-10-19: 8 thẻ đổi sang nền navy giống trang GMS (Tân chốt: giữ nguyên cỡ chữ/kích thước). topC giữ tham số nhưng không dùng nữa
+  const card = (label, val, sub, topC) => `<div class="bcdt-navy" style="border-radius:var(--radius);padding:18px">
       <div class="kpi-label">${label}</div>
-      <div style="font-size:22px;font-weight:800;color:var(--text);line-height:1.1;margin:6px 0">${val}</div>
-      <div style="font-size:13px;color:var(--text2)">${sub}</div></div>`;
+      <div class="bcdt-v" style="font-size:22px;font-weight:800;line-height:1.1;margin:6px 0">${val}</div>
+      <div class="bcdt-sub" style="font-size:13px">${sub}</div></div>`;
   const grid4 = '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px">';
   const secLabel = t => `<div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.6px;margin:2px 0 8px">${t}</div>`;
   let html = '';
@@ -25350,7 +25588,7 @@ async function bcdtRender() {
       card('TỔNG GIÁ TRỊ SẢN PHẨM', bcspN(K.tongGt), KP ? bcdtDelta(K.tongGt, KP.tongGt) + cmp : 'Trước phí sàn, voucher, hủy…', '#1a56db') +
       card('DOANH THU', bcspN(K.dt), (KP ? bcdtDelta(K.dt, KP.dt) + cmp + '<br>' : '') + 'Đã nhận ' + bcspN(K.dtNhan) + ' · dự kiến ' + bcspN(K.dtDuKien), '#ee4d2d') +
       card('CHI PHÍ', bcspN(K.cp), (KP ? bcdtDelta(K.cp, KP.cp, true) + cmp + '<br>' : '') + 'Giá vốn ' + bcspN(K.gv) + ' · QC ' + bcspN(K.qc), 'var(--navy)') +
-      card('LỢI NHUẬN', `<span style="color:${K.ln < 0 ? 'var(--red)' : 'var(--green)'}">${bcspN(K.ln)}</span>`, (KP ? bcdtDelta(K.ln, KP.ln) + cmp + '<br>' : '') + 'Biên LN ' + bien.toFixed(1) + '%' + (bienP != null ? ' (' + bcdtPts(bien, bienP) + ')' : ''), 'var(--green)') +
+      card('LỢI NHUẬN', `<span class="${K.ln < 0 ? 'bcdt-neg' : 'bcdt-pos'}">${bcspN(K.ln)}</span>`, (KP ? bcdtDelta(K.ln, KP.ln) + cmp + '<br>' : '') + 'Biên LN ' + bien.toFixed(1) + '%' + (bienP != null ? ' (' + bcdtPts(bien, bienP) + ')' : ''), 'var(--green)') +
       '</div>';
     if (isCum && K.n < months.length) html += `<div style="font-size:11px;color:#b45309;margin:-4px 0 10px">Tab KQKD mới có ${K.n}/${months.length} tháng — phần KQKD ở chế độ lũy kế chỉ cộng các tháng đã có.</div>`;
   } else {
@@ -25361,8 +25599,8 @@ async function bcdtRender() {
   const mg = S.dt > 0 ? S.lg / S.dt * 100 : 0, mgP = P && P.dt > 0 ? P.lg / P.dt * 100 : null;
   html += secLabel('THỐNG KÊ SẢN PHẨM (tab TK Sản phẩm · Shopee, gộp các shop)') + grid4 +
     card('GIÁ TRỊ BÁN', bcspN(S.dt), P ? bcdtDelta(S.dt, P.dt) + cmp : 'Cột "Giá trị bán"', '#ee4d2d') +
-    card('LÃI GỘP (DT − GIÁ VỐN)', `<span style="color:${S.lg < 0 ? 'var(--red)' : 'var(--text)'}">${bcspN(S.lg)}</span>`, P ? bcdtDelta(S.lg, P.lg) + cmp : 'Chưa trừ phí sàn, voucher, quảng cáo', 'var(--green)') +
-    card('TỶ SUẤT LÃI GỘP', `<span style="color:${bcdtMgC(mg)}">${mg.toFixed(1)}%</span>`, mgP != null ? bcdtPts(mg, mgP) + cmp : 'Lãi gộp / giá trị bán', 'var(--orange)') +
+    card('LÃI GỘP (DT − GIÁ VỐN)', `<span class="${S.lg < 0 ? 'bcdt-neg' : ''}">${bcspN(S.lg)}</span>`, P ? bcdtDelta(S.lg, P.lg) + cmp : 'Chưa trừ phí sàn, voucher, quảng cáo', 'var(--green)') +
+    card('TỶ SUẤT LÃI GỘP', `<span class="${mg < 10 ? 'bcdt-neg' : mg < 25 ? 'bcdt-warn' : 'bcdt-pos'}">${mg.toFixed(1)}%</span>`, mgP != null ? bcdtPts(mg, mgP) + cmp : 'Lãi gộp / giá trị bán', 'var(--orange)') +
     card('SẢN LƯỢNG', bcspN(S.sl), (P ? bcdtDelta(S.sl, P.sl) + cmp + '<br>' : '') + bcspN(S.n) + ' sản phẩm có bán', '#8b5cf6') + '</div>';
   const notes = [];
   if (S.nc) notes.push(`${bcspN(S.nc)} sản phẩm (${bcspPct(S.ncDt, S.dt)} giá trị bán) chưa có giá vốn trong Salework → lãi gộp đang bị tính cao hơn thực tế.`);
