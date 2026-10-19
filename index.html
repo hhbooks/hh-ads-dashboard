@@ -2979,6 +2979,10 @@
           <input type="file" id="tfm-mass-input" accept=".xlsx,.xls" multiple style="display:none" onchange="tfmHandleMassFile(this)">
           <button class="sw-upload-btn" onclick="document.getElementById('tfm-mass-input').click()">📂 2. Chọn File Mass (1 hoặc nhiều shop)</button>
         </div>
+        <div>
+          <!-- v2026-10-19: lấy 6 file Mass do tiện ích "Tải Đơn & Quảng Cáo" (card Tải Thông Tin SP) lưu trên Drive — chỉ nhận file lưu TRONG NGÀY. Xác nhận Tân 2026-10-19. -->
+          <button class="sw-upload-btn" id="tfm-drive-btn" onclick="tfmLoadMassFromDrive()">☁ 2. Lấy File Mass 6 shop (từ tiện ích)</button>
+        </div>
         <button onclick="tfmResetAll()" style="padding:6px 14px;border:1px solid var(--text);color:var(--text);background:white;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">🔄 RESET</button>
       </div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:4px">File tồn: <b id="tfm-status-ton">chưa chọn</b></div>
@@ -8459,6 +8463,36 @@ function tfmSelectFile(i) {
   tfmRunPreview();
 }
 
+// Đọc 1 workbook file Mass (bản mẫu "Thông tin bán hàng") → {wb, ws, fileName, headerRow, idx, khoCols}; lỗi → throw.
+// Dùng chung cho "Chọn File Mass" (file trên máy) và "Lấy File Mass 6 shop (từ tiện ích)".
+function tfmParseMassWb(wb, fileName) {
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+  let headerRow = -1;
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    if (rows[i] && rows[i].some(c => String(c||'').trim() === 'Mã Sản phẩm')) { headerRow = i; break; }
+  }
+  if (headerRow === -1) throw new Error('Không tìm thấy dòng header (cột "Mã Sản phẩm") trong file mass');
+  const header = rows[headerRow].map(c => String(c||'').trim());
+  const idx = {
+    maSp:        header.indexOf('Mã Sản phẩm'),
+    maPhanLoai:  header.indexOf('Mã Phân loại'),
+    sku:         header.indexOf('SKU'),
+    skuParent:   header.indexOf('SKU Sản phẩm'),
+    tenSp:       header.findIndex(h => h.toLowerCase() === 'tên sản phẩm'),
+    tenPhanLoai: header.findIndex(h => h.toLowerCase().includes('tên phân loại') && !h.toLowerCase().includes('mã')),
+  };
+  const khoCols = [];
+  header.forEach((h, ci) => {
+    if (h.startsWith('Số lượng:')) {
+      const kho = classifyKho(h.slice('Số lượng:'.length).trim());
+      if (kho) khoCols.push({ col: ci, kho, whName: h.slice('Số lượng:'.length).trim() });
+    }
+  });
+  if (!khoCols.length) throw new Error('Không nhận diện được cột "Số lượng:<kho>" nào trong file mass');
+  return { wb, ws, fileName, headerRow, idx, khoCols };
+}
+
 function tfmHandleMassFile(input) {
   // Hỗ trợ chọn NHIỀU file mass cùng lúc (nhiều shop) — xác nhận Tân 2026-09-28.
   // Mỗi lần chọn lại input này sẽ THAY THẾ toàn bộ danh sách file mass đang nạp.
@@ -8473,31 +8507,10 @@ function tfmHandleMassFile(input) {
     reader.onload = (e) => {
       try {
         const wb = XLSX.read(e.target.result, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-        let headerRow = -1;
-        for (let i = 0; i < Math.min(rows.length, 10); i++) {
-          if (rows[i] && rows[i].some(c => String(c||'').trim() === 'Mã Sản phẩm')) { headerRow = i; break; }
-        }
-        if (headerRow === -1) throw new Error('Không tìm thấy dòng header (cột "Mã Sản phẩm") trong file mass');
-        const header = rows[headerRow].map(c => String(c||'').trim());
-        const idx = {
-          maSp:        header.indexOf('Mã Sản phẩm'),
-          maPhanLoai:  header.indexOf('Mã Phân loại'),
-          sku:         header.indexOf('SKU'),
-          skuParent:   header.indexOf('SKU Sản phẩm'),
-          tenSp:       header.findIndex(h => h.toLowerCase() === 'tên sản phẩm'),
-          tenPhanLoai: header.findIndex(h => h.toLowerCase().includes('tên phân loại') && !h.toLowerCase().includes('mã')),
-        };
-        const khoCols = [];
-        header.forEach((h, ci) => {
-          if (h.startsWith('Số lượng:')) {
-            const kho = classifyKho(h.slice('Số lượng:'.length).trim());
-            if (kho) khoCols.push({ col: ci, kho, whName: h.slice('Số lượng:'.length).trim() });
-          }
-        });
-        if (!khoCols.length) throw new Error('Không nhận diện được cột "Số lượng:<kho>" nào trong file mass');
-        TFM.massFiles.push({ wb, ws, fileName: file.name, headerRow, idx, khoCols });
+        const entry = tfmParseMassWb(wb, file.name);
+        const { headerRow, khoCols } = entry;
+        const rows = XLSX.utils.sheet_to_json(entry.ws, { header: 1, defval: null });
+        TFM.massFiles.push(entry);
         tfmLog(`✅ Đọc file mass: ${file.name} (${rows.length - headerRow - 1} dòng, cột kho: ${khoCols.map(k=>k.whName).join(', ')})`, 'ok');
       } catch (err) {
         tfmLog(`❌ Lỗi đọc file mass "${file.name}": ${err.message}`, 'err');
@@ -8513,6 +8526,57 @@ function tfmHandleMassFile(input) {
     };
     reader.readAsArrayBuffer(file);
   });
+}
+
+// ☁ Lấy 6 file Mass từ tiện ích "Tải Đơn & Quảng Cáo" (card Tải Thông Tin SP lưu NGUYÊN file bản mẫu lên Drive
+// qua Apps Script ADS_SHEET_BACKEND_URL). Chỉ nhận file lưu TRONG NGÀY (giờ VN) — file cũ có thể chứa giá cũ,
+// tải lên Shopee sẽ ghi đè giá mới → CHẶN, báo anh bấm "Tải Thông Tin SP" lại. Xác nhận Tân 2026-10-19.
+// Thay thế toàn bộ danh sách file mass đang nạp (giống chọn lại file).
+async function tfmLoadMassFromDrive() {
+  const btn = document.getElementById('tfm-drive-btn');
+  if (btn && btn.disabled) return;
+  if (btn) { btn.disabled = true; btn.style.opacity = .6; }
+  const vnDay = (ms) => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+  try {
+    tfmLog('☁ Đang hỏi danh sách file Mass tiện ích đã lưu trên Drive...');
+    const list = await adsSheetCall({ action: 'list_mass_templates' });
+    const today = vnDay(Date.now());
+    const fresh = [], stale = [], none = [];
+    (list.files || []).forEach(f => {
+      if (!f.fileId) none.push(f.shop);
+      else if (vnDay(f.savedAtMs) !== today) stale.push(f);
+      else fresh.push(f);
+    });
+    if (none.length) tfmLog(`⚠ Chưa có file Mass của: ${none.join(', ')} — bấm "Tải Thông Tin SP" trên tiện ích cho shop này.`, 'warn');
+    stale.forEach(f => tfmLog(`⛔ ${f.shop}: file Mass lưu lúc ${f.savedAt} — CŨ hơn hôm nay, KHÔNG dùng (giá trong file có thể đã đổi). Bấm "Tải Thông Tin SP" trên tiện ích rồi lấy lại.`, 'err'));
+    if (!fresh.length) { tfmLog('❌ Không có file Mass nào lưu trong hôm nay — chưa nạp được file nào.', 'err'); return; }
+    const loaded = [];
+    for (const f of fresh) {
+      try {
+        tfmLog(`⏳ Đang tải file Mass ${f.shop} (lưu lúc ${f.savedAt}${f.size ? ', ' + (f.size / 1048576).toFixed(1) + ' MB' : ''})...`);
+        const g = await adsSheetCall({ action: 'get_mass_template', shop: f.shop });
+        if (vnDay(g.savedAtMs) !== today) { tfmLog(`⛔ ${f.shop}: file vừa bị thay bằng bản cũ hơn hôm nay — bỏ qua.`, 'err'); continue; }
+        const wb = XLSX.read(g.b64, { type: 'base64' });
+        const entry = tfmParseMassWb(wb, g.fileName || ('MASS - ' + f.shop + '.xlsx'));
+        entry.driveShop = f.shop; entry.savedAt = g.savedAt;
+        const nRows = XLSX.utils.sheet_to_json(entry.ws, { header: 1, defval: null }).length - entry.headerRow - 1;
+        loaded.push(entry);
+        tfmLog(`✅ ${f.shop}: ${nRows} dòng, cột kho: ${entry.khoCols.map(k => k.whName).join(', ')} (lưu lúc ${g.savedAt}).`, 'ok');
+      } catch (err) {
+        tfmLog(`❌ ${f.shop}: không đọc được file Mass — ${err.message}`, 'err');
+      }
+    }
+    if (!loaded.length) return;
+    TFM.massFiles = loaded;
+    TFM.previewFileIndex = 0;
+    document.getElementById('tfm-status-mass').textContent = `${loaded.length} file từ tiện ích — ${loaded.map(x => x.driveShop + ' (' + String(x.savedAt || '').slice(0, 5) + ')').join(', ')}`;
+    tfmLog(`☁ Đã nạp ${loaded.length}/6 file Mass từ tiện ích${loaded.length < 6 ? ' — shop còn thiếu xem các dòng cảnh báo ở trên' : ''}.`, loaded.length === 6 ? 'ok' : 'warn');
+    tfmCheckReady();
+  } catch (err) {
+    tfmLog('❌ Lấy file Mass từ tiện ích thất bại: ' + err.message, 'err');
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = 1; }
+  }
 }
 
 function tfmHandleTonFile(input) {
