@@ -844,6 +844,21 @@
   .th-shop-table-lg .th-shop-table { font-size:15px; }
   .th-shop-table-lg .th-shop-table th { font-size:13px; padding:12px 16px; }
   .th-shop-table-lg .th-shop-table td { padding:14px 16px; }
+  /* 2026-10-19 (Tân, bản thử): card "Tổng Quan Toàn Hệ Thống" (trang Tổng Hợp Hệ Thống) — 4 KPI navy như GMS,
+     bảng So Sánh Từng Shop + 2 khối Tỉ Trọng nền navy chữ trắng. CHỈ scope #th-overview-card, không đụng .kpi-card / .th-shop-table chỗ khác */
+  #th-overview-card .kpi-card { background:linear-gradient(135deg,#1b2a4e,#2b4a8f); border:none; border-top:none; border-radius:18px; box-shadow:0 6px 24px rgba(27,42,78,.14); }
+  #th-overview-card .kpi-card .kpi-label { color:#fff; opacity:.92; }
+  #th-overview-card .kpi-card .kpi-value { color:#fff; }
+  #th-overview-card .kpi-card .kpi-sub { color:#dbe4f3; }
+  #th-overview-card .th-navy-panel { background:linear-gradient(135deg,#1b2a4e,#2b4a8f); border-radius:18px; padding:18px 20px; box-shadow:0 6px 24px rgba(27,42,78,.14); color:#fff; }
+  #th-overview-card .th-navy-panel .th-empty { color:#dbe4f3; }
+  #th-overview-card .th-navy-panel .th-shop-table { background:transparent; } #th-overview-card .th-navy-panel .th-shop-table thead, #th-overview-card .th-navy-panel .th-shop-table thead tr { background:transparent; }
+  #th-overview-card .th-navy-panel .th-shop-table th { background:#2c4073; color:#c7d2e8; border-bottom:1px solid rgba(255,255,255,.18); }
+  #th-overview-card .th-navy-panel .th-shop-table td { color:#fff; border-bottom:1px solid rgba(255,255,255,.12); }
+  #th-overview-card .th-navy-panel .th-shop-table tr:last-child td { background:rgba(255,255,255,.12); color:#fff; border-bottom:none; }
+  #th-overview-card .th-navy-panel .th-shop-table tbody tr:not(:last-child):hover td { background:rgba(255,255,255,.05); }
+  #th-overview-card .th-navy-panel .thn-good { color:#86efac !important; } #th-overview-card .th-navy-panel .thn-mid { color:#fcd34d !important; }
+  #th-overview-card .th-navy-panel .thn-bad { color:#fca5a5 !important; } #th-overview-card .th-navy-panel .thn-vat { color:#fde68a !important; }
   /* Trang Hoa Hồng TikTok (Kế Toán) — class riêng tiền tố tthh-, không đụng class dùng chung */
   .tthh-btn { padding:8px 16px; background:#fff; color:var(--text); border:1.5px solid var(--text); border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer; }
   .tthh-btn:disabled { opacity:.45; cursor:not-allowed; }
@@ -2123,7 +2138,7 @@
     <!-- Tổng Quan Toàn Hệ Thống — gộp 4 phần (KPI/So Sánh Từng Shop/Tỉ Trọng Doanh Thu/Tỉ Trọng
          Chi Phí) vào 1 card duy nhất, không còn viền/bóng ngăn cách giữa từng phần con — chỉ
          cách nhau bằng tiêu đề phụ (xác nhận Tân 2026-08-11, đổi từ 4 card riêng trước đó). -->
-    <div class="card" style="margin-top:16px">
+    <div class="card" style="margin-top:16px" id="th-overview-card">
       <div class="card-title"><span class="dot"></span> Tổng Quan Toàn Hệ Thống</div>
       <div class="kpi-grid" style="margin-bottom:0">
         <div class="kpi-card">
@@ -2149,12 +2164,12 @@
       </div>
 
       <div class="card-title" style="margin-top:24px"><span class="dot"></span> So Sánh Từng Shop</div>
-      <div id="th-shop-table-wrap" class="th-shop-table-lg">
+      <div id="th-shop-table-wrap" class="th-shop-table-lg th-navy-panel">
         <div class="th-empty">Chưa có dữ liệu — hãy đồng bộ Drive cho từng shop</div>
       </div>
 
       <div class="card-title" style="margin-top:24px"><span class="dot" style="background:#16A085"></span> Tỉ Trọng Doanh Thu</div>
-      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center">
+      <div class="th-navy-panel" style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center">
         <div style="height:336px;position:relative">
           <canvas id="th-chart-revshare"></canvas>
         </div>
@@ -2162,7 +2177,7 @@
       </div>
 
       <div class="card-title" style="margin-top:24px"><span class="dot" style="background:#E67E22"></span> Tỉ Trọng Chi Phí</div>
-      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center">
+      <div class="th-navy-panel" style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center">
         <div style="height:336px;position:relative">
           <canvas id="th-chart-costshare"></canvas>
         </div>
@@ -10264,7 +10279,7 @@ function skuloiRenderBatches() {
 // lệnh Lark (áp mọi shop có SKU trong DB_SKU, vẫn áp Black List), gửi báo cáo vào nhóm Lark + tính lại combo.
 // URL Web App + mã DASH_KEY lưu localStorage của trình duyệt này (dashboard public trên GitHub → không ghi mã vào code).
 const SKULOI_SETTON_CFG_KEY = 'h2_setton_cfg';
-const SKULOI_SETTON_CHUNK = 30;
+const SKULOI_SETTON_CHUNK = 12; // ★ 19/10: 30 dòng mất ~4 phút (6 shop × update_stock) — sát giới hạn 6 phút/lần chạy của Apps Script → hạ còn 12
 function skuloiSettonCfg() {
   try { const c = JSON.parse(localStorage.getItem(SKULOI_SETTON_CFG_KEY) || '{}'); return (c && c.url && c.key) ? c : null; } catch (e) { return null; }
 }
@@ -21156,14 +21171,18 @@ function _thRenderContent() {
     const roasColor  = s.roas >= 20 ? '#196F3D' : s.roas >= 10 ? '#7D6608' : '#922B21';
     const acosColor  = s.acos    <= 5 ? '#196F3D' : s.acos    <= 10 ? '#7D6608' : '#922B21';
     const acosVatColor = acosVat <= 5 ? '#196F3D' : acosVat   <= 10 ? '#7D6608' : '#922B21';
+    // class thn-* = màu sáng tương ứng khi bảng nằm trên nền navy (2026-10-19)
+    const kRoas = s.roas >= 20 ? 'thn-good' : s.roas >= 10 ? 'thn-mid' : 'thn-bad';
+    const kAcos = s.acos <= 5 ? 'thn-good' : s.acos <= 10 ? 'thn-mid' : 'thn-bad';
+    const kAcosVat = acosVat <= 5 ? 'thn-good' : acosVat <= 10 ? 'thn-mid' : 'thn-bad';
     tblHtml += `<tr>
       <td>${s.icon} ${s.name}</td>
       <td>${fmtMoney(s.chi_phi)}</td>
-      <td style="color:#7D6608;font-weight:600">${fmtMoney(chiVat)}</td>
+      <td class="thn-vat" style="color:#7D6608;font-weight:600">${fmtMoney(chiVat)}</td>
       <td>${fmtMoney(s.doanh_so)}</td>
-      <td style="color:${roasColor};font-weight:700">${s.roas.toFixed(2)}x</td>
-      <td style="color:${acosColor};font-weight:700">${s.acos.toFixed(2)}%</td>
-      <td style="color:${acosVatColor};font-weight:700">${acosVat.toFixed(2)}%</td>
+      <td class="${kRoas}" style="color:${roasColor};font-weight:700">${s.roas.toFixed(2)}x</td>
+      <td class="${kAcos}" style="color:${acosColor};font-weight:700">${s.acos.toFixed(2)}%</td>
+      <td class="${kAcosVat}" style="color:${acosVatColor};font-weight:700">${acosVat.toFixed(2)}%</td>
       <td>${pctCost}%</td>
     </tr>`;
   });
@@ -21172,11 +21191,11 @@ function _thRenderContent() {
   tblHtml += `<tr>
     <td>📊 TỔNG CỘNG</td>
     <td>${fmtMoney(grandChi)}</td>
-    <td style="color:#7D6608;font-weight:700">${fmtMoney(grandChiVat)}</td>
+    <td class="thn-vat" style="color:#7D6608;font-weight:700">${fmtMoney(grandChiVat)}</td>
     <td>${fmtMoney(grandRev)}</td>
     <td style="font-weight:700">${grandRoas.toFixed(2)}x</td>
     <td style="font-weight:700">${grandAcos.toFixed(2)}%</td>
-    <td style="color:${grandAcosVatColor};font-weight:700">${grandAcosVat.toFixed(2)}%</td>
+    <td class="${grandAcosVat <= 5 ? 'thn-good' : grandAcosVat <= 10 ? 'thn-mid' : 'thn-bad'}" style="color:${grandAcosVatColor};font-weight:700">${grandAcosVat.toFixed(2)}%</td>
     <td>100%</td>
   </tr></tbody></table>`;
   document.getElementById('th-shop-table-wrap').innerHTML = tblHtml;
@@ -21212,6 +21231,8 @@ function _thCompactMoney(v) {
   return String(v);
 }
 
+// 2026-10-19: màu SÁNG cố định theo shop cho 2 biểu đồ Tỉ Trọng nằm trên nền navy (màu gốc SHOPS như navy #1F3864 sẽ chìm mất)
+const _TH_NAVY_SHOP_COLORS = { '2hbooks': '#60a5fa', 'huyhoanh': '#34d399', '2hhome': '#fbbf24', '2hbooks2': '#a5b4fc', 'hoacu': '#d8b4fe', '2hhcm': '#fca5a5' };
 // ── Card "Tỉ Trọng Doanh Thu" — cột đứng % doanh thu + list bên cạnh (đổi từ doughnut,
 // xác nhận Tân 2026-08-10; chỉ Tên Shop + % Đóng Góp + Doanh Thu trong list, không thêm chỉ số
 // khác — xác nhận Tân 2026-08-09) ──
@@ -21227,7 +21248,7 @@ function _thRenderRevenueShareChart(shopTotals, grandRev) {
   const sorted = [...shopTotals].sort((a, b) => b.doanh_so - a.doanh_so);
   // Màu cố định theo từng shop (SHOPS[id].color) thay vì theo thứ hạng — để 1 shop luôn cùng
   // 1 màu ở mọi kỳ xem, không đổi theo doanh thu tăng/giảm hạng (xác nhận Tân 2026-08-10).
-  const colors = sorted.map(s => SHOPS[s.shopId]?.color || _TH_CAT_PALETTE[0]);
+  const colors = sorted.map(s => _TH_NAVY_SHOP_COLORS[s.shopId] || SHOPS[s.shopId]?.color || _TH_CAT_PALETTE[0]);
 
   const ctx = document.getElementById('th-chart-revshare');
   if (ctx) {
@@ -21246,14 +21267,14 @@ function _thRenderRevenueShareChart(shopTotals, grandRev) {
         plugins: {
           legend: { display: false },
           datalabels: {
-            anchor: 'end', align: 'top', color: '#333', font: { size: 12.5, weight: '700' },
+            anchor: 'end', align: 'top', color: '#fff', font: { size: 12.5, weight: '700' },
             formatter: (value) => { const pct = value / grandRev * 100; return pct.toFixed(1) + '%'; }
           },
           tooltip: { callbacks: { label: c => `${fmtMoney(c.parsed.y)} (${(c.parsed.y/grandRev*100).toFixed(1)}%)` } }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { font: { size: 12.5 } } },
-          y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 12 }, callback: v => _thCompactMoney(v) } }
+          x: { grid: { display: false }, border: { color: 'rgba(255,255,255,.25)' }, ticks: { color: '#dbe4f3', font: { size: 12.5 } } },
+          y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,.10)' }, border: { display: false }, ticks: { color: '#c7d2e8', font: { size: 12 }, callback: v => _thCompactMoney(v) } }
         }
       }
     });
@@ -21261,11 +21282,11 @@ function _thRenderRevenueShareChart(shopTotals, grandRev) {
 
   listEl.innerHTML = sorted.map((s, i) => {
     const pct = (s.doanh_so / grandRev * 100).toFixed(1);
-    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray3)">
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.14)">
       <span style="width:13px;height:13px;border-radius:50%;background:${colors[i]};flex-shrink:0"></span>
-      <span style="flex:1;font-size:16px;font-weight:600;color:var(--text1)">${s.icon} ${s.name}</span>
-      <span style="font-size:16px;font-weight:700;color:var(--navy);min-width:56px;text-align:right">${pct}%</span>
-      <span style="font-size:14px;color:var(--text2);min-width:112px;text-align:right">${fmtMoney(s.doanh_so)}</span>
+      <span style="flex:1;font-size:16px;font-weight:600;color:#fff">${s.icon} ${s.name}</span>
+      <span style="font-size:16px;font-weight:800;color:#fff;min-width:56px;text-align:right">${pct}%</span>
+      <span style="font-size:14px;color:#c7d2e8;min-width:112px;text-align:right">${fmtMoney(s.doanh_so)}</span>
     </div>`;
   }).join('');
 }
@@ -21282,7 +21303,7 @@ function _thRenderCostShareChart(shopTotals, grandChi) {
   }
 
   const sorted = [...shopTotals].sort((a, b) => b.chi_phi - a.chi_phi);
-  const colors = sorted.map(s => SHOPS[s.shopId]?.color || _TH_CAT_PALETTE[0]);
+  const colors = sorted.map(s => _TH_NAVY_SHOP_COLORS[s.shopId] || SHOPS[s.shopId]?.color || _TH_CAT_PALETTE[0]);
 
   const ctx = document.getElementById('th-chart-costshare');
   if (ctx) {
@@ -21298,14 +21319,14 @@ function _thRenderCostShareChart(shopTotals, grandChi) {
         plugins: {
           legend: { display: false },
           datalabels: {
-            anchor: 'end', align: 'top', color: '#333', font: { size: 12.5, weight: '700' },
+            anchor: 'end', align: 'top', color: '#fff', font: { size: 12.5, weight: '700' },
             formatter: (value) => { const pct = value / grandChi * 100; return pct.toFixed(1) + '%'; }
           },
           tooltip: { callbacks: { label: c => `${fmtMoney(c.parsed.y)} (${(c.parsed.y/grandChi*100).toFixed(1)}%)` } }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { font: { size: 12.5 } } },
-          y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 12 }, callback: v => _thCompactMoney(v) } }
+          x: { grid: { display: false }, border: { color: 'rgba(255,255,255,.25)' }, ticks: { color: '#dbe4f3', font: { size: 12.5 } } },
+          y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,.10)' }, border: { display: false }, ticks: { color: '#c7d2e8', font: { size: 12 }, callback: v => _thCompactMoney(v) } }
         }
       }
     });
@@ -21313,11 +21334,11 @@ function _thRenderCostShareChart(shopTotals, grandChi) {
 
   listEl.innerHTML = sorted.map((s, i) => {
     const pct = (s.chi_phi / grandChi * 100).toFixed(1);
-    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray3)">
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.14)">
       <span style="width:13px;height:13px;border-radius:50%;background:${colors[i]};flex-shrink:0"></span>
-      <span style="flex:1;font-size:16px;font-weight:600;color:var(--text1)">${s.icon} ${s.name}</span>
-      <span style="font-size:16px;font-weight:700;color:var(--navy);min-width:56px;text-align:right">${pct}%</span>
-      <span style="font-size:14px;color:var(--text2);min-width:112px;text-align:right">${fmtMoney(s.chi_phi)}</span>
+      <span style="flex:1;font-size:16px;font-weight:600;color:#fff">${s.icon} ${s.name}</span>
+      <span style="font-size:16px;font-weight:800;color:#fff;min-width:56px;text-align:right">${pct}%</span>
+      <span style="font-size:14px;color:#c7d2e8;min-width:112px;text-align:right">${fmtMoney(s.chi_phi)}</span>
     </div>`;
   }).join('');
 }
