@@ -10188,6 +10188,9 @@ function skuloiRenderPreview() {
     <input id="skuloi-batch-size" type="number" min="1" max="500" value="${SKULOI.batchSize}"
       oninput="skuloiSetBatchSize(this.value)"
       style="width:70px;padding:5px 8px;border:1px solid #ccc;border-radius:6px;font-size:12px">
+    <!-- ★ 2026-10-19 (xác nhận Tân): gửi thẳng cho SetTon (Apps Script) thay cho copy dán từng đợt vào Lark -->
+    <button id="skuloi-auto-btn" onclick="skuloiAutoSetTon()" ${activeRows.length ? '' : 'disabled'} style="margin-left:auto;padding:7px 16px;border:none;background:#d35400;color:white;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">⚡ Set tồn tự động (SetTon) · ${activeRows.length} dòng</button>
+    <button onclick="skuloiSettonSetup()" title="Nhập URL Web App + mã DASH_KEY của SetTon (lưu trên trình duyệt này)" style="padding:7px 10px;border:1px solid #d35400;background:white;color:#d35400;border-radius:8px;font-size:12px;cursor:pointer">⚙</button>
   </div>`;
 
   const rowsHtml = activeRows.map((r, i) => `<tr style="border-bottom:1px solid #f5e2cf">
@@ -10254,6 +10257,88 @@ function skuloiRenderBatches() {
     </div>
   `;
   }).join('');
+}
+
+// ── ★ 2026-10-19: SET TỒN TỰ ĐỘNG QUA SETTON ─────────────────────────────────────────────────────
+// SetTon (Apps Script bot Lark, giai đoạn 25) có action 'dash_set_ton': nhận các dòng "HN|SG SKU SỐ", chạy ĐÚNG logic
+// lệnh Lark (áp mọi shop có SKU trong DB_SKU, vẫn áp Black List), gửi báo cáo vào nhóm Lark + tính lại combo.
+// URL Web App + mã DASH_KEY lưu localStorage của trình duyệt này (dashboard public trên GitHub → không ghi mã vào code).
+const SKULOI_SETTON_CFG_KEY = 'h2_setton_cfg';
+const SKULOI_SETTON_CHUNK = 30;
+function skuloiSettonCfg() {
+  try { const c = JSON.parse(localStorage.getItem(SKULOI_SETTON_CFG_KEY) || '{}'); return (c && c.url && c.key) ? c : null; } catch (e) { return null; }
+}
+function skuloiSettonSetup() {
+  const cur = skuloiSettonCfg() || {};
+  const url = prompt('URL Web App của SetTon (Apps Script bot Lark — Triển khai › Quản lý triển khai › URL ứng dụng web, dạng https://script.google.com/macros/s/…/exec):', cur.url || '');
+  if (url === null) return null;
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(url.trim())) { alert('URL không đúng dạng https://script.google.com/macros/s/…/exec'); return null; }
+  const key = prompt('Mã DASH_KEY (đúng chuỗi anh đặt trong Script Properties của SetTon):', cur.key || '');
+  if (key === null) return null;
+  if (key.trim().length < 12) { alert('DASH_KEY phải dài ít nhất 12 ký tự.'); return null; }
+  const cfg = { url: url.trim(), key: key.trim() };
+  try { localStorage.setItem(SKULOI_SETTON_CFG_KEY, JSON.stringify(cfg)); } catch (e) { }
+  skuloiLog('⚙ Đã lưu cấu hình SetTon trên trình duyệt này.', 'ok');
+  return cfg;
+}
+async function skuloiAutoSetTon() {
+  const btn = document.getElementById('skuloi-auto-btn');
+  if (btn && btn.disabled) return;
+  const rows = (SKULOI.activeRows || []).slice();
+  if (!rows.length) { skuloiLog('⚠ Không có dòng nào cần set.', 'warn'); return; }
+  if (!SKULOI.selectedShop) {
+    alert('⚠ Vui lòng chọn "Shop đang set tồn" ở dropdown trước (để ghi log chống set trùng 24h đúng shop).');
+    document.getElementById('skuloi-shop-select')?.focus();
+    return;
+  }
+  const cfg = skuloiSettonCfg() || skuloiSettonSetup();
+  if (!cfg) return;
+  const nHn = rows.filter(r => r.kho === 'HN').length, nSg = rows.length - nHn;
+  if (!confirm(`Set tồn THẬT trên Shopee qua SetTon cho ${rows.length} dòng (HN ${nHn} · SG ${nSg})?\n\nGiống hệt gửi lệnh vào nhóm Lark: áp cho MỌI shop có SKU đó, vẫn áp Black List, báo cáo gửi vào nhóm Lark.`)) return;
+  if (btn) { btn.disabled = true; btn.style.opacity = .6; }
+  const chunks = [];
+  for (let i = 0; i < rows.length; i += SKULOI_SETTON_CHUNK) chunks.push(rows.slice(i, i + SKULOI_SETTON_CHUNK));
+  const shopName = (SHOPS[SKULOI.selectedShop] && SHOPS[SKULOI.selectedShop].name) || SKULOI.selectedShop;
+  let okRows = 0, failLines = 0, larkAll = true;
+  try {
+    for (let ci = 0; ci < chunks.length; ci++) {
+      const chunk = chunks[ci];
+      skuloiLog(`⏳ SetTon đợt ${ci + 1}/${chunks.length}: ${chunk.length} dòng...`);
+      let j;
+      try {
+        const resp = await fetch(cfg.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'dash_set_ton', key: cfg.key, lines: chunk.map(r => `${r.kho} ${r.sku} ${r.qty}`), source: `${shopName} · ${(SKULOI.resultFileNames || []).join(', ').slice(0, 60)}` }) });
+        j = await resp.json();
+      } catch (e) { throw new Error('Không gọi được SetTon (' + e.message + ') — kiểm tra URL / đã Deploy phiên bản mới giai đoạn 25 chưa'); }
+      if (!j || !j.ok) throw new Error((j && j.error) || 'SetTon báo lỗi không rõ');
+      if (!j.larkSent) larkAll = false;
+      // SKU+kho có ít nhất 1 shop set OK → coi là đã gửi, ghi log chống trùng 24h
+      const okKey = new Set((j.results || []).filter(r => r.ok).map(r => `${String(r.kho).toUpperCase()}_${String(r.sku).toUpperCase()}`));
+      const done = chunk.filter(r => okKey.has(`${r.kho}_${String(r.sku).toUpperCase()}`));
+      const fails = (j.results || []).filter(r => !r.ok);
+      failLines += fails.length; okRows += done.length;
+      if (done.length) {
+        const fsBatch = db.batch(), sentAtMs = Date.now();
+        done.forEach(r => {
+          const docId = `${r.kho}_${r.sku}`;
+          fsBatch.set(db.collection(SKULOI_LOG_COLLECTION).doc(docId), { kho: r.kho, sku: r.sku, qty: r.qty, shopId: SKULOI.selectedShop, shopName, sentAtMs, via: 'dashboard' });
+          SKULOI.dedupMap.set(docId, { qty: r.qty, shopName, sentAtMs });
+        });
+        try { await fsBatch.commit(); } catch (e) { skuloiLog(`⚠ Set OK nhưng ghi log chống trùng lỗi (${e.message}).`, 'warn'); }
+      }
+      skuloiLog(`${fails.length ? '⚠' : '✅'} Đợt ${ci + 1}/${chunks.length}: ${j.okCount} lượt set OK (theo shop), ${j.failCount} lỗi${j.blacklistNote || ''}${fails.length ? ' — ' + fails.slice(0, 5).map(f => `${f.kho} ${f.sku}${f.shopName ? ' (' + f.shopName + ')' : ''}: ${f.reason}`).join(' | ') + (fails.length > 5 ? ` … +${fails.length - 5}` : '') : ''}`, fails.length ? 'warn' : 'ok');
+      const bl = (j.results || []).filter(r => r.ok && r.blacklist).length;
+      if (bl) skuloiLog(`🚫 ${bl} lượt bị Black List ép về 0 (đúng quy tắc SetTon).`, 'warn');
+    }
+    skuloiLog(`🏁 Xong: ${okRows}/${rows.length} dòng đã set qua SetTon${failLines ? `, ${failLines} lượt lỗi (xem dòng ⚠ ở trên)` : ''}. ${larkAll ? 'Báo cáo đã gửi vào nhóm Lark.' : '⚠ SetTon chưa có nhóm Lark để gửi báo cáo (gõ 1 lệnh set tồn bất kỳ trong nhóm Lark 1 lần để SetTon nhớ nhóm).'}`, failLines ? 'warn' : 'ok');
+    skuloiRenderPreview();
+  } catch (e) {
+    skuloiLog('❌ ' + e.message + (okRows ? ` (đã set xong ${okRows} dòng trước khi lỗi)` : ''), 'err');
+    if (/DASH_KEY/.test(e.message)) { try { localStorage.removeItem(SKULOI_SETTON_CFG_KEY); } catch (x) { } }
+  } finally {
+    const b = document.getElementById('skuloi-auto-btn');
+    if (b) { b.disabled = false; b.style.opacity = ''; }
+  }
 }
 
 function skuloiSetBatchSize(val) {
