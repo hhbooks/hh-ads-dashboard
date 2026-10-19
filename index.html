@@ -3004,7 +3004,9 @@
 
       <div id="tfm-preview" style="display:none;background:#f8f4fd;border:1px solid #d5b8f0;border-radius:8px;padding:10px 14px;margin-bottom:10px"></div>
       <div id="tfm-log" class="drive-log"></div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px;align-items:stretch">
+        <!-- ★ 2026-10-19 (xác nhận Tân): chọn xuất TẤT CẢ shop đã tải hoặc RIÊNG 1 shop -->
+        <select id="tfm-export-shop" onchange="tfmOnExportShopChange()" style="display:none;min-width:240px;padding:9px 12px;border:1.5px solid var(--text);border-radius:8px;font-size:13px;font-weight:600;background:white;cursor:pointer"></select>
         <button id="tfm-export-btn" class="btn-drive-sync" style="display:none;max-width:380px" onclick="tfmExportFile()">📤 Xuất File Mass (Tất Cả Shop Đã Tải)</button>
       </div>
     </div>
@@ -8263,8 +8265,34 @@ let TFM = {
   tonFileNames: [],     // list tên tất cả file tồn đã nạp
   previewRows: [],      // kết quả tính toán preview của file mass đang chọn (chưa ghi file)
   previewFilter: 'all', // 'all' | 'matched' | 'missing-component' | 'unmatched'
-  previewSearch: ''     // text tìm kiếm theo SKU / tên SP / mã phân loại
+  previewSearch: '',    // text tìm kiếm theo SKU / tên SP / mã phân loại
+  exportSel: 'all'      // ★ 2026-10-19: 'all' hoặc chỉ số file trong massFiles (xuất riêng 1 shop)
 };
+
+// ★ 2026-10-19 (xác nhận Tân): ô chọn shop cạnh nút Xuất — "Tất cả shop đã tải" hoặc riêng 1 shop.
+function tfmEntryLabel(entry) {
+  return entry.driveShop || String(entry.fileName || '').replace(/\.xlsx?$/i, '').replace(/^MASS - /, '') || 'File';
+}
+function tfmRenderExportShop(show) {
+  const sel = document.getElementById('tfm-export-shop');
+  const btn = document.getElementById('tfm-export-btn');
+  if (!sel) return;
+  sel.style.display = show ? '' : 'none';
+  if (!show) return;
+  if (TFM.exportSel !== 'all' && !(Number(TFM.exportSel) < TFM.massFiles.length)) TFM.exportSel = 'all';
+  sel.innerHTML = `<option value="all">🏪 Tất cả shop đã tải (${TFM.massFiles.length})</option>` +
+    TFM.massFiles.map((f, i) => `<option value="${i}">${escHtmlTfm(tfmEntryLabel(f))}</option>`).join('');
+  sel.value = String(TFM.exportSel);
+  if (btn) btn.textContent = TFM.exportSel === 'all'
+    ? '📤 Xuất File Mass (Tất Cả Shop Đã Tải)'
+    : '📤 Xuất File Mass — ' + tfmEntryLabel(TFM.massFiles[Number(TFM.exportSel)]);
+}
+function tfmOnExportShopChange() {
+  const sel = document.getElementById('tfm-export-shop');
+  TFM.exportSel = sel && sel.value !== 'all' ? Number(sel.value) : 'all';
+  tfmRenderExportShop(true);
+}
+function escHtmlTfm(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
 function tfmLog(msg, type) {
   const el = document.getElementById('tfm-log');
@@ -8280,6 +8308,7 @@ function tfmCheckReady() {
   const filesReady = TFM.massFiles.length > 0 && TFM.tonMap.size > 0 && !!TFM.kho;
   const btn = document.getElementById('tfm-export-btn');
   if (btn) btn.style.display = filesReady ? 'inline-flex' : 'none';
+  tfmRenderExportShop(filesReady);
   if (filesReady) tfmRunPreview();
 }
 
@@ -8755,7 +8784,11 @@ async function tfmExportFile() {
   const isDual = TFM.kho === 'dual';
   const usedNames = new Set(); // chống trùng tên file khi suy ra shop label giống nhau — xác nhận Tân 2026-09-28
   let fileIdx = 0;
-  for (const entry of TFM.massFiles) {
+  // ★ 2026-10-19: chỉ xuất shop đang chọn ở ô chọn (mặc định: tất cả shop đã tải)
+  const exportList = TFM.exportSel === 'all' ? TFM.massFiles : [TFM.massFiles[Number(TFM.exportSel)]].filter(Boolean);
+  if (!exportList.length) { tfmLog('⚠ Shop đã chọn không còn trong danh sách file Mass — chọn lại.', 'warn'); return; }
+  if (TFM.exportSel !== 'all') tfmLog(`▶ Xuất riêng shop: ${tfmEntryLabel(exportList[0])}`);
+  for (const entry of exportList) {
     const ws = entry.ws;
     const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
     const { headerRow, idx, khoCols } = entry;
@@ -8803,7 +8836,8 @@ async function tfmExportFile() {
 }
 
 function tfmResetAll() {
-  TFM.massFiles = []; TFM.previewFileIndex = 0;
+  TFM.massFiles = []; TFM.previewFileIndex = 0; TFM.exportSel = 'all';
+  tfmRenderExportShop(false);
   TFM.tonMap = new Map(); TFM.tonMapHn = new Map(); TFM.tonMapHcm = new Map(); TFM.kho = null; TFM.tonFileName = ''; TFM.tonFileNames = [];
   ['tfm-status-mass','tfm-status-ton'].forEach(id => {
     const el = document.getElementById(id); if (el) el.textContent = 'chưa chọn';
