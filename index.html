@@ -15766,15 +15766,7 @@ async function tqDoCatalogSync() {
     tqCatalogLog(`✅ Đã đồng bộ ${count} SKU vào danh mục.`, 'ok');
     await tqLoadData();
 
-    // Báo ngay các SKU mới trong danh mục nhưng chưa có bản ghi tồn kho thật — để dễ kiểm soát
-    // (xem thêm đầy đủ tại bộ lọc "🆕 SKU mới — chưa có tồn" ở bảng Tổng Quan Tồn Kho bên dưới).
-    const newCount = (TQ.newSkuRows || []).length;
-    if (newCount > 0) {
-      const sample = TQ.newSkuRows.slice(0, 5).map(r => `${r.sku}${r.ten ? ' - ' + r.ten : ''}`).join(' | ');
-      tqCatalogLog(`🆕 Phát hiện ${newCount} SKU mới trong danh mục — CHƯA có tồn kho thật (chưa qua bước "Lưu Tồn Kho Thật" ở Cập Nhật Tồn Kho): ${sample}${newCount > 5 ? ` … và ${newCount - 5} mã khác` : ''}.`, 'warn');
-    } else {
-      tqCatalogLog('✅ Không có SKU mới nào đang thiếu tồn kho thật.', 'ok');
-    }
+    // 2026-10-19 (Tân): bỏ dòng cảnh báo "Phát hiện N SKU mới chưa có tồn kho thật" trong log đồng bộ — gây rối mắt.
     // ★ 2026-10-19 (xác nhận Tân): đồng bộ danh mục kéo luôn tab "MAP SW" (tiện ích Tải Đơn ghi lên) vào Map Salework
     try { await tqSyncMapSwFromSheet(_catalogDriveToken); }
     catch (mErr) { tqCatalogLog('❌ Lỗi nạp MAP SW: ' + mErr.message + ' — Map Salework giữ nguyên bản cũ.', 'err'); }
