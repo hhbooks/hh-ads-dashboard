@@ -2865,7 +2865,7 @@
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;padding-top:14px;border-top:1px dashed var(--border)">
         <div>
           <input type="file" id="tqo-map-input" accept=".xlsx,.xls" style="display:none" onchange="tqoHandleMapFile(this)">
-          <button class="sw-upload-btn" onclick="document.getElementById('tqo-map-input').click()">📂 Tải file MAP Shopee</button>
+          <button class="sw-upload-btn" onclick="document.getElementById('tqo-map-input').click()" title="Dự phòng — bình thường Map Salework tự nạp từ tab MAP SW khi bấm Đồng Bộ Danh Mục SKU">📂 Tải file MAP Shopee (dự phòng)</button>
           <button id="mapsw-push-btn" class="sw-upload-btn" style="display:none" onclick="mapSwPushToSheet()">📤 Đẩy lên SKU Tổng (Tab MAP SW)</button>
         </div>
         <div>
@@ -5227,6 +5227,135 @@ async function sharedLoadTonLookup(force) {
 }
 
 // ── Tải file Map Salework dùng chung (1 file áp dụng cho cả Deli/Liên Kết/Huy Hoàng) ──
+// ★ Lõi dùng chung (tách 2026-10-19, xác nhận Tân): dựng 3 tầng Map Salework (Mã phân loại / ID SP / Shop+Tên SP)
+// từ 1 workbook rồi lưu Firestore map_salework_ton. Dùng cho CẢ 2 đường: (1) nút "Tải file MAP Shopee" (dự phòng),
+// (2) "Đồng Bộ Danh Mục SKU" đọc tab MAP SW của SKU Tổng (tiện ích Tải Đơn ghi lên) — cùng 1 hàm nên map ra y hệt.
+async function tqoSaveSaleworkMapFromWb(wb, fileName) {
+  const map = new Map();
+  const byIdSp = new Map();
+  const byName = new Map(); // Tầng 3 — xem giải thích ở khai báo SHARED phía trên
+  let totalRows = 0;
+  wb.SheetNames.forEach(sheetName => {
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+    if (!rows.length) return;
+    let headerRow = -1, header = null;
+    for (let i = 0; i < Math.min(rows.length, 5); i++) {
+      if (rows[i] && rows[i].some(c => String(c||'').trim() === 'Mã phân loại')) {
+        headerRow = i; header = rows[i].map(c => String(c||'').trim()); break;
+      }
+    }
+    if (headerRow === -1) return;
+    const idx = {
+      maPhanLoai: header.indexOf('Mã phân loại'),
+      maSalework: header.indexOf('Mã Salework liên kết'),
+      comboQty:   header.indexOf('Số lượng combo'),
+      tenSp:      header.indexOf('Tên sản phẩm'),
+      idSp:       header.indexOf('ID SP Shopee'),
+      // Cột phân loại/combo trong file thực tế tên là "Phân loại / Combo" — so khớp qua
+      // giaNormText để không trượt vì hoa/thường hay khoảng trắng (bản vá cũ từ trang
+      // "Cập nhật đơn hằng ngày", gộp về đây 2026-08-09).
+      tenPhanLoai: (() => {
+        let i = header.findIndex(h => giaNormText(h) === 'phân loại / combo');
+        if (i === -1) i = header.findIndex(h => giaNormText(h).includes('tên phân loại'));
+        if (i === -1) i = header.findIndex(h => giaNormText(h).includes('phân loại') && !giaNormText(h).includes('mã'));
+        return i;
+      })(),
+      // Cột Shop tường minh (nếu có) — dùng cho Tầng 3, KHÔNG coi cả sheet thuộc về đúng 1 shop.
+      shop: header.findIndex(h => { const n = giaNormText(h); return n === 'shop' || n === 'tên shop' || n === 'ten shop'; }),
+    };
+    if (idx.maPhanLoai === -1 || idx.maSalework === -1) return;
+    for (let i = headerRow + 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r) continue;
+      const key = r[idx.maPhanLoai], maSalework = r[idx.maSalework];
+      if (key == null || String(key).trim() === '') continue;
+      const keyStr = String(key).trim();
+      const comboQty = Number(r[idx.comboQty]) || 1;
+      const maSaleworkStr = (maSalework != null && String(maSalework).trim() !== '') ? String(maSalework).trim() : null;
+      const tenPhanLoaiStr = (idx.tenPhanLoai !== -1 && r[idx.tenPhanLoai] != null) ? String(r[idx.tenPhanLoai]).trim() : '';
+      const comp = { maSalework: maSaleworkStr, comboQty, tenSp: r[idx.tenSp] || '', tenPhanLoai: tenPhanLoaiStr, maPhanLoai: keyStr, sheet: sheetName };
+      if (!map.has(keyStr)) map.set(keyStr, []);
+      map.get(keyStr).push(comp);
+      const idSpVal = (idx.idSp !== -1 && r[idx.idSp] != null) ? String(r[idx.idSp]).trim() : '';
+      if (idSpVal) {
+        if (!byIdSp.has(idSpVal)) byIdSp.set(idSpVal, []);
+        byIdSp.get(idSpVal).push(comp);
+      }
+      // Tầng 3 (gộp từ giaHandleSaleworkMapFile cũ, 2026-08-09, xác nhận Tân): khớp theo
+      // Shop + Tên sản phẩm — dùng cho đơn hàng Shopee ở trang "Cập nhật đơn hằng ngày"
+      // (file order không có sẵn Mã phân loại/ID SP Shopee như file Tồn Kho).
+      if (comp.tenSp) {
+        const shopVal = (idx.shop !== -1 && r[idx.shop] != null && String(r[idx.shop]).trim() !== '')
+          ? String(r[idx.shop]).trim()
+          : sheetName;
+        const nameKey = giaNormText(shopVal) + '||' + giaNormText(comp.tenSp);
+        if (!byName.has(nameKey)) byName.set(nameKey, []);
+        byName.get(nameKey).push({ tenPhanLoaiNorm: giaStripBrackets(tenPhanLoaiStr), maSalework: maSaleworkStr, comboQty });
+      }
+      totalRows++;
+    }
+  });
+  if (!map.size) throw new Error('Không tìm thấy dữ liệu hợp lệ ở bất kỳ sheet nào (cần cột "Mã phân loại" và "Mã Salework liên kết")');
+
+  const mapJson = JSON.stringify(Array.from(map.entries()));
+  const byIdSpJson = JSON.stringify(Array.from(byIdSp.entries()));
+  const byNameJson = JSON.stringify(Array.from(byName.entries()));
+  const oldSnap = await db.collection('map_salework_ton').doc('all').get();
+  const oldData = oldSnap.exists ? oldSnap.data() : {};
+  const mapChunkCount = await giaSaveChunkedField('map_salework_ton_chunks', 'map', mapJson);
+  const idSpChunkCount = await giaSaveChunkedField('map_salework_ton_chunks', 'idsp', byIdSpJson);
+  const byNameChunkCount = await giaSaveChunkedField('map_salework_ton_chunks', 'byname', byNameJson);
+  const cleanupDeletes = [];
+  for (let i = mapChunkCount; i < (oldData.mapChunkCount || 0); i++) cleanupDeletes.push(db.collection('map_salework_ton_chunks').doc(`map_${i}`).delete());
+  for (let i = idSpChunkCount; i < (oldData.idSpChunkCount || 0); i++) cleanupDeletes.push(db.collection('map_salework_ton_chunks').doc(`idsp_${i}`).delete());
+  for (let i = byNameChunkCount; i < (oldData.byNameChunkCount || 0); i++) cleanupDeletes.push(db.collection('map_salework_ton_chunks').doc(`byname_${i}`).delete());
+  if (cleanupDeletes.length) await Promise.all(cleanupDeletes);
+
+  const updatedAt = new Date().toISOString();
+  await db.collection('map_salework_ton').doc('all').set({
+    fileName: fileName, rowCount: totalRows, sheetCount: wb.SheetNames.length,
+    mapChunkCount, idSpChunkCount, byNameChunkCount, updatedAt
+  });
+
+  SHARED.saleworkMap = map; SHARED.saleworkByIdSp = byIdSp; SHARED.saleworkByName = byName;
+  SHARED.saleworkFileName = fileName; SHARED.saleworkUpdatedAt = updatedAt;
+
+  // Lưu raw rows để dùng cho tính năng đẩy lên Google Sheet tab MAP SW
+  const header = ['STT','Sàn','Tên shop','Tên sản phẩm','ID SP Shopee','Mã phân loại','Phân loại / Combo','SKU Shopee','Mã Salework liên kết','Số lượng combo'];
+  const rawRows = [header];
+  let sttCounter = 1;
+  wb.SheetNames.forEach(sheetName => {
+    const ws2 = wb.Sheets[sheetName];
+    const rows2 = XLSX.utils.sheet_to_json(ws2, { header: 1, defval: null });
+    let hRow = -1;
+    for (let i = 0; i < Math.min(rows2.length, 5); i++) {
+      if (rows2[i] && rows2[i].some(c => String(c||'').trim() === 'Mã phân loại')) { hRow = i; break; }
+    }
+    if (hRow === -1) return;
+    const h2 = rows2[hRow].map(c => String(c||'').trim());
+    const idxR = { stt: h2.indexOf('STT'), san: h2.indexOf('Sàn'), tenShop: h2.indexOf('Tên shop'), tenSp: h2.indexOf('Tên sản phẩm'), idSp: h2.indexOf('ID SP Shopee'), maPL: h2.indexOf('Mã phân loại'), plCombo: h2.indexOf('Phân loại / Combo'), skuShopee: h2.indexOf('SKU Shopee'), maSW: h2.indexOf('Mã Salework liên kết'), comboQty2: h2.indexOf('Số lượng combo') };
+    for (let i = hRow + 1; i < rows2.length; i++) {
+      const r = rows2[i];
+      if (!r || r.every(v => v == null || String(v).trim() === '')) continue;
+      rawRows.push([
+        sttCounter++,
+        idxR.san !== -1 ? (r[idxR.san] ?? '') : '',
+        idxR.tenShop !== -1 ? (r[idxR.tenShop] ?? '') : '',
+        idxR.tenSp !== -1 ? (r[idxR.tenSp] ?? '') : '',
+        idxR.idSp !== -1 ? (r[idxR.idSp] ?? '') : '',
+        idxR.maPL !== -1 ? (r[idxR.maPL] ?? '') : '',
+        idxR.plCombo !== -1 ? (r[idxR.plCombo] ?? '') : '',
+        idxR.skuShopee !== -1 ? (r[idxR.skuShopee] ?? '') : '',
+        idxR.maSW !== -1 ? (r[idxR.maSW] ?? '') : '',
+        idxR.comboQty2 !== -1 ? (r[idxR.comboQty2] ?? 1) : 1,
+      ]);
+    }
+  });
+  SHARED.mapRawRows = rawRows;
+  return { totalRows, mapSize: map.size, idSpSize: byIdSp.size, updatedAt, rawRows };
+}
+
 function tqoHandleMapFile(input) {
   const file = input.files[0];
   if (!file) return;
@@ -5236,128 +5365,7 @@ function tqoHandleMapFile(input) {
   reader.onload = async (e) => {
     try {
       const wb = XLSX.read(e.target.result, { type: 'array' });
-      const map = new Map();
-      const byIdSp = new Map();
-      const byName = new Map(); // Tầng 3 — xem giải thích ở khai báo SHARED phía trên
-      let totalRows = 0;
-      wb.SheetNames.forEach(sheetName => {
-        const ws = wb.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-        if (!rows.length) return;
-        let headerRow = -1, header = null;
-        for (let i = 0; i < Math.min(rows.length, 5); i++) {
-          if (rows[i] && rows[i].some(c => String(c||'').trim() === 'Mã phân loại')) {
-            headerRow = i; header = rows[i].map(c => String(c||'').trim()); break;
-          }
-        }
-        if (headerRow === -1) return;
-        const idx = {
-          maPhanLoai: header.indexOf('Mã phân loại'),
-          maSalework: header.indexOf('Mã Salework liên kết'),
-          comboQty:   header.indexOf('Số lượng combo'),
-          tenSp:      header.indexOf('Tên sản phẩm'),
-          idSp:       header.indexOf('ID SP Shopee'),
-          // Cột phân loại/combo trong file thực tế tên là "Phân loại / Combo" — so khớp qua
-          // giaNormText để không trượt vì hoa/thường hay khoảng trắng (bản vá cũ từ trang
-          // "Cập nhật đơn hằng ngày", gộp về đây 2026-08-09).
-          tenPhanLoai: (() => {
-            let i = header.findIndex(h => giaNormText(h) === 'phân loại / combo');
-            if (i === -1) i = header.findIndex(h => giaNormText(h).includes('tên phân loại'));
-            if (i === -1) i = header.findIndex(h => giaNormText(h).includes('phân loại') && !giaNormText(h).includes('mã'));
-            return i;
-          })(),
-          // Cột Shop tường minh (nếu có) — dùng cho Tầng 3, KHÔNG coi cả sheet thuộc về đúng 1 shop.
-          shop: header.findIndex(h => { const n = giaNormText(h); return n === 'shop' || n === 'tên shop' || n === 'ten shop'; }),
-        };
-        if (idx.maPhanLoai === -1 || idx.maSalework === -1) return;
-        for (let i = headerRow + 1; i < rows.length; i++) {
-          const r = rows[i];
-          if (!r) continue;
-          const key = r[idx.maPhanLoai], maSalework = r[idx.maSalework];
-          if (key == null || String(key).trim() === '') continue;
-          const keyStr = String(key).trim();
-          const comboQty = Number(r[idx.comboQty]) || 1;
-          const maSaleworkStr = (maSalework != null && String(maSalework).trim() !== '') ? String(maSalework).trim() : null;
-          const tenPhanLoaiStr = (idx.tenPhanLoai !== -1 && r[idx.tenPhanLoai] != null) ? String(r[idx.tenPhanLoai]).trim() : '';
-          const comp = { maSalework: maSaleworkStr, comboQty, tenSp: r[idx.tenSp] || '', tenPhanLoai: tenPhanLoaiStr, maPhanLoai: keyStr, sheet: sheetName };
-          if (!map.has(keyStr)) map.set(keyStr, []);
-          map.get(keyStr).push(comp);
-          const idSpVal = (idx.idSp !== -1 && r[idx.idSp] != null) ? String(r[idx.idSp]).trim() : '';
-          if (idSpVal) {
-            if (!byIdSp.has(idSpVal)) byIdSp.set(idSpVal, []);
-            byIdSp.get(idSpVal).push(comp);
-          }
-          // Tầng 3 (gộp từ giaHandleSaleworkMapFile cũ, 2026-08-09, xác nhận Tân): khớp theo
-          // Shop + Tên sản phẩm — dùng cho đơn hàng Shopee ở trang "Cập nhật đơn hằng ngày"
-          // (file order không có sẵn Mã phân loại/ID SP Shopee như file Tồn Kho).
-          if (comp.tenSp) {
-            const shopVal = (idx.shop !== -1 && r[idx.shop] != null && String(r[idx.shop]).trim() !== '')
-              ? String(r[idx.shop]).trim()
-              : sheetName;
-            const nameKey = giaNormText(shopVal) + '||' + giaNormText(comp.tenSp);
-            if (!byName.has(nameKey)) byName.set(nameKey, []);
-            byName.get(nameKey).push({ tenPhanLoaiNorm: giaStripBrackets(tenPhanLoaiStr), maSalework: maSaleworkStr, comboQty });
-          }
-          totalRows++;
-        }
-      });
-      if (!map.size) throw new Error('Không tìm thấy dữ liệu hợp lệ ở bất kỳ sheet nào (cần cột "Mã phân loại" và "Mã Salework liên kết")');
-
-      const mapJson = JSON.stringify(Array.from(map.entries()));
-      const byIdSpJson = JSON.stringify(Array.from(byIdSp.entries()));
-      const byNameJson = JSON.stringify(Array.from(byName.entries()));
-      const oldSnap = await db.collection('map_salework_ton').doc('all').get();
-      const oldData = oldSnap.exists ? oldSnap.data() : {};
-      const mapChunkCount = await giaSaveChunkedField('map_salework_ton_chunks', 'map', mapJson);
-      const idSpChunkCount = await giaSaveChunkedField('map_salework_ton_chunks', 'idsp', byIdSpJson);
-      const byNameChunkCount = await giaSaveChunkedField('map_salework_ton_chunks', 'byname', byNameJson);
-      const cleanupDeletes = [];
-      for (let i = mapChunkCount; i < (oldData.mapChunkCount || 0); i++) cleanupDeletes.push(db.collection('map_salework_ton_chunks').doc(`map_${i}`).delete());
-      for (let i = idSpChunkCount; i < (oldData.idSpChunkCount || 0); i++) cleanupDeletes.push(db.collection('map_salework_ton_chunks').doc(`idsp_${i}`).delete());
-      for (let i = byNameChunkCount; i < (oldData.byNameChunkCount || 0); i++) cleanupDeletes.push(db.collection('map_salework_ton_chunks').doc(`byname_${i}`).delete());
-      if (cleanupDeletes.length) await Promise.all(cleanupDeletes);
-
-      const updatedAt = new Date().toISOString();
-      await db.collection('map_salework_ton').doc('all').set({
-        fileName: file.name, rowCount: totalRows, sheetCount: wb.SheetNames.length,
-        mapChunkCount, idSpChunkCount, byNameChunkCount, updatedAt
-      });
-
-      SHARED.saleworkMap = map; SHARED.saleworkByIdSp = byIdSp; SHARED.saleworkByName = byName;
-      SHARED.saleworkFileName = file.name; SHARED.saleworkUpdatedAt = updatedAt;
-
-      // Lưu raw rows để dùng cho tính năng đẩy lên Google Sheet tab MAP SW
-      const header = ['STT','Sàn','Tên shop','Tên sản phẩm','ID SP Shopee','Mã phân loại','Phân loại / Combo','SKU Shopee','Mã Salework liên kết','Số lượng combo'];
-      const rawRows = [header];
-      let sttCounter = 1;
-      wb.SheetNames.forEach(sheetName => {
-        const ws2 = wb.Sheets[sheetName];
-        const rows2 = XLSX.utils.sheet_to_json(ws2, { header: 1, defval: null });
-        let hRow = -1;
-        for (let i = 0; i < Math.min(rows2.length, 5); i++) {
-          if (rows2[i] && rows2[i].some(c => String(c||'').trim() === 'Mã phân loại')) { hRow = i; break; }
-        }
-        if (hRow === -1) return;
-        const h2 = rows2[hRow].map(c => String(c||'').trim());
-        const idxR = { stt: h2.indexOf('STT'), san: h2.indexOf('Sàn'), tenShop: h2.indexOf('Tên shop'), tenSp: h2.indexOf('Tên sản phẩm'), idSp: h2.indexOf('ID SP Shopee'), maPL: h2.indexOf('Mã phân loại'), plCombo: h2.indexOf('Phân loại / Combo'), skuShopee: h2.indexOf('SKU Shopee'), maSW: h2.indexOf('Mã Salework liên kết'), comboQty2: h2.indexOf('Số lượng combo') };
-        for (let i = hRow + 1; i < rows2.length; i++) {
-          const r = rows2[i];
-          if (!r || r.every(v => v == null || String(v).trim() === '')) continue;
-          rawRows.push([
-            sttCounter++,
-            idxR.san !== -1 ? (r[idxR.san] ?? '') : '',
-            idxR.tenShop !== -1 ? (r[idxR.tenShop] ?? '') : '',
-            idxR.tenSp !== -1 ? (r[idxR.tenSp] ?? '') : '',
-            idxR.idSp !== -1 ? (r[idxR.idSp] ?? '') : '',
-            idxR.maPL !== -1 ? (r[idxR.maPL] ?? '') : '',
-            idxR.plCombo !== -1 ? (r[idxR.plCombo] ?? '') : '',
-            idxR.skuShopee !== -1 ? (r[idxR.skuShopee] ?? '') : '',
-            idxR.maSW !== -1 ? (r[idxR.maSW] ?? '') : '',
-            idxR.comboQty2 !== -1 ? (r[idxR.comboQty2] ?? 1) : 1,
-          ]);
-        }
-      });
-      SHARED.mapRawRows = rawRows;
+      const { updatedAt } = await tqoSaveSaleworkMapFromWb(wb, file.name);
       const pushBtn = document.getElementById('mapsw-push-btn');
       if (pushBtn) pushBtn.style.display = 'inline-flex';
 
@@ -5496,6 +5504,20 @@ async function mapSwDoWrite() {
       mapSwLog(`✏️ Đã ghi dòng ${startRow} → ${start + chunk.length}...`);
     }
 
+    // ★ 2026-10-19: ghi DẤU HOÀN TẤT L1:R1 (cùng quy ước với tiện ích Tải Đơn — Apps Script push_map_sw) để
+    // "Đồng Bộ Danh Mục SKU" biết tab đã ghi xong và nạp được. Bước clear ở trên đã xoá dấu cũ.
+    const markNow = new Date();
+    const markStamp = markNow.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(',', '');
+    const markRange = `${tabName}!L1:R1`;
+    const markResp = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(markRange)}?valueInputOption=RAW`,
+      {
+        method: 'PUT',
+        headers: { Authorization: 'Bearer ' + _mapSwToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ range: markRange, majorDimension: 'ROWS', values: [['Cập nhật lúc', markStamp, 'Số dòng', rows.length - 1, 'Nguồn', 'Dashboard (tải file MAP)', markNow.getTime()]] })
+      }
+    );
+    if (!markResp.ok) mapSwLog('⚠ Đã ghi dữ liệu nhưng chưa ghi được dấu hoàn tất (L1:R1) — "Đồng Bộ Danh Mục SKU" sẽ chưa nạp bản này.', 'warn');
     mapSwLog(`✅ Xong! Đã đẩy ${rows.length - 1} dòng lên tab "${tabName}" trong SKU Tổng.`, 'ok');
   } catch (err) {
     mapSwLog('❌ Lỗi: ' + err.message, 'err');
@@ -15393,6 +15415,54 @@ function tqBuildRows() {
   TQ.newSkuRows = newSkuRows;
 }
 
+// ── MAP SW từ Google Sheet (2026-10-19, xác nhận Tân) ─────────────────────────────────────────────
+// Tiện ích Tải Đơn (card "Tải Thông Tin SP" → "Lấy MAP SW") lấy liên kết SKU Salework 6 shop rồi ghi đè tab
+// "MAP SW" của SKU Tổng, cuối cùng mới ghi DẤU HOÀN TẤT L1:R1 = [Cập nhật lúc | thời điểm | Số dòng | n | Nguồn | nguồn | epoch ms].
+// Hàm này (gọi trong "Đồng Bộ Danh Mục SKU") chỉ nạp khi có dấu + số dòng khớp, rồi dựng Map bằng ĐÚNG hàm của nút
+// upload file (tqoSaveSaleworkMapFromWb) → kết quả map y hệt. Không nạp đè khi: thiếu dấu/lệch dòng (đang ghi dở),
+// bản trên Sheet đã nạp rồi (cùng epoch), hoặc Map trên dashboard MỚI HƠN (vừa tải file MAP tay — nút dự phòng).
+async function tqSyncMapSwFromSheet(token) {
+  tqCatalogLog('📥 Đang tải tab "MAP SW" (Map Salework) từ Google Sheet...');
+  const ranges = ["'MAP SW'!A:J", "'MAP SW'!L1:R1"].map(r => 'ranges=' + encodeURIComponent(r)).join('&');
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SKU_CATALOG_SHEET_ID}/values:batchGet?${ranges}&majorDimension=ROWS&valueRenderOption=UNFORMATTED_VALUE`;
+  const resp = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+  if (resp.status === 403) {
+    const t = await resp.text().catch(() => '');
+    let reason = ''; try { reason = JSON.parse(t).error.message; } catch (e) { reason = t.slice(0, 200); }
+    tqCatalogLog('❌ Không đọc được tab MAP SW (403): ' + (reason || 'không có quyền') + ' — Map Salework giữ nguyên.', 'err');
+    return;
+  }
+  if (resp.status === 400 || resp.status === 404) { tqCatalogLog('❌ Không tìm thấy tab "MAP SW" trong SKU Tổng — Map Salework giữ nguyên.', 'err'); return; }
+  if (!resp.ok) { const t = await resp.text().catch(() => ''); throw new Error('HTTP ' + resp.status + (t ? ' — ' + t.slice(0, 200) : '')); }
+  const data = await resp.json();
+  const vr = data.valueRanges || [];
+  const rows = (vr[0] && vr[0].values) || [];
+  const mark = ((vr[1] && vr[1].values) || [[]])[0] || [];
+  const n = Number(mark[3]) || 0, ms = Number(mark[6]) || 0, stamp = String(mark[1] || ''), src = String(mark[5] || '');
+  const dataRows = rows.slice(1).filter(r => r && r.some(v => v !== '' && v != null)).length;
+  if (!n || !ms) { tqCatalogLog('⚠ Tab MAP SW chưa có dấu hoàn tất (ô L1:R1) — có thể đang ghi dở. Map Salework giữ nguyên bản cũ. Bấm "Lấy MAP SW" trên tiện ích Tải Đơn rồi đồng bộ lại.', 'warn'); return; }
+  if (dataRows !== n) { tqCatalogLog(`⚠ Tab MAP SW lệch số dòng (dấu hoàn tất ghi ${n}, đọc được ${dataRows}) — Map Salework giữ nguyên bản cũ. Bấm lại "Lấy MAP SW" trên tiện ích.`, 'warn'); return; }
+  let curMs = 0, curMarkMs = 0, curAt = '';
+  try {
+    const snap = await db.collection('map_salework_ton').doc('all').get();
+    if (snap.exists) { const d = snap.data(); curAt = d.updatedAt || ''; curMs = Date.parse(curAt) || 0; curMarkMs = Number(d.sheetMarkMs) || 0; }
+  } catch (e) { /* không đọc được → coi như chưa có */ }
+  if (curMarkMs && curMarkMs === ms) { tqCatalogLog(`✅ Map Salework đã là bản MAP SW ${stamp} (${n.toLocaleString('vi-VN')} dòng) — không cần nạp lại.`, 'ok'); return; }
+  if (curMs > ms) {
+    tqCatalogLog(`⚠ Map Salework trên dashboard (${new Date(curMs).toLocaleString('vi-VN')}) MỚI HƠN tab MAP SW (${stamp}) — giữ nguyên (thường do vừa tải file MAP tay).`, 'warn');
+    return;
+  }
+  const vnDay = t => new Date(t + 7 * 3600000).toISOString().slice(0, 10);
+  if (vnDay(ms) !== vnDay(Date.now())) tqCatalogLog(`⚠ MAP SW là bản ${stamp}, KHÔNG phải hôm nay — vẫn nạp, nhưng nên bấm "Lấy MAP SW" trên tiện ích để có liên kết mới nhất.`, 'warn');
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'MAP SW');
+  const res = await tqoSaveSaleworkMapFromWb(wb, `Google Sheet SKU Tổng · tab MAP SW (${stamp})`);
+  await db.collection('map_salework_ton').doc('all').set({ sheetMarkMs: ms, sheetSource: src }, { merge: true });
+  const statusEl = document.getElementById('tqo-status-map');
+  if (statusEl) statusEl.textContent = new Date(res.updatedAt).toLocaleString('vi-VN');
+  tqCatalogLog(`✅ Đã nạp Map Salework từ tab MAP SW (${stamp} · ${src}): ${res.totalRows.toLocaleString('vi-VN')} dòng, ${res.mapSize.toLocaleString('vi-VN')} mã phân loại, ${res.idSpSize.toLocaleString('vi-VN')} ID SP.`, 'ok');
+}
+
 // ── Đồng bộ Danh Mục SKU từ Google Sheet "Trung Tâm Dữ Liệu" (tái dùng OAuth Drive readonly có sẵn) ──
 function tqSyncCatalog() {
   const clientId = getDriveClientId();
@@ -15527,6 +15597,9 @@ async function tqDoCatalogSync() {
     } else {
       tqCatalogLog('✅ Không có SKU mới nào đang thiếu tồn kho thật.', 'ok');
     }
+    // ★ 2026-10-19 (xác nhận Tân): đồng bộ danh mục kéo luôn tab "MAP SW" (tiện ích Tải Đơn ghi lên) vào Map Salework
+    try { await tqSyncMapSwFromSheet(_catalogDriveToken); }
+    catch (mErr) { tqCatalogLog('❌ Lỗi nạp MAP SW: ' + mErr.message + ' — Map Salework giữ nguyên bản cũ.', 'err'); }
   } catch (err) {
     tqCatalogLog('❌ Lỗi đồng bộ: ' + err.message, 'err');
   } finally {
