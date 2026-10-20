@@ -11543,16 +11543,17 @@ async function sapiRenderShops() {
     const expireDate = tok ? new Date(tok.expire_at * 1000).toLocaleDateString('vi-VN') : '';
     const expireSoon = tok && (tok.expire_at - now < 3600 * 24 * 3);
     const statusBadge = connected
-      ? `<span style="background:#e8f8f0;color:#27ae60;border-radius:4px;padding:2px 6px;font-size:9.5px;font-weight:600;white-space:nowrap">🟢 Đã kết nối</span>`
-      : `<span style="background:#fdf0ef;color:#e74c3c;border-radius:4px;padding:2px 6px;font-size:9.5px;font-weight:600;white-space:nowrap">⚫ Chưa kết nối</span>`;
+      ? `<span style="background:rgba(74,222,128,.18);color:#86efac;border-radius:4px;padding:2px 6px;font-size:9.5px;font-weight:700;white-space:nowrap">🟢 Đã kết nối</span>`
+      : `<span style="background:rgba(248,113,113,.2);color:#fca5a5;border-radius:4px;padding:2px 6px;font-size:9.5px;font-weight:700;white-space:nowrap">⚫ Chưa kết nối</span>`;
     const expireInfo = ''; // Ẩn — token tự refresh, không cần hiển thị
     const actionBtn = connected
-      ? `<button onclick="sapiDisconnect(${shop.id})" style="width:100%;margin-top:6px;padding:4px 6px;border:1px solid #e74c3c;color:#e74c3c;background:white;border-radius:6px;font-size:10px;cursor:pointer">Ngắt kết nối</button>`
+      ? `<button onclick="sapiDisconnect(${shop.id})" style="width:100%;margin-top:6px;padding:4px 6px;border:1px solid rgba(252,165,165,.6);color:#fca5a5;background:transparent;border-radius:6px;font-size:10px;cursor:pointer">Ngắt kết nối</button>`
       : `<button onclick="sapiConnect(${shop.id})" style="width:100%;margin-top:6px;padding:5px 6px;background:#ee4d2d;color:white;border:none;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer">🔗 Kết Nối</button>`;
     // Card thu gọn theo yêu cầu Tân 2026-08-05 — 6 shop hiện đủ trên 1 dòng ngang thay vì 2 dòng.
-    return `<div style="background:white;border:1.5px solid ${connected?'#27ae60':'#ddd'};border-radius:8px;padding:10px;min-width:0">
-      <div style="font-weight:700;font-size:11.5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${shop.name}">${shop.name}</div>
-      <div style="font-size:9px;color:#999;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="@${shop.username} · ID: ${shop.id}">ID: ${shop.id}</div>
+    // 2026-10-20: nền navy giống GMS (Tân yêu cầu) — gạch trên xanh lá = đã kết nối, đỏ = chưa kết nối.
+    return `<div style="background:linear-gradient(135deg,#1b2a4e,#2b4a8f);border:none;border-top:3px solid ${connected?'#4ade80':'#f87171'};border-radius:12px;box-shadow:0 6px 18px rgba(27,42,78,.14);padding:10px 12px;min-width:0;color:#fff">
+      <div style="font-weight:700;font-size:11.5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff" title="${shop.name}">${shop.name}</div>
+      <div style="font-size:9px;color:#c7d2e8;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="@${shop.username} · ID: ${shop.id}">ID: ${shop.id}</div>
       ${statusBadge}${expireInfo}${actionBtn}
     </div>`;
   }).join('');
