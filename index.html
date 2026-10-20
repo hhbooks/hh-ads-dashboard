@@ -886,6 +886,49 @@
   #ov-trend-chart-card { background:linear-gradient(135deg,#1b2a4e,#2b4a8f); border:none; border-radius:18px; box-shadow:0 6px 24px rgba(27,42,78,.14); }
   #ov-trend-chart-card .card-title { color:#fff; }
   #ov-trend-chart-card #ov-trend-chart-empty { color:#c7d2e8 !important; }
+  /* ═══ NAVY CHUNG cho các trang "xem số" (2026-10-20, Tân chốt) — class MỚI .nv-panel / .nv-tile, không sửa class dùng chung.
+     .nv-panel = khối/thẻ nền navy (bảng tổng hợp ngắn + biểu đồ). Biến màu được định nghĩa lại BÊN TRONG khối nên các style inline
+     dùng var(--text2)/var(--gray3)/var(--green)... tự đổi sang tông sáng. Bảng chi tiết dài vẫn để thẻ trắng như cũ.
+     Biểu đồ nằm trong .nv-panel được plugin Chart.js "nvNavyTheme" tự đổi chữ/lưới/màu (xem JS). */
+  .nv-panel { background:linear-gradient(135deg,#1b2a4e,#2b4a8f) !important; border:none !important; border-radius:18px !important; box-shadow:0 6px 24px rgba(27,42,78,.14) !important; color:#fff;
+    --text:#fff; --text1:#fff; --text2:#c7d2e8; --gray2:rgba(255,255,255,.10); --gray3:rgba(255,255,255,.16); --border:rgba(255,255,255,.12); --navy:#bfdbfe; --red:#fca5a5; --green:#86efac; --orange:#fcd34d; }
+  .nv-panel .card-title { color:#fff; }
+  .nv-panel .card-title .dot { background:#93c5fd !important; }
+  .nv-panel table, .nv-panel thead, .nv-panel thead tr, .nv-panel .th-shop-table { background:transparent; }
+  .nv-panel thead th, .nv-panel .th-shop-table th { background:#2c4073 !important; color:#c7d2e8 !important; border-bottom:1px solid rgba(255,255,255,.18) !important; }
+  .nv-panel .th-shop-table td { color:#fff; border-bottom:1px solid rgba(255,255,255,.12); }
+  .nv-panel .th-shop-table tr:last-child td { background:rgba(255,255,255,.12); color:#fff; border-bottom:none; }
+  .nv-panel tbody tr { border-bottom-color:rgba(255,255,255,.12); }
+  .nv-panel tbody tr:hover { background:transparent; }
+  .nv-panel tbody tr:hover td { background:rgba(255,255,255,.08); }
+  .nv-panel .th-shop-table tr:last-child:hover td { background:rgba(255,255,255,.12); }
+  .nv-panel [style*="#b45309"] { color:#fcd34d !important; }   /* chữ cảnh báo cam đậm → vàng sáng */
+  .nv-panel a { color:#93c5fd; }
+  .nv-panel details summary { color:#dbe4f3 !important; }
+  .nv-panel .filter-btn { background:rgba(255,255,255,.08); color:#dbe4f3; border-color:rgba(255,255,255,.28); }
+  .nv-panel .filter-btn.active { background:#fff; color:#1b2a4e; border-color:#fff; }
+  .nv-panel .filter-btn:hover:not(.active) { border-color:#93c5fd; }
+  .nv-panel .kvr-up { color:#86efac; } .nv-panel .kvr-down { color:#fca5a5; } .nv-panel .kvr-neu { color:#c7d2e8; }
+  .nv-panel .kvr-note { color:#c7d2e8; }
+  .nv-panel .kvr-total td { border-top:2px solid rgba(255,255,255,.35); }
+  .nv-panel .kvr-cbar { background:rgba(255,255,255,.15); } .nv-panel .kvr-cbar::after { background:rgba(255,255,255,.55); }
+  .nv-panel .kvr-cbar > span.pos { background:#4ade80; } .nv-panel .kvr-cbar > span.neg { background:#f87171; }
+  /* .nv-tile = ô KPI dựng bằng JS (cùng kiểu thẻ navy của Báo Cáo Doanh Thu) */
+  .nv-tile { background:linear-gradient(135deg,#1b2a4e,#2b4a8f); border-radius:var(--radius); padding:18px; box-shadow:0 6px 24px rgba(27,42,78,.14); color:#fff; --text:#fff; --text2:#dbe4f3; --green:#86efac; --red:#fca5a5; --orange:#fcd34d; }
+  .nv-tile .kpi-label { color:#fff; opacity:.92; }
+  .nv-tile .bcdt-d { display:inline-block; padding:1px 7px; border-radius:6px; color:#fff !important; font-weight:800; }
+  .nv-tile .bcdt-d-up { background:#16a34a; } .nv-tile .bcdt-d-down { background:#dc2626; } .nv-tile .bcdt-d-neu { background:rgba(148,163,184,.45); }
+  /* Thẻ KPI tĩnh (.kpi-card) của Kế Toán (HĐ VAT, Hoa Hồng TikTok) + Kiểm Soát Giá (Cảnh Báo): nền navy, gạch trên giữ ý nghĩa màu (tông sáng) */
+  #page-ke-toan-bc-hd-vat .kpi-card, #page-ke-toan-tiktok-hh .kpi-card, #page-gia-canh-bao .kpi-card { background:linear-gradient(135deg,#1b2a4e,#2b4a8f); border:none; border-top:3px solid #93c5fd; border-radius:18px; box-shadow:0 6px 24px rgba(27,42,78,.14); --text:#fff; --text2:#dbe4f3; --navy:#fcd34d; }
+  #page-ke-toan-bc-hd-vat .kpi-card.green, #page-ke-toan-tiktok-hh .kpi-card.green, #page-gia-canh-bao .kpi-card.green { border-top-color:#86efac; }
+  #page-ke-toan-bc-hd-vat .kpi-card.orange, #page-ke-toan-tiktok-hh .kpi-card.orange, #page-gia-canh-bao .kpi-card.orange { border-top-color:#fdba74; }
+  #page-ke-toan-bc-hd-vat .kpi-card.red, #page-ke-toan-tiktok-hh .kpi-card.red, #page-gia-canh-bao .kpi-card.red { border-top-color:#fca5a5; }
+  #page-ke-toan-bc-hd-vat .kpi-card .kpi-label, #page-ke-toan-tiktok-hh .kpi-card .kpi-label, #page-gia-canh-bao .kpi-card .kpi-label { color:#fff; opacity:.92; }
+  #page-ke-toan-bc-hd-vat .kpi-card .kpi-value, #page-ke-toan-tiktok-hh .kpi-card .kpi-value, #page-gia-canh-bao .kpi-card .kpi-value { color:#fff; }
+  #page-ke-toan-bc-hd-vat .kpi-card .kpi-sub, #page-ke-toan-tiktok-hh .kpi-card .kpi-sub, #page-gia-canh-bao .kpi-card .kpi-sub { color:#dbe4f3; }
+  #page-ke-toan-bc-hd-vat .kpi-card .kpi-icon, #page-ke-toan-tiktok-hh .kpi-card .kpi-icon, #page-gia-canh-bao .kpi-card .kpi-icon { display:none; } /* giống GMS: ẩn icon mờ, tránh đè chữ nhãn */
+  /* Biểu đồ Đơn vị vận chuyển / Tỉnh thành (④ Báo Cáo Tổng Quan) nằm trong thẻ trắng → khối navy có đệm */
+  #page-gia-canh-bao #gia-ov-chart-donvi-wrap.nv-panel, #page-gia-canh-bao #gia-ov-chart-tinhthanh-wrap.nv-panel { padding:16px 18px; }
   /* Trang Hoa Hồng TikTok (Kế Toán) — class riêng tiền tố tthh-, không đụng class dùng chung */
   .tthh-btn { padding:8px 16px; background:#fff; color:var(--text); border:1.5px solid var(--text); border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer; }
   .tthh-btn:disabled { opacity:.45; cursor:not-allowed; }
@@ -1268,8 +1311,9 @@
           </div>
         </div>
 
-        <!-- KÉO & THẢ CSV -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px">
+        <!-- KÉO & THẢ CSV + LOG XỬ LÝ — 2026-10-20 Tân yêu cầu bỏ khỏi giao diện. Chỉ ẨN (display:none), KHÔNG xoá DOM
+             vì JS (applyAllCSV, log Drive...) vẫn ghi vào các id bên trong — xoá sẽ gây lỗi null. -->
+        <div id="ov-csv-dropzone-wrap" style="display:none;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px">
           <div class="card">
             <div class="card-title"><span class="dot"></span> Kéo &amp; Thả File CSV</div>
             <div id="csv-drop-zone" class="csv-drop-zone"
@@ -2862,12 +2906,12 @@
             <textarea id="gia-ov-orderlist-text" readonly style="width:100%;height:120px;font-size:12px;font-family:monospace;border:1px solid var(--gray3);border-radius:6px;padding:8px;resize:vertical;box-sizing:border-box"></textarea>
           </div>
 
-          <div id="gia-ov-chart-donvi-wrap" style="display:none;margin-top:16px;max-width:460px">
+          <div id="gia-ov-chart-donvi-wrap" class="nv-panel" style="display:none;margin-top:16px;max-width:520px">
             <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:8px">🥧 % Đơn Theo Đơn Vị Vận Chuyển</div>
             <div style="position:relative;height:320px"><canvas id="gia-ov-chart-donvi"></canvas></div>
           </div>
 
-          <div id="gia-ov-chart-tinhthanh-wrap" style="display:none;margin-top:16px">
+          <div id="gia-ov-chart-tinhthanh-wrap" class="nv-panel" style="display:none;margin-top:16px">
             <div style="display:flex;gap:20px;flex-wrap:wrap">
               <div style="flex:0 0 320px;max-width:400px">
                 <div style="font-weight:700;color:var(--navy);font-size:13px;margin-bottom:8px">🥧 % Đơn Theo Kho HN / HCM</div>
@@ -4079,6 +4123,54 @@ function cData() {
 }
 
 Chart.register(ChartDataLabels);
+// ═══ 2026-10-20: biểu đồ nằm trong khối navy chung (.nv-panel) → tự đổi chữ/lưới sang tông sáng + đổi các màu đậm
+//     (đen, xanh đậm...) sang màu sáng tương ứng để nổi trên nền navy. Biểu đồ ngoài .nv-panel KHÔNG bị ảnh hưởng.
+const NV_COLOR_MAP = { '#111827':'#fde68a', '#1b2a4e':'#e2e8f0', '#2f6fd6':'#60a5fa', '#e0525b':'#f87171', '#d99a1e':'#fbbf24',
+  '#059669':'#34d399', '#1a56db':'#60a5fa', '#dc2626':'#f87171', '#f59e0b':'#fbbf24', '#8b5cf6':'#c4b5fd', '#6366f1':'#a5b4fc',
+  '#7f8c8d':'#cbd5e1', '#0ea5e9':'#7dd3fc', '#14b8a6':'#5eead4',
+  // 3 sắc xanh đậm đầu bảng màu Kiểm Soát Giá → 3 màu khác hẳn nhau (tránh 3 lát xanh na ná trên donut)
+  '#1f3864':'#60a5fa', '#2e4d7b':'#c4b5fd', '#3d6898':'#5eead4' };
+function nvColor(c) {
+  if (typeof c !== 'string') return c;
+  const k = c.toLowerCase();
+  return NV_COLOR_MAP[k] || (typeof _TH_NAVY_COLOR_MAP !== 'undefined' && _TH_NAVY_COLOR_MAP[k]) || c;
+}
+function _nvIsNavy(chart) { const c = chart && chart.canvas; return !!(c && c.closest && c.closest('.nv-panel')); }
+function _nvIsRadial(chart) { return ['doughnut', 'pie', 'polarArea'].includes(chart.config.type); }
+Chart.register({
+  id: 'nvNavyTheme',
+  beforeInit(chart) {
+    if (!_nvIsNavy(chart)) return;
+    const o = chart.config.options || (chart.config.options = {}), radial = _nvIsRadial(chart);
+    o.color = '#dbe4f3';
+    o.plugins = o.plugins || {};
+    const lg = o.plugins.legend = o.plugins.legend || {}; lg.labels = lg.labels || {}; lg.labels.color = '#dbe4f3';
+    if (o.plugins.title) o.plugins.title.color = '#fff';
+    const dl = o.plugins.datalabels = o.plugins.datalabels || {};
+    if (typeof dl.color !== 'function') dl.color = radial ? '#1b2a4e' : '#fff';
+    if (!radial) {
+      const sc = o.scales = o.scales || {}; if (!sc.x) sc.x = {}; if (!sc.y) sc.y = {};
+      Object.keys(sc).forEach(k => {
+        const a = sc[k] || (sc[k] = {});
+        a.ticks = a.ticks || {}; a.ticks.color = '#c7d2e8';
+        if (a.title) a.title.color = '#c7d2e8';
+        a.grid = a.grid || {}; if (typeof a.grid.color !== 'function') a.grid.color = 'rgba(255,255,255,.08)';
+        a.border = a.border || {}; a.border.color = 'rgba(255,255,255,.18)';
+      });
+    }
+  },
+  beforeUpdate(chart) {
+    if (!_nvIsNavy(chart)) return;
+    const radial = _nvIsRadial(chart);
+    ((chart.config.data && chart.config.data.datasets) || []).forEach(ds => {
+      ['backgroundColor', 'borderColor', 'pointBackgroundColor', 'pointBorderColor'].forEach(p => {
+        const v = ds[p];
+        if (Array.isArray(v)) ds[p] = v.map(nvColor); else if (typeof v === 'string') ds[p] = nvColor(v);
+      });
+      if (radial && (ds.borderColor == null || /^(#fff|#ffffff|white)$/i.test(String(ds.borderColor)))) ds.borderColor = '#263f78';
+    });
+  }
+});
 let sortState = { col: 8, dir: 'desc' };
 let filterState = 'all';
 let chartTopRoas, chartCostPie, chartTrend, chartRevCost, chartOvTrend, chartAdsh;
@@ -22043,7 +22135,8 @@ function bcspDelta(cur, prev) {
   if (!prev) return '';
   const p = (cur - prev) / prev;
   const c = Math.abs(p) < 0.0005 ? 'var(--text2)' : p > 0 ? 'var(--green)' : 'var(--red)';
-  return `<span style="color:${c};font-weight:700">${p > 0 ? '▲ +' : p < 0 ? '▼ ' : '• '}${(p * 100).toFixed(1).replace('.', ',')}%</span>`;
+  const k = Math.abs(p) < 0.0005 ? 'neu' : p > 0 ? 'up' : 'down'; // class bcdt-d-*: trong thẻ navy (.nv-tile) hiện thành nút màu
+  return `<span class="bcdt-d bcdt-d-${k}" style="color:${c};font-weight:700">${p > 0 ? '▲ +' : p < 0 ? '▼ ' : '• '}${(p * 100).toFixed(1).replace('.', ',')}%</span>`;
 }
 
 // ── Nạp dữ liệu từ Sheet (gọi trực tiếp trong click để popup đăng nhập không bị chặn) ──
@@ -22139,8 +22232,9 @@ async function bcspRender() {
   const prev = prevKey && BCSP.byMonth[prevKey] ? bcspSum(BCSP.byMonth[prevKey]) : null;
   const cmp = prev ? ` <span style="color:var(--text2);font-size:11px">so với ${bcspMonthLabel(prevKey).replace('Tháng ', 'T')}</span>` : '';
   const gvdt = S.dt > 0 ? S.gv / S.dt * 100 : 0, gvdtP = prev && prev.dt > 0 ? prev.gv / prev.dt * 100 : null;
-  const dPts = gvdtP == null ? '' : (() => { const d = gvdt - gvdtP; return `<span style="color:${Math.abs(d) < 0.05 ? 'var(--text2)' : d < 0 ? 'var(--green)' : 'var(--red)'};font-weight:700">${d > 0 ? '▲ +' : d < 0 ? '▼ ' : '• '}${d.toFixed(1).replace('.', ',')} điểm %</span> <span style="color:var(--text2);font-size:11px">so với ${bcspMonthLabel(prevKey).replace('Tháng ', 'T')}</span>`; })();
-  const card = (label, val, sub, topC) => `<div style="background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);border:1px solid var(--gray3);border-top:3px solid ${topC}">
+  const dPts = gvdtP == null ? '' : (() => { const d = gvdt - gvdtP; return `<span class="bcdt-d bcdt-d-${Math.abs(d) < 0.05 ? 'neu' : d < 0 ? 'up' : 'down'}" style="color:${Math.abs(d) < 0.05 ? 'var(--text2)' : d < 0 ? 'var(--green)' : 'var(--red)'};font-weight:700">${d > 0 ? '▲ +' : d < 0 ? '▼ ' : '• '}${d.toFixed(1).replace('.', ',')} điểm %</span> <span style="color:var(--text2);font-size:11px">so với ${bcspMonthLabel(prevKey).replace('Tháng ', 'T')}</span>`; })();
+  // 2026-10-20: 4 thẻ nền navy (.nv-tile) giống Báo Cáo Doanh Thu — topC giữ tham số nhưng không dùng nữa
+  const card = (label, val, sub, topC) => `<div class="nv-tile">
       <div class="kpi-label">${label}</div>
       <div style="font-size:22px;font-weight:800;color:var(--text);line-height:1.1;margin:6px 0">${val}</div>
       <div style="font-size:13px;color:var(--text2)">${sub}</div></div>`;
@@ -22151,7 +22245,7 @@ async function bcspRender() {
     ${card('SẢN LƯỢNG', bcspN(S.sl), (prev ? bcspDelta(S.sl, prev.sl) + cmp + '<br>' : '') + bcspN(S.n) + ' mã SKU có bán', 'var(--green)')}
   </div>
   <div style="font-size:11px;color:var(--text2);margin:-4px 0 14px">TikTok và tách từng shop: chưa có trong Sheet (sẽ bổ sung khi tiện ích tải thêm). Số liệu ở đây là Shopee, gộp tất cả shop.</div>
-  <div class="card" style="margin-bottom:16px">
+  <div class="card nv-panel" style="margin-bottom:16px">
     <div class="card-title"><span class="dot" style="background:var(--orange)"></span>TỶ TRỌNG DOANH THU THEO NHÓM SẢN PHẨM</div>
     <div id="bcsp-donut-loading" style="text-align:center;padding:24px;color:var(--text2);font-size:12px">⏳ Đang tải catalog ngành hàng...</div>
     <div id="bcsp-donut-row" style="display:none"></div>
@@ -22168,12 +22262,12 @@ async function bcspRender() {
     </div>
     <div id="bcsp-rank-table" style="overflow-x:auto"></div>
   </div>
-  <div class="card" style="margin-bottom:16px">
+  <div class="card nv-panel" style="margin-bottom:16px">
     <div class="card-title"><span class="dot" style="background:var(--red)"></span>TỶ LỆ GIÁ VỐN / DOANH THU THEO NHÀ CUNG CẤP</div>
     <div style="font-size:12px;color:var(--text2);margin-bottom:8px">GV/DT Top 10 NCC theo Doanh thu</div>
     <div style="height:300px;position:relative"><canvas id="bcsp-ncc-bar"></canvas></div>
   </div>
-  <div class="card">
+  <div class="card nv-panel">
     <div class="card-title"><span class="dot" style="background:#1a56db"></span>XU HƯỚNG THEO THÁNG</div>
     <div style="height:320px;position:relative"><canvas id="bcsp-trend"></canvas></div>
   </div>`;
@@ -22228,7 +22322,7 @@ async function bcspRender() {
     const color = {}; order.forEach((n, i) => { color[n] = n === 'Chưa phân loại' ? '#9ca3af' : BCSP_PALETTE[i % BCSP_PALETTE.length]; });
     const tot = order.reduce((s, n) => s + agg.get(n), 0);
     let legend = order.map(n => { const v = agg.get(n); return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--gray3);font-size:12px">
-        <span style="width:9px;height:9px;border-radius:50%;background:${color[n]};flex-shrink:0"></span><span style="flex:1;font-weight:600">${n}</span>
+        <span style="width:9px;height:9px;border-radius:50%;background:${nvColor(color[n])};flex-shrink:0"></span><span style="flex:1;font-weight:600">${n}</span>
         <span style="font-weight:700">${bcspPct(v, tot)}</span><span style="color:var(--text2);min-width:100px;text-align:right">${bcspN(v)}</span></div>`; }).join('');
     legend += `<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-size:12px;font-weight:800"><span>Tổng doanh thu</span><span>${bcspN(tot)}</span></div>`;
     if (catErr) legend += `<div style="margin-top:8px;font-size:11px;color:#b45309">⚠️ Không tải được catalog ngành hàng (${catErr}) — tất cả đang hiện "Chưa phân loại".</div>`;
@@ -23831,8 +23925,9 @@ function ktvatSortRateKeys_(keys) {
     return Number(a) - Number(b);
   });
 }
-function ktvatSection_(title, bodyHtml) {
-  return `<div class="card" style="margin-bottom:16px">
+// navy = true → thẻ nền navy (bảng tổng hợp ngắn, 2026-10-20). Danh sách dài (top khách, HĐ điều chỉnh, chi tiết) giữ thẻ trắng.
+function ktvatSection_(title, bodyHtml, navy) {
+  return `<div class="card${navy ? ' nv-panel' : ''}" style="margin-bottom:16px">
     <div class="card-title" style="font-size:16px"><span class="dot"></span> ${ktvatEsc_(title)}</div>
     ${bodyHtml}
   </div>`;
@@ -23854,7 +23949,7 @@ function ktvatRenderReport_(r) {
       <tr><td>File 1 - Bảng kê HĐ bán ra (kế toán)</td><td>${ktvatFmt_(r.f1Total.count)}</td><td>${ktvatFmtD_(r.f1Total.doanhSo)}</td><td>${ktvatFmtD_(r.f1Total.thue)}</td></tr>
       <tr><td>File 2 - Bảng kê hóa đơn đã sử dụng (HĐ điện tử)</td><td>${ktvatFmt_(r.f2Total.count)}</td><td>${ktvatFmtD_(r.f2Total.doanhSo)}</td><td>${ktvatFmtD_(r.f2Total.thue)}</td></tr>
       <tr><td>Chênh lệch (File 1 - File 2)</td><td>${ktvatFmt_(r.f1Total.count - r.f2Total.count)}</td><td>${ktvatFmtD_(r.f1Total.doanhSo - r.f2Total.doanhSo)}</td><td>${ktvatFmtD_(r.f1Total.thue - r.f2Total.thue)}</td></tr>
-    </table>`);
+    </table>`, true);
 
   // 2. Theo ký hiệu / kênh
   const ky2Total = { f1Count: 0, f1DoanhSo: 0, f1Thue: 0, f2Count: 0, f2DoanhSo: 0, f2Thue: 0 };
@@ -23870,7 +23965,7 @@ function ktvatRenderReport_(r) {
     <table class="th-shop-table" style="width:100%">
       <tr><th>Ký hiệu HĐ</th><th>SL HĐ F1</th><th>Doanh số F1</th><th>Thuế F1</th><th>SL HĐ F2</th><th>Doanh số F2</th><th>Thuế F2</th></tr>
       ${rows2}
-    </table></div>`);
+    </table></div>`, true);
 
   // 3. Theo loại khách hàng (+ top khách B2B)
   const TOP_N = 30;
@@ -23950,7 +24045,7 @@ function ktvatRenderReport_(r) {
       <tr><th>Thuế suất</th><th>Số HĐ</th><th>Doanh số</th><th>Thuế GTGT</th></tr>
       ${rows5}
     </table>
-    ${detailBlocks}`);
+    ${detailBlocks}`, true);
 
   // 6. Người lập HĐ
   const t6 = { count: 0, doanhSo: 0, thue: 0 };
@@ -23964,7 +24059,7 @@ function ktvatRenderReport_(r) {
     <table class="th-shop-table" style="width:100%">
       <tr><th>Người lập HĐ</th><th>Số HĐ đã lập</th><th>Doanh số</th><th>Thuế GTGT</th></tr>
       ${rows6}
-    </table>`);
+    </table>`, true);
 
   // 7. Đối chiếu chi tiết 2 nguồn
   const t7 = { f1Count: 0, f2Count: 0, f1DoanhSo: 0, f2DoanhSo: 0, f1Thue: 0, f2Thue: 0 };
@@ -23979,7 +24074,7 @@ function ktvatRenderReport_(r) {
     <table class="th-shop-table" style="width:100%">
       <tr><th>Ký hiệu</th><th>SL F1</th><th>SL F2</th><th>Chênh SL</th><th>Doanh số F1</th><th>Doanh số F2</th><th>Chênh Doanh số</th><th>Thuế F1</th><th>Thuế F2</th><th>Chênh Thuế</th></tr>
       ${rows7}
-    </table></div>`);
+    </table></div>`, true);
 
   box.innerHTML = html;
   box.style.display = 'block';
@@ -24267,11 +24362,11 @@ function tthhRender() {
   // 1) Tháng × shop
   h += ktvatSection_('Phải trả theo tháng × shop (VND)', `<div style="overflow-x:auto"><table class="th-shop-table"><thead><tr><th>Tháng</th>${b.codes.map(c => `<th style="text-align:right">${ktvatEsc_(TTHH_SHOPS[c])}</th>`).join('')}<th style="text-align:right">Tổng</th><th style="text-align:right">Số BN</th></tr></thead><tbody>` +
     b.months.map(m => { let tot = 0, n = 0; const tds = b.codes.map(c => { const x = b.cell[m + '|' + c]; if (x) { tot += x.t; n += x.n; } return `<td style="text-align:right">${x ? F(x.t) : '<span style="color:#bbb">—</span>'}</td>`; }).join(''); return `<tr><td>${tthhMonthLabel_(m)}</td>${tds}<td style="text-align:right;font-weight:700">${F(tot)}</td><td style="text-align:right">${F(n)}</td></tr>`; }).join('') +
-    `<tr><td>Tổng</td>${b.codes.map(c => `<td style="text-align:right">${F(b.byShop.find(s => s.code === c).total)}</td>`).join('')}<td style="text-align:right">${F(k.total)}</td><td style="text-align:right">${F(k.n)}</td></tr></tbody></table></div>`);
+    `<tr><td>Tổng</td>${b.codes.map(c => `<td style="text-align:right">${F(b.byShop.find(s => s.code === c).total)}</td>`).join('')}<td style="text-align:right">${F(k.total)}</td><td style="text-align:right">${F(k.n)}</td></tr></tbody></table></div>`, true);
   // 2) Theo shop: cơ cấu
   h += ktvatSection_('Cơ cấu hoa hồng theo shop', `<div style="overflow-x:auto"><table class="th-shop-table"><thead><tr><th>Shop</th><th style="text-align:right">Số BN</th><th style="text-align:right">Creator</th><th style="text-align:right">HH Creator</th><th style="text-align:right">HH Shop Ads</th><th style="text-align:right">% Shop Ads</th><th style="text-align:right">Thuế TNCN</th><th style="text-align:right">Phải trả</th><th style="text-align:right">Tỷ trọng</th></tr></thead><tbody>` +
     b.byShop.map(s => `<tr><td>${ktvatEsc_(s.shop)}</td><td style="text-align:right">${F(s.n)}</td><td style="text-align:right">${F(s.creators)}</td><td style="text-align:right">${F(s.cc)}</td><td style="text-align:right">${F(s.ads)}</td><td style="text-align:right">${s.total ? tthhPct_(s.ads / s.total) : '—'}</td><td style="text-align:right">${F(s.pit)}</td><td style="text-align:right">${F(s.total)}</td><td style="text-align:right">${k.total ? tthhPct_(s.total / k.total) : '—'}</td></tr>`).join('') +
-    `<tr><td>Tổng</td><td style="text-align:right">${F(k.n)}</td><td style="text-align:right">${F(k.creators)}</td><td style="text-align:right">${F(k.cc)}</td><td style="text-align:right">${F(k.ads)}</td><td style="text-align:right">${k.total ? tthhPct_(k.ads / k.total) : '—'}</td><td style="text-align:right">${F(k.pit)}</td><td style="text-align:right">${F(k.total)}</td><td style="text-align:right">100%</td></tr></tbody></table></div>`);
+    `<tr><td>Tổng</td><td style="text-align:right">${F(k.n)}</td><td style="text-align:right">${F(k.creators)}</td><td style="text-align:right">${F(k.cc)}</td><td style="text-align:right">${F(k.ads)}</td><td style="text-align:right">${k.total ? tthhPct_(k.ads / k.total) : '—'}</td><td style="text-align:right">${F(k.pit)}</td><td style="text-align:right">${F(k.total)}</td><td style="text-align:right">100%</td></tr></tbody></table></div>`, true);
   // 3) Top 20 creator
   const top = b.creators.slice(0, 20), topSum = tthhSum_(top, 'total');
   h += ktvatSection_(`Top 20 creator nhận nhiều nhất (trên ${F(b.creators.length)} creator)`, `<div style="overflow-x:auto"><table class="th-shop-table"><thead><tr><th>#</th><th>Username</th><th>Tên</th><th>Shop</th><th style="text-align:right">Số BN</th><th style="text-align:right">HH Creator</th><th style="text-align:right">HH Shop Ads</th><th style="text-align:right">Tổng</th><th style="text-align:right">% cộng dồn</th></tr></thead><tbody>` +
@@ -25206,7 +25301,7 @@ function kvrBuildHtml(wh) {
   <div id="${P}body" style="display:none">
     <div class="kpi-grid" id="${P}kpi"></div>
     <div class="kpi-grid" id="${P}kpi2"></div>
-    <div class="card">
+    <div class="card nv-panel">
       <div class="card-title"><span class="dot" style="background:var(--navy2)"></span> Kết quả theo Shop × Kênh
         <span id="${P}shopsub" style="font-size:11px;font-weight:400;color:var(--text2);margin-left:8px"></span>
         <span id="${P}smbtns" style="margin-left:auto;display:flex;gap:6px">
@@ -25217,14 +25312,14 @@ function kvrBuildHtml(wh) {
       <div id="${P}shopnote" class="kvr-note"></div>
       <div style="overflow-x:auto"><table class="th-shop-table kvr-shop-tbl" id="${P}shoptbl"></table></div>
     </div>
-    <div class="card">
+    <div class="card nv-panel">
       <div class="card-title"><span class="dot" style="background:#2563eb"></span> Đơn &amp; doanh thu theo trạng thái <span id="${P}cmp1" style="font-size:11px;font-weight:400;color:var(--text2);margin-left:8px"></span></div>
       <div class="kvr-grid2">
         <div style="overflow-x:auto"><table class="th-shop-table" id="${P}tbl"></table></div>
         <div style="position:relative;height:280px"><canvas id="${P}donut"></canvas></div>
       </div>
     </div>
-    <div class="card">
+    <div class="card nv-panel">
       <div class="card-title"><span class="dot" style="background:var(--orange)"></span> Xu hướng theo ngày tạo đơn
         <span style="margin-left:auto;display:flex;gap:6px">
           <button class="filter-btn active" data-tm="count" onclick="kvrSetTm('${wh}','count')">Số đơn</button>
@@ -25382,7 +25477,7 @@ function kvrRender(wh) {
   let h = `<thead><tr><th style="text-align:left">Trạng thái</th><th>Số đơn</th><th>% đơn</th><th>Giá trị đơn</th><th>${st.ch === 'S' ? 'Doanh thu thực' : st.ch === 'T' ? 'Doanh thu ước tính' : 'Doanh thu'}</th><th>Số đơn ${kvrMonthLabel(pm).replace('Tháng ', 'T')}</th><th>Chênh lệch</th></tr></thead><tbody>`;
   states.forEach(s => {
     const c = cur.by.get(s) || { n: 0, v: 0, r: 0 }, p = prev ? (prev.by.get(s) || { n: 0 }) : null;
-    h += `<tr><td style="text-align:left"><span class="kvr-dot" style="background:${kvrColor(s, states)}"></span>${kvrEsc(s)}</td><td>${fmtNum(c.n)}</td><td>${kvrPct(cur.n ? c.n / cur.n : 0)}</td><td>${fmtMoney(c.v)}</td><td>${fmtMoney(c.r)}</td><td>${p ? fmtNum(p.n) : '—'}</td><td>${kvrDelta(c.n, p ? p.n : null, s === 'HỦY' || s === 'THẤT THU')}</td></tr>`;
+    h += `<tr><td style="text-align:left"><span class="kvr-dot" style="background:${nvColor(kvrColor(s, states))}"></span>${kvrEsc(s)}</td><td>${fmtNum(c.n)}</td><td>${kvrPct(cur.n ? c.n / cur.n : 0)}</td><td>${fmtMoney(c.v)}</td><td>${fmtMoney(c.r)}</td><td>${p ? fmtNum(p.n) : '—'}</td><td>${kvrDelta(c.n, p ? p.n : null, s === 'HỦY' || s === 'THẤT THU')}</td></tr>`;
   });
   h += `<tr class="kvr-total"><td style="text-align:left">Tổng</td><td>${fmtNum(cur.n)}</td><td>100%</td><td>${fmtMoney(cur.v)}</td><td>${fmtMoney(cur.r)}</td><td>${prev ? fmtNum(prev.n) : '—'}</td><td>${kvrDelta(cur.n, prev ? prev.n : null)}</td></tr></tbody>`;
   document.getElementById(P + 'tbl').innerHTML = h;
@@ -25746,7 +25841,7 @@ async function bcdtRender() {
     rowsDef.forEach(([lb, f, lvl]) => {
       if (f === 'khac' && !showKhac) return;
       const v = val(K, f), pv2 = val(KP, f);
-      const bold = lvl >= 2, bg = lvl === 3 ? 'background:#f7f7f9;' : lvl === 2 ? 'background:#fafafa;' : '';
+      const bold = lvl >= 2, bg = lvl === 3 ? 'background:rgba(255,255,255,.12);' : lvl === 2 ? 'background:rgba(255,255,255,.05);' : ''; // thẻ nền navy (2026-10-20)
       const neg = f === 'ln' && v < 0;
       t += `<tr style="border-bottom:1px solid var(--gray3);${bg}"><td style="padding:7px 10px;${bold ? 'font-weight:700' : 'padding-left:22px;color:var(--text2)'}">${lb}</td>
         <td style="padding:7px 10px;text-align:right;${bold ? 'font-weight:700;' : ''}${neg ? 'color:var(--red)' : ''}">${bcspN(v)}</td>
@@ -25754,17 +25849,17 @@ async function bcdtRender() {
         ${KP ? `<td style="padding:7px 10px;text-align:right;color:var(--text2)">${bcspN(pv2)}</td><td style="padding:7px 10px;text-align:right">${bcdtDelta(v, pv2, f !== 'tongGt' && f !== 'dt' && f !== 'ln') || '<span style="color:var(--text2)">--</span>'}</td>` : ''}</tr>`;
     });
     t += '</tbody></table><div style="font-size:11px;color:var(--text2);margin-top:8px">Số liệu đúng như cột trong tab KQKD. Biến động chi phí tăng hiện đỏ, doanh thu / lợi nhuận tăng hiện xanh.</div>';
-    html += `<div class="card" style="margin-bottom:16px"><div class="card-title"><span class="dot" style="background:var(--navy)"></span>CHI TIẾT KẾT QUẢ KINH DOANH${KP ? ' · SO SÁNH THÁNG TRƯỚC' : ''}</div><div style="overflow-x:auto">${t}</div></div>`;
+    html += `<div class="card nv-panel" style="margin-bottom:16px"><div class="card-title"><span class="dot" style="background:var(--navy)"></span>CHI TIẾT KẾT QUẢ KINH DOANH${KP ? ' · SO SÁNH THÁNG TRƯỚC' : ''}</div><div style="overflow-x:auto">${t}</div></div>`;
   }
 
   // Xu hướng
   html += `<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;margin-bottom:16px">
-    <div class="card" style="margin:0"><div class="card-title"><span class="dot" style="background:#ee4d2d"></span>XU HƯỚNG GIÁ TRỊ BÁN & LÃI GỘP</div><div style="height:300px;position:relative"><canvas id="bcdt-trend1"></canvas></div></div>
-    <div class="card" style="margin:0"><div class="card-title"><span class="dot" style="background:var(--green)"></span>XU HƯỚNG DOANH THU, CHI PHÍ & LỢI NHUẬN (KQKD)</div><div style="height:300px;position:relative"><canvas id="bcdt-trend2"></canvas></div></div>
+    <div class="card nv-panel" style="margin:0"><div class="card-title"><span class="dot" style="background:#ee4d2d"></span>XU HƯỚNG GIÁ TRỊ BÁN & LÃI GỘP</div><div style="height:300px;position:relative"><canvas id="bcdt-trend1"></canvas></div></div>
+    <div class="card nv-panel" style="margin:0"><div class="card-title"><span class="dot" style="background:var(--green)"></span>XU HƯỚNG DOANH THU, CHI PHÍ & LỢI NHUẬN (KQKD)</div><div style="height:300px;position:relative"><canvas id="bcdt-trend2"></canvas></div></div>
   </div>`;
 
   // Ngành / NCC (điền sau khi có catalog)
-  html += `<div class="card" style="margin-bottom:16px">
+  html += `<div class="card nv-panel" style="margin-bottom:16px">
     <div class="card-title"><span class="dot" style="background:var(--orange)"></span>DOANH THU & LÃI GỘP THEO NGÀNH HÀNG / NHÀ CUNG CẤP</div>
     <div id="bcdt-grp"><div style="text-align:center;padding:24px;color:var(--text2);font-size:12px">⏳ Đang tải catalog ngành hàng...</div></div>
   </div>`;
