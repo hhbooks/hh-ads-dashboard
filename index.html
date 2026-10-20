@@ -856,11 +856,40 @@
   #page-tonghop .th-navy-panel .th-shop-table th { background:#2c4073; color:#c7d2e8; border-bottom:1px solid rgba(255,255,255,.18); }
   #page-tonghop .th-navy-panel .th-shop-table td { color:#fff; border-bottom:1px solid rgba(255,255,255,.12); }
   #page-tonghop .th-navy-panel .th-shop-table tr:last-child td { background:rgba(255,255,255,.12); color:#fff; border-bottom:none; }
-  #page-tonghop .th-navy-panel .th-shop-table tbody tr:not(:last-child):hover td { background:rgba(255,255,255,.05); }
+  /* Hover trên nền navy: chặn nền trắng của quy tắc chung "tbody tr:hover" (#f8faff) → dòng đang trỏ sáng lên tông navy nhạt, chữ vẫn trắng (Tân báo 2026-10-20) */
+  #page-tonghop .th-navy-panel .th-shop-table tbody tr:hover { background:transparent; }
+  #page-tonghop .th-navy-panel .th-shop-table tbody tr:not(:last-child):hover td { background:#3b5592; }
+  #page-tonghop .th-navy-panel .th-shop-table tbody tr:not(:last-child):hover td:first-child { box-shadow:inset 3px 0 0 #93c5fd; }
+  #page-tonghop .th-navy-panel .th-shop-table tbody tr:last-child:hover td { background:rgba(255,255,255,.12); }
   #page-tonghop .th-navy-panel .thn-good { color:#86efac !important; } #page-tonghop .th-navy-panel .thn-mid { color:#fcd34d !important; }
   #page-tonghop .th-navy-panel .thn-bad { color:#fca5a5 !important; } #page-tonghop .th-navy-panel .thn-vat { color:#fde68a !important; }
   #page-tonghop .th-navy-panel .thn-muted { color:#c7d2e8 !important; font-weight:400 !important; }
   #page-tonghop .th-navy-panel { margin-bottom:4px; }
+  /* ══ 2026-10-20 (Tân chốt): trang Kiểm Soát Tồn Kho › Cập Nhật Tồn — các khối nền NAVY kiểu GMS.
+     CHỈ scope #page-tonkho-tong-quan > .card. Đổi biến --text/--text2 TRONG khối → các style inline dùng var() tự sáng lên.
+     Khung KẾT QUẢ (class tk-light: cảnh báo Black List, xem trước, danh sách SetTon, mã mới, kết quả đặt hàng/không đáp ứng)
+     GIỮ NỀN SÁNG như cũ (trả lại biến gốc). Đoạn hướng dẫn chuyển vào biểu tượng (i) cạnh tiêu đề, rê chuột mới hiện. ══ */
+  #page-tonkho-tong-quan > .card { --text:#ffffff; --text2:#c7d2e8; color:#dbe4f3; background:linear-gradient(135deg,#1b2a4e,#2b4a8f); border:none; border-radius:18px; box-shadow:0 6px 24px rgba(27,42,78,.14); }
+  #page-tonkho-tong-quan > .card .card-title { font-size:15px; }
+  #page-tonkho-tong-quan .tk-light { --text:#111827; --text2:#6b7280; color:#111827; }
+  #page-tonkho-tong-quan #skuloi-preview { background:#fff; border-radius:12px; padding:12px 14px; }
+  #page-tonkho-tong-quan > .card .sw-upload-btn:not(.tk-light *), #page-tonkho-tong-quan > .card .btn-drive-sync:not(.tk-light *) { background:rgba(255,255,255,.06); color:#fff; border-color:rgba(255,255,255,.85); }
+  #page-tonkho-tong-quan > .card .sw-upload-btn:not(.tk-light *):hover, #page-tonkho-tong-quan > .card .btn-drive-sync:not(.tk-light *):hover { background:rgba(255,255,255,.16); }
+  #page-tonkho-tong-quan > .card button[style*="background:white"]:not(.tk-light *) { background:rgba(255,255,255,.06) !important; }
+  #page-tonkho-tong-quan > .card button[style*="background:white"]:not(.tk-light *):hover { background:rgba(255,255,255,.16) !important; }
+  #page-tonkho-tong-quan > .card button[style*="#c0392b"]:not(.tk-light *) { color:#fca5a5 !important; border-color:#fca5a5 !important; }
+  #page-tonkho-tong-quan > .card button[style*="#8e44ad"]:not(.tk-light *) { color:#d8b4fe !important; border-color:#d8b4fe !important; }
+  #page-tonkho-tong-quan > .card select:not(.tk-light *) { background:#fff; color:#111827; }
+  #page-tonkho-tong-quan > .card [style*="color:#999"]:not(.tk-light *) { color:#aab6cf !important; }
+  #page-tonkho-tong-quan > .card input[type="checkbox"] { accent-color:#60a5fa; }
+  #page-tonkho-tong-quan > .card .drive-log:not(.tk-light *) { background:rgba(8,16,40,.35); color:#dbe4f3; }
+  #page-tonkho-tong-quan > .card .drive-log:not(.tk-light *) div[style*="color:#555"] { color:#dbe4f3 !important; }
+  #page-tonkho-tong-quan > .card .drive-log:not(.tk-light *) div[style*="color:#27ae60"] { color:#86efac !important; }
+  #page-tonkho-tong-quan > .card .drive-log:not(.tk-light *) div[style*="color:#f39c12"] { color:#fcd34d !important; }
+  #page-tonkho-tong-quan > .card .drive-log:not(.tk-light *) div[style*="color:#e74c3c"] { color:#fca5a5 !important; }
+  .tk-info { position:relative; display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; border:1.5px solid rgba(255,255,255,.75); color:#fff; font:italic 800 11px Georgia, serif; cursor:help; margin-left:2px; }
+  .tk-info .tk-tip { display:none; position:absolute; left:-8px; top:26px; z-index:60; width:min(560px,70vw); background:#fff; color:#111827; font-family:'Segoe UI', Arial, sans-serif; font-size:12.5px; font-weight:400; font-style:normal; line-height:1.65; padding:12px 14px; border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.28); }
+  .tk-info:hover .tk-tip { display:block; }
   /* Trang Hoa Hồng TikTok (Kế Toán) — class riêng tiền tố tthh-, không đụng class dùng chung */
   .tthh-btn { padding:8px 16px; background:#fff; color:var(--text); border:1.5px solid var(--text); border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer; }
   .tthh-btn:disabled { opacity:.45; cursor:not-allowed; }
@@ -2878,10 +2907,9 @@
   <!-- ══════════════════════════════════════════════════ -->
   <div class="page" id="page-tonkho-tong-quan">
     <div class="card" style="margin-bottom:18px">
-      <div class="card-title"><span class="dot"></span> Đồng Bộ Dữ Liệu</div>
+      <div class="card-title"><span class="dot"></span> Đồng Bộ Dữ Liệu <span class="tk-info">i<span class="tk-tip">Bấm 1 lần để kéo toàn bộ từ Sheet <b>SKU Tổng</b>: Danh mục SKU (tab SKU) → Map Salework (tab MAP SW, tiện ích Tải Đơn ghi lên) → Black List.</span></span></div>
       <!-- 2026-10-19 (Tân chốt): gộp 1 nút duy nhất "Đồng Bộ SKU Tổng" = Danh mục SKU (tab SKU) + Map Salework (tab MAP SW do
            tiện ích Tải Đơn ghi) + Black List. Bỏ nút tải file MAP Shopee / MAP TikTok (TikTok do bạn khác phát triển). -->
-      <p style="font-size:12px;color:var(--text2);margin:0 0 12px;line-height:1.6">Bấm 1 lần để kéo toàn bộ từ Sheet <b>SKU Tổng</b>: Danh mục SKU (tab SKU) → Map Salework (tab MAP SW, tiện ích Tải Đơn ghi lên) → Black List.</p>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
         <button class="sw-upload-btn" onclick="_catalogLogTarget='tq-catalog-log';tqSyncCatalog()" id="tq-sync-btn">🔄 Đồng Bộ SKU Tổng</button>
       </div>
@@ -2995,7 +3023,7 @@
       <div style="font-size:12px;color:var(--text2);margin-bottom:10px">File mass: <b id="tfm-status-mass">chưa chọn</b></div>
 
       <!-- Đối chiếu Black List cho SKU trong file tồn vừa upload — xác nhận Tân 2026-09-16 -->
-      <div id="tfm-bl-box" style="display:none;margin-bottom:14px;border:2px solid #e74c3c;border-radius:8px;padding:14px;background:#fff5f5">
+      <div id="tfm-bl-box" class="tk-light" style="display:none;margin-bottom:14px;border:2px solid #e74c3c;border-radius:8px;padding:14px;background:#fff5f5">
         <div style="font-size:13px;font-weight:700;color:#c0392b;margin-bottom:8px">🚫 <span id="tfm-bl-count">0</span> mã SKU trong file tồn này đang bị khóa trong Black List — nên xóa BL trước khi xuất Mass để tồn cập nhật đúng</div>
         <div class="table-wrap" style="max-height:220px;overflow-y:auto;border:1px solid var(--gray3);border-radius:8px;background:white;margin-bottom:10px">
           <table>
@@ -3008,7 +3036,7 @@
         <button class="btn-drive-sync" style="margin-top:8px;max-width:220px" onclick="blCopyXoaText('tfm', this)">📋 Copy Lệnh Xóa BL</button>
       </div>
 
-      <div id="tfm-preview" style="display:none;background:#f8f4fd;border:1px solid #d5b8f0;border-radius:8px;padding:10px 14px;margin-bottom:10px"></div>
+      <div id="tfm-preview" class="tk-light" style="display:none;background:#f8f4fd;border:1px solid #d5b8f0;border-radius:8px;padding:10px 14px;margin-bottom:10px"></div>
       <div id="tfm-log" class="drive-log"></div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px;align-items:stretch">
         <!-- ★ 2026-10-19 (xác nhận Tân): chọn xuất TẤT CẢ shop đã tải hoặc RIÊNG 1 shop -->
@@ -3022,10 +3050,7 @@
          giữa các shop/ca làm việc khác nhau trong 24h — xem khối SKULOI ở <script> phía dưới
          (xác nhận Tân 2026-09-28). Không dùng chung state với TFM/TON. -->
     <div class="card" style="margin-top:18px;border-top:3px solid #d35400">
-      <div class="card-title"><span class="dot" style="background:#d35400"></span> SKU Bị Shopee Từ Chối → SetTon</div>
-      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-        Dùng khi Shopee từ chối cập nhật tồn qua file mass (thường do lệch tỷ lệ giá biến thể &gt;5 lần, báo trong file Result). Tải lên các file <b>Result_shopee_mass_update...xlsx</b> (Shopee tự xuất sau khi xử lý file mass, có thể chọn nhiều file — nhiều shop cùng lúc) + file <b>tồn kho thật</b> (HN/SG, có thể chọn nhiều file). Hệ thống gom danh sách SKU bị lỗi (loại trùng giữa các shop), tra đúng số lượng theo kho, tự động ẩn các mã đã được set qua SetTon trong 24h gần nhất (bởi shop khác), rồi chia thành từng đợt để bạn copy dán vào chat bot SetTon.
-      </p>
+      <div class="card-title"><span class="dot" style="background:#d35400"></span> SKU Bị Shopee Từ Chối → SetTon <span class="tk-info">i<span class="tk-tip">Dùng khi Shopee từ chối cập nhật tồn qua file mass (thường do lệch tỷ lệ giá biến thể &gt;5 lần, báo trong file Result). Tải lên các file <b>Result_shopee_mass_update...xlsx</b> (Shopee tự xuất sau khi xử lý file mass, có thể chọn nhiều file — nhiều shop cùng lúc) + file <b>tồn kho thật</b> (HN/SG, có thể chọn nhiều file). Hệ thống gom danh sách SKU bị lỗi (loại trùng giữa các shop), tra đúng số lượng theo kho, tự động ẩn các mã đã được set qua SetTon trong 24h gần nhất (bởi shop khác), rồi chia thành từng đợt để bạn copy dán vào chat bot SetTon.</span></span></div>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px">
         <div>
           <label style="display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px">Shop đang set tồn</label>
@@ -3053,7 +3078,7 @@
         Bỏ qua bộ lọc trùng — hiện &amp; set lại cả những SKU đã gửi SetTon trong 24h qua
       </label>
       <div id="skuloi-log" class="drive-log"></div>
-      <div id="skuloi-preview" style="display:none;margin-top:14px"></div>
+      <div id="skuloi-preview" class="tk-light" style="display:none;margin-top:14px"></div>
     </div>
 
 
@@ -3081,10 +3106,7 @@
          "Bảng Stock Deli" gốc Tân tự khai PHẢI đổi tên 2 cột cũ thành 4 cột HN/HCM trước khi dùng
          lại "Nhập/Cập Nhật Bảng Stock Gốc", nếu không sẽ về 0 vì không khớp được tên cột). -->
     <div class="card" style="margin-top:18px;border-top:3px solid #16a085">
-      <div class="card-title"><span class="dot" style="background:#16a085"></span> Đặt Hàng Deli — Bảng Stock</div>
-      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-        Lưu dữ liệu gốc từng mã Deli (Đơn Vị/Quy Cách đóng gói/Yêu Cầu Tồn mỗi Tuần/Trạng Thái) lâu dài trên Dashboard. Mỗi lần đẩy file <b>"Tổng hợp nhập xuất tồn kho"</b> mới, hệ thống tự khớp mã, cập nhật tồn và tính ra danh sách mã cần đặt hàng đợt tới. Tồn và Yêu Cầu Tồn/Tuần tách riêng theo <b>Kho HN/HCM</b> — chọn đúng kho khi đẩy file tồn.
-      </p>
+      <div class="card-title"><span class="dot" style="background:#16a085"></span> Đặt Hàng Deli — Bảng Stock <span class="tk-info">i<span class="tk-tip">Lưu dữ liệu gốc từng mã Deli (Đơn Vị/Quy Cách đóng gói/Yêu Cầu Tồn mỗi Tuần/Trạng Thái) lâu dài trên Dashboard. Mỗi lần đẩy file <b>"Tổng hợp nhập xuất tồn kho"</b> mới, hệ thống tự khớp mã, cập nhật tồn và tính ra danh sách mã cần đặt hàng đợt tới. Tồn và Yêu Cầu Tồn/Tuần tách riêng theo <b>Kho HN/HCM</b> — chọn đúng kho khi đẩy file tồn.</span></span></div>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
         <div>
           <input type="file" id="dhd-master-input" accept=".xlsx,.xls" style="display:none" onchange="dhdHandleMasterFile(this)">
@@ -3106,10 +3128,10 @@
       </div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Bảng Stock gốc: <b id="dhd-status-master">chưa tải</b></div>
 
-      <div id="dhd-newsku" style="display:none;background:#fdecea;border:1px solid #f1a9a0;border-radius:8px;padding:12px 14px;margin-bottom:14px"></div>
+      <div id="dhd-newsku" class="tk-light" style="display:none;background:#fdecea;border:1px solid #f1a9a0;border-radius:8px;padding:12px 14px;margin-bottom:14px"></div>
 
       <div id="dhd-log" class="drive-log"></div>
-      <div id="dhd-result" style="display:none;background:#eafaf1;border:1px solid #a3e4c1;border-radius:8px;padding:10px 14px;margin-bottom:10px"></div>
+      <div id="dhd-result" class="tk-light" style="display:none;background:#eafaf1;border:1px solid #a3e4c1;border-radius:8px;padding:10px 14px;margin-bottom:10px"></div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
         <button id="dhd-export-btn" class="btn-drive-sync" style="display:none;max-width:360px;background:#16a085;border-color:#16a085" onclick="dhdExportFile(DHD.khoView)">📤 Xuất File Order (Mã SKU / SL Cần Đặt)</button>
       </div>
@@ -3122,10 +3144,7 @@
          ứng được — gắn nhãn lý do tự động dựa vào Mô tả/Tồn đọc được từ file Đơn Nháp (không có
          trong catalogue Deli / hết hàng-tồn ≤0 / không rõ lý do). Xác nhận Tân 2026-09-28. -->
     <div class="card" style="margin-top:18px;border-top:3px solid #d35400">
-      <div class="card-title"><span class="dot" style="background:#d35400"></span> Deli Không Đáp Ứng Được</div>
-      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-        So sánh <b>file đơn đặt</b> với các file <b>Deli Xác Nhận</b> (Deli trả về, chỉ còn SKU họ đáp ứng được) — đơn kho HCM có thể được Deli tách thành <b>2 file</b>: phần giao thẳng kho HCM và phần xuất từ HN về Ngọc Hà; dashboard <b>cộng SL của cả 2 file</b> theo từng mã rồi mới so với số đã đặt. File đơn đặt là <b>file order xuất từ khối "Đặt Hàng Deli — Bảng Stock" ngay phía trên</b> (tự nhận dạng) hoặc file Đơn Nháp theo template Deli (sheet "Đơn hàng"). Liệt kê SKU Deli không đáp ứng và SKU chỉ đáp ứng một phần, kèm lý do tự động.
-      </p>
+      <div class="card-title"><span class="dot" style="background:#d35400"></span> Deli Không Đáp Ứng Được <span class="tk-info">i<span class="tk-tip">So sánh <b>file đơn đặt</b> với các file <b>Deli Xác Nhận</b> (Deli trả về, chỉ còn SKU họ đáp ứng được) — đơn kho HCM có thể được Deli tách thành <b>2 file</b>: phần giao thẳng kho HCM và phần xuất từ HN về Ngọc Hà; dashboard <b>cộng SL của cả 2 file</b> theo từng mã rồi mới so với số đã đặt. File đơn đặt là <b>file order xuất từ khối "Đặt Hàng Deli — Bảng Stock" ngay phía trên</b> (tự nhận dạng) hoặc file Đơn Nháp theo template Deli (sheet "Đơn hàng"). Liệt kê SKU Deli không đáp ứng và SKU chỉ đáp ứng một phần, kèm lý do tự động.</span></span></div>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
         <div>
           <input type="file" id="dkd-order-input" accept=".xlsx,.xls" style="display:none" onchange="dkdHandleOrderFile(this)">
@@ -3145,7 +3164,7 @@
       <div style="font-size:12px;color:var(--text2);margin-bottom:4px">File Deli giao thẳng HCM: <b id="dkd-status-final">chưa chọn</b></div>
       <div style="font-size:12px;color:var(--text2);margin-bottom:10px">File Deli xuất từ HN (về Ngọc Hà): <b id="dkd-status-final-hn">chưa chọn</b> <span style="color:#999">— bỏ trống nếu đơn không phát sinh đơn HN</span></div>
 
-      <div id="dkd-result" style="display:none;background:#fdf3ec;border:1px solid #f0c9a8;border-radius:8px;padding:10px 14px;margin-bottom:10px"></div>
+      <div id="dkd-result" class="tk-light" style="display:none;background:#fdf3ec;border:1px solid #f0c9a8;border-radius:8px;padding:10px 14px;margin-bottom:10px"></div>
       <div id="dkd-log" class="drive-log"></div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
         <button id="dkd-export-btn" class="btn-drive-sync" style="display:none;max-width:320px" onclick="dkdExportFile()">📤 Xuất File Excel (Không Đáp Ứng / Một Phần / Hàng HN Chuyển HCM)</button>
