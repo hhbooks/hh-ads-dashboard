@@ -871,6 +871,21 @@
   .tk-info:hover { border-color:#2563eb; color:#2563eb; }
   .tk-info:hover .tk-tip { display:block; }
   .tk-info .tk-tip { border:1px solid #e5e7eb; }
+  /* 2026-10-20 (Tân chốt): ADS › Tổng Quan — 8 thẻ KPI + biểu đồ Xu Hướng Theo Ngày nền navy như GMS.
+     CHỈ scope #ov-kpi-grid và #ov-trend-chart-card; bảng "Tất Cả Sản Phẩm ADS", card CSV/API giữ nền trắng. */
+  #ov-kpi-grid .kpi-card { background:linear-gradient(135deg,#1b2a4e,#2b4a8f); border:none; border-top:3px solid transparent; border-radius:18px; box-shadow:0 6px 24px rgba(27,42,78,.14); }
+  #ov-kpi-grid .kpi-card .kpi-label { color:#fff; opacity:.92; }
+  #ov-kpi-grid .kpi-card .kpi-value { color:#fff !important; }
+  #ov-kpi-grid .kpi-card .kpi-sub { color:#dbe4f3; }
+  #ov-kpi-grid .kpi-card .kpi-icon { opacity:.6; }
+  /* 4 thẻ nối với 4 đường biểu đồ: gạch trên cùng màu đúng màu đường (tông sáng trên nền navy) */
+  #ov-kpi-grid .kpi-card:nth-child(1) { border-top-color:#60a5fa !important; }
+  #ov-kpi-grid .kpi-card:nth-child(2) { border-top-color:#fdba74 !important; }
+  #ov-kpi-grid .kpi-card:nth-child(3) { border-top-color:#c4b5fd !important; }
+  #ov-kpi-grid .kpi-card:nth-child(4) { border-top-color:#4ade80 !important; }
+  #ov-trend-chart-card { background:linear-gradient(135deg,#1b2a4e,#2b4a8f); border:none; border-radius:18px; box-shadow:0 6px 24px rgba(27,42,78,.14); }
+  #ov-trend-chart-card .card-title { color:#fff; }
+  #ov-trend-chart-card #ov-trend-chart-empty { color:#c7d2e8 !important; }
   /* Trang Hoa Hồng TikTok (Kế Toán) — class riêng tiền tố tthh-, không đụng class dùng chung */
   .tthh-btn { padding:8px 16px; background:#fff; color:var(--text); border:1.5px solid var(--text); border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer; }
   .tthh-btn:disabled { opacity:.45; cursor:not-allowed; }
@@ -18560,25 +18575,25 @@ function renderOverviewTrendChart() {
       datasets: [
         {
           label: 'Số Lượt Xem', data: series.map(s => s.views),
-          borderColor: '#2563eb', backgroundColor: 'transparent',
+          borderColor: '#60a5fa', backgroundColor: 'transparent',
           borderWidth: 2, pointRadius: 2, tension: 0.35, yAxisID: 'yViews',
           datalabels: { display: false }
         },
         {
           label: 'Số Đơn Hàng', data: series.map(s => s.conv),
-          borderColor: '#E67E22', backgroundColor: 'transparent',
+          borderColor: '#fdba74', backgroundColor: 'transparent',
           borderWidth: 2, pointRadius: 2, tension: 0.35, yAxisID: 'yOrders',
           datalabels: { display: false }
         },
         {
           label: 'Doanh Thu', data: series.map(s => s.doanh_so),
-          borderColor: '#1F3864', backgroundColor: 'transparent',
+          borderColor: '#c4b5fd', backgroundColor: 'transparent',
           borderWidth: 2, pointRadius: 2, tension: 0.35, yAxisID: 'yRevenue',
           datalabels: { display: false }
         },
         {
           label: 'ROAS', data: series.map(s => s.roas),
-          borderColor: '#059669', backgroundColor: 'transparent',
+          borderColor: '#4ade80', backgroundColor: 'transparent',
           borderWidth: 2, pointRadius: 2, tension: 0.35, yAxisID: 'yRoas',
           datalabels: { display: false }
         }
@@ -18588,7 +18603,7 @@ function renderOverviewTrendChart() {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { position: 'top', labels: { font: { size: 10 }, boxWidth: 12 } },
+        legend: { position: 'top', labels: { color: '#dbe4f3', font: { size: 11 }, boxWidth: 12 } }, // 2026-10-20: nền navy
         datalabels: { display: false },
         tooltip: {
           callbacks: {
@@ -18602,7 +18617,7 @@ function renderOverviewTrendChart() {
         }
       },
       scales: {
-        x: { ticks: { font: { size: 10 } }, grid: { color: '#ECF0F1' } },
+        x: { ticks: { color: '#c7d2e8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.08)' }, border: { color: 'rgba(255,255,255,.2)' } },
         yViews:   { display: false, suggestedMin: 0 },
         yOrders:  { display: false, suggestedMin: 0 },
         yRevenue: { display: false, suggestedMin: 0 },
