@@ -496,6 +496,9 @@
   #page-group-camp .gcr-pt td.c { text-align:center; color:var(--text2); font-size:12px; }
   #page-group-camp .gcr-pt .pn { font-weight:600; color:#1b2a4e; max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #page-group-camp .gcr-pt .pid { font-size:11.5px; color:var(--text2); }
+  #page-group-camp .gcr-pt .pid .psku { color:#1d4ed8; font-weight:700; }
+  #page-group-camp .gcr-pt .pid .psku-na { color:#9ca3af; font-style:italic; }
+  #page-group-camp .gcr-pt .pid .psku-more { display:inline-block; padding:0 5px; border-radius:6px; background:#eff6ff; color:#1d4ed8; font-size:10.5px; }
   #page-group-camp .gcr-pt tr.idle td { opacity:.5; }
   @media (max-width:900px) { #page-group-camp .gcr-grp-h { grid-template-columns:22px minmax(0,1fr) auto; } #page-group-camp .gcr-grp-h .gcr-m { display:none; } }
 
@@ -1870,7 +1873,7 @@
 
       <!-- Ô tìm kiếm: lọc cả bảng nhóm lẫn card sản phẩm trong nhóm (tên nhóm, tên SP, ID SP; không phân biệt hoa thường/dấu) -->
       <div class="card gcr-search">
-        <input id="gc-search" type="search" autocomplete="off" placeholder="🔍 Tìm nhóm quảng cáo hoặc sản phẩm trong nhóm (tên / ID)…" oninput="gcrSearch(this.value)">
+        <input id="gc-search" type="search" autocomplete="off" placeholder="🔍 Tìm nhóm quảng cáo hoặc sản phẩm trong nhóm (tên / ID / SKU)…" oninput="gcrSearch(this.value)">
         <button id="gc-search-clear" type="button" onclick="gcrClearSearch()" style="display:none">✕ Xóa</button>
         <span class="gcr-info" id="gc-search-info"></span>
       </div>
@@ -7163,6 +7166,7 @@ function spmProcessLienKet(sheet) {
   SPM.rows = rows;
   spmRenderPreview();
   spmLog(`✅ Đọc được ${rows.length} sản phẩm từ Mega Book (sheet "${SPM.currentSheetName}").`, 'ok');
+  spmFilterExistingSku_();
 }
 
 // ---- SÁCH HUY HOÀNG (file "Thông tin sách mới - tái bản", nhiều tab theo tháng) ----
@@ -7230,6 +7234,45 @@ function spmProcessHuyHoang(sheet) {
   spmRenderExcluded();
   spmRenderPreview();
   spmLog(`✅ Đọc được ${rows.length} sản phẩm từ sheet "${SPM.currentSheetName}".`, 'ok');
+  spmFilterExistingSku_();
+}
+
+// ── 2026-10-20 (Tân chốt): Sách Liên Kết / Huy Hoàng — BỎ các mã ĐÃ CÓ trong tab SKU (khả năng cao đã lên SW).
+//    Áp dụng cho CẢ Xuất File Salework + Xuất Phiếu Nhập + Đẩy Vào Sheet SKU (mọi nút dùng chung SPM.rows).
+//    Nguồn đối chiếu: Danh mục SKU đã đồng bộ (Firestore sku_catalog — nút "Đồng Bộ SKU Tổng").
+//    Sau khi bấm "Đẩy Vào Sheet SKU", lọc lại CHÍNH XÁC theo danh sách mã Sheet báo đã có sẵn (spmDropSkipped_).
+function spmCodeKey_(v) { return String(v == null ? '' : v).trim().replace(/^'+/, '').replace(/\.0+$/, '').toUpperCase(); }
+function spmMoveToExcluded_(keys, ghiChu) {
+  const keep = [], moved = [];
+  SPM.rows.forEach(r => (keys.has(spmCodeKey_(r.ma)) ? moved : keep).push(r));
+  if (!moved.length) return 0;
+  SPM.rows = keep;
+  moved.forEach(r => SPM.excluded.push({ ma: r.ma, ten: r.ten || '', ghiChu }));
+  spmRenderExcluded();
+  spmRenderPreview();
+  return moved.length;
+}
+async function spmFilterExistingSku_() {
+  if (SPM.mode !== 'lienket' && SPM.mode !== 'huyhoang') return;
+  const seq = SPM.filterSeq = (SPM.filterSeq || 0) + 1, mode = SPM.mode;
+  let cat;
+  SPM.filtering = true;
+  try { cat = await giaLoadCatalogIfNeeded(); }
+  catch (e) { SPM.filtering = false; spmLog('⚠️ Không tải được Danh mục SKU để lọc mã đã có — đang giữ nguyên toàn bộ danh sách: ' + (e.message || e), 'warn'); return; }
+  if (seq !== SPM.filterSeq) return;                                  // đã chọn file khác — lần gọi mới tự lo cờ filtering
+  SPM.filtering = false;
+  if (mode !== SPM.mode) return;                                      // đã đổi chế độ trong lúc chờ
+  const keys = new Set(Object.keys(cat || {}).map(spmCodeKey_));
+  if (!keys.size) { spmLog('⚠️ Danh mục SKU đang trống — bấm "Đồng Bộ SKU Tổng" (Kiểm Soát Tồn Kho → Cập Nhật Tồn) rồi chọn lại file để lọc mã đã có.', 'warn'); return; }
+  const before = SPM.rows.length;
+  const n = spmMoveToExcluded_(keys, 'Đã có trong tab SKU (khả năng đã lên SW)');
+  spmLog(n ? `🔎 Đối chiếu Danh mục SKU: bỏ ${n}/${before} mã đã có trong tab SKU → còn ${SPM.rows.length} mã MỚI để xuất.`
+           : `🔎 Đối chiếu Danh mục SKU: cả ${before} mã đều chưa có trong tab SKU.`, 'ok');
+}
+// Sau "Đẩy Vào Sheet SKU": Apps Script trả về danh sách mã đã có sẵn → bỏ khỏi danh sách xuất (chính xác theo Sheet, kể cả khi Danh mục SKU chưa đồng bộ mới)
+function spmDropSkipped_(skipped) {
+  if (!skipped || !skipped.length) return 0;
+  return spmMoveToExcluded_(new Set(skipped.map(spmCodeKey_)), 'Đã có trong tab SKU (Sheet báo khi Đẩy Vào Sheet SKU)');
 }
 
 // ---- VPP DELI (sheet "Giá nhập Deli" trong file làm việc nhiều sheet Tân tự soạn) ----
@@ -7320,7 +7363,7 @@ function spmRenderExcluded() {
   document.getElementById('spm-excluded-count').textContent = SPM.excluded.length;
   document.getElementById('spm-excluded-title').textContent = SPM.mode === 'deli'
     ? 'mã chưa tick "Đẩy Lên Salework" nhưng KHÔNG xuất (chưa có trong tab SKU / thiếu giá) — xử lý xong rồi Đồng bộ lại'
-    : 'dòng bị loại vì Ghi chú là "Sách liên kết" (không thuộc Sách Huy Hoàng tự xuất bản)';
+    : 'mã KHÔNG xuất vì đã có trong tab SKU (khả năng cao đã lên SW) — xem cột Ghi chú';
   tbody.innerHTML = SPM.excluded.map((e, i) => `<tr><td>${i + 1}</td><td style="text-align:left">${e.ma}</td><td style="text-align:left">${e.ten}</td><td>${e.ghiChu}</td></tr>`).join('');
   box.style.display = 'block';
 }
@@ -7353,6 +7396,7 @@ function spmRenderPreview() {
 // xác nhận Tân 2026-09-21, chấp nhận đánh đổi).
 function spmExportFile() {
   if (!SPM.rows.length) return;
+  if (SPM.filtering) { spmLog('⏳ Đang đối chiếu Danh mục SKU để bỏ mã đã có — đợi 1–2 giây rồi bấm lại.', 'warn'); return; }
   const isTextMa = SPM.mode === 'deli'; // mã Deli có chữ - không ép định dạng số nguyên như 2 mode sách
   const aoa = [SPM_HEADERS];
   SPM.rows.forEach(row => {
@@ -7402,6 +7446,7 @@ function spmExportFile() {
 // có giá nhập lưu sẵn, không cần nhập lại).
 function spmExportPhieuNhap() {
   if (!SPM.rows.length) return;
+  if (SPM.filtering) { spmLog('⏳ Đang đối chiếu Danh mục SKU để bỏ mã đã có — đợi 1–2 giây rồi bấm lại.', 'warn'); return; }
   const isTextMa = SPM.mode === 'deli';
   const headers = ['MÃ SẢN PHẨM (*)', 'SỐ LƯỢNG  (*)', 'GIÁ NHẬP', 'THÀNH TIỀN'];
   const aoa = [headers];
@@ -7671,6 +7716,7 @@ async function spmDeliMark() {
 
 async function spmPushToSheet() {
   if (!SPM.rows.length) return;
+  if (SPM.filtering) { spmLog('⏳ Đang đối chiếu Danh mục SKU để bỏ mã đã có — đợi 1–2 giây rồi bấm lại.', 'warn'); return; }
   if (!SKU_SHEET_APPS_SCRIPT_URL) {
     spmLog('❌ Chưa cấu hình URL Apps Script cho Sheet SKU Tổng (biến SKU_SHEET_APPS_SCRIPT_URL) - xem hướng dẫn deploy trong file AppsScript_SKU_Tong_Push.gs.', 'err');
     return;
@@ -7693,6 +7739,10 @@ async function spmPushToSheet() {
       msg += ` ⚠ Bỏ qua ${data.skipped.length} dòng đã có sẵn Mã SKU trên sheet: ${data.skipped.slice(0, 10).join(', ')}${data.skipped.length > 10 ? '...' : ''}.`;
     }
     spmLog(msg, data.added ? 'ok' : 'warn');
+    // added = 0 → lần đẩy LẠI (các mã mới đã lên Sheet từ lần trước nên cũng bị báo "đã có") → KHÔNG lọc theo danh sách này
+    const nDrop = data.added ? spmDropSkipped_(data.skipped) : 0;
+    if (!data.added) spmLog('ℹ️ Không thêm mã nào (có thể đã đẩy từ trước) — giữ nguyên danh sách xuất theo Danh mục SKU.', 'info');
+    if (nDrop) spmLog(`🔎 Đã bỏ ${nDrop} mã có sẵn trên Sheet khỏi danh sách xuất → Xuất File Salework / Phiếu Nhập giờ chỉ còn ${SPM.rows.length} mã mới.`, 'ok');
   } catch (err) {
     spmLog('❌ Lỗi khi đẩy vào Sheet: ' + String(err.message || err), 'err');
   } finally {
@@ -14585,6 +14635,38 @@ function gcSplitName(name, allShops) {
   const i = s.indexOf(' · ');
   return i > 0 && i <= 24 ? { tag: s.slice(0, i), base: s.slice(i + 3) } : { tag: '', base: s };
 }
+// ── SKU (Mã Salework) của từng SP — Tân yêu cầu 2026-10-20. Tra theo ID SP Shopee trong MAP SW
+//    (Firestore map_salework_ton, cập nhật bởi nút "Đồng Bộ SKU Tổng"). 1 SP nhiều phân loại → nhiều SKU.
+let _gcSkuLoading = false;
+function gcSkuList(itemId) {
+  const m = SHARED.saleworkByIdSp; if (!m || itemId == null) return [];
+  const out = new Map();
+  (m.get(String(itemId).trim()) || []).forEach(c => {
+    if (!c.maSalework) return;
+    const k = c.maSalework + (c.comboQty > 1 ? ' ×' + c.comboQty : '');
+    if (!out.has(k)) out.set(k, { ma: c.maSalework, txt: k });
+  });
+  return [...out.values()];
+}
+function gcSkuHtml(itemId) {
+  if (!SHARED.saleworkByIdSp) return _gcSkuLoading ? ' · <span class="psku-na">SKU: đang tải…</span>' : '';
+  const l = gcSkuList(itemId);
+  if (!l.length) return ' · <span class="psku-na" title="ID SP này chưa có trong MAP SW — bấm Đồng Bộ SKU Tổng hoặc kiểm tra tab MAP SW">SKU: chưa map</span>';
+  const all = l.map(x => x.txt).join(', ');
+  const show = l.slice(0, 3).map(x => acrEsc(x.txt)).join(', ') + (l.length > 3 ? ` <span class="psku-more">+${l.length - 3}</span>` : '');
+  return ` · <span class="psku" title="${acrEsc(l.length + ' SKU: ' + all)}">SKU: ${show}</span>`;
+}
+async function gcEnsureSkuMap() {
+  if (SHARED.saleworkByIdSp || _gcSkuLoading) return;
+  _gcSkuLoading = true;
+  try { await sharedLoadSaleworkMap(); } catch (e) { console.warn('[gc] không tải được MAP SW:', e); }
+  _gcSkuLoading = false;
+  const v = _gcR.view;
+  if (v) {
+    v.sorted.forEach(g => g.products.forEach(p => { p._n = gcNorm((p.name || '') + ' ' + (p.itemId || '') + ' ' + gcSkuList(p.itemId).map(x => x.ma).join(' ')); }));
+    gcrRenderLists();
+  }
+}
 function gcSubLine(d, name) { return d ? `<span class="acr-dl">${d} <span style="color:var(--text2)">${name}</span></span>` : ''; }
 
 function groupCampRenderContent(rec, opts) {
@@ -14662,9 +14744,10 @@ function groupCampRenderContent(rec, opts) {
   // ── Danh sách nhóm + card SP trong nhóm (có ô tìm kiếm) ──
   const sorted = [...groups].sort((a, b) => b.cost - a.cost).map(g => ({
     ...g, _n: gcNorm(g.name),
-    products: (g.products || []).map(p => ({ ...p, _n: gcNorm((p.name || '') + ' ' + (p.itemId || '')) }))
+    products: (g.products || []).map(p => ({ ...p, _n: gcNorm((p.name || '') + ' ' + (p.itemId || '') + ' ' + gcSkuList(p.itemId).map(x => x.ma).join(' ')) }))
   }));
   _gcR.view = { sorted, allShops: !!opts.allShops };
+  gcEnsureSkuMap();
   gcrRenderLists();
   gcRenderRevPie(groups, tot.rev);
 }
@@ -14742,7 +14825,7 @@ function gcrRenderLists() {
         else body = `<div class="table-wrap"><table class="gcr-pt"><thead><tr><th style="width:34px">#</th><th>Sản Phẩm</th><th class="num">Chi Phí</th><th class="num">Doanh Số</th><th class="num">ROAS</th><th class="num">ACOS</th><th class="num">Lượt Xem</th><th class="num">Lượt Click</th><th class="num">Đơn</th></tr></thead><tbody>${
           [...x.prods].sort((a, b) => b.cost - a.cost || b.revenue - a.revenue).map((p, k) => {
             const r = p.cost > 0 ? p.revenue / p.cost : 0, plow = p.cost >= GC_PROD_MIN_COST && r < GC_ROAS_LOW, idle = !(p.views > 0 || p.cost > 0);
-            return `<tr${idle ? ' class="idle" title="Không có lượt xem/chi phí trong kỳ"' : ''}><td class="c">${k + 1}</td><td><div class="pn" title="${acrEsc(p.name)}">${acrEsc(p.name)}</div><div class="pid">ID: ${acrEsc(p.itemId || '—')}</div></td>
+            return `<tr${idle ? ' class="idle" title="Không có lượt xem/chi phí trong kỳ"' : ''}><td class="c">${k + 1}</td><td><div class="pn" title="${acrEsc(p.name)}">${acrEsc(p.name)}</div><div class="pid">ID: ${acrEsc(p.itemId || '—')}${gcSkuHtml(p.itemId)}</div></td>
               <td class="num k1">${fmtMoney(p.cost)}</td><td class="num k2">${fmtMoney(p.revenue)}</td>
               <td class="num k3" style="${plow ? 'color:var(--red)' : ''}">${plow ? '⚠ ' : ''}${p.cost > 0 ? r.toFixed(2) : '—'}</td>
               <td class="num">${p.revenue > 0 ? (p.cost / p.revenue * 100).toFixed(1) + '%' : '—'}</td>
