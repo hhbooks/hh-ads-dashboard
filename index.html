@@ -865,31 +865,12 @@
   #page-tonghop .th-navy-panel .thn-bad { color:#fca5a5 !important; } #page-tonghop .th-navy-panel .thn-vat { color:#fde68a !important; }
   #page-tonghop .th-navy-panel .thn-muted { color:#c7d2e8 !important; font-weight:400 !important; }
   #page-tonghop .th-navy-panel { margin-bottom:4px; }
-  /* ══ 2026-10-20 (Tân chốt): trang Kiểm Soát Tồn Kho › Cập Nhật Tồn — các khối nền NAVY kiểu GMS.
-     CHỈ scope #page-tonkho-tong-quan > .card. Đổi biến --text/--text2 TRONG khối → các style inline dùng var() tự sáng lên.
-     Khung KẾT QUẢ (class tk-light: cảnh báo Black List, xem trước, danh sách SetTon, mã mới, kết quả đặt hàng/không đáp ứng)
-     GIỮ NỀN SÁNG như cũ (trả lại biến gốc). Đoạn hướng dẫn chuyển vào biểu tượng (i) cạnh tiêu đề, rê chuột mới hiện. ══ */
-  #page-tonkho-tong-quan > .card { --text:#ffffff; --text2:#c7d2e8; color:#dbe4f3; background:linear-gradient(135deg,#1b2a4e,#2b4a8f); border:none; border-radius:18px; box-shadow:0 6px 24px rgba(27,42,78,.14); }
-  #page-tonkho-tong-quan > .card .card-title { font-size:15px; }
-  #page-tonkho-tong-quan .tk-light { --text:#111827; --text2:#6b7280; color:#111827; }
-  #page-tonkho-tong-quan #skuloi-preview { background:#fff; border-radius:12px; padding:12px 14px; }
-  #page-tonkho-tong-quan > .card .sw-upload-btn:not(.tk-light *), #page-tonkho-tong-quan > .card .btn-drive-sync:not(.tk-light *) { background:rgba(255,255,255,.06); color:#fff; border-color:rgba(255,255,255,.85); }
-  #page-tonkho-tong-quan > .card .sw-upload-btn:not(.tk-light *):hover, #page-tonkho-tong-quan > .card .btn-drive-sync:not(.tk-light *):hover { background:rgba(255,255,255,.16); }
-  #page-tonkho-tong-quan > .card button[style*="background:white"]:not(.tk-light *) { background:rgba(255,255,255,.06) !important; }
-  #page-tonkho-tong-quan > .card button[style*="background:white"]:not(.tk-light *):hover { background:rgba(255,255,255,.16) !important; }
-  #page-tonkho-tong-quan > .card button[style*="#c0392b"]:not(.tk-light *) { color:#fca5a5 !important; border-color:#fca5a5 !important; }
-  #page-tonkho-tong-quan > .card button[style*="#8e44ad"]:not(.tk-light *) { color:#d8b4fe !important; border-color:#d8b4fe !important; }
-  #page-tonkho-tong-quan > .card select:not(.tk-light *) { background:#fff; color:#111827; }
-  #page-tonkho-tong-quan > .card [style*="color:#999"]:not(.tk-light *) { color:#aab6cf !important; }
-  #page-tonkho-tong-quan > .card input[type="checkbox"] { accent-color:#60a5fa; }
-  #page-tonkho-tong-quan > .card .drive-log:not(.tk-light *) { background:rgba(8,16,40,.35); color:#dbe4f3; }
-  #page-tonkho-tong-quan > .card .drive-log:not(.tk-light *) div[style*="color:#555"] { color:#dbe4f3 !important; }
-  #page-tonkho-tong-quan > .card .drive-log:not(.tk-light *) div[style*="color:#27ae60"] { color:#86efac !important; }
-  #page-tonkho-tong-quan > .card .drive-log:not(.tk-light *) div[style*="color:#f39c12"] { color:#fcd34d !important; }
-  #page-tonkho-tong-quan > .card .drive-log:not(.tk-light *) div[style*="color:#e74c3c"] { color:#fca5a5 !important; }
-  .tk-info { position:relative; display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; border:1.5px solid rgba(255,255,255,.75); color:#fff; font:italic 800 11px Georgia, serif; cursor:help; margin-left:2px; }
+  /* 2026-10-20: thử nền navy cho trang Cập Nhật Tồn → Tân thấy đau mắt, ĐÃ BỎ (giữ nền trắng). Chỉ giữ biểu tượng (i) hướng dẫn cạnh tiêu đề. */
+  .tk-info { position:relative; display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; border:1.5px solid #9ca3af; color:#6b7280; font:italic 800 11px Georgia, serif; cursor:help; margin-left:2px; }
   .tk-info .tk-tip { display:none; position:absolute; left:-8px; top:26px; z-index:60; width:min(560px,70vw); background:#fff; color:#111827; font-family:'Segoe UI', Arial, sans-serif; font-size:12.5px; font-weight:400; font-style:normal; line-height:1.65; padding:12px 14px; border-radius:10px; box-shadow:0 12px 32px rgba(0,0,0,.28); }
+  .tk-info:hover { border-color:#2563eb; color:#2563eb; }
   .tk-info:hover .tk-tip { display:block; }
+  .tk-info .tk-tip { border:1px solid #e5e7eb; }
   /* Trang Hoa Hồng TikTok (Kế Toán) — class riêng tiền tố tthh-, không đụng class dùng chung */
   .tthh-btn { padding:8px 16px; background:#fff; color:var(--text); border:1.5px solid var(--text); border-radius:8px; font-size:12.5px; font-weight:700; cursor:pointer; }
   .tthh-btn:disabled { opacity:.45; cursor:not-allowed; }
