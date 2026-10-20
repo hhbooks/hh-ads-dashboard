@@ -7337,7 +7337,7 @@ function spmRenderPreview() {
     // VPP Deli: Giá Nhập lấy thẳng row.giaNhap (đọc từ cột K, không qua công thức %).
     // Sách Liên Kết/Huy Hoàng: vẫn tính theo %CK như cũ.
     const giaNhap = SPM.mode === 'deli' ? row.giaNhap : Math.round(row.giaBanLe * (1 - row.ckRate));
-    return `<tr><td>${i + 1}</td><td style="text-align:left">${row.ma}</td><td style="text-align:left;max-width:260px">${row.ten}</td><td class="num">${row.giaBanLe.toLocaleString('vi-VN')}</td><td class="num">${giaNhap.toLocaleString('vi-VN')}</td></tr>`;
+    return `<tr><td>${i + 1}</td><td style="text-align:left">${row.ma}${row.maGoc && row.maGoc !== row.ma ? '<div style="font-size:10px;color:var(--text2)">thay cho ' + row.maGoc + '</div>' : ''}</td><td style="text-align:left;max-width:260px">${row.ten}</td><td class="num">${row.giaBanLe.toLocaleString('vi-VN')}</td><td class="num">${giaNhap.toLocaleString('vi-VN')}</td></tr>`;
   }).join('');
   wrap.style.display = 'block';
   exportBtn.style.display = 'inline-block';
@@ -7356,8 +7356,8 @@ function spmExportFile() {
   const isTextMa = SPM.mode === 'deli'; // mã Deli có chữ - không ép định dạng số nguyên như 2 mode sách
   const aoa = [SPM_HEADERS];
   SPM.rows.forEach(row => {
-    // VPP Deli (2026-10-16): thêm BARCODE (chỉ khi là dãy 8–14 chữ số) + LINK ẢNH từ tab Triển Khai Deli
-    aoa.push([row.ma, row.ten, row.dvt, null, null, null, row.giaBanLe, isTextMa ? (row.barcode || null) : null, 1, isTextMa ? (row.anh || null) : null, null, null]);
+    // Tân chốt 2026-10-16: Thuế / Barcode / Link ảnh ĐỂ TRỐNG cho mọi loại (kể cả VPP Deli)
+    aoa.push([row.ma, row.ten, row.dvt, null, null, null, row.giaBanLe, null, 1, null, null, null]);
   });
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   SPM.rows.forEach((row, i) => {
@@ -7609,15 +7609,21 @@ async function spmDeliSync() {
     if (!Array.isArray(d.rows)) throw new Error('Apps Script chưa có action "deliSwList" — cần thêm file DeliSW.gs và Deploy phiên bản mới.');
     const rows = [], excluded = [];
     let ci = 0;
+    let nTT = 0;
     d.rows.forEach(r => {
+      // 2026-10-20 (Tân): mã Deli có dấu ngoặc ( ) SW không nhận → dùng cột "Mã Thay Thế" nếu có.
+      // maSW = mã xuất lên SW; r.ma (Mã SKU gốc) giữ lại để tick "Đẩy Lên SW" đúng dòng.
+      const maSW = String(r.maSW || r.maThayThe || r.ma || '').trim();
+      if (maSW !== r.ma) nTT++;
       const why = [];
-      if (!r.inSku) why.push('Chưa có trong tab SKU');
+      if (/[()]/.test(maSW)) why.push('Mã có dấu ngoặc ( ) — SW không nhận, điền cột "Mã Thay Thế"');
+      else if (!r.inSku) why.push('Chưa có trong tab SKU' + (maSW !== r.ma ? ' (mã thay thế ' + maSW + ')' : ''));
       if (!r.ten) why.push('Thiếu tên hàng');
       if (typeof r.giaNhap !== 'number' || !(r.giaNhap > 0)) why.push('Thiếu Giá nhập T8');
       if (typeof r.giaBia !== 'number' || !(r.giaBia > 0)) why.push('Thiếu Giá bìa');
       if (why.length) { excluded.push({ ma: r.ma, ten: r.ten || '', ghiChu: 'Dòng ' + r.row + ' · ' + why.join(', ') }); return; }
       if (r.inSku === 'ci') ci++;
-      rows.push({ ma: r.ma, ten: r.ten, dvt: r.dvt || 'Cái', giaBanLe: Number(r.giaBia), giaNhap: Math.round(Number(r.giaNhap)),
+      rows.push({ ma: maSW, maGoc: r.ma, ten: r.ten, dvt: r.dvt || 'Cái', giaBanLe: Number(r.giaBia), giaNhap: Math.round(Number(r.giaNhap)),
         barcode: spmDeliBarcode_(r.maVach), anh: r.anh || '', row: r.row, ckRate: r.giaBia > 0 ? 1 - r.giaNhap / r.giaBia : 0 });
     });
     SPM.rows = rows; SPM.excluded = excluded;
@@ -7626,6 +7632,7 @@ async function spmDeliSync() {
     spmRenderPreview();
     spmLog(`✅ Tab có ${d.total} mã: ${d.done} mã đã tick "${d.dayHeader || 'Đẩy Lên Salework'}", ${d.rows.length} mã chưa tick → xuất được ${rows.length} mã` +
       (excluded.length ? `, loại ${excluded.length} mã (xem khung cảnh báo).` : '.'), rows.length ? 'ok' : 'warn');
+    if (nTT) spmLog(`🔁 ${nTT} mã dùng "Mã Thay Thế" (mã gốc có dấu ngoặc) để xuất lên SW.`, 'info');
     if (ci) spmLog(`⚠️ ${ci} mã khớp tab SKU nhưng khác chữ hoa/thường — vẫn xuất theo đúng mã ở Triển Khai Deli, nên kiểm tra lại.`, 'warn');
     if (!rows.length && !excluded.length) spmLog('Không còn mã nào cần đẩy lên SW.', 'ok');
   } catch (err) {
@@ -7636,7 +7643,7 @@ async function spmDeliSync() {
 }
 async function spmDeliMark() {
   if (SPM.mode !== 'deli' || !SPM.rows.length || !SPM.exported) return;
-  const codes = SPM.rows.map(r => r.ma);
+  const codes = SPM.rows.map(r => r.maGoc || r.ma); // tick theo Mã SKU gốc ở Triển Khai Deli
   if (!confirm('Tick "Đẩy Lên Salework" cho ' + codes.length + ' mã vừa xuất?\nChỉ bấm khi Salework đã tạo sản phẩm thành công.')) return;
   const btn = document.getElementById('spm-deli-mark-btn');
   btn.disabled = true;
