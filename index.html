@@ -497,6 +497,8 @@
   #page-group-camp .gcr-pt .pn { font-weight:600; color:#1b2a4e; max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #page-group-camp .gcr-pt .pid { font-size:11.5px; color:var(--text2); }
   #page-group-camp .gcr-pt .pid .psku { color:#1d4ed8; font-weight:700; }
+  .roas-kind { display:inline-block; padding:0 6px; border-radius:6px; font-size:10px; font-weight:700; line-height:16px; vertical-align:1px; cursor:help; }
+  .roas-kind-sach { background:#eef2ff; color:#4338ca; } .roas-kind-vpp { background:#ecfdf5; color:#047857; }
   #page-group-camp .gcr-pt .pid .psku-na { color:#9ca3af; font-style:italic; }
   #page-group-camp .gcr-pt .pid .psku-more { display:inline-block; padding:0 5px; border-radius:6px; background:#eff6ff; color:#1d4ed8; font-size:10.5px; }
   #page-group-camp .gcr-pt tr.idle td { opacity:.5; }
@@ -1834,7 +1836,7 @@
       <!-- 3 báo cáo theo ngày (giống GMS): Kỳ này / Cùng kỳ / Kỳ trước + bảng số từng ngày -->
       <div class="acr-split" style="margin-top:16px">
       <div class="card acr-rep" id="gc-rep-roas">
-        <div class="card-title" style="flex-wrap:wrap"><span class="dot"></span> ROAS theo ngày <span style="font-size:12.5px;color:var(--text2);font-weight:400;margin-left:auto">đường · 3 kỳ dùng chung thang trục · Cùng kỳ = cùng ngày của tháng trước · ● đỏ = ngày ROAS &lt; 10</span></div>
+        <div class="card-title" style="flex-wrap:wrap"><span class="dot"></span> ROAS theo ngày <span style="font-size:12.5px;color:var(--text2);font-weight:400;margin-left:auto">đường · 3 kỳ dùng chung thang trục · Cùng kỳ = cùng ngày của tháng trước · ● đỏ = ngày ROAS dưới ngưỡng ngành (Sách &lt; 20 · VPP &lt; 15)</span></div>
         <div id="gc-roas-msg" class="acr-chart-msg" style="display:none"></div>
         <div id="gc-roas-wrap" class="acr-rep-body">
           <div class="acr-rep-charts">
@@ -2012,7 +2014,7 @@
     <!-- 3 báo cáo theo ngày (Tân chốt 2026-10-13): mỗi báo cáo 3 hàng Kỳ này → Cùng kỳ tháng trước → Kỳ trước + bảng số từng ngày, vừa 1 màn hình -->
     <div class="acr-split">
       <div class="card acr-rep" id="ac-rep-roas">
-        <div class="card-title" style="flex-wrap:wrap"><span class="dot"></span> ROAS theo ngày <span style="font-size:12.5px;color:var(--text2);font-weight:400;margin-left:auto">đường · 3 kỳ dùng chung thang trục · Cùng kỳ = cùng ngày của tháng trước · ● đỏ = ngày ROAS &lt; 10</span></div>
+        <div class="card-title" style="flex-wrap:wrap"><span class="dot"></span> ROAS theo ngày <span style="font-size:12.5px;color:var(--text2);font-weight:400;margin-left:auto">đường · 3 kỳ dùng chung thang trục · Cùng kỳ = cùng ngày của tháng trước · ● đỏ = ngày ROAS dưới ngưỡng ngành (Sách &lt; 20 · VPP &lt; 15)</span></div>
         <div id="ac-roas-msg" class="acr-chart-msg" style="display:none"></div>
         <div id="ac-roas-wrap" class="acr-rep-body">
           <div class="acr-rep-charts">
@@ -12682,7 +12684,7 @@ function acRenderProductTable(list, label) {
   // Seller Centre (xác nhận Tân 2026-08-07, cùng nguyên tắc với toàn bộ trang ADS).
   const flagged = sortedAll.filter(p => {
     const roasNum = p.roas || (p.expense>0 ? p.broad_gmv/p.expense : 0);
-    return (p.expense||0) >= AC_PROD_MIN_COST_FOR_FLAG && roasNum < 10;
+    return (p.expense||0) >= AC_PROD_MIN_COST_FOR_FLAG && roasNum < roasRed(roasKindItem(p.item_id, p.item_name));
   });
   const hintEl = document.getElementById('ac-prod-hint');
   if (hintEl) {
@@ -12690,7 +12692,7 @@ function acRenderProductTable(list, label) {
       const flagCost = flagged.reduce((s,p)=>s+(p.expense||0), 0);
       hintEl.style.display = '';
       hintEl.style.background = 'var(--red2)'; hintEl.style.color = '#922B21';
-      hintEl.innerHTML = `🔴 <strong>${flagged.length} sản phẩm</strong> đang tốn ${fmtMoney(flagCost)} nhưng ROAS &lt;10 — cân nhắc loại khỏi chiến dịch tự động trong Shopee Seller Centre (chỉ gợi ý, không tự động xóa).`;
+      hintEl.innerHTML = `🔴 <strong>${flagged.length} sản phẩm</strong> đang tốn ${fmtMoney(flagCost)} nhưng ROAS dưới ngưỡng ngành (${ROAS_TH_TXT}) — cân nhắc loại khỏi chiến dịch tự động trong Shopee Seller Centre (chỉ gợi ý, không tự động xóa).`;
     } else {
       hintEl.style.display = 'none';
     }
@@ -12703,6 +12705,7 @@ function acRenderProductTable(list, label) {
     const roas    = p.roas_str || (p.expense>0 ? roasNum.toFixed(2) : '—');
     const acosNum = (p.broad_gmv||0)>0 ? (p.expense||0)/(p.broad_gmv||1)*100 : 0;
     const acos    = acosNum>0 ? acosNum.toFixed(2)+'%' : '—';
+    const kind    = roasKindItem(p.item_id, p.item_name);
     // Ngưỡng màu ROAS/ACOS dùng CHUNG với bảng "Tất Cả Sản Phẩm ADS" (roasClass/acosClass) —
     // đồng bộ 1 chuẩn duy nhất cho toàn dashboard (xác nhận Tân 2026-08-07).
     return `<tr>
@@ -12710,11 +12713,11 @@ function acRenderProductTable(list, label) {
       <td>
         <div style="font-size:12px;font-weight:600;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
              title="${(p.item_name||p.ad_name||'').replace(/"/g,'&quot;')}">${p.item_name||p.ad_name||'(không tên)'}</div>
-        <div style="font-size:10px;color:var(--text2)">ID: ${p.item_id||p.campaign_id||'—'}</div>
+        <div style="font-size:10px;color:var(--text2)">ID: ${p.item_id||p.campaign_id||'—'} ${roasKindTag(kind)}</div>
       </td>
       <td class="num" style="font-size:13px;font-weight:700;border-left:2px solid var(--gray3);background:#fffaf5">${fmtMoney(p.expense||0)}</td>
       <td class="num" style="font-size:13px;font-weight:700;background:#fffaf5">${fmtMoney(p.broad_gmv||0)}</td>
-      <td class="num" style="font-size:13px;background:#fffaf5"><span class="roas-badge ${roasClass(roasNum)}">${roas}</span></td>
+      <td class="num" style="font-size:13px;background:#fffaf5"><span class="roas-badge ${roasBadge(roasNum, kind)}">${roas}</span></td>
       <td class="num" style="font-size:13px;border-right:2px solid var(--gray3);background:#fffaf5"><span class="acos-badge ${acosClass(acosNum)}">${acos}</span></td>
       <td class="num" style="font-size:12px">${(p.impression||0).toLocaleString('vi-VN')}</td>
       <td class="num" style="font-size:12px">${(p.clicks||0).toLocaleString('vi-VN')}</td>
@@ -12985,7 +12988,55 @@ function gcrRender() {
 // ─────────── Trang GMS ───────────
 const _acR = { range: null, shop: 'all', recs: [], miss: {}, loading: false, picker: null, seq: 0,
   daily: {}, hasDaily: false, prev: null, charts: {} };
-const ACR_ROAS_LOW = 10;   // cùng chuẩn roasClass() toàn dashboard: ROAS < 10 = đỏ
+const ACR_ROAS_LOW = 10;   // (cũ) — từ 2026-10-21 GMS/Nhóm SP dùng ngưỡng THEO NGÀNH bên dưới (ROAS_RULE)
+// ═══ NGƯỠNG ROAS THEO NGÀNH (Tân chốt 2026-10-21) — áp dụng trang GMS + Chiến Dịch Nhóm SP ═══
+//   Sách: ROAS mục tiêu tối thiểu 25 · VPP (Văn phòng phẩm / Home Living / Tools): tối thiểu 22.
+//   Cảnh báo ROAS THỰC (phương án 2): ĐỎ = thua thật (Sách < 20, VPP < 15) · VÀNG = chưa đạt mục tiêu (Sách 20–25, VPP 15–22) · XANH = đạt.
+//   Ngành của SP: ID SP Shopee → SKU (tab MAP SW) → "Ngành Hàng" (tab SKU). Chưa tra được thì đoán theo tên SP/nhóm (Deli, Bossee, Home, Tools…),
+//   không đoán được thì tính là Sách (ngưỡng cao hơn → an toàn hơn). Muốn đổi ngưỡng chỉ sửa ROAS_RULE.
+const ROAS_RULE = { sach: { red: 20, target: 25, label: 'Sách' }, vpp: { red: 15, target: 22, label: 'VPP' } };
+const ROAS_VPP_NGANH = /văn phòng|home|tool|sport|gia dụng|họa cụ|hoạ cụ/i;
+const ROAS_VPP_KW = /\bdeli\b|bossee|\bbose\b|\bvpp\b|văn phòng phẩm|home living|\btools?\b|họa cụ|hoạ cụ/i;
+const ROAS_TH_TXT = 'Sách < 20 · VPP < 15';
+let _roasKindCache = new Map(), _roasDataState = '';   // '' | 'loading' | 'ok'
+function roasRed(k) { return (ROAS_RULE[k] || ROAS_RULE.sach).red; }
+function roasTarget(k) { return (ROAS_RULE[k] || ROAS_RULE.sach).target; }
+function roasLv(v, k) { return v < roasRed(k) ? 'red' : v < roasTarget(k) ? 'amb' : 'ok'; }
+function roasBadge(v, k) { const l = roasLv(v, k); return l === 'red' ? 'roas-red' : l === 'amb' ? 'roas-yellow' : 'roas-green'; }
+function roasKindItem(itemId, name, grp) {
+  const ck = String(itemId == null ? '' : itemId) + '|' + (name || '') + '|' + (grp || '');
+  if (_roasKindCache.has(ck)) return _roasKindCache.get(ck);
+  let vpp = 0, sach = 0;
+  const cat = (typeof GIA !== 'undefined' && GIA.catalog) || null, byId = SHARED.saleworkByIdSp;
+  if (cat && byId && itemId != null) (byId.get(String(itemId).trim()) || []).forEach(c => {
+    const e = c.maSalework && (cat[c.maSalework] || cat[String(c.maSalework).toUpperCase()]);
+    if (!e || !e.nganhHang) return;
+    if (ROAS_VPP_NGANH.test(e.nganhHang)) vpp++; else sach++;
+  });
+  const k = (vpp || sach) ? (vpp >= sach ? 'vpp' : 'sach') : (ROAS_VPP_KW.test((name || '') + ' ' + (grp || '')) ? 'vpp' : 'sach');
+  _roasKindCache.set(ck, k);
+  return k;
+}
+// Ngành của 1 tập (nhóm / shop / tổng): ngành chiếm nhiều chi phí hơn. pairs = [[kind, cost], ...]
+function roasKindMix(pairs, fallbackName) {
+  const t = { sach: 0, vpp: 0 }, n = { sach: 0, vpp: 0 };
+  (pairs || []).forEach(([k, c]) => { t[k] += +c || 0; n[k]++; });
+  if (t.sach || t.vpp) return t.vpp > t.sach ? 'vpp' : 'sach';
+  if (n.sach || n.vpp) return n.vpp > n.sach ? 'vpp' : 'sach';
+  return ROAS_VPP_KW.test(fallbackName || '') ? 'vpp' : 'sach';
+}
+function roasKindGroup(g) { return roasKindMix((g.products || []).map(p => [roasKindItem(p.itemId, p.name, g.name), p.cost]), g.name); }
+function roasKindGms(items) { return roasKindMix((items || []).map(p => [roasKindItem(p.item_id, p.item_name), p.expense])); }
+function roasKindTag(k) { k = ROAS_RULE[k] ? k : 'sach'; return `<span class="roas-kind roas-kind-${k}" title="Ngưỡng ${ROAS_RULE[k].label}: đỏ < ${roasRed(k)} · mục tiêu ≥ ${roasTarget(k)}">${ROAS_RULE[k].label}</span>`; }
+// Tải MAP SW + Danh mục SKU (1 lần) để biết ngành từng SP; xong thì vẽ lại trang đang mở
+async function roasEnsureKindData() {
+  if (_roasDataState) return;
+  _roasDataState = 'loading';
+  try { await Promise.all([sharedLoadSaleworkMap(), giaLoadCatalogIfNeeded()]); } catch (e) { console.warn('[ROAS ngành] không tải được MAP SW / Danh mục SKU:', e); }
+  _roasDataState = 'ok'; _roasKindCache = new Map();
+  try { if (_gcR && _gcR.view && document.getElementById('page-group-camp')?.classList.contains('active')) gcrRender(); } catch (e) { /* bỏ qua */ }
+  try { if (_acR && _acR.recs && _acR.recs.length && document.getElementById('page-auto-camp')?.classList.contains('active')) acrRender(); } catch (e) { /* bỏ qua */ }
+}
 const ACR_DROP_PCT = 15;   // Tân chốt 2026-10-09: ROAS giảm ≥ 15% so với kỳ trước = "giảm mạnh"
 function acrMoneyShort(v) {
   v = +v || 0;
@@ -13150,6 +13201,7 @@ function acrCmpKpis(tot, periods) {
 // Dùng chung cho GMS (P='ac', st=st) và Nhóm (P='gc', st=_gcR): 3 báo cáo ROAS / Chi phí / Doanh thu theo ngày, mỗi báo cáo 3 hàng biểu đồ + bảng số
 function acrRenderReports(ctx, keys, msg) {
   const P = ctx.p, st = ctx.st;
+  const ROAS_TH = roasRed(st.roasKind || 'sach');   // 2026-10-21: ngưỡng đỏ theo ngành (Sách 20 / VPP 15)
   Object.keys(st.charts).forEach(k => { try { st.charts[k].destroy(); } catch (e) {} delete st.charts[k]; });
   const $ = id => document.getElementById(id);
   const show = m => ACR_MET.forEach(M => { const a = $(P + '-' + M.id + '-msg'), w = $(P + '-' + M.id + '-wrap'); if (a) { a.style.display = ''; a.innerHTML = m; } if (w) w.style.display = 'none'; });
@@ -13217,9 +13269,9 @@ function acrRenderReports(ctx, keys, msg) {
       const vals = [].concat(...series.filter(Boolean)).filter(v => v != null);
       if (vals.length) {
         const lo = Math.min(...vals), hi = Math.max(...vals), pad = Math.max((hi - lo) * 0.3, 1);
-        showTh = lo <= ACR_ROAS_LOW * 1.3;
+        showTh = lo <= ROAS_TH * 1.3;
         yMin = Math.max(0, Math.floor(lo - pad)); yMax = Math.ceil(hi + pad);
-        if (showTh) yMin = Math.min(yMin, ACR_ROAS_LOW - 2);
+        if (showTh) yMin = Math.min(yMin, ROAS_TH - 2);
       }
     }
     per.forEach((p, i) => {
@@ -13227,7 +13279,7 @@ function acrRenderReports(ctx, keys, msg) {
       const data = series[i], cv = $(`${P}-${M.id}-c${i}`), key = `${M.id}_${i}`;
       if (!cv) return;
       if (M.line) {
-        const isLow = v => v != null && v < ACR_ROAS_LOW, lab = new Set();
+        const isLow = v => v != null && v < ROAS_TH, lab = new Set();
         if (p.days.length <= 14) data.forEach((v, j) => { if (v != null) lab.add(j); });
         else { let a = -1, b = -1, c = -1; data.forEach((v, j) => { if (v == null) return; if (a < 0 || v < data[a]) a = j; if (b < 0 || v > data[b]) b = j; c = j; }); [a, b, c].forEach(j => { if (j >= 0) lab.add(j); }); }
         const ds = [{ label: p.name, data, borderColor: p.line, borderWidth: 2.5, tension: 0.3, spanGaps: false, fill: 'start', backgroundColor: grad(p),
@@ -13235,11 +13287,11 @@ function acrRenderReports(ctx, keys, msg) {
           pointBackgroundColor: data.map(v => isLow(v) ? '#dc2626' : '#fff'), pointBorderColor: data.map(v => isLow(v) ? '#fff' : p.line), pointBorderWidth: 2,
           datalabels: { display: c => lab.has(c.dataIndex), align: 'top', anchor: 'end', offset: 4, clamp: true,
             color: c => isLow(data[c.dataIndex]) ? '#dc2626' : '#1b2a4e', font: { size: lblSize, weight: '800' }, formatter: v => v == null ? '' : v.toFixed(2) } }];
-        if (showTh) ds.push({ label: 'Ngưỡng', data: p.days.map(() => ACR_ROAS_LOW), borderColor: '#f87171', borderDash: [3, 3], borderWidth: 1.2, pointRadius: 0, pointHoverRadius: 0, fill: false, datalabels: { display: false } });
+        if (showTh) ds.push({ label: 'Ngưỡng', data: p.days.map(() => ROAS_TH), borderColor: '#f87171', borderDash: [3, 3], borderWidth: 1.2, pointRadius: 0, pointHoverRadius: 0, fill: false, datalabels: { display: false } });
         st.charts[key] = new Chart(cv, { type: 'line', data: { labels: p.days.map(f5), datasets: ds }, options: {
           responsive: true, maintainAspectRatio: false, animation: false, layout: { padding: { top: 20, right: 10 } }, interaction: { mode: 'index', intersect: false },
           plugins: { legend: { display: false }, tooltip: { titleFont: { size: 13 }, bodyFont: { size: 13 }, padding: 10, filter: it => it.dataset.label !== 'Ngưỡng',
-            callbacks: { title: title(p.days), label: c => `${p.name}: ROAS ${c.parsed.y == null ? 'chưa có dữ liệu' : c.parsed.y.toFixed(2)}${isLow(c.parsed.y) ? ' — dưới ngưỡng ' + ACR_ROAS_LOW : ''}` } } },
+            callbacks: { title: title(p.days), label: c => `${p.name}: ROAS ${c.parsed.y == null ? 'chưa có dữ liệu' : c.parsed.y.toFixed(2)}${isLow(c.parsed.y) ? ' — dưới ngưỡng ' + ROAS_TH : ''}` } } },
           scales: { x: xCfg, y: { min: yMin, max: yMax, afterFit: yW, grid: { color: '#eef2f8' }, border: { display: false }, ticks: { font: { size: 11.5 }, color: '#64748b', maxTicksLimit: 3, precision: 0 } } } } });
       } else {
         let iMax = -1; data.forEach((v, j) => { if (v != null && (iMax < 0 || v > data[iMax])) iMax = j; });
@@ -13278,16 +13330,17 @@ function acrRenderTop5(items) {
   if (!el) return;
   const all = items || [], total = all.reduce((a, p) => a + (p.expense || 0), 0);
   const roasOf = p => p.expense > 0 ? (p.broad_gmv || 0) / p.expense : 0;
-  const cand = all.filter(p => (p.expense || 0) >= AC_PROD_MIN_COST_FOR_FLAG && roasOf(p) < ACR_ROAS_OPT).sort((a, b) => (b.expense || 0) - (a.expense || 0));
+  const kOf = p => roasKindItem(p.item_id, p.item_name);   // 2026-10-21: ngưỡng theo ngành
+  const cand = all.filter(p => (p.expense || 0) >= AC_PROD_MIN_COST_FOR_FLAG && roasOf(p) < roasTarget(kOf(p))).sort((a, b) => (b.expense || 0) - (a.expense || 0));
   if (!all.length) { el.innerHTML = '<div class="th-empty">Chưa có dữ liệu</div>'; return; }
-  if (!cand.length) { el.innerHTML = `<div class="th-empty" style="color:var(--g7)">✓ Không có SP nào tốn ≥ ${fmtMoney(AC_PROD_MIN_COST_FOR_FLAG)} mà ROAS dưới ${ACR_ROAS_OPT}</div>`; return; }
+  if (!cand.length) { el.innerHTML = `<div class="th-empty" style="color:var(--g7)">✓ Không có SP nào tốn ≥ ${fmtMoney(AC_PROD_MIN_COST_FOR_FLAG)} mà ROAS chưa đạt mục tiêu ngành (Sách 25 · VPP 22)</div>`; return; }
   const top = cand.slice(0, 10), max = top[0].expense || 1;
-  const nRed = cand.filter(p => roasOf(p) < ACR_ROAS_LOW).length, nAmb = cand.length - nRed;
+  const nRed = cand.filter(p => roasOf(p) < roasRed(kOf(p))).length, nAmb = cand.length - nRed;
   const candSum = cand.reduce((a, p) => a + (p.expense || 0), 0);
   el.innerHTML = `<div style="display:flex;gap:14px;font-size:12px;margin:-6px 0 6px;color:var(--text2)">
-      <span><b style="color:#dc2626">● ${nRed}</b> ROAS &lt; ${ACR_ROAS_LOW} — nên loại</span><span><b style="color:#b45309">● ${nAmb}</b> ROAS ${ACR_ROAS_LOW}–${ACR_ROAS_OPT} — nên tối ưu</span></div>` +
+      <span><b style="color:#dc2626">● ${nRed}</b> dưới ngưỡng (Sách &lt; 20 · VPP &lt; 15) — nên loại</span><span><b style="color:#b45309">● ${nAmb}</b> chưa đạt mục tiêu (Sách 20–25 · VPP 15–22) — nên tối ưu</span></div>` +
     `<div class="acr-top10" style="grid-template-rows:repeat(${Math.ceil(top.length / 2)},auto)">` + top.map((p, i) => {
-      const roas = roasOf(p), red = roas < ACR_ROAS_LOW, w = Math.max(2, (p.expense || 0) / max * 100);
+      const roas = roasOf(p), red = roas < roasRed(kOf(p)), w = Math.max(2, (p.expense || 0) / max * 100);
       return `<div style="padding:7px 0;border-bottom:1px solid var(--gray3)">
         <div style="display:flex;justify-content:space-between;gap:10px;font-size:13px">
           <span title="${acrEsc(p.item_name)}" style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i + 1}. ${acrEsc(p.item_name)}</span>
@@ -13295,11 +13348,11 @@ function acrRenderTop5(items) {
         </div>
         <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
           <div style="flex:1;height:10px;background:#f3f4f6;border-radius:5px;overflow:hidden"><div style="width:${w}%;height:100%;background:${red ? '#f87171' : '#f5c26b'};border-radius:5px"></div></div>
-          <span style="font-size:12.5px;min-width:110px;text-align:right;font-weight:700;color:${red ? '#dc2626' : '#b45309'}">${red ? '⚠ ' : ''}ROAS ${roas > 0 ? roas.toFixed(2) : '0'}</span>
+          <span style="font-size:12.5px;min-width:110px;text-align:right;font-weight:700;color:${red ? '#dc2626' : '#b45309'}">${red ? '⚠ ' : ''}${roasKindTag(kOf(p))} ROAS ${roas > 0 ? roas.toFixed(2) : '0'}</span>
         </div>
       </div>`;
     }).join('') + '</div>' +
-    `<div style="font-size:12.5px;color:var(--text2);margin-top:10px">${cand.length} SP ROAS dưới ${ACR_ROAS_OPT} đang tốn <b style="color:var(--text)">${fmtMoney(candSum)}</b> — ${total > 0 ? (candSum / total * 100).toFixed(1) : 0}% chi phí GMS${cand.length > 10 ? ` (đang hiện 10 SP tốn nhất, xem đủ ở bảng SP bên dưới)` : ''}</div>`;
+    `<div style="font-size:12.5px;color:var(--text2);margin-top:10px">${cand.length} SP chưa đạt ROAS mục tiêu ngành đang tốn <b style="color:var(--text)">${fmtMoney(candSum)}</b> — ${total > 0 ? (candSum / total * 100).toFixed(1) : 0}% chi phí GMS${cand.length > 10 ? ` (đang hiện 10 SP tốn nhất, xem đủ ở bảng SP bên dưới)` : ''}</div>`;
 }
 function acrReload() { if (_acR.range) acrLoad(); }
 function acrRender() {
@@ -13347,14 +13400,16 @@ function acrRender() {
     setH('ac-kpi-imp-d', sub.imp); setH('ac-kpi-clk-d', sub.clk); setH('ac-kpi-ord-d', sub.ord);
   }
   const curRoas = tot.cost > 0 ? tot.rev / tot.cost : 0;
+  _acR.roasKind = roasKindGms([].concat(...recs.map(x => x.items || [])));   // ngành chiếm nhiều chi phí → ngưỡng KPI/biểu đồ
+  roasEnsureKindData();
   const pvAll = acrPrevOf(dkeys);
   const roasDrop = pvAll && pvAll.cost > 0 && tot.cost > 0 ? acrPct(curRoas, pvAll.rev / pvAll.cost) : null;
   const rc = document.getElementById('ac-kpi-roas-card');
-  if (rc) rc.classList.toggle('acr-alert', (tot.cost > 0 && curRoas < ACR_ROAS_LOW) || (roasDrop != null && roasDrop <= -ACR_DROP_PCT));
+  if (rc) rc.classList.toggle('acr-alert', (tot.cost > 0 && curRoas < roasRed(_acR.roasKind)) || (roasDrop != null && roasDrop <= -ACR_DROP_PCT));
   // Bảng "Hiệu Suất Theo Shop": mỗi shop 1 dòng trong khoảng ngày đã chọn (bấm dòng = xem riêng shop đó) + dòng tổng khi xem Tất cả
   const row = (name, r, key, isSel, bold) => {
     const roas = r.cost > 0 ? r.rev / r.cost : 0, acos = r.rev > 0 ? r.cost / r.rev * 100 : 0, ctr = r.imp > 0 ? r.clk / r.imp * 100 : 0;
-    const low = r.cost > 0 && roas < ACR_ROAS_LOW;   // chỉ 1 điểm nhấn: ROAS dưới ngưỡng
+    const low = r.cost > 0 && roas < roasRed(r.items ? roasKindGms(r.items) : _acR.roasKind);   // chỉ 1 điểm nhấn: ROAS dưới ngưỡng ngành
     return `<tr style="cursor:pointer;${isSel ? 'background:var(--navy3);' : ''}${bold ? 'font-weight:700;' : ''}" onclick="acrSelectShop('${key}')">
       <td style="font-weight:600">${name}</td>
       <td class="num">${fmtMoney(r.cost)}</td><td class="num">${fmtMoney(r.rev)}</td>
@@ -13392,12 +13447,12 @@ function acrRenderTodo(items, tot) {
   const el = document.getElementById('ac-todo');
   if (!el) return;
   const rows = [];
-  const flagged = (items || []).filter(p => (p.expense || 0) >= AC_PROD_MIN_COST_FOR_FLAG && (p.expense > 0 ? (p.broad_gmv || 0) / p.expense : 0) < ACR_ROAS_LOW)
+  const flagged = (items || []).filter(p => (p.expense || 0) >= AC_PROD_MIN_COST_FOR_FLAG && (p.expense > 0 ? (p.broad_gmv || 0) / p.expense : 0) < roasRed(roasKindItem(p.item_id, p.item_name)))
     .sort((a, b) => (b.expense || 0) - (a.expense || 0));
   if (flagged.length) {
     const fc = flagged.reduce((a, p) => a + (p.expense || 0), 0);
     const top = flagged.slice(0, 3).map(p => `${acrEsc(p.item_name)} <span style="color:var(--text2)">(${fmtMoney(p.expense || 0)} · ROAS ${(p.expense > 0 ? (p.broad_gmv || 0) / p.expense : 0).toFixed(2)})</span>`).join('; ');
-    rows.push(`🔴 <b>${flagged.length} SP</b> tốn ${fmtMoney(fc)} nhưng ROAS dưới ${ACR_ROAS_LOW} — cân nhắc loại khỏi GMS: ${top}${flagged.length > 3 ? ` … xem đủ ở bảng SP bên dưới` : ''}`);
+    rows.push(`🔴 <b>${flagged.length} SP</b> tốn ${fmtMoney(fc)} nhưng ROAS dưới ngưỡng ngành (${ROAS_TH_TXT}) — cân nhắc loại khỏi GMS: ${top}${flagged.length > 3 ? ` … xem đủ ở bảng SP bên dưới` : ''}`);
   }
   const keys = _acR.shop === 'all' ? _acR.recs.map(x => x.shopKey) : [_acR.shop];
   const drops = [];
@@ -13408,7 +13463,7 @@ function acrRenderTodo(items, tot) {
     if (d != null && d <= -ACR_DROP_PCT) drops.push(`${(SHOPS[k] && SHOPS[k].short) || k}: ROAS ${(r.rev / r.cost).toFixed(2)} (▼ ${Math.abs(d).toFixed(1)}% so với ${(pv.rev / pv.cost).toFixed(2)})`);
   });
   if (drops.length) rows.push(`📉 <b>ROAS giảm ≥ ${ACR_DROP_PCT}%</b> so với kỳ trước: ${drops.join(' · ')}`);
-  if (tot.cost > 0 && tot.rev / tot.cost < ACR_ROAS_LOW) rows.push(`🔴 <b>ROAS chung ${(tot.rev / tot.cost).toFixed(2)}</b> đang dưới ngưỡng ${ACR_ROAS_LOW}`);
+  if (tot.cost > 0 && tot.rev / tot.cost < roasRed(_acR.roasKind)) rows.push(`🔴 <b>ROAS chung ${(tot.rev / tot.cost).toFixed(2)}</b> đang dưới ngưỡng ${ROAS_RULE[_acR.roasKind || 'sach'].label} ${roasRed(_acR.roasKind)}`);
   const mk = (_acR.shop === 'all' ? Object.keys(_acR.miss) : (_acR.miss[_acR.shop] ? [_acR.shop] : []));
   if (mk.length) rows.push(`⚠️ <b>Sheet còn thiếu ngày</b> (tiện ích chưa tải — số trên trang đang thiếu phần này): ${mk.map(k => `${(SHOPS[k] && SHOPS[k].short) || k} thiếu ${_acR.miss[k].length} ngày (${adsShFmtMissing(_acR.miss[k])})`).join(' · ')}`);
   el.classList.toggle('has', rows.length > 0);
@@ -14613,7 +14668,7 @@ function gcMergeRecords(records) {
 // Tân chốt 2026-10-13: (1) cột "Số SP" trong bảng nhóm; (2) card "Sản Phẩm Trong Từng Nhóm" (bấm nhóm → xổ SP)
 // thay card Tốt Nhất/Yếu Nhất đã xóa; (3) ô tìm kiếm nhóm + SP; (4) thẻ KPI so kỳ trước & cùng kỳ tháng trước.
 const GC_PROD_MIN_COST = 20000;   // cùng ngưỡng AC_PROD_MIN_COST_FOR_FLAG của GMS
-const GC_ROAS_LOW = 10;           // ROAS < 10 = đỏ (chuẩn chung dashboard)
+const GC_ROAS_LOW = 10;           // (cũ) — từ 2026-10-21 dùng ngưỡng THEO NGÀNH: roasRed(roasKindGroup(g)) / ROAS_RULE
 function gcNorm(s) { return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd'); }
 // Tổng theo ngày của các shop trong [from,to]; hasSold = Apps Script đã trả thêm trường "sold" (Sản phẩm đã bán)
 function gcSumDaily(keys, from, to) {
@@ -14709,17 +14764,19 @@ function groupCampRenderContent(rec, opts) {
     const pvAll = _gcR.hasDaily && _gcR.prev ? gcSumDaily(keys, _gcR.prev.from, _gcR.prev.to) : null;
     if (pvAll && pvAll.days && pvAll.cost > 0 && tot.cost > 0) roasDrop = acrPct(roas, pvAll.rev / pvAll.cost);
   }
+  _gcR.roasKind = roasKindMix(groups.map(g => [roasKindGroup(g), g.cost]));   // ngành chiếm nhiều chi phí → ngưỡng KPI/biểu đồ
+  roasEnsureKindData();
   acrRenderReports({ p: 'gc', st: _gcR }, keys, 'Chưa có dữ liệu theo ngày (chỉ có khi đọc từ Sheet).');
   const rc = document.getElementById('gc-kpi-roas-card');
-  if (rc) rc.classList.toggle('acr-alert', (tot.cost > 0 && roas < GC_ROAS_LOW) || (roasDrop != null && roasDrop <= -ACR_DROP_PCT));
+  if (rc) rc.classList.toggle('acr-alert', (tot.cost > 0 && roas < roasRed(_gcR.roasKind)) || (roasDrop != null && roasDrop <= -ACR_DROP_PCT));
 
   // ── Cần xử lý ──
   const rows = [];
   const names = (arr, n) => arr.slice(0, n).map(g => acrEsc(gcSplitName(g.name, opts.allShops).base)).join(', ') + (arr.length > n ? ` … (+${arr.length - n})` : '');
   const zeroOrderCost = groups.filter(g => g.cost > 0 && g.sold === 0).sort((a, b) => b.cost - a.cost);
   if (zeroOrderCost.length) rows.push(`🔴 <b>${zeroOrderCost.length} nhóm tốn chi phí nhưng 0 đơn</b> — lãng phí <b>${fmtMoney(zeroOrderCost.reduce((s, g) => s + g.cost, 0))}</b>: ${names(zeroOrderCost, 5)}`);
-  const lowRoas = groups.filter(g => g.cost >= GC_PROD_MIN_COST && !(g.sold === 0) && g.roas < GC_ROAS_LOW).sort((a, b) => b.cost - a.cost);
-  if (lowRoas.length) rows.push(`🔴 <b>${lowRoas.length} nhóm ROAS dưới ${GC_ROAS_LOW}</b> (chi phí ≥ ${fmtMoney(GC_PROD_MIN_COST)}): ${lowRoas.slice(0, 3).map(g => `${acrEsc(gcSplitName(g.name, opts.allShops).base)} <span style="color:var(--text2)">(${fmtMoney(g.cost)} · ROAS ${g.roas.toFixed(2)})</span>`).join(', ')}${lowRoas.length > 3 ? ' …' : ''}`);
+  const lowRoas = groups.filter(g => g.cost >= GC_PROD_MIN_COST && !(g.sold === 0) && g.roas < roasRed(roasKindGroup(g))).sort((a, b) => b.cost - a.cost);
+  if (lowRoas.length) rows.push(`🔴 <b>${lowRoas.length} nhóm ROAS dưới ngưỡng ngành</b> (${ROAS_TH_TXT}) (chi phí ≥ ${fmtMoney(GC_PROD_MIN_COST)}): ${lowRoas.slice(0, 3).map(g => `${acrEsc(gcSplitName(g.name, opts.allShops).base)} <span style="color:var(--text2)">(${fmtMoney(g.cost)} · ROAS ${g.roas.toFixed(2)})</span>`).join(', ')}${lowRoas.length > 3 ? ' …' : ''}`);
   const zeroTraffic = groups.filter(g => g.status === 'Đang diễn ra' && g.views === 0);
   if (zeroTraffic.length) rows.push(`🟡 <b>${zeroTraffic.length} nhóm đang chạy nhưng 0 lượt xem</b> — kiểm tra ngân sách / duyệt quảng cáo: ${names(zeroTraffic, 5)}`);
   if (keys && _gcR.hasDaily && _gcR.prev) {
@@ -14794,7 +14851,7 @@ function gcrRenderLists() {
     tbody.innerHTML = m.list.length ? m.list.map((x, n) => {
       const g = x.g, sp = gcSplitName(g.name, v.allShops), act = gcActiveCount(g), all = g.products.length;
       const zeroOrder = g.cost > 0 && g.sold === 0, zeroTraffic = g.status === 'Đang diễn ra' && g.views === 0;
-      const low = g.cost > 0 && g.roas < GC_ROAS_LOW;
+      const low = g.cost > 0 && g.roas < roasRed(roasKindGroup(g));
       const pc = all ? `<span class="gcr-pc${act ? '' : ' zero'}" title="${act} SP có lượt xem/chi phí trong kỳ · tổng ${all} SP có dòng dữ liệu"><b>${act}</b>${act !== all ? `<small>/ ${all}</small>` : ''}</span>` : '<span class="gcr-pc zero" title="Chưa có dữ liệu SP của nhóm này"><b>0</b></span>';
       return `<tr>
         <td class="c">${n + 1}</td>
@@ -14803,7 +14860,7 @@ function gcrRenderLists() {
         <td class="num">${pc}</td>
         <td class="num k1">${fmtMoney(g.cost)}</td>
         <td class="num k2">${fmtMoney(g.revenue)}</td>
-        <td class="num k3" style="${low ? 'color:var(--red)' : ''}">${low ? '⚠ ' : ''}${g.cost > 0 ? g.roas.toFixed(2) : '—'}</td>
+        <td class="num k3" style="${low ? 'color:var(--red)' : (g.cost > 0 && g.roas < roasTarget(roasKindGroup(g)) ? 'color:#b45309' : '')}">${low ? '⚠ ' : ''}${g.cost > 0 ? g.roas.toFixed(2) : '—'}</td>
         <td class="num">${g.acos}</td>
         <td class="num">${fmtNum(g.views)}</td><td class="num">${fmtNum(g.clicks)}</td><td class="num">${g.ctr}</td><td class="num">${fmtNum(g.sold)}</td>
       </tr>`;
@@ -14818,16 +14875,17 @@ function gcrRenderLists() {
       const g = x.g, sp = gcSplitName(g.name, v.allShops), act = gcActiveCount(g), all = g.products.length;
       const forced = !!q && !x.nameHit && x.prodHit > 0;
       const isOpen = forced || !!_gcR.open[g.name];
-      const low = g.cost > 0 && g.roas < GC_ROAS_LOW;
+      const low = g.cost > 0 && g.roas < roasRed(roasKindGroup(g));
       let body = '';
       if (isOpen) {
         if (!x.prods.length) body = '<div class="th-empty" style="padding:14px">Chưa có dữ liệu sản phẩm cho nhóm này trong khoảng đã chọn.</div>';
         else body = `<div class="table-wrap"><table class="gcr-pt"><thead><tr><th style="width:34px">#</th><th>Sản Phẩm</th><th class="num">Chi Phí</th><th class="num">Doanh Số</th><th class="num">ROAS</th><th class="num">ACOS</th><th class="num">Lượt Xem</th><th class="num">Lượt Click</th><th class="num">Đơn</th></tr></thead><tbody>${
           [...x.prods].sort((a, b) => b.cost - a.cost || b.revenue - a.revenue).map((p, k) => {
-            const r = p.cost > 0 ? p.revenue / p.cost : 0, plow = p.cost >= GC_PROD_MIN_COST && r < GC_ROAS_LOW, idle = !(p.views > 0 || p.cost > 0);
-            return `<tr${idle ? ' class="idle" title="Không có lượt xem/chi phí trong kỳ"' : ''}><td class="c">${k + 1}</td><td><div class="pn" title="${acrEsc(p.name)}">${acrEsc(p.name)}</div><div class="pid">ID: ${acrEsc(p.itemId || '—')}${gcSkuHtml(p.itemId)}</div></td>
+            const pk = roasKindItem(p.itemId, p.name, g.name), r = p.cost > 0 ? p.revenue / p.cost : 0, idle = !(p.views > 0 || p.cost > 0);
+            const plv = p.cost >= GC_PROD_MIN_COST ? roasLv(r, pk) : 'ok', plow = plv === 'red';   // đỏ = dưới ngưỡng ngành · vàng = chưa đạt mục tiêu
+            return `<tr${idle ? ' class="idle" title="Không có lượt xem/chi phí trong kỳ"' : ''}><td class="c">${k + 1}</td><td><div class="pn" title="${acrEsc(p.name)}">${acrEsc(p.name)}</div><div class="pid">ID: ${acrEsc(p.itemId || '—')}${gcSkuHtml(p.itemId)} ${roasKindTag(pk)}</div></td>
               <td class="num k1">${fmtMoney(p.cost)}</td><td class="num k2">${fmtMoney(p.revenue)}</td>
-              <td class="num k3" style="${plow ? 'color:var(--red)' : ''}">${plow ? '⚠ ' : ''}${p.cost > 0 ? r.toFixed(2) : '—'}</td>
+              <td class="num k3" style="${plow ? 'color:var(--red)' : plv === 'amb' ? 'color:#b45309' : ''}" title="Mục tiêu ${ROAS_RULE[pk].label} ≥ ${roasTarget(pk)} · đỏ < ${roasRed(pk)}">${plow ? '⚠ ' : ''}${p.cost > 0 ? r.toFixed(2) : '—'}</td>
               <td class="num">${p.revenue > 0 ? (p.cost / p.revenue * 100).toFixed(1) + '%' : '—'}</td>
               <td class="num">${fmtNum(p.views)}</td><td class="num">${fmtNum(p.clicks)}</td><td class="num">${fmtNum(p.sold)}</td></tr>`;
           }).join('')}</tbody></table></div>${forced ? `<div class="gcr-hit" style="padding:6px 2px 0">Đang lọc: chỉ hiện ${x.prods.length}/${all} SP khớp “${qEsc}”.</div>` : ''}`;
@@ -14838,7 +14896,7 @@ function gcrRenderLists() {
           <span class="gcr-grp-name" title="${acrEsc(g.name)}">${sp.tag ? `<span class="gcr-shop">${acrEsc(sp.tag)}</span>` : ''}${acrEsc(sp.base)}</span>
           <span style="text-align:right"><span class="gcr-pc${act ? '' : ' zero'}"><b>${act}</b> SP${act !== all ? `<small>/ ${all}</small>` : ''}</span></span>
           <span class="gcr-m k1">${fmtMoney(g.cost)}</span><span class="gcr-m k2">${fmtMoney(g.revenue)}</span>
-          <span class="gcr-m k3" style="${low ? 'color:var(--red)' : ''}">${g.cost > 0 ? g.roas.toFixed(2) : '—'}</span>
+          <span class="gcr-m k3" style="${low ? 'color:var(--red)' : (g.cost > 0 && g.roas < roasTarget(roasKindGroup(g)) ? 'color:#b45309' : '')}" title="${roasKindGroup(g) === 'vpp' ? 'VPP: đỏ < 15 · mục tiêu ≥ 22' : 'Sách: đỏ < 20 · mục tiêu ≥ 25'}">${g.cost > 0 ? g.roas.toFixed(2) : '—'}</span>
         </div>${isOpen ? `<div class="gcr-grp-b">${body}</div>` : ''}
       </div>`;
     }).join('');
@@ -14880,7 +14938,7 @@ function gcRenderRevPie(groups, totalRev) {
     });
   }
   tbody.innerHTML = withRev.map(g => {
-    const pct = totalRev > 0 ? g.revenue / totalRev * 100 : 0, low = g.cost > 0 && g.roas < GC_ROAS_LOW;
+    const pct = totalRev > 0 ? g.revenue / totalRev * 100 : 0, low = g.cost > 0 && g.roas < roasRed(roasKindGroup(g));
     const color = colorOf.get(g) || ACR_OTHER;
     return `<tr>
       <td class="nm"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};margin-right:8px"></span>${acrEsc(g.name)}</td>
