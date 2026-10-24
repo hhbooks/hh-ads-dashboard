@@ -26102,6 +26102,7 @@ function bcdtRenderRank() {
 
 
 
+
 <!-- CPS-PILOT-START -->
 <style>
 #main:has(#page-ke-toan-chi-phi-san.active){min-width:0;flex:1 1 0;width:calc(100% - 230px)}
@@ -26133,7 +26134,10 @@ function bcdtRenderRank() {
 .cps-data tbody tr:nth-child(even){background:#f7f9fc}
 .cps-data td.cps-num{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
 .cps-data th.cps-num{text-align:right}
-.cps-data.cps-overview col:nth-child(1){width:31%}.cps-data.cps-overview col:nth-child(2){width:22%}.cps-data.cps-overview col:nth-child(3){width:47%}
+.cps-data.cps-overview col{width:33.333333%}
+.cps-data.cps-overview th,.cps-data.cps-overview td{padding:18px 22px;vertical-align:middle}
+.cps-data.cps-overview th:nth-child(2),.cps-data.cps-overview td:nth-child(2){text-align:center}
+.cps-data.cps-overview th+th,.cps-data.cps-overview td+td{border-left:1px solid #e2e8f0}
 .cps-data.cps-overview td:nth-child(2){font-size:21px}
 .cps-cell-note{display:block;margin-top:6px;color:#5b6d85;font-size:14px;font-weight:400}
 .cps-groups{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
