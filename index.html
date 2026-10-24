@@ -26101,6 +26101,7 @@ function bcdtRenderRank() {
 
 
 
+
 <!-- CPS-PILOT-START -->
 <style>
 #main:has(#page-ke-toan-chi-phi-san.active){min-width:0;flex:1 1 0;width:calc(100% - 230px)}
@@ -26255,6 +26256,7 @@ async function cpsRead(){
  CPS.periodLabel=period;cpsRender();cpsStatus('Đã đọc trực tiếp '+meta.properties.title+' · '+new Date().toLocaleString('vi-VN')+' · chỉ đọc, không thay dữ liệu nguồn.');
  }catch(e){if(seq===CPS.sequence)cpsStatus(e.message);}finally{CPS.busy=false;}
 }
+function cpsTitle(title){return String(title).replace(/^\d+\s+/,'');}
 function cpsKpi(label,value,note){return `<div class="nv-tile"><div class="kpi-label">${cpsEsc(label)}</div><div class="cps-kpi-value">${cpsMoney(value)}</div><div class="report-note">${cpsEsc(note)}</div></div>`;}
 function cpsRender(){
  const r=CPS.report;if(!r)return;const m=r.metrics,cost=r.tables['03 Chi phí và phí sàn'];
@@ -26268,7 +26270,7 @@ function cpsRender(){
  ['Chi phí phát sinh kỳ',m.periodCosts,'Cộng phí riêng ví, trừ hoàn phí'],
  ['Thực nhận theo đơn',m.paid,'Chưa phải lợi nhuận'],
  ['Rút về ngân hàng',m.withdrawals,'Theo Shopee; chưa đối chiếu sao kê']
- ].map(x=>cpsKpi(...x)).join('')}</div><div class="report-note">${r.issues.length?'Cần kiểm tra '+r.issues.length+' sai lệch thanh toán.':'Đối soát thanh toán đơn khớp.'} Có ${r.unmatched.length} khoản ví ngoài Adjustment (${cpsMoney(m.extraCost)}). Phí sàn, phí giao dịch và phí dịch vụ đã nằm trong chi phí Order. Chi phí phát sinh kỳ có thể liên quan đơn kỳ trước.</div><div class="report-filters" id="cps-tabs">${Object.keys(r.tables).map((t,i)=>`<button data-cps-tab="${i}" aria-pressed="${i===CPS.tab}">${cpsEsc(t)}</button>`).join('')}</div><div class="report-filters"><input id="cps-search" placeholder="Tìm mã đơn, nội dung…" aria-label="Tìm trong báo cáo" oninput="CPS.limit=100;cpsTable()"><button onclick="cpsExport()">Xuất 8 tab Excel</button><a href="https://docs.google.com/spreadsheets/d/1TFdlfLnlkOETeG2Fsnlcj4paY3znbijod8wR504Lk6g/edit" target="_blank" rel="noopener">Mở báo cáo mẫu ↗</a></div><div id="cps-table"></div>`;
+ ].map(x=>cpsKpi(...x)).join('')}</div><div class="report-note">${r.issues.length?'Cần kiểm tra '+r.issues.length+' sai lệch thanh toán.':'Đối soát thanh toán đơn khớp.'} Có ${r.unmatched.length} khoản ví ngoài Adjustment (${cpsMoney(m.extraCost)}). Phí sàn, phí giao dịch và phí dịch vụ đã nằm trong chi phí Order. Chi phí phát sinh kỳ có thể liên quan đơn kỳ trước.</div><div class="report-filters" id="cps-tabs">${Object.keys(r.tables).map((t,i)=>`<button data-cps-tab="${i}" aria-pressed="${i===CPS.tab}">${cpsEsc(cpsTitle(t))}</button>`).join('')}</div><div class="report-filters"><input id="cps-search" placeholder="Tìm mã đơn, nội dung…" aria-label="Tìm trong báo cáo" oninput="CPS.limit=100;cpsTable()"><button onclick="cpsExport()">Xuất 8 tab Excel</button><a href="https://docs.google.com/spreadsheets/d/1TFdlfLnlkOETeG2Fsnlcj4paY3znbijod8wR504Lk6g/edit" target="_blank" rel="noopener">Mở báo cáo mẫu ↗</a></div><div id="cps-table"></div>`;
  document.getElementById('cps-tabs').onclick=e=>{const b=e.target.closest('[data-cps-tab]');if(!b)return;CPS.tab=Number(b.dataset.cpsTab);CPS.limit=100;CPS.group=0;document.getElementById('cps-search').value='';document.querySelectorAll('[data-cps-tab]').forEach(x=>x.setAttribute('aria-pressed',String(Number(x.dataset.cpsTab)===CPS.tab)));cpsTable();};
  if(CPS.chart){CPS.chart.destroy();CPS.chart=null;}cpsTable();
 }
@@ -26285,7 +26287,9 @@ function cpsTotals(rows,query){
  if(CPS.tab===1){items=[['Tổng doanh thu',total(6)],['Tổng chi phí ròng',total(12)],['Tổng thanh toán đơn',total(13)],['Tổng chênh lệch ví',total(15)]];note=`Tổng ${rows.length.toLocaleString('vi-VN')} đơn ${query?'khớp tìm kiếm':'trong kỳ'}; tính toàn bộ kết quả, không chỉ các dòng đang hiển thị.`;}
  if(CPS.tab===2){items=[['Tổng phí sàn, giao dịch, dịch vụ',m.feeTotal],['Tổng chi phí ròng Order',m.netCost],['Tổng chi phí phát sinh kỳ',m.periodCosts]];note='Tổng của cả kỳ; đã loại trùng giữa dòng tổng và dòng chi tiết phí dịch vụ. Không cộng ba tổng này với nhau.';}
  if(CPS.tab===3){items=[['Tổng hoàn tiền trong Order',-total(4,r=>r[5]==='Doanh thu · Order')],['Tổng hoàn sau thanh toán',-total(4,r=>r[5]==='Adjustment'&&Number(r[4])<0)],['Tổng phí riêng trong ví',-total(4,r=>r[5]==='Giao dịch số dư'&&Number(r[4])<0)],['Tổng hoàn phí',total(4,r=>r[5]==='Adjustment'&&Number(r[4])>0)]];note=`${query?'Tổng theo kết quả tìm kiếm. ':''}Tách từng nhóm hoàn/cấn trừ; không cộng tất cả thành chi phí sàn.`;}
- return items.length?`<div class="cps-totals">${items.map(([label,v])=>`<div class="cps-total"><span>${cpsEsc(label)}</span><strong>${cpsMoney(v)}</strong></div>`).join('')}</div><div class="report-note">${cpsEsc(note)}</div>`:'';
+ if(CPS.tab===4){items=[['Tổng tiền vào',total(4)],['Tổng tiền ra',total(5)],['Tổng rút ngân hàng',total(5,r=>r[1]==='Rút Tiền')],['Biến động ví',total(6)]];if(!query)items.push(['Số dư đầu kỳ',m.opening],['Số dư cuối kỳ',m.closing]);note=`Tổng ${rows.length.toLocaleString('vi-VN')} giao dịch ${query?'khớp tìm kiếm':'trong kỳ'}, không chỉ các dòng đang hiển thị. Tiền rút ngân hàng đã nằm trong tiền ra. Số dư là giá trị tại thời điểm đầu/cuối, không cộng các số dư sau giao dịch.`;}
+ if(CPS.tab===6){const days=rows.filter(r=>/^\d{4}-\d{2}-\d{2}$/.test(String(r[0]))),selected=days.length?days:rows.filter(r=>/^\d{4}-\d{2} ·/.test(String(r[0])));const sum=i=>selected.reduce((s,r)=>s+(Number(r[i])||0),0);items=[['Tổng số đơn',sum(1),'count'],['Tổng doanh thu',sum(2)],['Tổng chi phí Order',sum(3)],['Tổng thực nhận Order',sum(4)],['Tổng tiền vào ví',sum(5)],['Tổng tiền ra ví',sum(6)],['Tổng rút ngân hàng',sum(7)],['Biến động ví',sum(8)]];note=`${query?'Tổng theo kết quả tìm kiếm. ':''}Tính từ ${days.length?'các dòng ngày':'các dòng tổng tháng'}; không cộng đồng thời dòng ngày và dòng tổng tháng. Tiền rút ngân hàng đã nằm trong tiền ra ví.`;}
+ return items.length?`<div class="cps-totals">${items.map(([label,v,unit])=>`<div class="cps-total"><span>${cpsEsc(label)}</span><strong>${unit==='count'?Number(v).toLocaleString('vi-VN')+' đơn':cpsMoney(v)}</strong></div>`).join('')}</div><div class="report-note">${cpsEsc(note)}</div>`:'';
 }
 function cpsFormat(row,col){let x=row[col]??'';if(CPS.tab===4&&col===0&&typeof x==='number')return new Date(Math.round((x-25569)*86400000)).toISOString().slice(0,19).replace('T',' ');if(typeof x==='number'){if((CPS.tab===2&&col===4)||(CPS.tab===0&&String(row[0]).startsWith('Tỷ lệ')))return (x*100).toLocaleString('vi-VN',{maximumFractionDigits:2})+'%';return x.toLocaleString('vi-VN',{maximumFractionDigits:0});}return String(x);}
 function cpsTable(){
@@ -26295,7 +26299,7 @@ function cpsTable(){
  const groupControls=groups?`<div class="cps-groups">${groups.map(([name],i)=>`<button aria-pressed="${i===(CPS.group||0)}" onclick="CPS.group=${i};cpsTable()">${cpsEsc(name)}</button>`).join('')}</div>`:'';
  const numericCols=new Set(cols.filter(i=>data.slice(CPS.tab===0?2:1).some(row=>typeof row[i]==='number')));
  const table=`<div class="cps-table-wrap"><table class="cps-data ${CPS.tab===0?'cps-overview':''}"><colgroup>${cols.map(()=>'<col>').join('')}</colgroup><thead><tr>${cols.map(i=>`<th scope="col" class="${numericCols.has(i)?'cps-num':''}">${cpsEsc(header[i])}</th>`).join('')}</tr></thead><tbody>${rows.slice(0,CPS.limit).map(row=>`<tr>${cols.map(i=>`<td data-label="${cpsEsc(header[i])}" class="${numericCols.has(i)?'cps-num':''}">${cpsEsc(cpsFormat(row,i))}${CPS.tab===2&&i===0&&row[5]?`<span class="cps-cell-note">${cpsEsc(row[5])}</span>`:''}</td>`).join('')}</tr>`).join('')}</tbody></table>${rows.length?'':'<div class="cps-empty">Không có dòng phù hợp.</div>'}</div>`;
- document.getElementById('cps-table').innerHTML=cpsTotals(rows,query)+`<div class="report-note"><b>${cpsEsc(title)}</b> · ${rows.length.toLocaleString('vi-VN')} dòng · hiển thị ${Math.min(rows.length,CPS.limit)}${groups?' · chọn nhóm để xem đủ các cột':''}</div>`+groupControls+table+(rows.length>CPS.limit?'<button style="margin-top:14px" onclick="CPS.limit+=100;cpsTable()">Xem thêm 100 dòng</button>':'');
+ document.getElementById('cps-table').innerHTML=cpsTotals(rows,query)+`<div class="report-note"><b>${cpsEsc(cpsTitle(title))}</b> · ${rows.length.toLocaleString('vi-VN')} dòng · hiển thị ${Math.min(rows.length,CPS.limit)}${groups?' · chọn nhóm để xem đủ các cột':''}</div>`+groupControls+table+(rows.length>CPS.limit?'<button style="margin-top:14px" onclick="CPS.limit+=100;cpsTable()">Xem thêm 100 dòng</button>':'');
 }
 function cpsExport(){if(!CPS.report)return;const wb=XLSX.utils.book_new();for(const [title,rows]of Object.entries(CPS.report.tables))XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),title.slice(0,31));XLSX.writeFile(wb,'Chi_Phi_San_Nha_Sach_'+(CPS.periodLabel||'ky').replace(/[^0-9A-Za-z-]/g,'_')+'.xlsx');}
 
