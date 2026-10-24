@@ -26099,6 +26099,8 @@ function bcdtRenderRank() {
 
 
 
+
+
 <!-- CPS-PILOT-START -->
 <style>
 #main:has(#page-ke-toan-chi-phi-san.active){min-width:0;flex:1 1 0;width:calc(100% - 230px)}
@@ -26120,15 +26122,16 @@ function bcdtRenderRank() {
 .cps-kpi-value{font-size:clamp(24px,1.8vw,32px);font-weight:800;line-height:1.3;margin:10px 0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
 #page-ke-toan-chi-phi-san .cps-kpis .report-note{margin:0;color:#dbe4f3;font-size:14px}
 .cps-totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:12px;margin:16px 0}
-.cps-total{border:1px solid #d4dfed;border-radius:10px;padding:16px;background:#f0f5fc;min-width:0}
-.cps-total span{font-size:15px;line-height:1.5;display:block;color:#405477}
-.cps-total strong{font-size:24px;line-height:1.5;display:block;color:#17345d;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.cps-total{border:1px solid #2b4a8f;border-radius:10px;padding:16px;background:linear-gradient(135deg,#1b2a4e,#2b4a8f);box-shadow:0 6px 24px rgba(27,42,78,.14);min-width:0;color:#fff}
+.cps-total span{font-size:15px;line-height:1.5;display:block;color:#dbe4f3}
+.cps-total strong{font-size:24px;line-height:1.5;display:block;color:#fff;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
 .cps-table-wrap{width:100%;min-width:0;border:1px solid #dde4ed;border-radius:10px;background:#fff}
 .cps-data{width:100%;table-layout:fixed;border-collapse:collapse;font-size:17px}
 .cps-data th{background:#edf2f8;color:#243b60;text-align:left;font-size:15px;font-weight:700;padding:14px 12px;white-space:normal;overflow-wrap:anywhere;vertical-align:top;border-bottom:2px solid #d7e0ee}
-.cps-data td{padding:14px 12px;line-height:1.6;border-bottom:1px solid #e2e8f0;overflow-wrap:anywhere;white-space:normal;vertical-align:top;color:#162b49}
+.cps-data td{padding:14px 12px;line-height:1.6;border-bottom:1px solid #e2e8f0;overflow-wrap:anywhere;white-space:normal;vertical-align:top;text-align:left;color:#162b49}
 .cps-data tbody tr:nth-child(even){background:#f7f9fc}
 .cps-data td.cps-num{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.cps-data th.cps-num{text-align:right}
 .cps-data.cps-overview col:nth-child(1){width:31%}.cps-data.cps-overview col:nth-child(2){width:22%}.cps-data.cps-overview col:nth-child(3){width:47%}
 .cps-data.cps-overview td:nth-child(2){font-size:21px}
 .cps-cell-note{display:block;margin-top:6px;color:#5b6d85;font-size:14px;font-weight:400}
@@ -26290,7 +26293,8 @@ function cpsTable(){
  const query=(document.getElementById('cps-search')?.value||'').toLocaleLowerCase('vi-VN');const rows=data.slice(CPS.tab===0?2:1).filter(row=>!query||row.some(x=>String(x).toLocaleLowerCase('vi-VN').includes(query)));
  const groups=cpsGroups(CPS.tab);let cols=groups?groups[CPS.group||0][1]:header.map((_,i)=>i);if(CPS.tab===2)cols=[0,1,2,3,4];
  const groupControls=groups?`<div class="cps-groups">${groups.map(([name],i)=>`<button aria-pressed="${i===(CPS.group||0)}" onclick="CPS.group=${i};cpsTable()">${cpsEsc(name)}</button>`).join('')}</div>`:'';
- const table=`<div class="cps-table-wrap"><table class="cps-data ${CPS.tab===0?'cps-overview':''}"><colgroup>${cols.map(()=>'<col>').join('')}</colgroup><thead><tr>${cols.map(i=>`<th scope="col">${cpsEsc(header[i])}</th>`).join('')}</tr></thead><tbody>${rows.slice(0,CPS.limit).map(row=>`<tr>${cols.map(i=>`<td data-label="${cpsEsc(header[i])}" class="${typeof row[i]==='number'?'cps-num':''}">${cpsEsc(cpsFormat(row,i))}${CPS.tab===2&&i===0&&row[5]?`<span class="cps-cell-note">${cpsEsc(row[5])}</span>`:''}</td>`).join('')}</tr>`).join('')}</tbody></table>${rows.length?'':'<div class="cps-empty">Không có dòng phù hợp.</div>'}</div>`;
+ const numericCols=new Set(cols.filter(i=>data.slice(CPS.tab===0?2:1).some(row=>typeof row[i]==='number')));
+ const table=`<div class="cps-table-wrap"><table class="cps-data ${CPS.tab===0?'cps-overview':''}"><colgroup>${cols.map(()=>'<col>').join('')}</colgroup><thead><tr>${cols.map(i=>`<th scope="col" class="${numericCols.has(i)?'cps-num':''}">${cpsEsc(header[i])}</th>`).join('')}</tr></thead><tbody>${rows.slice(0,CPS.limit).map(row=>`<tr>${cols.map(i=>`<td data-label="${cpsEsc(header[i])}" class="${numericCols.has(i)?'cps-num':''}">${cpsEsc(cpsFormat(row,i))}${CPS.tab===2&&i===0&&row[5]?`<span class="cps-cell-note">${cpsEsc(row[5])}</span>`:''}</td>`).join('')}</tr>`).join('')}</tbody></table>${rows.length?'':'<div class="cps-empty">Không có dòng phù hợp.</div>'}</div>`;
  document.getElementById('cps-table').innerHTML=cpsTotals(rows,query)+`<div class="report-note"><b>${cpsEsc(title)}</b> · ${rows.length.toLocaleString('vi-VN')} dòng · hiển thị ${Math.min(rows.length,CPS.limit)}${groups?' · chọn nhóm để xem đủ các cột':''}</div>`+groupControls+table+(rows.length>CPS.limit?'<button style="margin-top:14px" onclick="CPS.limit+=100;cpsTable()">Xem thêm 100 dòng</button>':'');
 }
 function cpsExport(){if(!CPS.report)return;const wb=XLSX.utils.book_new();for(const [title,rows]of Object.entries(CPS.report.tables))XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),title.slice(0,31));XLSX.writeFile(wb,'Chi_Phi_San_Nha_Sach_'+(CPS.periodLabel||'ky').replace(/[^0-9A-Za-z-]/g,'_')+'.xlsx');}
