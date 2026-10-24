@@ -1223,6 +1223,7 @@
         <div class="nav-item" onclick="showPage('ke-toan-bc-hd-vat',this)">
           <span class="icon">🧾</span> Báo Cáo Hóa Đơn VAT
         </div>
+        <div class="nav-item" onclick="showPage('ke-toan-chi-phi-san',this)"><span class="icon">📊</span> Chi Phí Sàn</div>
         <div class="nav-item" onclick="showPage('ke-toan-tiktok-hh',this)">
           <span class="icon">🎵</span> Hoa Hồng TikTok
         </div>
@@ -3962,6 +3963,13 @@
       </div>
     </div>
   </div><!-- end page-nghiep-vu-bao-cao-cham-cong -->
+
+  <div class="page" id="page-ke-toan-chi-phi-san">
+    <div class="card"><div class="card-title"><span class="dot"></span> Chi Phí Sàn · Báo cáo thử nghiệm Nhà Sách 2HBooks</div>
+    <p class="report-note">Đọc dữ liệu gốc trong thư mục Kế Toán Shopee 2H. Chỉ đọc bằng tài khoản Google của anh; không cần khóa Shopee hoặc mã truy cập tiện ích.</p>
+    <div class="report-filters"><button class="sw-btn-sm" onclick="cpsConnect()">Kết nối Google Drive</button><select id="cps-period" onchange="cpsLoadPeriod()" aria-label="Kỳ kế toán"><option value="">Chọn kỳ kế toán</option></select><select id="cps-shop" aria-label="Shop"><option value="">Nhà Sách 2HBooks</option></select><button class="sw-btn-sm" onclick="cpsRead()">Đọc báo cáo</button><button class="sw-btn-sm" onclick="cpsRefresh()">Làm mới danh sách kỳ</button><a href="https://drive.google.com/drive/folders/19JxC7Bv8CUk5-cp1LmKDczoZ5uBQvSR1" target="_blank" rel="noopener">Mở thư mục kế toán ↗</a></div><p id="cps-status" role="status" aria-live="polite" class="report-note">Bấm Kết nối Google Drive để đọc dữ liệu.</p></div>
+    <div id="cps-output"></div>
+  </div>
 
   <!-- Khối Kế Toán -->
   <div class="page" id="page-ke-toan-tong-quan">
@@ -18614,6 +18622,7 @@ function showPage(name, el) {
   }
   if (name === 'dosuat')    initDoSuatPage();
   if (name === 'ke-toan-tiktok-hh') tthhInit();
+  if (name === 'ke-toan-chi-phi-san') cpsInit();
   if (name === 'tonghop')  initTongHopPage();
   if (name === 'tonkho-tong-quan') tqInitPage();
   if (name === 'tonkho-bao-cao-san-luong') bcslInitPage();
@@ -26085,5 +26094,131 @@ function bcdtRenderRank() {
 }
 
 </script>
+
+
+<!-- CPS-PILOT-START -->
+<script>
+/* Chi Phí Sàn: read-only analysis of original Shopee accounting tabs. Pilot: Nhà Sách. */
+(function(root){
+ 'use strict';
+ const N=x=>Number(x)||0, sum=(a,f)=>a.reduce((s,r)=>s+f(r),0);
+ const date=x=>typeof x==='number'?new Date(Math.round((x-25569)*86400000)).toISOString().slice(0,10):String(x||'').slice(0,10);
+ const serial=s=>(Date.parse(s+'T00:00:00Z')/86400000)+25569;
+ const orderId=r=>String(r[3]||((String(r[2]||'').match(/\b\d{6}[A-Z0-9]{8}\b/)||[])[0])||'');
+ function analyze(input){
+  const start=date(input.summary?.[9]?.[1]||'2026-09-01'),end=date(input.summary?.[10]?.[1]||'2026-10-23');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end)||serial(end)<serial(start)||serial(end)-serial(start)>91)throw Error('Kỳ nguồn không hợp lệ hoặc quá 92 ngày.');
+  const orders=[...(input.income1||[]),...(input.income2||[])].filter(r=>r[1]==='Order');
+  const wallet=(input.wallet||[]).slice(1).filter(r=>r[8]);
+  const adjustments=(input.adjustment||[]).slice(14).filter(r=>typeof r[0]==='number');
+  const fees=(input.fees||[]).slice(2).filter(r=>typeof r[0]==='number'&&r[1]);
+  if(!orders.length||!wallet.length)throw Error('Thiếu dòng Order hoặc giao dịch số dư; chưa thể lập báo cáo.');
+  const col=i=>sum(orders,r=>N(r[i]));
+  const costCols=[16,18,20,26,27,28,29,30,31,32,33,35,36];
+  const creditCols=[15,17,19,34];
+  const revenue=col(13)+col(14)+sum(orders,r=>[21,22,23,24,25].reduce((s,i)=>s+N(r[i]),0));
+  const netCost=-sum(orders,r=>[...costCols,...creditCols].reduce((s,i)=>s+N(r[i]),0));
+  const paid=col(12), feeTotal=-sum(orders,r=>[26,27,28,29,30,31].reduce((s,i)=>s+N(r[i]),0));
+  const groups={};for(const r of wallet){const g=groups[r[1]]||={count:0,in:0,out:0,net:0};g.count++;const v=N(r[5]);g.net+=v;g.in+=Math.max(v,0);g.out+=Math.max(-v,0);}
+  const incoming=sum(wallet,r=>Math.max(N(r[5]),0)),outgoing=sum(wallet,r=>Math.max(-N(r[5]),0));
+  const ordered=[...wallet].sort((a,b)=>N(a[0])-N(b[0])||String(a[8]).localeCompare(String(b[8])));
+  const opening=N(ordered[0][7])-N(ordered[0][5]),closing=N(ordered.at(-1)[7]);
+  const map=new Map();for(const r of orders){const id=String(r[2]);map.set(id,(map.get(id)||0)+N(r[12]));}
+  const wm=new Map();for(const r of wallet.filter(r=>r[1]==='Doanh Thu Đơn Hàng')){const id=String(r[3]||'');wm.set(id,(wm.get(id)||0)+N(r[5]));}
+  const issues=[];for(const [id,v] of map){if(!wm.has(id)&&v!==0)issues.push([id,'Thiếu giao dịch thanh toán',v,0,v,'Cần kiểm tra']);else if(wm.has(id)&&Math.abs(v-wm.get(id))>0.5)issues.push([id,'Lệch thanh toán đơn',v,wm.get(id),v-wm.get(id),'Cần kiểm tra']);}
+  for(const [id,v] of wm)if(!map.has(id))issues.push([id,'Ví có doanh thu ngoài danh sách Order',0,v,-v,'Cần kiểm tra']);
+  const feeDetail=sum(fees,r=>r.slice(2).reduce((s,x)=>s+N(x),0));
+  const check=[['Doanh thu − chi phí = tiền thanh toán',revenue-netCost,paid,revenue-netCost-paid],['Phí dịch vụ: chi tiết so với Order',-feeDetail,-col(27),-feeDetail+col(27)],['Doanh thu ví so với thanh toán Order',groups['Doanh Thu Đơn Hàng']?.net||0,paid,(groups['Doanh Thu Đơn Hàng']?.net||0)-paid],['Số dư đầu + tiền vào − tiền ra = số dư cuối',opening+incoming-outgoing,closing,opening+incoming-outgoing-closing]];
+  const aMap=new Map();for(const r of adjustments){const k=String(r[5])+'|'+N(r[4])+'|'+date(r[1]);aMap.set(k,(aMap.get(k)||0)+1);}
+  const walletAdjust=wallet.filter(r=>r[1]==='Điều chỉnh');const unmatched=[];
+  for(const r of walletAdjust){const k=orderId(r)+'|'+N(r[5])+'|'+date(r[0]);if(aMap.get(k)>0)aMap.set(k,aMap.get(k)-1);else unmatched.push(r);}
+  const adjUnmatched=adjustments.filter(r=>(aMap.get(String(r[5])+'|'+N(r[4])+'|'+date(r[1]))||0)>0);
+  const extraCost=sum(unmatched,r=>Math.max(-N(r[5]),0)), feeCredit=sum(adjustments,r=>Math.max(N(r[4]),0));
+  const fsf=-(groups.FSF_COST_PASSING_DEDUCT?.net||0);
+  const refunds=-col(14), settledRefund=sum(adjustments,r=>Math.max(-N(r[4]),0));
+  const metrics={orders:map.size,revenue,refunds,netCost,feeTotal,paid,incoming,outgoing,withdrawals:groups['Rút Tiền']?.out||0,opening,closing,netWallet:incoming-outgoing,fsf,extraCost,feeCredit,periodCosts:netCost+fsf+extraCost-feeCredit,settledRefund,adjustmentNet:sum(adjustments,r=>N(r[4])),walletAdjustmentNet:groups['Điều chỉnh']?.net||0};
+  const summary=[['CHI PHÍ SÀN · NHÀ SÁCH 2HBOOKS','01/09–23/10/2026','Đơn vị: VND'],['Chỉ tiêu','Giá trị','Diễn giải'],['Số đơn thanh toán',metrics.orders,'Chỉ đếm dòng Order; không cộng dòng Sku'],['Doanh thu theo Summary',revenue,'Sau hoàn trong Order và giảm trừ/hỗ trợ; theo ngày thanh toán'],['Tiền hàng sau trợ giá của shop',col(13),'Không phải giá niêm yết trước trợ giá'],['Hoàn tiền trong Order',refunds,'Đã giảm doanh thu; không cộng tiếp vào chi phí'],['Phí sàn và giao dịch trong Order',feeTotal,'Nằm trong chi phí ròng bên dưới'],['Chi phí ròng trong thanh toán đơn',netCost,'Phí sàn + vận chuyển ròng + các khoản chi phí trong Order'],['Tiền thanh toán theo Order',paid,'Doanh thu − chi phí ròng'],['Chi phí vận chuyển phát sinh riêng trong ví',fsf,'FSF_COST_PASSING_DEDUCT; ngoài thanh toán Order'],['Thu phí bổ sung ngoài Adjustment',extraCost,'Hai khoản dịch vụ; cần kế toán kiểm tra nội dung'],['Hoàn phí ngoài Order',feeCredit,'Hoàn vận chuyển trong Adjustment; không phải doanh thu mới'],['Chi phí thực chịu theo phát sinh kỳ',metrics.periodCosts,'Chi phí Order + phí riêng ví − hoàn phí ngoài Order; có thể liên quan đơn kỳ trước'],['Hoàn tiền sau thanh toán',settledRefund,'Adjustment âm; tách khỏi hoàn trong Order và chi phí'],['Tổng tiền vào số dư Shopee',incoming,'Tất cả giao dịch dương; gồm hoàn phí'],['Tổng tiền ra số dư Shopee',outgoing,'Bao gồm rút ngân hàng, hoàn tiền và phí'],['Tiền rút về ngân hàng',metrics.withdrawals,'Theo trạng thái Rút Tiền thành công trên Shopee; chưa đối chiếu sao kê ngân hàng'],['Biến động số dư kỳ',metrics.netWallet,'Tiền vào − tiền ra; không phải lợi nhuận'],['Số dư đầu kỳ suy ra',opening,'Số dư sau giao dịch đầu tiên − giá trị giao dịch đầu tiên'],['Số dư cuối kỳ theo ví',closing,'Số dư sau giao dịch cuối kỳ'],['Tỷ lệ phí sàn / doanh thu',feeTotal/revenue,'Không gồm vận chuyển và phí ngoài Order'],['Tỷ lệ chi phí ròng Order / doanh thu',netCost/revenue,'Không phải tỷ suất lợi nhuận'],['Trạng thái đối soát',issues.length?'Cần kiểm tra':'Khớp thanh toán Order ↔ ví',`${map.size} đơn; ${orders.filter(r=>!wm.has(String(r[2]))&&N(r[12])===0).length} đơn 0đ không có giao dịch ví`],['Phạm vi','Báo cáo mẫu theo dữ liệu nguồn đã tải','Chưa có giá vốn, ADS và chi phí ngoài Shopee; chưa tính lợi nhuận'],['Nguồn','Summary / Doanh thu - 1,2 / Service Fee Details / Adjustment / Giao dịch số dư','Dashboard đọc nguồn trực tiếp khi đồng bộ; file mẫu là ảnh chụp dữ liệu tại thời điểm lập']];
+  const detail=[['Mã đơn','Ngày đặt','Ngày thanh toán','Tiền hàng sau trợ giá','Hoàn tiền','Hỗ trợ / voucher ròng','Doanh thu','Phí cố định','Phí dịch vụ','Phí giao dịch','Phí khác / thuế','Vận chuyển ròng','Chi phí ròng','Thực nhận Order','Thực nhận ví','Chênh lệch']];
+  for(const r of orders){const rev=N(r[13])+N(r[14])+[21,22,23,24,25].reduce((s,i)=>s+N(r[i]),0);const cost=-[...costCols,...creditCols].reduce((s,i)=>s+N(r[i]),0);detail.push([r[2],date(r[7]),date(r[8]),N(r[13]),N(r[14]),rev-N(r[13])-N(r[14]),rev,-N(r[26]),-N(r[27]),-N(r[28]),-[29,30,31,32,33,34,35,36].reduce((s,i)=>s+N(r[i]),0),-[15,16,17,18,19,20].reduce((s,i)=>s+N(r[i]),0),cost,N(r[12]),wm.get(String(r[2]))||0,N(r[12])-(wm.get(String(r[2]))||0)]);}
+  const cost=[['Khoản mục','Chi phí ghi nợ','Khoản bù/hoàn ghi có','Chi phí ròng','Tỷ lệ / doanh thu','Nguồn & cách tính']];
+  const addCost=(label,cols,note)=>{const debit=sum(orders,r=>cols.reduce((s,i)=>s+Math.max(-N(r[i]),0),0)),credit=sum(orders,r=>cols.reduce((s,i)=>s+Math.max(N(r[i]),0),0));cost.push([label,debit,credit,debit-credit,(debit-credit)/revenue,note]);};
+  addCost('Phí cố định',[26],'Order AA');addCost('Phí dịch vụ',[27],'Order AB; đối chiếu tổng Service Fee Details');addCost('Phí xử lý giao dịch',[28],'Order AC');addCost('Tiếp thị liên kết / phí khác / thuế',[29,30,31,32,33,34,35,36],'Các cột chi phí còn lại trong Order');addCost('Vận chuyển ròng',[15,16,17,18,19,20],'Bao gồm cước và bù cước; ghi nợ gộp không phải toàn bộ phí shop tự chịu');
+  cost.push(['TỔNG CHI PHÍ ORDER',sum(cost.slice(1),r=>r[1]),sum(cost.slice(1),r=>r[2]),netCost,netCost/revenue,'Không cộng tiếp các dòng thành phần vào tổng này'],['Phí ship thất bại ngoài Order',fsf,0,fsf,fsf/revenue,'Giao dịch ví FSF_COST_PASSING_DEDUCT'],['Thu phí bổ sung ngoài Adjustment',extraCost,0,extraCost,extraCost/revenue,'Ví Điều chỉnh chưa khớp Adjustment'],['Hoàn phí sau thanh toán',0,feeCredit,-feeCredit,-feeCredit/revenue,'Adjustment dương; khớp giao dịch ví'],['TỔNG CHI PHÍ PHÁT SINH KỲ','','',metrics.periodCosts,metrics.periodCosts/revenue,'Không gồm tiền hoàn khách; bao gồm phát sinh của đơn kỳ trước'],['CHI TIẾT PHÍ DỊCH VỤ — đã nằm trong AB','','','','','Không cộng lại vào tổng chi phí']);
+  const fheads=(input.fees||[])[1]||[];for(let i=2;i<fheads.length;i++){if(fheads[i])cost.push([fheads[i]+' · cột '+String.fromCharCode(65+i),-sum(fees,r=>Math.min(N(r[i]),0)),sum(fees,r=>Math.max(N(r[i]),0)),-sum(fees,r=>N(r[i])),-sum(fees,r=>N(r[i]))/revenue,'Service Fee Details; hai cột tên gần giống được giữ riêng']);}
+  const adjustmentsRows=[['Ngày','Mã đơn / tham chiếu','Khoản mục','Nội dung','Số tiền có dấu','Nguồn','Tình trạng đối chiếu']];
+  for(const r of orders.filter(r=>N(r[14])!==0))adjustmentsRows.push([date(r[8]),r[2],'Hoàn trong Order','Đã giảm doanh thu',N(r[14]),'Doanh thu · Order','Đã nằm trong tổng doanh thu']);
+  for(const r of adjustments)adjustmentsRows.push([date(r[1]),r[5],r[2],r[3]||r[2],N(r[4]),'Adjustment','Đối chiếu với ví; không cộng lại ví']);
+  for(const r of wallet.filter(r=>r[1]==='FSF_COST_PASSING_DEDUCT'||unmatched.includes(r)))adjustmentsRows.push([date(r[0]),orderId(r),r[1],r[2],N(r[5]),'Giao dịch số dư',unmatched.includes(r)?'Ngoài Adjustment; cần kiểm tra':'Phí ship phát sinh riêng trong ví']);
+  const cash=[['Ngày giờ Shopee (GMT+7)','Loại giao dịch','Nội dung','Mã đơn / tham chiếu','Tiền vào','Tiền ra','Số tiền có dấu','Số dư sau giao dịch','Mã giao dịch','Trạng thái']];
+  for(const r of ordered)cash.push([r[0],r[1],r[2],orderId(r),Math.max(N(r[5]),0),Math.max(-N(r[5]),0),N(r[5]),N(r[7]),String(r[8]),r[6]]);
+  const checks=[['Hạng mục / mã đơn','Giải thích','Giá trị tính','Giá trị nguồn','Chênh lệch','Trạng thái']];
+  for(const [label,v,target,diff]of check)checks.push([label,'So sánh độc lập từ các tab nguồn',v,target,diff,Math.abs(diff)<0.5?'Khớp':'Cần kiểm tra']);
+  checks.push(['Đối soát từng mã đơn',`${map.size} đơn; ${wm.size} mã doanh thu ví`,map.size,wm.size,map.size-wm.size,issues.length?'Có sai lệch':'Khớp; 2 đơn 0đ không có giao dịch ví'],['Adjustment so với ví','Ví có thêm phí dịch vụ; không coi hai nguồn là trùng hoàn toàn',metrics.adjustmentNet,metrics.walletAdjustmentNet,metrics.adjustmentNet-metrics.walletAdjustmentNet,`${unmatched.length} khoản ngoài Adjustment`]);
+  for(const row of issues)checks.push([row[0],row[1],...row.slice(2)]);
+  for(const r of unmatched)checks.push([orderId(r),'Phí ngoài Adjustment: '+r[2],0,N(r[5]),-N(r[5]),'Kế toán kiểm tra']);
+  if(adjUnmatched.length)checks.push(['Adjustment chưa khớp ví','Cần kiểm tra ngày / mã / số tiền',adjUnmatched.length,'','','Cần kiểm tra']);
+  const daily={};for(let t=serial(start);t<=serial(end);t++){daily[date(t)]={n:0,rev:0,cost:0,paid:0,in:0,out:0,withdraw:0};}
+  for(const r of detail.slice(1)){const d=daily[r[2]];if(d){d.n++;d.rev+=r[6];d.cost+=r[12];d.paid+=r[13];}}
+  for(const r of wallet){const d=daily[date(r[0])];if(d){d.in+=Math.max(N(r[5]),0);d.out+=Math.max(-N(r[5]),0);if(r[1]==='Rút Tiền')d.withdraw+=Math.max(-N(r[5]),0);}}
+  const trend=[['Ngày / tháng','Số đơn','Doanh thu','Chi phí Order','Thực nhận Order','Tiền vào ví','Tiền ra ví','Rút ngân hàng','Biến động ví']];
+  for(const [key,v]of Object.entries(daily))trend.push([key,v.n,v.rev,v.cost,v.paid,v.in,v.out,v.withdraw,v.in-v.out]);
+  for(const m of [...new Set(Object.keys(daily).map(d=>d.slice(0,7)))]){const entries=Object.entries(daily).filter(([d])=>d.startsWith(m)),ds=entries.map(x=>x[1]);trend.push([m+' · '+entries[0][0].slice(8)+'–'+entries.at(-1)[0].slice(8),...['n','rev','cost','paid','in','out','withdraw'].map(k=>sum(ds,x=>x[k])),sum(ds,x=>x.in-x.out)]);}
+  summary[0][1]=start+' đến '+end;
+  const tracking=[['Mã / hạng mục','Ngày phát sinh','Nội dung cần xử lý','Số tiền cần kiểm tra','Người phụ trách','Trạng thái','Ghi chú kế toán','Liên kết chứng từ','Ngày hoàn tất']];
+  for(const r of unmatched)tracking.push([String(r[8]),date(r[0]),r[2],-N(r[5]),'','Chưa xử lý','','','']);
+  tracking.push(['Rút tiền ngân hàng','','Đối chiếu 18 lần rút với sao kê; chưa có sao kê trong nguồn',metrics.withdrawals,'','Chưa xử lý','','','']);
+  const tables={'01 Tổng quan':summary,'02 Thanh toán đơn':detail,'03 Chi phí và phí sàn':cost,'04 Hoàn tiền và cấn trừ':adjustmentsRows,'05 Dòng tiền':cash,'06 Đối soát':checks,'07 Ngày và tháng':trend,'08 Xử lý kế toán':tracking};
+  return {metrics,tables,groups,issues,unmatched:unmatched.map(r=>({date:date(r[0]),detail:r[2],amount:N(r[5])})),checks:check};
+ }
+ const api={analyze,date};root.ChiPhiSan=api;if(typeof module!=='undefined')module.exports=api;
+})(typeof window!=='undefined'?window:globalThis);
+
+/* Dashboard pilot: authenticated, read-only discovery of accounting period folders. */
+const CPS={root:'19JxC7Bv8CUk5-cp1LmKDczoZ5uBQvSR1',token:null,client:null,periods:[],files:[],report:null,tab:0,limit:100,busy:false,chart:null,sequence:0};
+const cpsEsc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const cpsMoney=x=>Number(x).toLocaleString('vi-VN',{maximumFractionDigits:0})+' đ';
+function cpsStatus(s){document.getElementById('cps-status').textContent=s;}
+function cpsInit(){if(!CPS.report)cpsStatus('Báo cáo thử nghiệm Nhà Sách 2HBooks · Kết nối Google Drive để đọc dữ liệu kế toán.');}
+async function cpsApi(url){const r=await fetch(url,{headers:{Authorization:'Bearer '+CPS.token}});if(r.status===401){CPS.token=null;throw Error('Phiên Google đã hết hạn. Bấm Kết nối Google Drive để kết nối lại.');}if(!r.ok)throw Error('Google trả lỗi '+r.status+'; kiểm tra quyền đọc thư mục/file kế toán.');return r.json();}
+async function cpsList(parent,mime){let files=[],page='';do{const q="'"+parent+"' in parents and trashed=false and mimeType='"+mime+"'";const d=await cpsApi('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=nextPageToken,files(id,name,modifiedTime)&pageSize=100&orderBy=name'+(page?'&pageToken='+encodeURIComponent(page):''));files.push(...(d.files||[]));page=d.nextPageToken||'';}while(page);return files;}
+async function cpsConnect(){
+ if(CPS.busy)return;
+ if(typeof google==='undefined'||!google.accounts?.oauth2){cpsStatus('Thư viện Google chưa sẵn sàng; tải lại dashboard rồi thử lại.');return;}
+ CPS.client=google.accounts.oauth2.initTokenClient({client_id:getDriveClientId(),scope:'https://www.googleapis.com/auth/drive.readonly',callback:async r=>{if(r.error){cpsStatus('Không kết nối được Google: '+r.error);return;}CPS.token=r.access_token;await cpsRefresh();}});
+ CPS.client.requestAccessToken({prompt:CPS.token?'':'consent'});
+}
+async function cpsRefresh(){
+ if(CPS.busy)return;if(!CPS.token){cpsStatus('Bấm Kết nối Google Drive để đọc thư mục kế toán.');return;}
+ CPS.busy=true;cpsStatus('Đang đọc các thư mục kỳ kế toán…');
+ try{CPS.periods=(await cpsList(CPS.root,'application/vnd.google-apps.folder')).filter(x=>/^Kỳ /.test(x.name));const select=document.getElementById('cps-period'),old=select.value;select.replaceChildren(...CPS.periods.map(p=>new Option(p.name,p.id)));if(CPS.periods.some(p=>p.id===old))select.value=old;else if(CPS.periods.some(p=>p.id==='1vT68aZ1bJX4Ioqe-qUDo6lCcuS9BljTb'))select.value='1vT68aZ1bJX4Ioqe-qUDo6lCcuS9BljTb';if(!select.value){cpsStatus('Chưa tìm thấy thư mục kỳ trong Kế Toán Shopee 2H.');return;}await cpsLoadPeriod();}catch(e){cpsStatus(e.message);}finally{CPS.busy=false;}
+}
+async function cpsLoadPeriod(){
+ const seq=++CPS.sequence;CPS.report=null;document.getElementById('cps-output').replaceChildren();
+ try{const id=document.getElementById('cps-period').value;if(!id)return;const files=await cpsList(id,'application/vnd.google-apps.spreadsheet');if(seq!==CPS.sequence)return;CPS.files=files.filter(x=>/^Nhà Sách 2HBooks — /.test(x.name));const sel=document.getElementById('cps-shop');sel.replaceChildren(...CPS.files.map(x=>new Option(x.name,x.id)));cpsStatus(CPS.files.length?'Đã tìm thấy file nguồn Nhà Sách. Bấm Đọc báo cáo.':'Kỳ này chưa có file Nhà Sách 2HBooks. Bản thử nghiệm chưa mở cho shop khác.');}catch(e){if(seq===CPS.sequence)cpsStatus(e.message);}
+}
+async function cpsRead(){
+ if(CPS.busy)return;const id=document.getElementById('cps-shop').value;if(!id){cpsStatus('Chọn kỳ có file Nhà Sách trước.');return;}
+ const seq=++CPS.sequence;CPS.busy=true;cpsStatus('Đang đọc dữ liệu nguồn và đối soát…');
+ try{const meta=await cpsApi('https://sheets.googleapis.com/v4/spreadsheets/'+id+'?fields=spreadsheetId,properties(title),sheets(properties)');
+ if(!/^Nhà Sách 2HBooks — /.test(meta.properties?.title||''))throw Error('File không đúng shop Nhà Sách; dừng để tránh gộp nhầm.');
+ const specs=[['summary','Summary','D'],['income1','Doanh thu - 1','AK'],['income2','Doanh thu - 2','AK'],['wallet','Giao dịch số dư','O'],['fees','Service Fee Details','F'],['adjustment','Adjustment','G']];const used=specs.map(([key,title,col])=>{const sh=meta.sheets.find(s=>s.properties.title===title);if(!sh)throw Error('Thiếu tab nguồn '+title+'; chưa thể lập báo cáo.');return {key,range:"'"+title+"'!A1:"+col+sh.properties.gridProperties.rowCount};});
+ const d=await cpsApi('https://sheets.googleapis.com/v4/spreadsheets/'+id+'/values:batchGet?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER&'+used.map(s=>'ranges='+encodeURIComponent(s.range)).join('&'));
+ if(seq!==CPS.sequence)return;const input={};used.forEach((s,i)=>input[s.key]=d.valueRanges[i].values||[]);
+ if(input.income1[2]?.[12]!=='Tổng tiền đã thanh toán'||input.income1[2]?.[26]!=='Phí cố định')throw Error('Cấu trúc cột nguồn đã thay đổi; cần kiểm tra ánh xạ trước khi tính.');
+ CPS.report=ChiPhiSan.analyze(input);CPS.source=id;CPS.tab=0;CPS.limit=100;
+ const period=CPS.periods.find(p=>p.id===document.getElementById('cps-period').value)?.name||'';
+ CPS.periodLabel=period;cpsRender();cpsStatus('Đã đọc trực tiếp '+meta.properties.title+' · '+new Date().toLocaleString('vi-VN')+' · chỉ đọc, không thay dữ liệu nguồn.');
+ }catch(e){if(seq===CPS.sequence)cpsStatus(e.message);}finally{CPS.busy=false;}
+}
+function cpsRender(){
+ const r=CPS.report;if(!r)return;const m=r.metrics;document.getElementById('cps-output').innerHTML=`<div class="report-note"><b>${cpsEsc(CPS.periodLabel||'Kỳ 01/09–23/10/2026')} · Nhà Sách 2HBooks</b> · ${m.orders.toLocaleString('vi-VN')} đơn thanh toán · <a target="_blank" rel="noopener" href="https://docs.google.com/spreadsheets/d/${cpsEsc(CPS.source)}/edit">Mở dữ liệu nguồn ↗</a></div><div class="report-kpis">${[['Doanh thu theo Summary',m.revenue,'Đã giảm hoàn trong Order'],['Phí sàn & giao dịch',m.feeTotal,'Đã nằm trong chi phí Order'],['Chi phí ròng Order',m.netCost,'Sau bù cước trong đơn'],['Chi phí phát sinh kỳ',m.periodCosts,'Cộng phí riêng ví, trừ hoàn phí'],['Thực nhận theo đơn',m.paid,'Chưa phải lợi nhuận'],['Rút về ngân hàng',m.withdrawals,'Chưa đối chiếu sao kê']].map(([label,v,note])=>`<div class="nv-tile"><div class="kpi-label">${label}</div><div style="font-size:23px;font-weight:800;margin:9px 0">${cpsMoney(v)}</div><div class="report-note">${note}</div></div>`).join('')}</div><div class="report-note">${r.issues.length?'Cần kiểm tra '+r.issues.length+' sai lệch thanh toán.':'Đối soát thanh toán đơn khớp.'} Có ${r.unmatched.length} khoản ví ngoài Adjustment (${cpsMoney(m.extraCost)}). Chi phí phát sinh kỳ có thể liên quan đơn kỳ trước. Không cộng tiền rút vào doanh thu; chưa có giá vốn/ADS để tính lợi nhuận.</div><div class="card"><div class="card-title">Doanh thu · chi phí Order · thực nhận theo ngày</div><div style="height:290px"><canvas id="cps-chart"></canvas></div></div><div class="report-filters" id="cps-tabs">${Object.keys(r.tables).map((t,i)=>`<button class="sw-btn-sm" data-cps-tab="${i}" aria-pressed="${i===CPS.tab}">${cpsEsc(t)}</button>`).join('')}</div><div class="report-filters"><input id="cps-search" placeholder="Tìm mã đơn, nội dung…" oninput="cpsTable()"><button class="sw-btn-sm" onclick="cpsExport()">Xuất 8 tab Excel</button><a href="https://docs.google.com/spreadsheets/d/1TFdlfLnlkOETeG2Fsnlcj4paY3znbijod8wR504Lk6g/edit" target="_blank" rel="noopener">Mở báo cáo mẫu ↗</a></div><div id="cps-table"></div>`;
+ document.getElementById('cps-tabs').onclick=e=>{const b=e.target.closest('[data-cps-tab]');if(!b)return;CPS.tab=Number(b.dataset.cpsTab);CPS.limit=100;document.querySelectorAll('[data-cps-tab]').forEach(x=>x.setAttribute('aria-pressed',String(Number(x.dataset.cpsTab)===CPS.tab)));cpsTable();};
+ cpsTable();if(CPS.chart)CPS.chart.destroy();if(typeof Chart!=='undefined'){const rows=r.tables['07 Ngày và tháng'].slice(1).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x[0]));CPS.chart=new Chart(document.getElementById('cps-chart'),{type:'line',data:{labels:rows.map(x=>x[0].slice(5)),datasets:[['Doanh thu',2,'#60a5fa'],['Chi phí Order',3,'#f59e0b'],['Thực nhận',4,'#34d399']].map(([label,c,color])=>({label,data:rows.map(x=>x[c]),borderColor:color,pointRadius:0,borderWidth:2}))},options:{responsive:true,maintainAspectRatio:false,plugins:{datalabels:{display:false},legend:{position:'bottom'}},scales:{y:{ticks:{callback:v=>(v/1e6).toLocaleString('vi-VN')+' tr'}}}}});}
+}
+function cpsTable(){const r=CPS.report;if(!r)return;const title=Object.keys(r.tables)[CPS.tab],data=r.tables[title],header=CPS.tab===0?data[1]:data[0],query=(document.getElementById('cps-search')?.value||'').toLocaleLowerCase('vi-VN');const rows=data.slice(CPS.tab===0?2:1).filter(row=>!query||row.some(x=>String(x).toLocaleLowerCase('vi-VN').includes(query)));document.getElementById('cps-table').innerHTML=`<div class="report-note">${cpsEsc(title)} · ${rows.length.toLocaleString('vi-VN')} dòng · hiển thị ${Math.min(rows.length,CPS.limit)}</div><div style="overflow:auto;max-height:620px"><table style="min-width:900px;width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${header.map(h=>`<th style="position:sticky;top:0;background:var(--card,#fff);padding:10px;white-space:nowrap;text-align:left">${cpsEsc(h)}</th>`).join('')}</tr></thead><tbody>${rows.slice(0,CPS.limit).map(row=>`<tr>${header.map((_,i)=>{let x=row[i]??'';if(CPS.tab===4&&i===0&&typeof x==='number')x=ChiPhiSan.date(x);else if(typeof x==='number'){if((CPS.tab===2&&i===4)||(CPS.tab===0&&String(row[0]).startsWith('Tỷ lệ')))x=(x*100).toLocaleString('vi-VN',{maximumFractionDigits:2})+'%';else x=x.toLocaleString('vi-VN',{maximumFractionDigits:0});}return `<td style="padding:9px;border-bottom:1px solid var(--gray3);max-width:420px;overflow-wrap:anywhere">${cpsEsc(x)}</td>`;}).join('')}</tr>`).join('')}</tbody></table></div>${rows.length>CPS.limit?'<button class="sw-btn-sm" onclick="CPS.limit+=200;cpsTable()">Xem thêm 200 dòng</button>':''}`;}
+function cpsExport(){if(!CPS.report)return;const wb=XLSX.utils.book_new();for(const [title,rows]of Object.entries(CPS.report.tables))XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),title.slice(0,31));XLSX.writeFile(wb,'Chi_Phi_San_Nha_Sach_'+(CPS.periodLabel||'ky').replace(/[^0-9A-Za-z-]/g,'_')+'.xlsx');}
+
+</script>
+<!-- CPS-PILOT-END -->
 </body>
 </html>
