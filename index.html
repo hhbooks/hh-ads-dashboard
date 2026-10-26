@@ -1077,11 +1077,47 @@
   <!-- ══ 3 KHỐI ACCORDION ══ -->
   <div class="sidebar-blocks">
 
+    <!-- Khối Tồn Kho -->
+    <div class="sidebar-block" id="block-tonkho">
+      <div class="block-header" onclick="toggleSidebarBlock('tonkho')">
+        <span class="block-icon">📦</span>
+        <span class="block-title">Kiểm Soát Tồn Kho</span>
+        <span class="block-arrow">▶</span>
+      </div>
+      <div class="block-body" id="block-body-tonkho" style="display:none">
+        <div class="nav-item" onclick="showPage('tonkho-tong-quan',this)">
+          <span class="icon">📦</span> Cập Nhật Tồn
+        </div>
+        <div class="nav-item" onclick="showPage('gia-canh-bao',this)">
+          <span class="icon">⚡</span> Cập nhật đơn hằng ngày
+        </div>
+      </div>
+    </div>
+
+    <!-- Khối Kênh Marketing -->
+    <div class="sidebar-block" id="block-marketing">
+      <div class="block-header" onclick="toggleSidebarBlock('marketing')">
+        <span class="block-icon">📣</span>
+        <span class="block-title">Kênh Marketing</span>
+        <span class="block-arrow">▶</span>
+      </div>
+      <div class="block-body" id="block-body-marketing" style="display:none">
+        <div class="nav-item" onclick="showPage('mkt-shop',this)">
+          <span class="icon">🏪</span> Chương Trình Của Shop
+        </div>
+        <div class="nav-item" onclick="showPage('mkt-shopee',this)">
+          <span class="icon">🛒</span> Chương Trình Shopee
+        </div>
+      </div>
+    </div>
+
+
+
     <!-- Khối ADS -->
     <div class="sidebar-block" id="block-ads">
       <div class="block-header" onclick="toggleSidebarBlock('ads')">
         <span class="block-icon">📊</span>
-        <span class="block-title">ADS</span>
+        <span class="block-title">Dịch vụ Hiển thị</span>
         <span class="block-arrow">▶</span>
       </div>
       <div class="block-body" id="block-body-ads" style="display:none">
@@ -1131,23 +1167,6 @@
       </div>
     </div>
 
-    <!-- Khối Tồn Kho -->
-    <div class="sidebar-block" id="block-tonkho">
-      <div class="block-header" onclick="toggleSidebarBlock('tonkho')">
-        <span class="block-icon">📦</span>
-        <span class="block-title">Kiểm Soát Tồn Kho</span>
-        <span class="block-arrow">▶</span>
-      </div>
-      <div class="block-body" id="block-body-tonkho" style="display:none">
-        <div class="nav-item" onclick="showPage('tonkho-tong-quan',this)">
-          <span class="icon">📦</span> Cập Nhật Tồn
-        </div>
-        <div class="nav-item" onclick="showPage('gia-canh-bao',this)">
-          <span class="icon">⚡</span> Cập nhật đơn hằng ngày
-        </div>
-      </div>
-    </div>
-
     <!-- Khối Báo Cáo (kho vận SG/HN — đọc Google Sheet "Đơn Kho Vận SW") -->
     <div class="sidebar-block" id="block-baocao">
       <div class="block-header" onclick="toggleSidebarBlock('baocao')">
@@ -1170,25 +1189,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Khối Kênh Marketing -->
-    <div class="sidebar-block" id="block-marketing">
-      <div class="block-header" onclick="toggleSidebarBlock('marketing')">
-        <span class="block-icon">📣</span>
-        <span class="block-title">Kênh Marketing</span>
-        <span class="block-arrow">▶</span>
-      </div>
-      <div class="block-body" id="block-body-marketing" style="display:none">
-        <div class="nav-item" onclick="showPage('mkt-shop',this)">
-          <span class="icon">🏪</span> Chương Trình Của Shop
-        </div>
-        <div class="nav-item" onclick="showPage('mkt-shopee',this)">
-          <span class="icon">🛒</span> Chương Trình Shopee
-        </div>
-      </div>
-    </div>
-
-
 
     <!-- Khối Nghiệp Vụ -->
     <div class="sidebar-block" id="block-nghiep-vu">
