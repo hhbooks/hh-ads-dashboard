@@ -9098,29 +9098,38 @@ function dkdParseSheet(wb) {
   const sheetName = wb.SheetNames.find(n => n.trim() === 'Đơn hàng') || wb.SheetNames[0];
   const ws = wb.Sheets[sheetName];
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+  const normHeader = c => String(c == null ? '' : c).replace(/\s+/g, ' ').trim().toLowerCase();
   let headerRow = -1;
-  for (let i = 0; i < Math.min(rows.length, 15); i++) {
-    if (rows[i] && rows[i].some(c => String(c || '').trim() === 'SL Đáp ứng')) { headerRow = i; break; }
+  for (let i = 0; i < Math.min(rows.length, 40); i++) {
+    const h = (rows[i] || []).map(normHeader);
+    const legacy = h.some(c => c.startsWith('sl đáp ứng')) && h.some(c => c === 'code' || c === 'online code');
+    const quotation = h.includes('mã hàng hóa') && h.includes('số lượng');
+    if (legacy || quotation) { headerRow = i; break; }
   }
-  if (headerRow === -1) throw new Error(`Không tìm thấy dòng header (cột "SL Đáp ứng") trong sheet "${sheetName}"`);
-  const header = rows[headerRow].map(c => String(c || '').trim());
-  const findCol = (want) => header.findIndex(h => h === want || h.startsWith(want));
-  const idx = {
-    code: findCol('Code'),
-    onlineCode: findCol('Online Code'),
-    desc: findCol('Description'),
-    sl: findCol('SL Đáp ứng'),
-    ton: findCol('Tồn'),
-    total: findCol('Total'),
+  if (headerRow === -1) throw new Error(`Không tìm thấy cột mã và số lượng trong sheet "${sheetName}". Hỗ trợ mẫu Code/Online Code + SL Đáp ứng hoặc Mã hàng hóa + Số lượng.`);
+  const header = rows[headerRow].map(normHeader);
+  const findCol = (...names) => {
+    for (const name of names) { const i = header.indexOf(normHeader(name)); if (i !== -1) return i; }
+    return -1;
   };
-  if (idx.sl === -1) throw new Error('Không tìm thấy cột "SL Đáp ứng"');
+  const idx = {
+    code: findCol('Code', 'Mã hàng hóa'),
+    onlineCode: findCol('Online Code'),
+    desc: findCol('Description', 'Mô tả sản phẩm'),
+    sl: header.findIndex(h => h.startsWith('sl đáp ứng')),
+    ton: findCol('Tồn', 'Tồn HN', 'Tồn HCM'),
+    total: findCol('Total', 'Thành Tiền'),
+  };
+  if (idx.sl === -1) idx.sl = findCol('Số lượng');
+  if (idx.sl === -1) throw new Error('Không tìm thấy cột "SL Đáp ứng"/"Số lượng"');
   if (idx.code === -1 && idx.onlineCode === -1) throw new Error('Không tìm thấy cột "Code"/"Online Code" để đối chiếu SKU');
 
   const items = [];
   for (let i = headerRow + 1; i < rows.length; i++) {
     const r = rows[i]; if (!r) continue;
-    const sl = idx.sl !== -1 ? r[idx.sl] : null;
-    if (typeof sl !== 'number') continue; // loại dòng ghi chú/footer, chỉ giữ dòng sản phẩm thật
+    const slRaw = r[idx.sl];
+    const sl = typeof slRaw === 'number' ? slRaw : typeof slRaw === 'string' && /^\d+$/.test(slRaw.trim()) ? Number(slRaw.trim()) : null;
+    if (typeof sl !== 'number' || !Number.isFinite(sl) || sl < 0) continue; // không lấy dòng ghi chú/footer làm sản phẩm
     const code = idx.code !== -1 && r[idx.code] != null ? String(r[idx.code]).trim() : '';
     const onlineCode = idx.onlineCode !== -1 && r[idx.onlineCode] != null ? String(r[idx.onlineCode]).trim() : '';
     const key = onlineCode || code;
