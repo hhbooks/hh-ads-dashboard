@@ -3965,9 +3965,9 @@
   </div><!-- end page-nghiep-vu-bao-cao-cham-cong -->
 
   <div class="page" id="page-ke-toan-chi-phi-san">
-    <div class="card"><div class="card-title"><span class="dot"></span> Chi Phí Sàn · Báo cáo thử nghiệm Nhà Sách 2HBooks</div>
+    <div class="card"><div class="card-title"><span class="dot"></span> Chi Phí Sàn · Báo cáo kế toán theo shop</div>
     <p class="report-note">Đọc dữ liệu gốc trong thư mục Kế Toán Shopee 2H. Kế toán dùng tài khoản Google riêng có quyền truy cập thư mục để xem báo cáo. Dashboard chỉ đọc dữ liệu, không cần tài khoản của chủ shop hoặc khóa Shopee.</p>
-    <div class="report-filters"><button class="sw-btn-sm" onclick="cpsConnect()">Kết nối Google Drive</button><select id="cps-period" onchange="cpsLoadPeriod()" aria-label="Kỳ kế toán"><option value="">Chọn kỳ kế toán</option></select><select id="cps-shop" aria-label="Shop"><option value="">Nhà Sách 2HBooks</option></select><button class="sw-btn-sm" onclick="cpsRead()">Đọc báo cáo</button><button class="sw-btn-sm" onclick="cpsRefresh()">Làm mới danh sách kỳ</button><a href="https://drive.google.com/drive/folders/19JxC7Bv8CUk5-cp1LmKDczoZ5uBQvSR1" target="_blank" rel="noopener">Mở thư mục kế toán ↗</a></div><p id="cps-status" role="status" aria-live="polite" class="report-note">Bấm Kết nối Google Drive để đọc dữ liệu.</p></div>
+    <div class="report-filters"><button class="sw-btn-sm" onclick="cpsConnect()">Kết nối Google Drive</button><select id="cps-period" onchange="cpsLoadPeriod()" aria-label="Kỳ kế toán"><option value="">Chọn kỳ kế toán</option></select><select id="cps-shop" onchange="cpsShopChanged()" aria-label="Shop"><option value="">Chọn shop</option></select><button class="sw-btn-sm" onclick="cpsRead()">Đọc báo cáo</button><button class="sw-btn-sm" onclick="cpsRefresh()">Làm mới danh sách kỳ</button><a href="https://drive.google.com/drive/folders/19JxC7Bv8CUk5-cp1LmKDczoZ5uBQvSR1" target="_blank" rel="noopener">Mở thư mục kế toán ↗</a></div><p id="cps-status" role="status" aria-live="polite" class="report-note">Bấm Kết nối Google Drive để đọc dữ liệu.</p></div>
     <div id="cps-output"></div>
   </div>
 
@@ -26105,6 +26105,9 @@ function bcdtRenderRank() {
 
 
 
+
+
+
 <!-- CPS-PILOT-START -->
 <style>
 #main:has(#page-ke-toan-chi-phi-san.active){min-width:0;flex:1 1 0;width:calc(100% - 230px)}
@@ -26151,6 +26154,44 @@ function bcdtRenderRank() {
 
 </style>
 <script>
+/* Read-only schema adapter for the six registered accounting shops. */
+(function(root){
+ const shops=[['2H Books','2hbooks'],['Huy Hoàng Bookstore','huyhoangbookstore'],['2H Home Living','2hbooksvanphongpham'],['Hoạ Cụ 2H','2hbookshoacu'],['Nhà Sách 2HBooks','nhasach2hbooks'],['2H Books Store','2hbookshcm']];
+ function identify(title){for(const [name,seller]of shops){const prefix=name+' — ';if(title.startsWith(prefix)&&/^\d{2}-\d{2} đến \d{2}-\d{2}-\d{4}$/.test(title.slice(prefix.length)))return {name,seller};}return null;}
+ function plan(meta){
+  const shop=identify(meta.properties?.title||'');if(!shop)throw Error('Không nhận diện được file kế toán gốc của sáu shop.');
+  const parts=[];for(const sh of meta.sheets||[]){const p=sh.properties;if(p.hidden||p.title.startsWith('__KT_'))continue;const xi=p.title.startsWith('XI · '),name=xi?p.title.slice(5):p.title;
+   let kind='',col='';if(name==='Summary'){kind='summary';col='D';}else if(/^(Doanh thu|Income)(\s*-\s*\d+)?$/i.test(name)){kind='income';col='AK';}else if(/^Service Fee Details(\s*-\s*\d+)?$/i.test(name)){kind='fees';col=String.fromCharCode(64+Math.min(p.gridProperties.columnCount,26));}else if(name==='Adjustment'){kind='adjustment';col='G';}else if(name==='Giao dịch số dư'&&!xi){kind='wallet';col='O';}
+   if(kind)parts.push({kind,xi,title:p.title,rows:p.gridProperties.rowCount,col,range:"'"+p.title.replace(/'/g,"''")+"'!A1:"+col+p.gridProperties.rowCount});
+  }
+  if(!parts.some(p=>p.kind==='summary'&&!p.xi)||!parts.some(p=>p.kind==='income')||!parts.some(p=>p.kind==='wallet'))throw Error('File nguồn chưa đủ Summary, doanh thu và giao dịch số dư; cần tải xong trên tiện ích trước.');
+  return {shop,parts};
+ }
+ function decode(spec,arrays){
+  if(arrays.length!==spec.parts.length)throw Error('Thiếu kết quả đọc tab nguồn.');
+  const all=spec.parts.map((p,i)=>({...p,values:arrays[i]||[]})),main=all.find(p=>p.kind==='summary'&&!p.xi),from=main.values[9]?.[1],to=main.values[10]?.[1];
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(from))||!/^\d{4}-\d{2}-\d{2}$/.test(String(to)))throw Error('Thiếu kỳ báo cáo trong Summary.');
+  const groups=[];for(const summary of all.filter(p=>p.kind==='summary')){
+   const v=summary.values;if(v[5]?.[1]!==spec.shop.seller)throw Error('Tên người bán trong Summary không khớp file '+spec.shop.name+'.');
+   if(v[9]?.[1]!==from||v[10]?.[1]!==to)throw Error('Các báo cáo nguồn không cùng kỳ.');
+   const income=all.filter(p=>p.kind==='income'&&p.xi===summary.xi);for(const p of income){const h=p.values[2]||[];if(h[1]!=='Đơn hàng / Sản phẩm'||h[2]!=='Mã đơn hàng'||h[12]!=='Tổng tiền đã thanh toán'||h[26]!=='Phí cố định'||h[27]!=='Phí Dịch Vụ')throw Error('Cấu trúc cột đã thay đổi ở '+p.title+'.');}
+   const declared=v.find(r=>/^3\.\s*Tổng số tiền\s*$/i.test(String(r[0]||'').trim()));if(!declared||typeof declared[3]!=='number')throw Error('Thiếu tổng thanh toán gốc trong '+summary.title+'.');
+   const orders=income.flatMap(p=>p.values.slice(3)).filter(r=>r[1]==='Order'),paid=orders.reduce((s,r)=>s+(Number(r[12])||0),0);
+   if(!income.length&&!(summary.xi&&declared[3]===0))throw Error('Thiếu tab doanh thu của '+summary.title+'.');
+   if(Math.abs(paid-declared[3])>0.5)throw Error('Đọc chưa đủ doanh thu: tổng Order không khớp '+summary.title+'.');groups.push({summary:summary.title,orders:orders.length,paid});
+  }
+  for(const p of all.filter(p=>p.kind==='income'||p.kind==='fees'))if(!all.some(s=>s.kind==='summary'&&s.xi===p.xi))throw Error('Thiếu Summary của '+p.title+'.');
+  const income=all.filter(p=>p.kind==='income').flatMap(p=>p.values.slice(3));
+  const feeParts=all.filter(p=>p.kind==='fees'),keys=[],labels=[];for(const p of feeParts){p.feeKeys=[];const count={};for(let i=2;i<(p.values[1]||[]).length;i++){const label=p.values[1][i];if(!label)continue;count[label]=(count[label]||0)+1;const key=label+'|'+count[label];p.feeKeys.push([i,key]);if(!keys.includes(key)){keys.push(key);labels.push(label);}}}
+  const fees=[[],['Mã giao dịch','Mã đơn hàng',...labels]];for(const p of feeParts)for(const r of p.values.slice(2)){if(typeof r[0]!=='number'||!r[1])continue;const dest=[r[0],r[1],...keys.map(()=>0)];for(const [i,k]of p.feeKeys)dest[keys.indexOf(k)+2]=Number(r[i])||0;fees.push(dest);}
+  const adjustment=Array.from({length:14},()=>[]).concat(all.filter(p=>p.kind==='adjustment').flatMap(p=>p.values.slice(14)));
+  const input={shopName:spec.shop.name,summary:main.values,income1:income,income2:[],fees,adjustment,wallet:all.find(p=>p.kind==='wallet').values,sourceGroups:groups,sourceTabs:all.map(p=>p.title)};
+  const service=income.filter(r=>r[1]==='Order').reduce((s,r)=>s+(Number(r[27])||0),0),detail=fees.slice(2).reduce((s,r)=>s+r.slice(2).reduce((a,n)=>a+(Number(n)||0),0),0);if(Math.abs(service-detail)>0.5)throw Error('Đọc chưa đủ phí: chi tiết phí dịch vụ không khớp Order.');
+  return input;
+ }
+ const api={shops,identify,plan,decode};root.ChiPhiSanSources=api;if(typeof module!=='undefined')module.exports=api;
+})(typeof window!=='undefined'?window:globalThis);
+
 /* Chi Phí Sàn: read-only analysis of original Shopee accounting tabs. Pilot: Nhà Sách. */
 (function(root){
  'use strict';
@@ -26190,7 +26231,7 @@ function bcdtRenderRank() {
   const fsf=-(groups.FSF_COST_PASSING_DEDUCT?.net||0);
   const refunds=-col(14), settledRefund=sum(adjustments,r=>Math.max(-N(r[4]),0));
   const metrics={orders:map.size,revenue,refunds,netCost,feeTotal,paid,incoming,outgoing,withdrawals:groups['Rút Tiền']?.out||0,opening,closing,netWallet:incoming-outgoing,fsf,extraCost,feeCredit,periodCosts:netCost+fsf+extraCost-feeCredit,settledRefund,adjustmentNet:sum(adjustments,r=>N(r[4])),walletAdjustmentNet:groups['Điều chỉnh']?.net||0};
-  const summary=[['CHI PHÍ SÀN · NHÀ SÁCH 2HBOOKS','01/09–23/10/2026','Đơn vị: VND'],['Chỉ tiêu','Giá trị','Diễn giải'],['Số đơn thanh toán',metrics.orders,'Chỉ đếm dòng Order; không cộng dòng Sku'],['Doanh thu theo Summary',revenue,'Sau hoàn trong Order và giảm trừ/hỗ trợ; theo ngày thanh toán'],['Tiền hàng sau trợ giá của shop',col(13),'Không phải giá niêm yết trước trợ giá'],['Hoàn tiền trong Order',refunds,'Đã giảm doanh thu; không cộng tiếp vào chi phí'],['Phí sàn và giao dịch trong Order',feeTotal,'Nằm trong chi phí ròng bên dưới'],['Chi phí ròng trong thanh toán đơn',netCost,'Phí sàn + vận chuyển ròng + các khoản chi phí trong Order'],['Tiền thanh toán theo Order',paid,'Doanh thu − chi phí ròng'],['Chi phí vận chuyển phát sinh riêng trong ví',fsf,'FSF_COST_PASSING_DEDUCT; ngoài thanh toán Order'],['Thu phí bổ sung ngoài Adjustment',extraCost,'Hai khoản dịch vụ; cần kế toán kiểm tra nội dung'],['Hoàn phí ngoài Order',feeCredit,'Hoàn vận chuyển trong Adjustment; không phải doanh thu mới'],['Chi phí thực chịu theo phát sinh kỳ',metrics.periodCosts,'Chi phí Order + phí riêng ví − hoàn phí ngoài Order; có thể liên quan đơn kỳ trước'],['Hoàn tiền sau thanh toán',settledRefund,'Adjustment âm; tách khỏi hoàn trong Order và chi phí'],['Tổng tiền vào số dư Shopee',incoming,'Tất cả giao dịch dương; gồm hoàn phí'],['Tổng tiền ra số dư Shopee',outgoing,'Bao gồm rút ngân hàng, hoàn tiền và phí'],['Tiền rút về ngân hàng',metrics.withdrawals,'Theo trạng thái Rút Tiền thành công trên Shopee; chưa đối chiếu sao kê ngân hàng'],['Biến động số dư kỳ',metrics.netWallet,'Tiền vào − tiền ra; không phải lợi nhuận'],['Số dư đầu kỳ suy ra',opening,'Số dư sau giao dịch đầu tiên − giá trị giao dịch đầu tiên'],['Số dư cuối kỳ theo ví',closing,'Số dư sau giao dịch cuối kỳ'],['Tỷ lệ phí sàn / doanh thu',feeTotal/revenue,'Không gồm vận chuyển và phí ngoài Order'],['Tỷ lệ chi phí ròng Order / doanh thu',netCost/revenue,'Không phải tỷ suất lợi nhuận'],['Trạng thái đối soát',issues.length?'Cần kiểm tra':'Khớp thanh toán Order ↔ ví',`${map.size} đơn; ${orders.filter(r=>!wm.has(String(r[2]))&&N(r[12])===0).length} đơn 0đ không có giao dịch ví`],['Phạm vi','Báo cáo mẫu theo dữ liệu nguồn đã tải','Chưa có giá vốn, ADS và chi phí ngoài Shopee; chưa tính lợi nhuận'],['Nguồn','Summary / Doanh thu - 1,2 / Service Fee Details / Adjustment / Giao dịch số dư','Dashboard đọc nguồn trực tiếp khi đồng bộ; file mẫu là ảnh chụp dữ liệu tại thời điểm lập']];
+  const summary=[['CHI PHÍ SÀN · '+(input.shopName||'Nhà Sách 2HBooks'),'01/09–23/10/2026','Đơn vị: VND'],['Chỉ tiêu','Giá trị','Diễn giải'],['Số đơn thanh toán',metrics.orders,'Chỉ đếm dòng Order; không cộng dòng Sku'],['Doanh thu theo Summary',revenue,'Sau hoàn trong Order và giảm trừ/hỗ trợ; theo ngày thanh toán'],['Tiền hàng sau trợ giá của shop',col(13),'Không phải giá niêm yết trước trợ giá'],['Hoàn tiền trong Order',refunds,'Đã giảm doanh thu; không cộng tiếp vào chi phí'],['Phí sàn và giao dịch trong Order',feeTotal,'Nằm trong chi phí ròng bên dưới'],['Chi phí ròng trong thanh toán đơn',netCost,'Phí sàn + vận chuyển ròng + các khoản chi phí trong Order'],['Tiền thanh toán theo Order',paid,'Doanh thu − chi phí ròng'],['Chi phí vận chuyển phát sinh riêng trong ví',fsf,'FSF_COST_PASSING_DEDUCT; ngoài thanh toán Order'],['Thu phí bổ sung ngoài Adjustment',extraCost,unmatched.length+' khoản ngoài Adjustment; kế toán kiểm tra nội dung'],['Hoàn phí ngoài Order',feeCredit,'Hoàn vận chuyển trong Adjustment; không phải doanh thu mới'],['Chi phí thực chịu theo phát sinh kỳ',metrics.periodCosts,'Chi phí Order + phí riêng ví − hoàn phí ngoài Order; có thể liên quan đơn kỳ trước'],['Hoàn tiền sau thanh toán',settledRefund,'Adjustment âm; tách khỏi hoàn trong Order và chi phí'],['Tổng tiền vào số dư Shopee',incoming,'Tất cả giao dịch dương; gồm hoàn phí'],['Tổng tiền ra số dư Shopee',outgoing,'Bao gồm rút ngân hàng, hoàn tiền và phí'],['Tiền rút về ngân hàng',metrics.withdrawals,'Theo trạng thái Rút Tiền thành công trên Shopee; chưa đối chiếu sao kê ngân hàng'],['Biến động số dư kỳ',metrics.netWallet,'Tiền vào − tiền ra; không phải lợi nhuận'],['Số dư đầu kỳ suy ra',opening,'Số dư sau giao dịch đầu tiên − giá trị giao dịch đầu tiên'],['Số dư cuối kỳ theo ví',closing,'Số dư sau giao dịch cuối kỳ'],['Tỷ lệ phí sàn / doanh thu',feeTotal/revenue,'Không gồm vận chuyển và phí ngoài Order'],['Tỷ lệ chi phí ròng Order / doanh thu',netCost/revenue,'Không phải tỷ suất lợi nhuận'],['Trạng thái đối soát',issues.length?'Cần kiểm tra':'Khớp thanh toán Order ↔ ví',`${map.size} đơn; ${orders.filter(r=>!wm.has(String(r[2]))&&N(r[12])===0).length} đơn 0đ không có giao dịch ví`],['Phạm vi','Báo cáo mẫu theo dữ liệu nguồn đã tải','Chưa có giá vốn, ADS và chi phí ngoài Shopee; chưa tính lợi nhuận'],['Nguồn','Summary / Doanh thu - 1,2 / Service Fee Details / Adjustment / Giao dịch số dư','Dashboard đọc nguồn trực tiếp khi đồng bộ; file mẫu là ảnh chụp dữ liệu tại thời điểm lập']];
   const detail=[['Mã đơn','Ngày đặt','Ngày thanh toán','Tiền hàng sau trợ giá','Hoàn tiền','Hỗ trợ / voucher ròng','Doanh thu','Phí cố định','Phí dịch vụ','Phí giao dịch','Phí khác / thuế','Vận chuyển ròng','Chi phí ròng','Thực nhận Order','Thực nhận ví','Chênh lệch']];
   for(const r of orders){const rev=N(r[13])+N(r[14])+[21,22,23,24,25].reduce((s,i)=>s+N(r[i]),0);const cost=-[...costCols,...creditCols].reduce((s,i)=>s+N(r[i]),0);detail.push([r[2],date(r[7]),date(r[8]),N(r[13]),N(r[14]),rev-N(r[13])-N(r[14]),rev,-N(r[26]),-N(r[27]),-N(r[28]),-[29,30,31,32,33,34,35,36].reduce((s,i)=>s+N(r[i]),0),-[15,16,17,18,19,20].reduce((s,i)=>s+N(r[i]),0),cost,N(r[12]),wm.get(String(r[2]))||0,N(r[12])-(wm.get(String(r[2]))||0)]);}
   const cost=[['Khoản mục','Chi phí ghi nợ','Khoản bù/hoàn ghi có','Chi phí ròng','Tỷ lệ / doanh thu','Nguồn & cách tính']];
@@ -26206,7 +26247,7 @@ function bcdtRenderRank() {
   for(const r of ordered)cash.push([r[0],r[1],r[2],orderId(r),Math.max(N(r[5]),0),Math.max(-N(r[5]),0),N(r[5]),N(r[7]),String(r[8]),r[6]]);
   const checks=[['Hạng mục / mã đơn','Giải thích','Giá trị tính','Giá trị nguồn','Chênh lệch','Trạng thái']];
   for(const [label,v,target,diff]of check)checks.push([label,'So sánh độc lập từ các tab nguồn',v,target,diff,Math.abs(diff)<0.5?'Khớp':'Cần kiểm tra']);
-  checks.push(['Đối soát từng mã đơn',`${map.size} đơn; ${wm.size} mã doanh thu ví`,map.size,wm.size,map.size-wm.size,issues.length?'Có sai lệch':'Khớp; 2 đơn 0đ không có giao dịch ví'],['Adjustment so với ví','Ví có thêm phí dịch vụ; không coi hai nguồn là trùng hoàn toàn',metrics.adjustmentNet,metrics.walletAdjustmentNet,metrics.adjustmentNet-metrics.walletAdjustmentNet,`${unmatched.length} khoản ngoài Adjustment`]);
+  checks.push(['Đối soát từng mã đơn',`${map.size} đơn; ${wm.size} mã doanh thu ví`,map.size,wm.size,map.size-wm.size,issues.length?'Có sai lệch':'Khớp; '+orders.filter(r=>!wm.has(String(r[2]))&&N(r[12])===0).length+' đơn 0đ không có giao dịch ví'],['Adjustment so với ví','Ví có thêm phí dịch vụ; không coi hai nguồn là trùng hoàn toàn',metrics.adjustmentNet,metrics.walletAdjustmentNet,metrics.adjustmentNet-metrics.walletAdjustmentNet,`${unmatched.length} khoản ngoài Adjustment`]);
   for(const row of issues)checks.push([row[0],row[1],...row.slice(2)]);
   for(const r of unmatched)checks.push([orderId(r),'Phí ngoài Adjustment: '+r[2],0,N(r[5]),-N(r[5]),'Kế toán kiểm tra']);
   if(adjUnmatched.length)checks.push(['Adjustment chưa khớp ví','Cần kiểm tra ngày / mã / số tiền',adjUnmatched.length,'','','Cần kiểm tra']);
@@ -26217,11 +26258,13 @@ function bcdtRenderRank() {
   for(const [key,v]of Object.entries(daily))trend.push([key,v.n,v.rev,v.cost,v.paid,v.in,v.out,v.withdraw,v.in-v.out]);
   for(const m of [...new Set(Object.keys(daily).map(d=>d.slice(0,7)))]){const entries=Object.entries(daily).filter(([d])=>d.startsWith(m)),ds=entries.map(x=>x[1]);trend.push([m+' · '+entries[0][0].slice(8)+'–'+entries.at(-1)[0].slice(8),...['n','rev','cost','paid','in','out','withdraw'].map(k=>sum(ds,x=>x[k])),sum(ds,x=>x.in-x.out)]);}
   summary[0][1]=start+' đến '+end;
+  summary[23][1]='Báo cáo theo dữ liệu nguồn đã tải';
+  if(input.sourceTabs)summary[24]=['Nguồn',input.sourceTabs.join(' / '),'Đọc trực tiếp các tab của đúng shop và kỳ; bao gồm XI nếu có dữ liệu.'];
   const tracking=[['Mã / hạng mục','Ngày phát sinh','Nội dung cần xử lý','Số tiền cần kiểm tra','Người phụ trách','Trạng thái','Ghi chú kế toán','Liên kết chứng từ','Ngày hoàn tất']];
   for(const r of unmatched)tracking.push([String(r[8]),date(r[0]),r[2],-N(r[5]),'','Chưa xử lý','','','']);
-  tracking.push(['Rút tiền ngân hàng','','Đối chiếu 18 lần rút với sao kê; chưa có sao kê trong nguồn',metrics.withdrawals,'','Chưa xử lý','','','']);
+  tracking.push(['Rút tiền ngân hàng','','Đối chiếu '+(groups['Rút Tiền']?.count||0)+' lần rút với sao kê; chưa có sao kê trong nguồn',metrics.withdrawals,'','Chưa xử lý','','','']);
   const tables={'01 Tổng quan':summary,'02 Thanh toán đơn':detail,'03 Chi phí và phí sàn':cost,'04 Hoàn tiền và cấn trừ':adjustmentsRows,'05 Dòng tiền':cash,'06 Đối soát':checks,'07 Ngày và tháng':trend,'08 Xử lý kế toán':tracking};
-  return {metrics,tables,groups,issues,unmatched:unmatched.map(r=>({date:date(r[0]),detail:r[2],amount:N(r[5])})),checks:check};
+  return {shopName:input.shopName||'Nhà Sách 2HBooks',periodLabel:start+' đến '+end,metrics,tables,groups,issues,unmatched:unmatched.map(r=>({date:date(r[0]),detail:r[2],amount:N(r[5])})),checks:check};
  }
  const api={analyze,date};root.ChiPhiSan=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
@@ -26231,7 +26274,7 @@ const CPS={root:'19JxC7Bv8CUk5-cp1LmKDczoZ5uBQvSR1',token:null,client:null,perio
 const cpsEsc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const cpsMoney=x=>Number(x).toLocaleString('vi-VN',{maximumFractionDigits:0})+' đ';
 function cpsStatus(s){document.getElementById('cps-status').textContent=s;}
-function cpsInit(){if(!CPS.report)cpsStatus('Báo cáo thử nghiệm Nhà Sách 2HBooks · Kết nối Google Drive để đọc dữ liệu kế toán.');}
+function cpsInit(){if(!CPS.report)cpsStatus('Kết nối Google Drive, chọn kỳ và shop để đọc báo cáo kế toán.');}
 async function cpsApi(url){const r=await fetch(url,{headers:{Authorization:'Bearer '+CPS.token}});if(r.status===401){CPS.token=null;throw Error('Phiên Google đã hết hạn. Bấm Kết nối Google Drive để kết nối lại.');}if(!r.ok)throw Error('Google trả lỗi '+r.status+'; kiểm tra quyền đọc thư mục/file kế toán.');return r.json();}
 async function cpsList(parent,mime){let files=[],page='';do{const q="'"+parent+"' in parents and trashed=false and mimeType='"+mime+"'";const d=await cpsApi('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=nextPageToken,files(id,name,modifiedTime)&pageSize=100&orderBy=name'+(page?'&pageToken='+encodeURIComponent(page):''));files.push(...(d.files||[]));page=d.nextPageToken||'';}while(page);return files;}
 async function cpsConnect(){
@@ -26245,22 +26288,20 @@ async function cpsRefresh(){
  CPS.busy=true;cpsStatus('Đang đọc các thư mục kỳ kế toán…');
  try{CPS.periods=(await cpsList(CPS.root,'application/vnd.google-apps.folder')).filter(x=>/^Kỳ /.test(x.name));const select=document.getElementById('cps-period'),old=select.value;select.replaceChildren(...CPS.periods.map(p=>new Option(p.name,p.id)));if(CPS.periods.some(p=>p.id===old))select.value=old;else if(CPS.periods.some(p=>p.id==='1vT68aZ1bJX4Ioqe-qUDo6lCcuS9BljTb'))select.value='1vT68aZ1bJX4Ioqe-qUDo6lCcuS9BljTb';if(!select.value){cpsStatus('Chưa tìm thấy thư mục kỳ trong Kế Toán Shopee 2H.');return;}await cpsLoadPeriod();}catch(e){cpsStatus(e.message);}finally{CPS.busy=false;}
 }
+function cpsShopChanged(){CPS.sequence++;CPS.report=null;CPS.source='';document.getElementById('cps-output').replaceChildren();cpsStatus('Bấm Đọc báo cáo để xem shop đã chọn.');}
 async function cpsLoadPeriod(){
- const seq=++CPS.sequence;CPS.report=null;document.getElementById('cps-output').replaceChildren();
- try{const id=document.getElementById('cps-period').value;if(!id)return;const files=await cpsList(id,'application/vnd.google-apps.spreadsheet');if(seq!==CPS.sequence)return;CPS.files=files.filter(x=>/^Nhà Sách 2HBooks — /.test(x.name));const sel=document.getElementById('cps-shop');sel.replaceChildren(...CPS.files.map(x=>new Option(x.name,x.id)));cpsStatus(CPS.files.length?'Đã tìm thấy file nguồn Nhà Sách. Bấm Đọc báo cáo.':'Kỳ này chưa có file Nhà Sách 2HBooks. Bản thử nghiệm chưa mở cho shop khác.');}catch(e){if(seq===CPS.sequence)cpsStatus(e.message);}
+ const seq=++CPS.sequence,previous=document.getElementById('cps-shop').value;CPS.report=null;document.getElementById('cps-output').replaceChildren();document.getElementById('cps-shop').replaceChildren();
+ try{const id=document.getElementById('cps-period').value;if(!id)return;const files=await cpsList(id,'application/vnd.google-apps.spreadsheet');if(seq!==CPS.sequence)return;CPS.files=files.filter(x=>ChiPhiSanSources.identify(x.name)).sort((a,b)=>a.name.localeCompare(b.name,'vi'));const sel=document.getElementById('cps-shop');sel.replaceChildren(...CPS.files.map(x=>new Option(ChiPhiSanSources.identify(x.name).name,x.id)));if(CPS.files.some(f=>f.id===previous))sel.value=previous;cpsStatus(CPS.files.length?'Đã tìm thấy '+CPS.files.length+' file shop. Chọn shop rồi bấm Đọc báo cáo.':'Kỳ này chưa có file kế toán shop đã nhận diện.');}catch(e){if(seq===CPS.sequence)cpsStatus(e.message);}
 }
 async function cpsRead(){
- if(CPS.busy)return;const id=document.getElementById('cps-shop').value;if(!id){cpsStatus('Chọn kỳ có file Nhà Sách trước.');return;}
- const seq=++CPS.sequence;CPS.busy=true;cpsStatus('Đang đọc dữ liệu nguồn và đối soát…');
- try{const meta=await cpsApi('https://sheets.googleapis.com/v4/spreadsheets/'+id+'?fields=spreadsheetId,properties(title),sheets(properties)');
- if(!/^Nhà Sách 2HBooks — /.test(meta.properties?.title||''))throw Error('File không đúng shop Nhà Sách; dừng để tránh gộp nhầm.');
- const specs=[['summary','Summary','D'],['income1','Doanh thu - 1','AK'],['income2','Doanh thu - 2','AK'],['wallet','Giao dịch số dư','O'],['fees','Service Fee Details','F'],['adjustment','Adjustment','G']];const used=specs.map(([key,title,col])=>{const sh=meta.sheets.find(s=>s.properties.title===title);if(!sh)throw Error('Thiếu tab nguồn '+title+'; chưa thể lập báo cáo.');return {key,range:"'"+title+"'!A1:"+col+sh.properties.gridProperties.rowCount};});
- const d=await cpsApi('https://sheets.googleapis.com/v4/spreadsheets/'+id+'/values:batchGet?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER&'+used.map(s=>'ranges='+encodeURIComponent(s.range)).join('&'));
- if(seq!==CPS.sequence)return;const input={};used.forEach((s,i)=>input[s.key]=d.valueRanges[i].values||[]);
- if(input.income1[2]?.[12]!=='Tổng tiền đã thanh toán'||input.income1[2]?.[26]!=='Phí cố định')throw Error('Cấu trúc cột nguồn đã thay đổi; cần kiểm tra ánh xạ trước khi tính.');
- CPS.report=ChiPhiSan.analyze(input);CPS.source=id;CPS.tab=0;CPS.limit=100;
- const period=CPS.periods.find(p=>p.id===document.getElementById('cps-period').value)?.name||'';
- CPS.periodLabel=period;cpsRender();cpsStatus('Đã đọc trực tiếp '+meta.properties.title+' · '+new Date().toLocaleString('vi-VN')+' · chỉ đọc, không thay dữ liệu nguồn.');
+ if(CPS.busy)return;const id=document.getElementById('cps-shop').value,selected=CPS.files.find(f=>f.id===id);if(!selected){cpsStatus('Chọn kỳ và shop trước.');return;}
+ const seq=++CPS.sequence;CPS.busy=true;CPS.report=null;document.getElementById('cps-output').replaceChildren();cpsStatus('Đang đọc đủ các tab nguồn và đối soát…');
+ try{const meta=await cpsApi('https://sheets.googleapis.com/v4/spreadsheets/'+id+'?fields=spreadsheetId,properties(title),sheets(properties)');if(seq!==CPS.sequence)return;
+ if(meta.properties?.title!==selected.name)throw Error('Tên file nguồn đã thay đổi; làm mới danh sách shop rồi thử lại.');const plan=ChiPhiSanSources.plan(meta),arrays=[];
+ for(let offset=0;offset<plan.parts.length;offset+=3){const part=plan.parts.slice(offset,offset+3),d=await cpsApi('https://sheets.googleapis.com/v4/spreadsheets/'+id+'/values:batchGet?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER&'+part.map(s=>'ranges='+encodeURIComponent(s.range)).join('&'));if(seq!==CPS.sequence)return;if(d.valueRanges?.length!==part.length)throw Error('Google chưa trả đủ tab nguồn.');arrays.push(...d.valueRanges.map(s=>s.values||[]));}
+ const input=ChiPhiSanSources.decode(plan,arrays);CPS.report=ChiPhiSan.analyze(input);CPS.shopName=plan.shop.name;CPS.source=id;CPS.tab=0;CPS.group=0;CPS.limit=100;
+ CPS.periodLabel=CPS.periods.find(p=>p.id===document.getElementById('cps-period').value)?.name||'';
+ cpsRender();cpsStatus('Đã đọc '+plan.parts.length+' tab của '+CPS.shopName+' · '+new Date().toLocaleString('vi-VN')+' · chỉ đọc, không thay dữ liệu nguồn.');
  }catch(e){if(seq===CPS.sequence)cpsStatus(e.message);}finally{CPS.busy=false;}
 }
 function cpsTitle(title){return String(title).replace(/^\d+\s+/,'');}
@@ -26268,7 +26309,7 @@ function cpsKpi(label,value,note){return `<div class="nv-tile"><div class="kpi-l
 function cpsRender(){
  const r=CPS.report;if(!r)return;const m=r.metrics,cost=r.tables['03 Chi phí và phí sàn'];
  const fee=name=>Number(cost.find(row=>row[0]===name)?.[3])||0;
- document.getElementById('cps-output').innerHTML=`<div class="report-note"><b>${cpsEsc(CPS.periodLabel||'Kỳ 01/09–23/10/2026')} · Nhà Sách 2HBooks</b> · ${m.orders.toLocaleString('vi-VN')} đơn thanh toán · <a target="_blank" rel="noopener" href="https://docs.google.com/spreadsheets/d/${cpsEsc(CPS.source)}/edit">Mở dữ liệu nguồn ↗</a></div><div class="cps-kpis">${[
+ document.getElementById('cps-output').innerHTML=`<div class="report-note"><b>${cpsEsc(CPS.periodLabel||r.periodLabel||'')} · ${cpsEsc(CPS.shopName||r.shopName||'')}</b> · ${m.orders.toLocaleString('vi-VN')} đơn thanh toán · <a target="_blank" rel="noopener" href="https://docs.google.com/spreadsheets/d/${cpsEsc(CPS.source)}/edit">Mở dữ liệu nguồn ↗</a></div><div class="cps-kpis">${[
  ['Doanh thu theo Summary',m.revenue,'Đã giảm hoàn trong Order'],
  ['Phí sàn',fee('Phí cố định'),'Phí cố định theo báo cáo Shopee'],
  ['Phí giao dịch',fee('Phí xử lý giao dịch'),'Phí xử lý giao dịch theo Shopee'],
@@ -26277,7 +26318,7 @@ function cpsRender(){
  ['Chi phí phát sinh kỳ',m.periodCosts,'Cộng phí riêng ví, trừ hoàn phí'],
  ['Thực nhận theo đơn',m.paid,'Chưa phải lợi nhuận'],
  ['Rút về ngân hàng',m.withdrawals,'Theo Shopee; chưa đối chiếu sao kê']
- ].map(x=>cpsKpi(...x)).join('')}</div><div class="report-note">${r.issues.length?'Cần kiểm tra '+r.issues.length+' sai lệch thanh toán.':'Đối soát thanh toán đơn khớp.'} Có ${r.unmatched.length} khoản ví ngoài Adjustment (${cpsMoney(m.extraCost)}). Phí sàn, phí giao dịch và phí dịch vụ đã nằm trong chi phí Order. Chi phí phát sinh kỳ có thể liên quan đơn kỳ trước.</div><div class="report-filters" id="cps-tabs">${Object.keys(r.tables).map((t,i)=>`<button data-cps-tab="${i}" aria-pressed="${i===CPS.tab}">${cpsEsc(cpsTitle(t))}</button>`).join('')}</div><div class="report-filters"><input id="cps-search" placeholder="Tìm mã đơn, nội dung…" aria-label="Tìm trong báo cáo" oninput="CPS.limit=100;cpsTable()"><button onclick="cpsExport()">Xuất 8 tab Excel</button><a href="https://docs.google.com/spreadsheets/d/1TFdlfLnlkOETeG2Fsnlcj4paY3znbijod8wR504Lk6g/edit" target="_blank" rel="noopener">Mở báo cáo mẫu ↗</a></div><div id="cps-table"></div>`;
+ ].map(x=>cpsKpi(...x)).join('')}</div><div class="report-note">${r.issues.length?'Cần kiểm tra '+r.issues.length+' sai lệch thanh toán.':'Đối soát thanh toán đơn khớp.'} Có ${r.unmatched.length} khoản ví ngoài Adjustment (${cpsMoney(m.extraCost)}). Phí sàn, phí giao dịch và phí dịch vụ đã nằm trong chi phí Order. Chi phí phát sinh kỳ có thể liên quan đơn kỳ trước.</div><div class="report-filters" id="cps-tabs">${Object.keys(r.tables).map((t,i)=>`<button data-cps-tab="${i}" aria-pressed="${i===CPS.tab}">${cpsEsc(cpsTitle(t))}</button>`).join('')}</div><div class="report-filters"><input id="cps-search" placeholder="Tìm mã đơn, nội dung…" aria-label="Tìm trong báo cáo" oninput="CPS.limit=100;cpsTable()"><button onclick="cpsExport()">Xuất 8 tab Excel</button></div><div id="cps-table"></div>`;
  document.getElementById('cps-tabs').onclick=e=>{const b=e.target.closest('[data-cps-tab]');if(!b)return;CPS.tab=Number(b.dataset.cpsTab);CPS.limit=100;CPS.group=0;document.getElementById('cps-search').value='';document.querySelectorAll('[data-cps-tab]').forEach(x=>x.setAttribute('aria-pressed',String(Number(x.dataset.cpsTab)===CPS.tab)));cpsTable();};
  if(CPS.chart){CPS.chart.destroy();CPS.chart=null;}cpsTable();
 }
@@ -26308,7 +26349,7 @@ function cpsTable(){
  const table=`<div class="cps-table-wrap"><table class="cps-data ${CPS.tab===0?'cps-overview':''}"><colgroup>${cols.map(()=>'<col>').join('')}</colgroup><thead><tr>${cols.map(i=>`<th scope="col" class="${numericCols.has(i)?'cps-num':''}">${cpsEsc(header[i])}</th>`).join('')}</tr></thead><tbody>${rows.slice(0,CPS.limit).map(row=>`<tr>${cols.map(i=>`<td data-label="${cpsEsc(header[i])}" class="${numericCols.has(i)?'cps-num':''}">${cpsEsc(cpsFormat(row,i))}${CPS.tab===2&&i===0&&row[5]?`<span class="cps-cell-note">${cpsEsc(row[5])}</span>`:''}</td>`).join('')}</tr>`).join('')}</tbody></table>${rows.length?'':'<div class="cps-empty">Không có dòng phù hợp.</div>'}</div>`;
  document.getElementById('cps-table').innerHTML=cpsTotals(rows,query)+`<div class="report-note"><b>${cpsEsc(cpsTitle(title))}</b> · ${rows.length.toLocaleString('vi-VN')} dòng · hiển thị ${Math.min(rows.length,CPS.limit)}${groups?' · chọn nhóm để xem đủ các cột':''}</div>`+groupControls+table+(rows.length>CPS.limit?'<button style="margin-top:14px" onclick="CPS.limit+=100;cpsTable()">Xem thêm 100 dòng</button>':'');
 }
-function cpsExport(){if(!CPS.report)return;const wb=XLSX.utils.book_new();for(const [title,rows]of Object.entries(CPS.report.tables))XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),title.slice(0,31));XLSX.writeFile(wb,'Chi_Phi_San_Nha_Sach_'+(CPS.periodLabel||'ky').replace(/[^0-9A-Za-z-]/g,'_')+'.xlsx');}
+function cpsExport(){if(!CPS.report)return;const wb=XLSX.utils.book_new();for(const [title,rows]of Object.entries(CPS.report.tables))XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),title.slice(0,31));XLSX.writeFile(wb,('Chi_Phi_San_'+(CPS.shopName||CPS.report.shopName||'shop')+'_'+(CPS.periodLabel||CPS.report.periodLabel||'ky')).replace(/[^0-9A-Za-zÀ-ỹ_-]/g,'_')+'.xlsx');}
 
 </script>
 <!-- CPS-PILOT-END -->
