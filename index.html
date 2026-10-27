@@ -18946,7 +18946,7 @@ function renderTopTable() {
   tbody.innerHTML = top10.map((p,i) => `
     <tr>
       <td>${i+1}</td>
-      <td class="name" title="${p.ten}">${GCPhotos.cell(p, acrEsc(p.ten), G.current)}</td>
+      <td class="name" title="${p.ten}">${GCPhotos.overviewCell(p, acrEsc(p.ten), G.current)}</td>
       <td class="num">${fmtMoneyFull(p.doanh_so)}</td>
       <td class="num">${fmtMoneyFull(p.chi_phi)}</td>
       <td class="num"><span class="roas-badge ${roasClass(p.roas)}">${p.roas.toFixed(2)}</span></td>
@@ -19025,7 +19025,7 @@ function displayAllTable() {
     return `
     <tr>
       <td>${p.stt}</td>
-      <td class="name" title="${p.ten}">${GCPhotos.cell(p, acrEsc(p.ten), G.current)}</td>
+      <td class="name" title="${p.ten}">${GCPhotos.overviewCell(p, acrEsc(p.ten), G.current)}</td>
       <td class="num">${p.ngay}</td>
       <td class="num">${fmtNum(p.views)}</td>
       <td class="num">${p.ctr.toFixed(2)}%</td>
@@ -20983,7 +20983,7 @@ async function _thGetCategorySourceProducts() {
   // 1) Chiến Dịch Đơn — SP thật còn lại trong Tổng Quan sau khi loại dòng giả ở trên
   _thGetAllProductsFull().forEach(p => {
     if (pseudoNames.has(p.ten)) return;
-    out.push(_thMakeCatItem(p.shopId, p.ten, p.ma_sp, p.chi_phi, p.doanh_so));
+    out.push({..._thMakeCatItem(p.shopId, p.ten, p.ma_sp, p.chi_phi, p.doanh_so), photoCampaignTitle:p.ten});
   });
 
   // 2) Chiến Dịch Nhóm Sản Phẩm — dùng thẳng products[] có sẵn theo từng nhóm (đã lưu từ trước
@@ -26533,7 +26533,30 @@ const GCPhotos=(()=>{
   const shopId=allowed.has(raw)?raw:(typeof SAPI_SHOP_MAP_INV!=='undefined'?String(SAPI_SHOP_MAP_INV[raw]||''):'');
   return id({shopId,itemId:p?.itemId||p?.item_id||p?.ma_sp||''});
  }
- function cell(p,text,shop){const i=resolve(p,shop);return i?`<div class="gc-product-cell">${html(i)}<div class="gc-product-copy">${text}</div></div>`:text;}
+ function cell(p,text,shop){if(p?.photoCampaignTitle)return overviewCell(p,text,shop);const i=resolve(p,shop);return i?`<div class="gc-product-cell">${html(i)}<div class="gc-product-copy">${text}</div></div>`:text;}
+ function overviewCell(p,text,shop){
+  const raw=String(p?.shopId||shop||''),shopId=allowed.has(raw)?raw:(typeof SAPI_SHOP_MAP_INV!=='undefined'?String(SAPI_SHOP_MAP_INV[raw]||''):'');
+  if(!allowed.has(shopId))return text;
+  return `<div class="gc-product-cell"><span class="gc-product-photo" data-gc-campaign-title="${esc(p.photoCampaignTitle||p.ten||'')}" data-gc-shop="${shopId}"><span class="gc-photo-empty" title="Đang đối chiếu mã sản phẩm thật từ danh mục">Ảnh</span></span><div class="gc-product-copy">${text}</div></div>`;
+ }
+ const nameKey=s=>String(s||'').normalize('NFC').trim().toLocaleLowerCase('vi').replace(/\s+/g,' ');
+ let catalogPromise;
+ function candidate(title,map){
+  const exact=nameKey(title),aliases=[exact,exact.replace(/\s*\[\d+\]\s*$/,'').trim()];
+  for(const alias of aliases){const hits=new Set();for(const [itemId,rows]of map||[]){if(rows.some(p=>nameKey(p.tenSp)===alias))hits.add(String(itemId));}if(hits.size)return hits.size===1?[...hits][0]:'';}
+  return '';
+ }
+ async function resolveCampaigns(){
+  const elements=[...document.querySelectorAll('[data-gc-campaign-title]')];if(!elements.length)return;
+  try{
+   if(typeof sharedLoadSaleworkMap!=='function'||typeof SHARED==='undefined')return;
+   if(!SHARED.saleworkByIdSp){if(!catalogPromise)catalogPromise=sharedLoadSaleworkMap().catch(e=>{catalogPromise=null;throw e;});await catalogPromise;}
+   for(const el of elements){const itemId=candidate(el.dataset.gcCampaignTitle,SHARED.saleworkByIdSp),identity=id({shopId:el.dataset.gcShop,itemId});
+    if(identity){el.dataset.gcPhotoKey=identity.key;el.title='Đã đối chiếu mã sản phẩm Shopee: '+itemId;}
+    else{delete el.dataset.gcPhotoKey;el.title='Chưa đối chiếu duy nhất được sản phẩm thật; không dùng mã chiến dịch để lấy ảnh.';}
+   }
+  }catch{update('Chưa tải được danh mục đối chiếu mã sản phẩm. Thử lấy ảnh lại sau.');}
+ }
  function valid(p){const i=id(p);return i&&p.key===i.key&&url(p.url)?{...i,url:url(p.url),updatedAt:Number(p.updatedAt)||0,source:'shopee'}:null;}
  function load(){if(loaded)return;loaded=true;try{for(const p of JSON.parse(localStorage.getItem(CACHE)||'[]')){const v=valid(p);if(v)photos.set(v.key,v);}}catch{}}
  function save(){try{localStorage.setItem(CACHE,JSON.stringify([...photos.values()].sort((a,b)=>b.updatedAt-a.updatedAt).slice(0,3000)));}catch{}}
@@ -26553,6 +26576,7 @@ const GCPhotos=(()=>{
  }
  function cloudError(){update('Chưa đồng bộ được kho ảnh dùng chung. Ảnh trên máy vẫn được giữ; bấm lấy / cập nhật ảnh để thử lại.');}
  async function prime(){
+  await resolveCampaigns();
   paint();
   const keys=new Set([...document.querySelectorAll('[data-gc-photo-key]')].map(e=>e.dataset.gcPhotoKey));
   for(const [key,stop] of watchers)if(!keys.has(key)){stop();watchers.delete(key);}
@@ -26579,14 +26603,14 @@ const GCPhotos=(()=>{
  window.addEventListener('message',ev=>{const d=ev.data;if(ev.source!==window||ev.origin!==location.origin||d?.channel!=='h2-ad-photos'||d.kind!=='response')return;const req=pending.get(d.id);if(!req)return;pending.delete(d.id);clearTimeout(req.timer);req.resolve(d.result);});
  function request(item,timeout=50000){return new Promise(resolve=>{const token=crypto.randomUUID();const timer=setTimeout(()=>{pending.delete(token);resolve({ok:false,error:'Không nhận được phản hồi. Cập nhật tiện ích 2H bản 2.21.0, tải lại dashboard rồi thử lại.'});},timeout);pending.set(token,{resolve,timer});window.postMessage({channel:'h2-ad-photos',kind:item?'request':'ping',id:token,item},location.origin);});}
  async function sync(scope){
-  if(busy)return;const all=visible(scope).sort((a,b)=>Number(photos.has(a.key))-Number(photos.has(b.key))),list=all.slice(0,40);if(!list.length){update('Mở bảng có sản phẩm để lấy ảnh.');return;}
-  busy=true;let count=0,shared=0,shareFailed=0,failed=0,last='';update(`Đang lấy ảnh 0/${list.length}. Shopee sẽ mở ở tab nền.`);
+  if(busy)return;busy=true;await prime();const all=visible(scope).sort((a,b)=>Number(photos.has(a.key))-Number(photos.has(b.key))),list=all.slice(0,40);if(!list.length){busy=false;update('Chưa có mã sản phẩm thật để lấy ảnh. Cần đối chiếu danh mục; mã chiến dịch không phải mã sản phẩm.');return;}
+  let count=0,shared=0,shareFailed=0,failed=0,consecutive=0,last='';update(`Đang lấy ảnh 0/${list.length}. Shopee sẽ mở ở tab nền.`);
   const connection=await request(null,2500);if(!connection?.ok){busy=false;update(connection?.error||'Chưa kết nối tiện ích lấy ảnh.');return;}
   try{for(let n=0;n<list.length;n++){
    const it=list[n],r=await request(it),p=valid(r?.photo);
-   if(r?.ok&&p&&p.key===it.key){photos.set(p.key,p);save();paint();count++;try{await publish(p);shared++;}catch{shareFailed++;}}
-   else{failed++;last=r?.error||'Không đọc được ảnh đúng shop và ID.';if(/2\.21\.0|Không nhận được phản hồi/.test(last))break;}
-   update(`Đã lấy ${count} ảnh; đã lưu dùng chung ${shared}; ${failed} chưa lấy được · ${n+1}/${list.length}.`);
+   if(r?.ok&&p&&p.key===it.key){consecutive=0;photos.set(p.key,p);save();paint();count++;try{await publish(p);shared++;}catch{shareFailed++;}}
+   else{failed++;consecutive++;last=r?.error||'Không đọc được ảnh đúng shop và ID.';if(/2\.21\.0|Không nhận được phản hồi/.test(last)||consecutive>=3)break;}
+   update(`Đã lấy ${count} ảnh; đã lưu dùng chung ${shared}; ${failed} chưa lấy được · ${n+1}/${list.length}.${last?' Lỗi gần nhất: '+last:''}`);
   }}finally{busy=false;update(`Đã lấy ${count}/${list.length} ảnh; đã lưu dùng chung ${shared} ảnh.${shareFailed?' '+shareFailed+' ảnh chỉ lưu trên máy do chưa đồng bộ được. Bấm lấy / cập nhật ảnh để thử lại.':shared?' Mọi người mở dashboard sẽ tự thấy ảnh.':''}${failed?' '+failed+' sản phẩm cần kiểm tra. '+last:''}${all.length>40?' Mỗi lượt tối đa 40 SP; mở ít nhóm hơn để cập nhật nhóm tiếp theo.':''}`);}
  }
  function show(key){const p=photos.get(key);if(!p)return;let d=document.getElementById('gc-photo-dialog');if(d)d.remove();d=document.createElement('dialog');d.id='gc-photo-dialog';d.className='gc-photo-dialog';const b=document.createElement('button');b.textContent='Đóng';b.onclick=()=>d.close();const img=document.createElement('img');img.src=p.url;img.alt='Ảnh bìa sản phẩm trên Shopee';img.referrerPolicy='no-referrer';d.append(b,img);document.body.appendChild(d);d.showModal();}
@@ -26595,7 +26619,7 @@ const GCPhotos=(()=>{
  const roots=['page-overview','page-ads-hourly','page-group-camp','page-auto-camp','page-tonghop','adsh-hour-modal-body'];
  function schedule(){clearTimeout(refreshTimer);refreshTimer=setTimeout(()=>{
   for(const name of roots){const root=document.getElementById(name);if(!root)continue;
-   const photo=root.querySelector('[data-gc-photo-key]');
+   const photo=root.querySelector('[data-gc-photo-key],[data-gc-campaign-title]');
    if(photo&&!root.querySelector('.gc-photo-controls')){
     const holder=document.createElement('div');holder.innerHTML=controls(name);
     const table=photo.closest('table');(table?.parentElement?.classList.contains('table-wrap')?table.parentElement:table||photo).before(holder.firstElementChild);
@@ -26605,7 +26629,7 @@ const GCPhotos=(()=>{
  },60);}
  const observer=new MutationObserver(changes=>{if(changes.some(m=>!m.target.closest?.('.gc-product-photo,.gc-photo-controls')&&roots.some(name=>document.getElementById(name)?.contains(m.target))))schedule();});
  observer.observe(document.body,{childList:true,subtree:true});schedule();
- return {html,cell,resolve,controls,prime,sync,show,identity:id,valid};
+ return {html,cell,overviewCell,resolve,candidate,controls,prime,sync,show,identity:id,valid};
 })();
 
 </script>
