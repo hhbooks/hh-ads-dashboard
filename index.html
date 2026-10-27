@@ -26679,6 +26679,19 @@ const GCPhotos=(()=>{
 @media(max-width:1100px){:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table .gc-product-cell{flex-direction:column;align-items:flex-start}}
 :is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table td.ads-number :is(span,b,strong){font-size:inherit!important}
 :is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table td.ads-number{overflow-wrap:normal;word-break:normal;white-space:nowrap!important}@media(min-width:721px) and (max-width:1450px){:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table :is(th,td){padding-left:6px!important;padding-right:6px!important}:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table td.ads-number{font-size:16px!important}}
+/* Keep headers visible in the same scroll area as the original full-column table. */
+@media(min-width:721px){
+ :is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-wrap{overflow:auto!important;max-height:min(68vh,640px)!important;position:relative;isolation:isolate}
+ :is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table{border-collapse:separate!important;border-spacing:0}
+ :is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table thead th{position:sticky!important;top:0!important;z-index:10;background:#edf2f8!important;box-shadow:0 2px 0 #cbd5e1}
+ :is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table tfoot td{position:sticky!important;bottom:0!important;z-index:5;background:#edf2f8!important;box-shadow:0 -2px 0 #cbd5e1;color:#162b49!important}
+}
+/* Daily comparison: value, weekday and change each occupy their own line. */
+:is(#page-group-camp,#page-auto-camp) .acr-dtbl.ads-detail-table :is(th,td){width:25%!important;padding:12px 8px!important;text-align:center!important;white-space:normal!important;overflow-wrap:anywhere}
+:is(#page-group-camp,#page-auto-camp) .acr-dtbl.ads-detail-table td>span{display:block!important;min-width:0!important;max-width:100%;margin:4px 0!important;white-space:normal!important;line-height:1.45;text-align:center!important}
+:is(#page-group-camp,#page-auto-camp) .acr-dtbl.ads-detail-table :is(th,td)>small{display:block!important;margin:4px 0!important;white-space:normal;font-size:13px!important;line-height:1.5}
+:is(#page-group-camp,#page-auto-camp) .acr-dtbl.ads-detail-table td .acr-pc{font-size:15px!important;position:static!important}
+@media(max-width:720px){:is(#page-group-camp,#page-auto-camp) .acr-dtbl.ads-detail-table td{width:100%!important}:is(#page-group-camp,#page-auto-camp) .acr-dtbl.ads-detail-table tfoot td{position:static!important;background:#edf2f8!important}}
 
 </style>
 <script>
