@@ -26568,5 +26568,126 @@ const GCPhotos=(()=>{
 
 </script>
 <!-- ADS-PRODUCT-PHOTOS-END -->
+<!-- ADS-DETAIL-LAYOUT-START -->
+<style>
+#main:has(:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop).active){min-width:0;flex:1 1 0}
+:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop){min-width:0;max-width:100%}
+:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-wrap{width:100%;min-width:0;max-width:100%;overflow-x:visible!important}
+:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table{width:100%!important;min-width:0!important;table-layout:fixed!important;border-collapse:collapse;font-size:17px!important;background:#fff;color:#162b49}
+:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table :is(th,td){width:auto!important;min-width:0!important;max-width:none!important;padding:18px 22px!important;vertical-align:middle!important;white-space:normal!important;overflow-wrap:anywhere;text-overflow:clip!important;line-height:1.6;border:1px solid #e2e8f0!important;text-align:left!important;font-size:17px!important;background:transparent!important;color:inherit}
+:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table th{font-size:15px!important;font-weight:700;background:#edf2f8!important;color:#243b60!important;position:static!important}
+:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table tbody tr{background:#fff!important}
+:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table tbody tr:nth-child(even){background:#f7f9fc!important}
+:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table :is(th,td).ads-number{text-align:center!important;font-variant-numeric:tabular-nums;font-weight:600}
+:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table :is(th,td).ads-index{width:54px!important;padding-left:8px!important;padding-right:8px!important;text-align:center!important}
+:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table .ads-col-hidden{display:none!important}
+:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table :is(.pn,.gc-product-copy){font-size:17px!important;max-width:none!important;white-space:normal!important;overflow:visible!important;line-height:1.6}
+:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table .gc-product-copy :is(div,span){font-size:inherit!important;white-space:normal!important;max-width:none!important;overflow:visible!important}
+:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table :is(.pid,.gc-product-copy>div+div){font-size:15px!important;color:#52647c!important;font-weight:400}
+.ads-detail-groups{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 16px;position:relative}
+.ads-detail-groups button{padding:10px 14px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#17345d;cursor:pointer;font:inherit;font-size:15px;white-space:normal;text-align:left}
+.ads-detail-groups button[aria-pressed="true"]{background:#263f77;color:#fff;border-color:#263f77;font-weight:700}
+#page-group-camp .gcr-grp-h{grid-template-columns:22px minmax(0,2fr) repeat(4,minmax(0,1fr));font-size:17px;gap:12px;padding:18px 22px}
+#page-group-camp .gcr-grp-h .gcr-m,#page-group-camp .gcr-grp-h>span:nth-child(3){text-align:center!important}
+#page-group-camp .gcr-grp-hd{font-size:15px;background:#edf2f8!important;color:#243b60}
+#page-group-camp .gcr-grp-name{white-space:normal;overflow:visible;line-height:1.6}
+#page-group-camp .gcr-grp-b{padding:12px;background:#fff}
+/* Keep navy summary panels consistent with the approved accounting design. */
+:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop) :is(.nv-panel,.th-navy-panel) .ads-detail-table{color:#fff;background:transparent}
+:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop) :is(.nv-panel,.th-navy-panel) .ads-detail-table th{background:#2c4073!important;color:#dbe4f3!important}
+:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop) :is(.nv-panel,.th-navy-panel) .ads-detail-table tbody tr{background:#233a69!important}
+:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop) :is(.nv-panel,.th-navy-panel) .ads-detail-table tbody tr:nth-child(even){background:#2c4579!important}
+@media(max-width:1100px){:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table :is(th,td){padding:14px 12px!important}}
+@media(max-width:720px){
+ :is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table :is(thead,colgroup){display:none!important}
+ :is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table,:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table :is(tbody,tr){display:block;width:100%!important;box-sizing:border-box}
+ :is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table tr{border-bottom:2px solid #d7e0ee;padding:10px}
+ :is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table td:not(.ads-col-hidden){display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:12px;padding:12px 4px!important;border:0!important;font-size:17px!important;width:100%!important;text-align:left!important}
+ :is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table td::before{content:attr(data-label);font-size:15px;font-weight:600;color:#52647c}
+ :is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table .gc-product-copy{min-width:0;overflow-wrap:anywhere}
+ #page-group-camp .gcr-grp-hd{display:none}
+ #page-group-camp .gcr-grp-h{display:grid;grid-template-columns:22px minmax(0,1fr);padding:16px;gap:10px}
+ #page-group-camp .gcr-grp-h .gcr-m,#page-group-camp .gcr-grp-h>span:nth-child(3){display:flex!important;grid-column:2;justify-content:space-between;gap:12px}
+ #page-group-camp .gcr-grp-h>span:nth-child(n+3)::before{content:attr(data-label);font-size:15px;color:#52647c;font-weight:400}
+}
+@media(max-width:1100px){:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table .gc-product-cell{flex-direction:column;align-items:flex-start}}
+:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body) .ads-detail-table td.ads-number :is(span,b,strong){font-size:inherit!important}
+
+</style>
+<script>
+/* Presentation only: retain original cells, handlers, filtering and numeric data. */
+const AdsDetailLayout=(()=>{
+ const scope=':is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop,#adsh-hour-modal-body)';
+ const states=new Map(),spanWidths=new WeakMap();let timer;
+ const clean=s=>String(s||'').replace(/[↕↑↓▲▼]/g,'').replace(/\s+/g,' ').trim();
+ const norm=s=>clean(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d');
+ function kind(label){
+  const s=norm(label);
+  if(/^(#|stt|thu tu)$/.test(s))return 'index';
+  if(/san pham|ten |^ten$|^nhom$|chien dich|^shop$|^cua hang$|^ngay$|^gio$|trang thai|hanh dong|goi y/.test(s)&&!/(so |sp da|san pham da|sp dang|ty le)/.test(s))return 'text';
+  if(/doanh|chi phi|gia von|ngan sach/.test(s))return 'money';
+  if(/roas|acos|ctr|ty le|cpc|cpm/.test(s))return 'efficiency';
+  if(/luot|click|view|don|conv|sp ban|sp da ban|ngay chay|san pham da|sp dang/.test(s))return 'traffic';
+  return 'other';
+ }
+ function plan(labels){
+  const types=labels.map(kind),base=[];
+  types.forEach((type,i)=>{if(type==='index'||(type==='text'&&base.filter(k=>types[k]==='text').length<2))base.push(i);});
+  if(!base.some(i=>types[i]!=='index'))base.push(types[0]==='index'?1:0);
+  const rest=labels.map((_,i)=>i).filter(i=>!base.includes(i));
+  if(labels.length<=5||(labels.length<=6&&!labels.some(l=>/san pham|chien dich/.test(norm(l)))))return [{name:'Chi tiết',cols:labels.map((_,i)=>i)}];
+  const groups=[];
+  for(const [type,name]of [['money','Doanh số và chi phí'],['efficiency','Hiệu quả'],['traffic','Lưu lượng và đơn'],['other','Thông tin khác'],['text','Thông tin chi tiết']]){
+   const columns=rest.filter(i=>types[i]===type);
+   for(let n=0;n<columns.length;n+=3){const chunk=columns.slice(n,n+3);groups.push({name:columns.length>3?name+' · '+chunk.map(i=>labels[i]).join(' / '):name,cols:[...base,...chunk].sort((a,b)=>a-b)});}
+  }
+  return groups.length?groups:[{name:'Chi tiết',cols:labels.map((_,i)=>i)}];
+ }
+ function apply(table,state){
+  const visible=new Set(state.groups[state.selected]?.cols||state.groups[0].cols);
+  const rows=[...table.rows].filter(r=>r.closest('table')===table);
+  for(const row of rows){let offset=0;for(const cell of row.cells){
+   if(!spanWidths.has(cell))spanWidths.set(cell,cell.colSpan||1);
+   const width=spanWidths.get(cell),indices=Array.from({length:width},(_,i)=>offset+i),shown=indices.filter(i=>visible.has(i));
+   cell.classList.toggle('ads-col-hidden',!shown.length);cell.classList.toggle('ads-index',width===1&&kind(state.labels[offset])==='index');
+   cell.classList.toggle('ads-number',width===1&&(['money','efficiency','traffic'].includes(kind(state.labels[offset]))||cell.classList.contains('num')));
+   const label=indices.map(i=>state.labels[i]||'').join(' / ');if(cell.dataset.label!==label)cell.dataset.label=label;
+   const span=Math.max(1,shown.length);if(cell.colSpan!==span)cell.colSpan=span;
+   offset+=width;
+  }}
+  state.nav?.querySelectorAll('button').forEach((button,i)=>button.setAttribute('aria-pressed',String(i===state.selected)));
+ }
+ function enhance(table){
+  if(table.closest('.adr-picker,.calendar')||!table.tHead||!table.tBodies.length)return;
+  const headers=[...table.tHead.rows].find(r=>r.cells.length>=3&&[...r.cells].every(c=>c.colSpan===1));if(!headers)return;
+  const labels=[...headers.cells].map(c=>clean(c.textContent));
+  let state=states.get(table);
+  if(!state||state.labels.join('|')!==labels.join('|')){
+   state?.nav?.remove();state={labels,groups:plan(labels),selected:0};states.set(table,state);
+   if(state.groups.length>1){
+    const nav=document.createElement('div');nav.className='ads-detail-groups';nav.setAttribute('aria-label','Nhóm cột dữ liệu');
+    state.groups.forEach((group,i)=>{const button=document.createElement('button');button.type='button';button.textContent=group.name;button.onclick=()=>{state.selected=i;apply(table,state);};nav.appendChild(button);});
+    table.before(nav);state.nav=nav;
+   }
+  }
+  table.classList.add('ads-detail-table');
+  const wrap=table.parentElement;if(wrap&&!['TD','TH'].includes(wrap.tagName))wrap.classList.add('ads-detail-wrap');
+  apply(table,state);
+ }
+ function refresh(){
+  for(const [table,state]of states)if(!table.isConnected){state.nav?.remove();states.delete(table);}
+  document.querySelectorAll(scope+' table').forEach(enhance);
+  document.querySelectorAll('#page-group-camp .gcr-grp-h').forEach(row=>{
+   if(row.classList.contains('gcr-grp-hd'))return;
+   const labels=['','Nhóm','SP đang chạy','Chi phí','Doanh số','ROAS'];[...row.children].forEach((c,i)=>{if(c.dataset.label!==labels[i])c.dataset.label=labels[i];});
+  });
+ }
+ function schedule(){clearTimeout(timer);timer=setTimeout(refresh,50);}
+ new MutationObserver(changes=>{if(changes.some(m=>!m.target.closest?.('.ads-detail-groups,.gc-product-photo,.gc-photo-controls')&&m.target.closest?.(scope)))schedule();}).observe(document.body,{childList:true,subtree:true});
+ schedule();return {refresh,plan};
+})();
+
+</script>
+<!-- ADS-DETAIL-LAYOUT-END -->
 </body>
 </html>
