@@ -1063,12 +1063,42 @@
 
 #bcsp-content>.card{margin-bottom:16px}.report-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}.report-note{font-size:12px;color:var(--text2);line-height:1.6;margin:10px 0 16px}.report-filters{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:12px}.report-filters input,.report-filters select{padding:7px;border:1px solid #d1d5db;border-radius:7px;max-width:100%}.report-split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}@media(max-width:1100px){.report-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.report-split{grid-template-columns:1fr}}@media(max-width:600px){.report-kpis{grid-template-columns:1fr}}
 </style>
+<style>
+#page-home{max-width:100%;min-width:0}
+#main:has(#page-home.active){min-width:0;flex:1 1 0}
+.home2h-hero{position:relative;isolation:isolate;overflow:hidden;border-radius:22px;background:#07182f url('assets/2h-home-banner.png') center/cover no-repeat;min-height:420px;display:flex;align-items:center;padding:48px;box-sizing:border-box;box-shadow:0 16px 40px #14294920;color:#fff}
+.home2h-hero::before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,rgba(4,15,32,.5),rgba(4,15,32,.12) 44%,transparent 65%)}
+.home2h-copy{max-width:46%;position:relative}
+.home2h-brand{display:inline-flex;align-items:center;gap:12px;margin-bottom:26px;font-size:14px;letter-spacing:2px;color:#dbe4f3;font-weight:600}
+.home2h-mark{display:inline-flex;align-items:center;justify-content:center;width:50px;height:50px;background:#c83a2a;color:#fff;letter-spacing:-1px;border-radius:12px;font-size:25px;font-weight:800;box-shadow:0 6px 20px #0003}
+.home2h-hero h1{font-size:clamp(34px,3.4vw,60px);line-height:1.12;letter-spacing:-1.6px;margin:0 0 20px;font-weight:800;color:#fff}
+.home2h-hero h1 em{font-style:normal;color:#f6c982}
+.home2h-hero p{font-size:17px;line-height:1.7;color:#dbe4f3;margin:0;max-width:360px}
+.home2h-heading{margin:30px 0 18px;display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.home2h-heading h2{font-size:22px;color:#1b2a4e;margin:0}
+.home2h-heading p{font-size:15px;color:#64748b;margin:0}
+.home2h-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.home2h-link{display:flex;flex-direction:column;align-items:flex-start;position:relative;min-height:170px;text-align:left;border:1px solid #e0e7f0;border-radius:16px;padding:22px;background:#fff;box-shadow:0 4px 14px #14294905;cursor:pointer;font:inherit;transition:transform .18s,box-shadow .18s,border-color .18s;color:#1b2a4e;min-width:0}
+.home2h-link:hover{transform:translateY(-3px);border-color:#adc2df;box-shadow:0 10px 25px #14294912}
+.home2h-link:focus-visible,.sidebar-logo:focus-visible{outline:3px solid #4179ce;outline-offset:3px}
+.home2h-icon{display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:12px;background:#edf2fa;font-size:23px;margin-bottom:16px}
+.home2h-link strong{font-size:17px;line-height:1.45;margin-bottom:6px}
+.home2h-link small{font-size:14px;line-height:1.6;color:#64748b}
+.home2h-arrow{position:absolute;right:20px;top:27px;color:#9baec8;font-size:20px}
+.home2h-footer{font-size:14px;line-height:1.6;color:#64748b;margin:22px 0;text-align:center}
+.sidebar-logo[role="button"]{cursor:pointer}
+@media(max-width:1250px){.home2h-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.home2h-hero{min-height:360px;padding:34px}.home2h-copy{max-width:48%}.home2h-brand{font-size:11px;letter-spacing:1px}}
+@media(max-width:900px){.home2h-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.home2h-hero{min-height:370px;padding:26px;background-position:60% center}.home2h-copy{max-width:58%}.home2h-hero::before{background:linear-gradient(90deg,#06152be8,#06152b70 60%,transparent)}.home2h-hero h1{font-size:38px}.home2h-brand{letter-spacing:0;gap:8px}.home2h-hero p{font-size:15px}}
+@media(max-width:600px){.home2h-hero{min-height:440px;align-items:flex-start;background-size:auto 280px;background-position:70% bottom;padding:24px}.home2h-hero::before{background:linear-gradient(180deg,#06152b 25%,#06152b80 52%,transparent 80%)}.home2h-copy{max-width:100%}.home2h-brand{margin-bottom:16px}.home2h-mark{width:40px;height:40px;font-size:22px}.home2h-hero h1{font-size:36px;margin-bottom:12px}.home2h-hero p{max-width:280px}.home2h-heading h2{font-size:20px}.home2h-grid{gap:10px}.home2h-link{padding:16px;min-height:175px}.home2h-link strong{font-size:16px}.home2h-link small{font-size:13px}.home2h-arrow{right:14px;top:18px}}
+@media(max-width:720px){body:has(#page-home.active) #sidebar{display:none}#main:has(#page-home.active){margin-left:0;width:100%;padding:16px}#main:has(#page-home.active) .topbar{flex-wrap:wrap;gap:12px}#main:has(#page-home.active) .page-title{font-size:20px}}
+
+</style>
 </head>
 <body>
 
 <!-- SIDEBAR -->
 <nav id="sidebar">
-  <div class="sidebar-logo">
+  <div class="sidebar-logo" role="button" tabindex="0" title="Về Trang chủ 2H" onclick="home2hReturn()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();home2hReturn();}">
     <div class="logo-badge" id="logo-badge">2H</div>
     <div class="logo-text">Trung Tâm Vận Hành 2H <span id="logo-sub">Multi-Shop Dashboard</span></div>
   </div>
@@ -1122,7 +1152,7 @@
       </div>
       <div class="block-body" id="block-body-ads" style="display:none">
         <div class="nav-mini-label" id="nav-section-label">📚 Nhà Sách 2HBooks</div>
-        <div class="nav-item active" onclick="showPage('overview',this)" id="nav-overview">
+        <div class="nav-item" onclick="showPage('overview',this)" id="nav-overview">
           <span class="icon">🏠</span> Tổng Quan
         </div>
         <div class="nav-item" onclick="showPage('ads-hourly',this)" id="nav-ads-hourly">
@@ -1247,8 +1277,20 @@
   <!-- UPLOAD PROMPT (hidden when data loaded) -->
   <div id="upload-area" style="display:none"></div>
 
+<section class="page active" id="page-home" aria-label="Trang chủ 2H">
+ <div class="home2h-hero"><div class="home2h-copy"><div class="home2h-brand"><span class="home2h-mark">2H</span><span>SÁCH · VĂN PHÒNG PHẨM · ĐỒ DÙNG</span></div><h1>Trung tâm<br>vận hành <em>2H</em></h1><p>Chọn công việc.<br>Bắt đầu một ngày hiệu quả.</p></div></div>
+ <div class="home2h-heading"><h2>Hôm nay, mình bắt đầu từ đâu?</h2><p>Chọn chức năng để vào không gian làm việc.</p></div>
+ <div class="home2h-grid"><button type="button" class="home2h-link" onclick="home2hOpen('tonkho')"><span class="home2h-icon" aria-hidden="true">📦</span><span class="home2h-arrow" aria-hidden="true">↗</span><strong>Kiểm Soát Tồn Kho</strong><small>Tồn hàng, cập nhật và đặt hàng.</small></button>
+<button type="button" class="home2h-link" onclick="home2hOpen('marketing')"><span class="home2h-icon" aria-hidden="true">📣</span><span class="home2h-arrow" aria-hidden="true">↗</span><strong>Kênh Marketing</strong><small>Chương trình và hoạt động của shop.</small></button>
+<button type="button" class="home2h-link" onclick="home2hOpen('ads')"><span class="home2h-icon" aria-hidden="true">📊</span><span class="home2h-arrow" aria-hidden="true">↗</span><strong>Dịch vụ Hiển thị</strong><small>Theo dõi chiến dịch và hiệu quả quảng cáo.</small></button>
+<button type="button" class="home2h-link" onclick="home2hOpen('dangsp')"><span class="home2h-icon" aria-hidden="true">🏷️</span><span class="home2h-arrow" aria-hidden="true">↗</span><strong>Đăng Sản Phẩm</strong><small>Danh mục và liên kết sản phẩm.</small></button>
+<button type="button" class="home2h-link" onclick="home2hOpen('baocao')"><span class="home2h-icon" aria-hidden="true">📈</span><span class="home2h-arrow" aria-hidden="true">↗</span><strong>Báo Cáo</strong><small>Doanh thu, sản lượng và kết quả bán hàng.</small></button>
+<button type="button" class="home2h-link" onclick="home2hOpen('nghiep-vu')"><span class="home2h-icon" aria-hidden="true">⚙️</span><span class="home2h-arrow" aria-hidden="true">↗</span><strong>Nghiệp Vụ</strong><small>Các công cụ xử lý công việc hằng ngày.</small></button>
+<button type="button" class="home2h-link" onclick="home2hOpen('ke-toan')"><span class="home2h-icon" aria-hidden="true">🧮</span><span class="home2h-arrow" aria-hidden="true">↗</span><strong>Kế Toán</strong><small>Chi phí, đối soát và nghiệp vụ kế toán.</small></button></div><p class="home2h-footer">Bấm biểu tượng 2H ở góc trái để trở về Trang chủ.</p>
+</section>
+
   <!-- OVERVIEW PAGE -->
-  <div class="page active" id="page-overview">
+  <div class="page" id="page-overview">
     <!-- CẬP NHẬT CSV — chuyển từ trang riêng "Cập Nhật CSV" vào đầu Tổng Quan, dạng card đóng/mở,
          nằm TRÊN card Kết Nối API. Mặc định thu gọn chỉ hiện dòng trạng thái; bấm tiêu đề để xòe.
          Ô chọn shop dạng pill giữ NGUYÊN riêng của card này (không gộp chung ô sổ xuống ở bộ lọc
@@ -18323,8 +18365,8 @@ populateTkShopSelect();
 loadTonkhoFromStorage();
 
 // Hiển thị trạng thái loading khi trang khởi động — Cập Nhật CSV đã gộp vào card đầu
-// Tổng Quan (xác nhận Tân 2026-08-07), nên trang mặc định giờ là page-overview.
-document.getElementById('page-overview').classList.add('active');
+// Trang chủ 2H là màn hình mặc định; dữ liệu công việc có thể chuẩn bị ở nền.
+document.getElementById('page-home').classList.add('active');
 document.getElementById('update-log').innerHTML = '<span class="log-info">⏳ Đang tải dữ liệu từ cloud...</span>';
 updateDriveSyncStatus();
 
@@ -26689,5 +26731,23 @@ const AdsDetailLayout=(()=>{
 
 </script>
 <!-- ADS-DETAIL-LAYOUT-END -->
+<script>
+function home2hOpen(block){
+ const body=document.getElementById('block-body-'+block),header=document.querySelector('#block-'+block+' .block-header');
+ if(!body||!header)return;
+ // Use the existing menu action, including the accounting access check.
+ if(body.style.display==='none')header.click();
+ if(body.style.display==='none')return;
+ const item=body.querySelector('.nav-item');if(item)item.click();
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+function home2hReturn(){
+ showPage('home');
+ document.querySelectorAll('.block-body').forEach(body=>body.style.display='none');
+ document.querySelectorAll('.block-header').forEach(header=>{header.classList.remove('open');const arrow=header.querySelector('.block-arrow');if(arrow)arrow.textContent='▶';});
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+
+</script>
 </body>
 </html>
