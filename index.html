@@ -12959,7 +12959,7 @@ async function gcrLoad() {
         acos: g.revenue > 0 ? (g.cost / g.revenue * 100).toFixed(2) + '%' : '—',
         acosDirect: g.revenueDirect > 0 ? (g.cost / g.revenueDirect * 100).toFixed(2) + '%' : '—',
         voucherAmount: g.voucherAmount, voucheredSales: g.voucheredSales,
-        products: (g.products || []).map(p => ({ name: p.name, itemId: p.itemId, views: p.views, clicks: p.clicks, sold: p.sold, revenue: p.revenue, cost: p.cost, roas: p.cost > 0 ? p.revenue / p.cost : 0 }))
+        products: (g.products || []).map(p => ({ name: p.name, itemId: p.itemId, shopId:String(si.shopApiId), views: p.views, clicks: p.clicks, sold: p.sold, revenue: p.revenue, cost: p.cost, roas: p.cost > 0 ? p.revenue / p.cost : 0 }))
       }));
       recs.push({ fileName: `__range__${si.shopApiId}`, source: 'sheet', shopApiId: si.shopApiId, shopKey: si.shopKey, shopName: si.displayName, dateFrom: r.from, dateTo: r.to, dateLabel: adrRangeLabel(r), groups });
       const m = adsShMissingDays(sh.days || [], r.from, r.to);
@@ -14633,6 +14633,7 @@ function gcShowOverlapWarning(records) {
 // qua các kỳ đã chọn; ROAS/ACOS/CTR tính lại từ tổng, KHÔNG lấy trung bình cộng từng kỳ
 // (xác nhận Tân 2026-08-12). status/adType lấy theo kỳ gần nhất có dữ liệu nhóm đó.
 function gcMergeRecords(records) {
+  records = records.map(rec => ({...rec, groups:(rec.groups || []).map(g => ({...g, products:(g.products || []).map(p => ({...p, shopId:p.shopId || rec.shopApiId || SAPI_SHOP_MAP_INV[rec.shopKey] || ''}))}))}));
   if (records.length === 1) return records[0];
   const sorted = [...records].sort((a, b) => (a.dateFrom || '').localeCompare(b.dateFrom || ''));
   const groupMap = new Map();
@@ -14657,7 +14658,7 @@ function gcMergeRecords(records) {
       (g.products || []).forEach(p => {
         const key = (p.itemId && p.itemId !== '-') ? p.itemId : p.name;
         let mp = m._productMap.get(key);
-        if (!mp) { mp = { name: p.name, itemId: p.itemId, views: 0, clicks: 0, sold: 0, revenue: 0, cost: 0 }; m._productMap.set(key, mp); }
+        if (!mp) { mp = { name: p.name, itemId: p.itemId, shopId:p.shopId, views: 0, clicks: 0, sold: 0, revenue: 0, cost: 0 }; m._productMap.set(key, mp); }
         mp.views += p.views; mp.clicks += p.clicks; mp.sold += p.sold; mp.revenue += p.revenue; mp.cost += p.cost;
       });
     });
@@ -14820,7 +14821,7 @@ function groupCampRenderContent(rec, opts) {
   // ── Danh sách nhóm + card SP trong nhóm (có ô tìm kiếm) ──
   const sorted = [...groups].sort((a, b) => b.cost - a.cost).map(g => ({
     ...g, _n: gcNorm(g.name),
-    products: (g.products || []).map(p => ({ ...p, _n: gcNorm((p.name || '') + ' ' + (p.itemId || '') + ' ' + gcSkuList(p.itemId).map(x => x.ma).join(' ')) }))
+    products: (g.products || []).map(p => ({ ...p, shopId:p.shopId || rec.shopApiId || SAPI_SHOP_MAP_INV[rec.shopKey] || "", _n: gcNorm((p.name || '') + ' ' + (p.itemId || '') + ' ' + gcSkuList(p.itemId).map(x => x.ma).join(' ')) }))
   }));
   _gcR.view = { sorted, allShops: !!opts.allShops };
   gcEnsureSkuMap();
@@ -14890,7 +14891,7 @@ function gcrRenderLists() {
   if (wrap) {
     if (!m.list.length) { wrap.innerHTML = `<div class="th-empty">Không có nhóm hay sản phẩm nào khớp “${qEsc}”.</div>`; return; }
     const head = `<div class="gcr-grp-h gcr-grp-hd"><span></span><span>Nhóm</span><span style="text-align:right">SP đang chạy</span><span class="gcr-m">Chi phí</span><span class="gcr-m">Doanh số</span><span class="gcr-m">ROAS</span></div>`;
-    wrap.innerHTML = head + m.list.map(x => {
+    wrap.innerHTML = GCPhotos.controls() + head + m.list.map(x => {
       const g = x.g, sp = gcSplitName(g.name, v.allShops), act = gcActiveCount(g), all = g.products.length;
       const forced = !!q && !x.nameHit && x.prodHit > 0;
       const isOpen = forced || !!_gcR.open[g.name];
@@ -14902,7 +14903,7 @@ function gcrRenderLists() {
           [...x.prods].sort((a, b) => b.cost - a.cost || b.revenue - a.revenue).map((p, k) => {
             const pk = roasKindItem(p.itemId, p.name, g.name), r = p.cost > 0 ? p.revenue / p.cost : 0, idle = !(p.views > 0 || p.cost > 0);
             const plv = p.cost >= GC_PROD_MIN_COST ? roasLv(r, pk) : 'ok', plow = plv === 'red';   // đỏ = dưới ngưỡng ngành · vàng = chưa đạt mục tiêu
-            return `<tr${idle ? ' class="idle" title="Không có lượt xem/chi phí trong kỳ"' : ''}><td class="c">${k + 1}</td><td><div class="pn" title="${acrEsc(p.name)}">${acrEsc(p.name)}</div><div class="pid">ID: ${acrEsc(p.itemId || '—')}${gcSkuHtml(p.itemId)} ${roasKindTag(pk)}</div></td>
+            return `<tr${idle ? ' class="idle" title="Không có lượt xem/chi phí trong kỳ"' : ''}><td class="c">${k + 1}</td><td><div class="gc-product-cell">${GCPhotos.html(p)}<div class="gc-product-copy"><div class="pn" title="${acrEsc(p.name)}">${acrEsc(p.name)}</div><div class="pid">ID: ${acrEsc(p.itemId || '—')}${gcSkuHtml(p.itemId)} ${roasKindTag(pk)}</div></div></div></td>
               <td class="num k1">${fmtMoney(p.cost)}</td><td class="num k2">${fmtMoney(p.revenue)}</td>
               <td class="num k3" style="${plow ? 'color:var(--red)' : plv === 'amb' ? 'color:#b45309' : ''}" title="Mục tiêu ${ROAS_RULE[pk].label} ≥ ${roasTarget(pk)} · đỏ < ${roasRed(pk)}">${plow ? '⚠ ' : ''}${p.cost > 0 ? r.toFixed(2) : '—'}</td>
               <td class="num">${p.revenue > 0 ? (p.cost / p.revenue * 100).toFixed(1) + '%' : '—'}</td>
@@ -14919,6 +14920,7 @@ function gcrRenderLists() {
         </div>${isOpen ? `<div class="gcr-grp-b">${body}</div>` : ''}
       </div>`;
     }).join('');
+    GCPhotos.prime();
   }
 }
 
@@ -26452,5 +26454,71 @@ function cpsExport(){if(!CPS.report)return;const wb=XLSX.utils.book_new();for(co
 
 </script>
 <!-- CPS-PILOT-END -->
+<!-- ADS-PRODUCT-PHOTOS-START -->
+<style>
+#page-group-camp .gc-photo-controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:10px 0 16px}
+#page-group-camp .gc-photo-controls button{padding:9px 13px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#17345d;cursor:pointer;font-size:14px}
+#page-group-camp .gc-photo-controls button:disabled{opacity:.65;cursor:wait}
+#page-group-camp #gc-photo-status{font-size:13px;color:#52647c;flex:1 1 260px;overflow-wrap:anywhere}
+#page-group-camp .gc-product-cell{display:flex;align-items:center;gap:12px;min-width:0}
+#page-group-camp .gc-product-copy{min-width:0;flex:1}
+#page-group-camp .gc-product-photo{display:inline-flex;flex:0 0 60px;width:60px;height:60px;align-items:center;justify-content:center}
+#page-group-camp .gc-photo-button{border:1px solid #e2e8f0;background:#fff;padding:0;width:60px;height:60px;border-radius:7px;overflow:hidden;cursor:zoom-in}
+#page-group-camp .gc-photo-button img{display:block;object-fit:contain;width:100%;height:100%}
+#page-group-camp .gc-photo-empty{display:flex;align-items:center;justify-content:center;width:60px;height:60px;border:1px solid #e2e8f0;border-radius:7px;background:#f1f5f9;color:#64748b;font-size:11px}
+.gc-photo-dialog{border:0;border-radius:12px;max-width:min(90vw,650px);padding:16px;box-shadow:0 12px 40px #0004}
+.gc-photo-dialog::backdrop{background:#0007}
+.gc-photo-dialog button{display:block;margin:0 0 10px auto;padding:6px 12px;cursor:pointer}
+.gc-photo-dialog img{display:block;width:100%;max-height:75vh;object-fit:contain}
+@media(max-width:720px){#page-group-camp .gc-product-cell{gap:8px}#page-group-camp .gc-product-photo{flex-basis:48px;width:48px;height:48px}#page-group-camp .gc-photo-button,#page-group-camp .gc-photo-empty{width:48px;height:48px}}
+
+</style>
+<script>
+/* Cover photos from Shopee; separate from advertising figures and SKU mapping. */
+const GCPhotos=(()=>{
+ const CACHE='h2_ads_product_photos_v1',photos=new Map(),checked=new Set(),pending=new Map();
+ let busy=false,loaded=false,status='Mở nhóm rồi bấm lấy ảnh Shopee. Mỗi lượt tối đa 40 sản phẩm.';
+ const allowed=new Set(['1289235612','371873832','1096078460','1330480487','1092895286','1624586997']);
+ const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ function url(value){try{const u=new URL(value);return u.protocol==='https:'&&/^(?:[a-z0-9-]+\.)*(?:susercontent\.com|shopee\.vn)$/.test(u.hostname)&&!u.username&&!u.password?u.href:'';}catch{return '';}}
+ function id(p){const shopId=String(p?.shopId||''),itemId=String(p?.itemId||'');return allowed.has(shopId)&&/^\d{1,20}$/.test(itemId)?{shopId,itemId,key:shopId+'_'+itemId}:null;}
+ function valid(p){const i=id(p);return i&&p.key===i.key&&url(p.url)?{...i,url:url(p.url),updatedAt:Number(p.updatedAt)||0,source:'shopee'}:null;}
+ function load(){if(loaded)return;loaded=true;try{for(const p of JSON.parse(localStorage.getItem(CACHE)||'[]')){const v=valid(p);if(v)photos.set(v.key,v);}}catch{}}
+ function save(){try{localStorage.setItem(CACHE,JSON.stringify([...photos.values()].sort((a,b)=>b.updatedAt-a.updatedAt).slice(0,3000)));}catch{}}
+ function html(p){load();const i=id(p);return `<span class="gc-product-photo"${i?` data-gc-photo-key="${i.key}"`:''}><span class="gc-photo-empty" title="${i?'Chưa có ảnh từ Shopee':'Chưa xác định được shop của bài đăng'}">Ảnh</span></span>`;}
+ function controls(){return `<div class="gc-photo-controls"><button type="button" id="gc-photo-sync" onclick="GCPhotos.sync()"${busy?' disabled':''}>${busy?'Đang lấy ảnh…':'Lấy / cập nhật ảnh Shopee'}</button><span id="gc-photo-status" role="status">${esc(status)}</span></div>`;}
+ function paint(){load();document.querySelectorAll('[data-gc-photo-key]').forEach(el=>{
+  const p=photos.get(el.dataset.gcPhotoKey);if(!p||el.dataset.photoUrl===p.url)return;
+  el.dataset.photoUrl=p.url;el.replaceChildren();
+  const b=document.createElement('button');b.type='button';b.className='gc-photo-button';b.title='Xem ảnh bìa sản phẩm Shopee';b.onclick=()=>show(p.key);
+  const img=document.createElement('img');img.src=p.url;img.alt='Ảnh bìa Shopee';img.width=60;img.height=60;img.loading='lazy';img.decoding='async';img.referrerPolicy='no-referrer';
+  img.onerror=()=>{el.replaceChildren();const t=document.createElement('span');t.className='gc-photo-empty';t.textContent='Lỗi ảnh';el.appendChild(t);delete el.dataset.photoUrl;};b.appendChild(img);el.appendChild(b);
+ });}
+ async function prime(){
+  paint();if(typeof db==='undefined')return;
+  const keys=[...new Set([...document.querySelectorAll('[data-gc-photo-key]')].map(e=>e.dataset.gcPhotoKey))].filter(k=>!photos.has(k)&&!checked.has(k)).slice(0,80);
+  await Promise.all(keys.map(async k=>{checked.add(k);try{const d=await db.collection('shopee_product_images').doc(k).get(),v=d.exists?valid(d.data()):null;if(v){photos.set(k,v);}}catch{}}));save();paint();
+ }
+ function visible(){return [...new Set([...document.querySelectorAll('[data-gc-photo-key]')].map(e=>e.dataset.gcPhotoKey))].map(k=>{const [shopId,itemId]=k.split('_');return id({shopId,itemId});}).filter(Boolean);}
+ function update(s){status=s;const el=document.getElementById('gc-photo-status');if(el)el.textContent=s;const b=document.getElementById('gc-photo-sync');if(b){b.disabled=busy;b.textContent=busy?'Đang lấy ảnh…':'Lấy / cập nhật ảnh Shopee';}}
+ window.addEventListener('message',ev=>{const d=ev.data;if(ev.source!==window||ev.origin!==location.origin||d?.channel!=='h2-ad-photos'||d.kind!=='response')return;const req=pending.get(d.id);if(!req)return;pending.delete(d.id);clearTimeout(req.timer);req.resolve(d.result);});
+ function request(item,timeout=50000){return new Promise(resolve=>{const token=crypto.randomUUID();const timer=setTimeout(()=>{pending.delete(token);resolve({ok:false,error:'Không nhận được phản hồi. Cập nhật tiện ích 2H bản 2.21.0, tải lại dashboard rồi thử lại.'});},timeout);pending.set(token,{resolve,timer});window.postMessage({channel:'h2-ad-photos',kind:item?'request':'ping',id:token,item},location.origin);});}
+ async function sync(){
+  if(busy)return;const all=visible().sort((a,b)=>Number(photos.has(a.key))-Number(photos.has(b.key))),list=all.slice(0,40);if(!list.length){update('Mở một nhóm có sản phẩm để lấy ảnh.');return;}
+  busy=true;let count=0,failed=0,last='';update(`Đang lấy ảnh 0/${list.length}. Shopee sẽ mở ở tab nền.`);
+  const connection=await request(null,2500);if(!connection?.ok){busy=false;update(connection?.error||'Chưa kết nối tiện ích lấy ảnh.');return;}
+  try{for(let n=0;n<list.length;n++){
+   const it=list[n],r=await request(it),p=valid(r?.photo);
+   if(r?.ok&&p&&p.key===it.key){photos.set(p.key,p);save();paint();count++;try{if(typeof db!=='undefined')await db.collection('shopee_product_images').doc(p.key).set(p,{merge:true});}catch{}}
+   else{failed++;last=r?.error||'Không đọc được ảnh đúng shop và ID.';if(/2\.21\.0|Không nhận được phản hồi/.test(last))break;}
+   update(`Đã lấy ${count} ảnh; ${failed} chưa lấy được · ${n+1}/${list.length}.`);
+  }}finally{busy=false;update(`Đã lấy ${count}/${list.length} ảnh.${failed?' '+failed+' sản phẩm cần kiểm tra. '+last:''}${all.length>40?' Mỗi lượt tối đa 40 SP; mở ít nhóm hơn để cập nhật nhóm tiếp theo.':''}`);}
+ }
+ function show(key){const p=photos.get(key);if(!p)return;let d=document.getElementById('gc-photo-dialog');if(d)d.remove();d=document.createElement('dialog');d.id='gc-photo-dialog';d.className='gc-photo-dialog';const b=document.createElement('button');b.textContent='Đóng';b.onclick=()=>d.close();const img=document.createElement('img');img.src=p.url;img.alt='Ảnh bìa sản phẩm trên Shopee';img.referrerPolicy='no-referrer';d.append(b,img);document.body.appendChild(d);d.showModal();}
+ return {html,controls,prime,sync,show,identity:id,valid};
+})();
+
+</script>
+<!-- ADS-PRODUCT-PHOTOS-END -->
 </body>
 </html>
