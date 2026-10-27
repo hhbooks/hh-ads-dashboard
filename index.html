@@ -26476,7 +26476,7 @@ function cpsExport(){if(!CPS.report)return;const wb=XLSX.utils.book_new();for(co
 <script>
 /* Cover photos from Shopee; separate from advertising figures and SKU mapping. */
 const GCPhotos=(()=>{
- const CACHE='h2_ads_product_photos_v1',photos=new Map(),checked=new Set(),pending=new Map();
+ const CACHE='h2_ads_product_photos_v1',photos=new Map(),watchers=new Map(),pending=new Map(),publishing=new Set();
  let busy=false,loaded=false,status='Mở nhóm rồi bấm lấy ảnh Shopee. Mỗi lượt tối đa 40 sản phẩm.';
  const allowed=new Set(['1289235612','371873832','1096078460','1330480487','1092895286','1624586997']);
  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -26494,25 +26494,48 @@ const GCPhotos=(()=>{
   const img=document.createElement('img');img.src=p.url;img.alt='Ảnh bìa Shopee';img.width=60;img.height=60;img.loading='lazy';img.decoding='async';img.referrerPolicy='no-referrer';
   img.onerror=()=>{el.replaceChildren();const t=document.createElement('span');t.className='gc-photo-empty';t.textContent='Lỗi ảnh';el.appendChild(t);delete el.dataset.photoUrl;};b.appendChild(img);el.appendChild(b);
  });}
- async function prime(){
-  paint();if(typeof db==='undefined')return;
-  const keys=[...new Set([...document.querySelectorAll('[data-gc-photo-key]')].map(e=>e.dataset.gcPhotoKey))].filter(k=>!photos.has(k)&&!checked.has(k)).slice(0,80);
-  await Promise.all(keys.map(async k=>{checked.add(k);try{const d=await db.collection('shopee_product_images').doc(k).get(),v=d.exists?valid(d.data()):null;if(v){photos.set(k,v);}}catch{}}));save();paint();
+ function photoDoc(key){if(typeof db==='undefined')throw new Error('Chưa kết nối kho ảnh dùng chung.');return db.collection('shopee_product_images').doc(key);}
+ async function publish(p){
+  publishing.add(p.key);
+  try{await photoDoc(p.key).set(p,{merge:true});}finally{publishing.delete(p.key);}
  }
+ function cloudError(){update('Chưa đồng bộ được kho ảnh dùng chung. Ảnh trên máy vẫn được giữ; bấm lấy / cập nhật ảnh để thử lại.');}
+ async function prime(){
+  paint();
+  const keys=new Set([...document.querySelectorAll('[data-gc-photo-key]')].map(e=>e.dataset.gcPhotoKey));
+  for(const [key,stop] of watchers)if(!keys.has(key)){stop();watchers.delete(key);}
+  if(typeof db==='undefined'){if(keys.size)cloudError();return;}
+  for(const key of keys){
+   if(watchers.has(key))continue;
+   try{
+    const stop=photoDoc(key).onSnapshot({includeMetadataChanges:true},snapshot=>{
+     // Wait for the server before migrating a local-only photo. Cached absence is not authoritative.
+     if(snapshot.metadata?.fromCache||snapshot.metadata?.hasPendingWrites)return;
+     const remote=snapshot.exists?valid(snapshot.data()):null,local=photos.get(key);
+     if(remote&&remote.key===key){photos.set(key,remote);save();paint();}
+     else if(!snapshot.exists&&local&&!publishing.has(key)){
+      publish(local).then(()=>{if(!busy)update('Ảnh đã lưu dùng chung. Mọi người mở dashboard sẽ tự thấy ảnh.');}).catch(cloudError);
+     }
+    },()=>{watchers.get(key)?.();watchers.delete(key);cloudError();});
+    watchers.set(key,stop);
+   }catch{cloudError();}
+  }
+ }
+ window.addEventListener('pagehide',()=>{for(const stop of watchers.values())stop();watchers.clear();});
  function visible(){return [...new Set([...document.querySelectorAll('[data-gc-photo-key]')].map(e=>e.dataset.gcPhotoKey))].map(k=>{const [shopId,itemId]=k.split('_');return id({shopId,itemId});}).filter(Boolean);}
  function update(s){status=s;const el=document.getElementById('gc-photo-status');if(el)el.textContent=s;const b=document.getElementById('gc-photo-sync');if(b){b.disabled=busy;b.textContent=busy?'Đang lấy ảnh…':'Lấy / cập nhật ảnh Shopee';}}
  window.addEventListener('message',ev=>{const d=ev.data;if(ev.source!==window||ev.origin!==location.origin||d?.channel!=='h2-ad-photos'||d.kind!=='response')return;const req=pending.get(d.id);if(!req)return;pending.delete(d.id);clearTimeout(req.timer);req.resolve(d.result);});
  function request(item,timeout=50000){return new Promise(resolve=>{const token=crypto.randomUUID();const timer=setTimeout(()=>{pending.delete(token);resolve({ok:false,error:'Không nhận được phản hồi. Cập nhật tiện ích 2H bản 2.21.0, tải lại dashboard rồi thử lại.'});},timeout);pending.set(token,{resolve,timer});window.postMessage({channel:'h2-ad-photos',kind:item?'request':'ping',id:token,item},location.origin);});}
  async function sync(){
   if(busy)return;const all=visible().sort((a,b)=>Number(photos.has(a.key))-Number(photos.has(b.key))),list=all.slice(0,40);if(!list.length){update('Mở một nhóm có sản phẩm để lấy ảnh.');return;}
-  busy=true;let count=0,failed=0,last='';update(`Đang lấy ảnh 0/${list.length}. Shopee sẽ mở ở tab nền.`);
+  busy=true;let count=0,shared=0,shareFailed=0,failed=0,last='';update(`Đang lấy ảnh 0/${list.length}. Shopee sẽ mở ở tab nền.`);
   const connection=await request(null,2500);if(!connection?.ok){busy=false;update(connection?.error||'Chưa kết nối tiện ích lấy ảnh.');return;}
   try{for(let n=0;n<list.length;n++){
    const it=list[n],r=await request(it),p=valid(r?.photo);
-   if(r?.ok&&p&&p.key===it.key){photos.set(p.key,p);save();paint();count++;try{if(typeof db!=='undefined')await db.collection('shopee_product_images').doc(p.key).set(p,{merge:true});}catch{}}
+   if(r?.ok&&p&&p.key===it.key){photos.set(p.key,p);save();paint();count++;try{await publish(p);shared++;}catch{shareFailed++;}}
    else{failed++;last=r?.error||'Không đọc được ảnh đúng shop và ID.';if(/2\.21\.0|Không nhận được phản hồi/.test(last))break;}
-   update(`Đã lấy ${count} ảnh; ${failed} chưa lấy được · ${n+1}/${list.length}.`);
-  }}finally{busy=false;update(`Đã lấy ${count}/${list.length} ảnh.${failed?' '+failed+' sản phẩm cần kiểm tra. '+last:''}${all.length>40?' Mỗi lượt tối đa 40 SP; mở ít nhóm hơn để cập nhật nhóm tiếp theo.':''}`);}
+   update(`Đã lấy ${count} ảnh; đã lưu dùng chung ${shared}; ${failed} chưa lấy được · ${n+1}/${list.length}.`);
+  }}finally{busy=false;update(`Đã lấy ${count}/${list.length} ảnh; đã lưu dùng chung ${shared} ảnh.${shareFailed?' '+shareFailed+' ảnh chỉ lưu trên máy do chưa đồng bộ được. Bấm lấy / cập nhật ảnh để thử lại.':shared?' Mọi người mở dashboard sẽ tự thấy ảnh.':''}${failed?' '+failed+' sản phẩm cần kiểm tra. '+last:''}${all.length>40?' Mỗi lượt tối đa 40 SP; mở ít nhóm hơn để cập nhật nhóm tiếp theo.':''}`);}
  }
  function show(key){const p=photos.get(key);if(!p)return;let d=document.getElementById('gc-photo-dialog');if(d)d.remove();d=document.createElement('dialog');d.id='gc-photo-dialog';d.className='gc-photo-dialog';const b=document.createElement('button');b.textContent='Đóng';b.onclick=()=>d.close();const img=document.createElement('img');img.src=p.url;img.alt='Ảnh bìa sản phẩm trên Shopee';img.referrerPolicy='no-referrer';d.append(b,img);document.body.appendChild(d);d.showModal();}
  return {html,controls,prime,sync,show,identity:id,valid};
