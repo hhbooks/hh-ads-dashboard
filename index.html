@@ -25522,6 +25522,7 @@ async function kvrLoad(wh, force) {
     const prev = KVR.files[pm] ? await kvrLoadMonth(wh, pm) : null;
     if (seq !== st.seq) return;
     st.cur = cur; st.prev = prev; kvrRender(wh);
+    ReportGrowth.loadWarehouseHistory(wh,force);
   } catch (e) {
     if (seq === st.seq) kvrSetStatus(wh, '❌ ' + e.message, 'err');
   }
@@ -26794,7 +26795,7 @@ function home2hReturn(){
 <script>
 /* Read-only summaries. Missing periods stay null; attribution uses the union of both periods. */
 const ReportGrowth=(()=>{
- const models=new Map(),choices=new Map();
+ const models=new Map(),choices=new Map(),historyJobs=new Map(),historyStatus=new Map();
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const num=n=>Number(n).toLocaleString('vi-VN',{maximumFractionDigits:0});
  const previous=m=>{const [y,n]=m.split('-').map(Number);return(n===1?y-1:y)+'-'+String(n===1?12:n-1).padStart(2,'0');};
@@ -26814,7 +26815,7 @@ const ReportGrowth=(()=>{
   const history=m.history||{},keys=Object.keys(history).sort(),selectedYear=Number((m.key==='cum'?keys.at(-1):m.key)?.slice(0,4))||2026;
   const years=[...new Set([2025,2026,selectedYear,...keys.map(k=>Number(k.slice(0,4)))])].sort();
   const tracking=m.unit==='đ'?'Theo dõi doanh thu':'Theo dõi sản lượng';
-  html+='<div class="rg-heading"><h3>'+tracking+'</h3></div><div class="rg-years">';
+  html+='<div class="rg-heading"><h3>'+tracking+'</h3></div><p class="rg-note" data-rg-history-status>'+esc(historyStatus.get(id)||'')+'</p><div class="rg-years">';
   for(const year of years){const hr=[],have=[];for(let i=1;i<=12;i++){const key=year+'-'+String(i).padStart(2,'0'),value=history[key]??null,pv=history[previous(key)]??null;if(value!=null)have.push(value);hr.push(['T'+i,value==null?(m.availableMonths?.includes(key)?'Chưa tải tháng này':'Chưa có dữ liệu'):num(value),pv==null?'—':num(pv),delta(value,pv),esc(change(value,pv))]);}
    html+='<details class="rg-history" data-rg-year="'+year+'" open><summary>'+tracking+' · '+year+'</summary>'+table(['Tháng',m.label,'Tháng trước','Chênh lệch','Tăng/giảm'],hr)+'<p class="rg-note">Đã có '+have.length+'/12 tháng · Tổng năm '+year+' (các tháng có dữ liệu): <b>'+num(have.reduce((a,b)=>a+b,0))+' '+metric+'</b>.</p></details>';
   }
@@ -26834,7 +26835,30 @@ const ReportGrowth=(()=>{
   const history={};Object.keys(KVR.data).filter(k=>k.endsWith('|'+wh)).forEach(k=>{const data=KVR.data[k];if(!missing(data))history[k.split('|')[0]]=kvrAgg(data,st.ch,0)[field];});
   mount('kvr-'+wh+'-growth',{key:st.month,label:running?'Giá trị đặt hàng':'Giá trị đơn thành công',unit:'đ',now:cur[field],before:comparable?prev[field]:null,period:(wh==='SG'?'SG':'HN')+' · '+month(st.month),compare:month(previous(st.month))+(cut?' · ngày 1–'+cut:''),note:(cut?'So cùng ngày 1–'+cut+' theo ngày tạo đơn mới nhất đã ghi nhận. ':'So hai tháng đầy đủ. ')+(running?'Đơn chưa hoàn tất: dùng giá trị đặt hàng. ':'Dùng giá trị đơn thành công, không phải doanh thu thực nhận. ')+(comparable?'':'Thiếu kỳ hoặc kênh dữ liệu: không tính tăng/giảm.'),dimensions,history,availableMonths:Object.keys(KVR.files||{}),extra:{label:'Số đơn',value:num(cur.n),note:comparable?change(cur.n,prev.n):'Chưa có dữ liệu so sánh'}});
  }
- return {mount,products,warehouses,change,differences,previous};
+ function historyMessage(wh,text){const id='kvr-'+wh+'-growth';historyStatus.set(id,text);const el=document.getElementById(id)?.querySelector('[data-rg-history-status]');if(el)el.textContent=text;}
+ async function loadWarehouseHistory(wh,force=false){
+  if(historyJobs.has(wh)){if(force)historyJobs.get(wh).rerun=true;return historyJobs.get(wh).promise;}
+  const months=Object.keys(KVR.files||{}).filter(k=>/^\d{4}-\d{2}$/.test(k)).sort(),job={rerun:false};
+  const st=KVR.st[wh];if(!st?.cur||!months.length)return;
+  if(force)for(const m of months){if(m!==st.month&&m!==previous(st.month))delete KVR.data[m+'|'+wh];}
+  historyJobs.set(wh,job);
+  job.promise=(async()=>{
+   let done=0;const errors=[];
+   historyMessage(wh,'Đang tải lịch sử '+wh+': 0/'+months.length+' tháng. Anh không cần chọn từng tháng.');
+   for(const m of months){
+    try{await kvrLoadMonth(wh,m);}catch(error){
+     if(/fetch|network|timeout|429|50[23]/i.test(String(error?.message))){try{await new Promise(r=>setTimeout(r,1500));await kvrLoadMonth(wh,m);}catch{errors.push(m);}}
+     else errors.push(m);
+    }
+    done++;historyMessage(wh,'Đang tải lịch sử '+wh+': '+done+'/'+months.length+' tháng'+(errors.length?' · '+errors.length+' tháng chưa đọc được.':'.'));
+   }
+   // Only redraw the growth panel; never change the selected report month or its detail data.
+   warehouses(wh);
+   historyMessage(wh,errors.length?'Đã đọc '+(months.length-errors.length)+'/'+months.length+' tháng. Chưa đọc được: '+errors.map(month).join(', ')+'. Bấm Tải / làm mới dữ liệu để thử lại.':'Đã tải lịch sử '+wh+': '+months.length+'/'+months.length+' tháng từ '+month(months[0])+' đến '+month(months.at(-1))+'. Tháng thiếu tab/kênh vẫn không được tính thành 0.');
+  })().finally(()=>{historyJobs.delete(wh);if(job.rerun)loadWarehouseHistory(wh,true);});
+  return job.promise;
+ }
+ return {mount,products,warehouses,loadWarehouseHistory,change,differences,previous};
 })();
 
 </script>
