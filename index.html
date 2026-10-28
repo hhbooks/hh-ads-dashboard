@@ -25975,16 +25975,13 @@ async function bcdtRender() {
   }
 
   // Xu hướng
-  html += `<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;margin-bottom:16px">
+  html += `<div class="bcdt-trends-stack" style="display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin-bottom:16px">
     <div class="card nv-panel" style="margin:0"><div class="card-title"><span class="dot" style="background:#ee4d2d"></span>XU HƯỚNG GIÁ TRỊ BÁN & LÃI GỘP</div><div style="height:300px;position:relative"><canvas id="bcdt-trend1"></canvas></div></div>
     <div class="card nv-panel" style="margin:0"><div class="card-title"><span class="dot" style="background:var(--green)"></span>XU HƯỚNG DOANH THU, CHI PHÍ & LỢI NHUẬN (KQKD)</div><div style="height:300px;position:relative"><canvas id="bcdt-trend2"></canvas></div></div>
   </div>`;
 
-  // Ngành / NCC (điền sau khi có catalog)
-  html += `<div class="card nv-panel" style="margin-bottom:16px">
-    <div class="card-title"><span class="dot" style="background:var(--orange)"></span>GIÁ TRỊ BÁN THEO NGÀNH HÀNG / NHÀ CUNG CẤP</div>
-    <div id="bcdt-grp"><div style="text-align:center;padding:24px;color:var(--text2);font-size:12px">⏳ Đang tải catalog ngành hàng...</div></div>
-  </div>`;
+  // Hai khối độc lập, toàn chiều ngang: ngành hàng và nhà cung cấp.
+  html += `<div id="bcdt-grp"><div class="report-note">Đang tải catalog ngành hàng...</div></div>`;
 
   // Top sản phẩm
   html += `<div class="card">
@@ -26087,11 +26084,11 @@ function bcdtUpdateGroups() {
     return reportTable([field==='ncc'?'Nhà cung cấp':'Ngành hàng','Giá trị bán','Tỷ trọng','So tháng trước','Lãi gộp'], [...now].sort((a,b)=>b[1].dt-a[1].dt).map(([k,r])=>[bcspEsc(k),bcspN(r.dt),bcspPct(r.dt,total),reportGrowth(r.dt,previous ? before.get(k)?.dt || 0 : null),r.missing ? 'Tạm tính: '+bcspN(r.dt-r.gv)+'<br><small>Thiếu giá vốn</small>' : bcspN(r.dt-r.gv)]));
   };
   const total=[...current.values()].reduce((s,p)=>s+p.dt,0);
-  document.getElementById('bcdt-grp').innerHTML = `<div class="report-note">Nguồn phân nhóm: <b>${sourceName}</b> · Tổng giá trị bán nguồn này: <b>${bcspN(total)}</b> · Tổng TK Sản phẩm: ${bcspN(S.dt)} · Chênh lệch: ${bcspN(total-S.dt)}. ${sourceName === 'TK SP Salework' ? 'Dùng mã SKU Salework để ghép catalog; không thay tổng của báo cáo doanh thu.' : ''} ${catErr ? 'Không tải được catalog: '+bcspEsc(catErr) : ''}</div>
+  document.getElementById('bcdt-grp').innerHTML = `<section class="card nv-panel bcdt-industry-section" style="margin-bottom:16px"><div class="card-title">GIÁ TRỊ BÁN THEO NGÀNH HÀNG</div><div class="report-note">Nguồn phân nhóm: <b>${sourceName}</b> · Tổng giá trị bán nguồn này: <b>${bcspN(total)}</b> · Tổng TK Sản phẩm: ${bcspN(S.dt)} · Chênh lệch: ${bcspN(total-S.dt)}. ${sourceName === 'TK SP Salework' ? 'Dùng mã SKU Salework để ghép catalog; không thay tổng của báo cáo doanh thu.' : ''} ${catErr ? 'Không tải được catalog: '+bcspEsc(catErr) : ''}</div>
     <div class="report-filters"><label>Lọc nhà cung cấp <select onchange="bcdtGroupSelect(this.value)"><option value="">Tất cả NCC</option>${suppliers.map(n=>`<option value="${bcspEsc(n)}" ${n===BCDT.groupNcc?'selected':''}>${bcspEsc(n)}</option>`).join('')}</select></label></div>
-    <div class="report-split"><div>${table('nganh')}</div><div>${table('ncc')}</div></div>
+    <div>${table('nganh')}</div>
     <div class="report-note">Bộ lọc NCC chỉ áp dụng khối phân nhóm và xu hướng bên dưới. Lãi gộp chưa trừ phí sàn, voucher, quảng cáo. “—”: thiếu tháng so sánh; “Phát sinh”: kỳ trước bằng 0.</div>
-    <div class="card-title">XU HƯỚNG GIÁ TRỊ BÁN THEO NGÀNH HÀNG · TOP 5 CỦA KỲ CHỌN</div><div style="height:320px"><canvas id="bcdt-industry-trend"></canvas></div><div class="report-note">Tháng đang diễn ra có thể chưa đủ dữ liệu. Nguồn: ${sourceName}; cùng bộ lọc NCC phía trên.</div>`;
+    <div class="card-title">XU HƯỚNG GIÁ TRỊ BÁN THEO NGÀNH HÀNG · TOP 5 CỦA KỲ CHỌN</div><div style="height:320px"><canvas id="bcdt-industry-trend"></canvas></div><div class="report-note">Tháng đang diễn ra có thể chưa đủ dữ liệu. Nguồn: ${sourceName}; cùng bộ lọc NCC phía trên.</div></section><section class="card nv-panel bcdt-supplier-section" style="margin-bottom:16px"><div class="card-title">GIÁ TRỊ BÁN THEO NHÀ CUNG CẤP</div><div class="report-note">Nguồn: ${sourceName} · cùng bộ lọc nhà cung cấp ở khối ngành hàng phía trên.</div>${table('ncc')}</section>`;
   const months=Object.keys(source).sort();
   const top=[...group(current,'nganh')].sort((a,b)=>b[1].dt-a[1].dt).slice(0,5).map(([k])=>k);
   if (BCDT.charts.industry) BCDT.charts.industry.destroy();
