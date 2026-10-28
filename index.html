@@ -25299,7 +25299,7 @@ function kvrDelta(cur, prev, bad) {
   if (prev == null) return '<span class="kvr-neu">—</span>';
   if (!prev) return '<span class="kvr-neu">' + (cur ? 'mới' : '—') + '</span>';
   const p = (cur - prev) / prev;
-  const cls = Math.abs(p) < 0.0005 ? 'kvr-neu' : ((p > 0) !== !!bad ? 'kvr-up' : 'kvr-down');
+  const cls = Math.abs(p) < 0.0005 ? 'kvr-neu' : (p > 0 ? 'kvr-up' : 'kvr-down');
   return '<span class="' + cls + '">' + (p > 0 ? '▲ +' : p < 0 ? '▼ ' : '• ') + (p * 100).toFixed(1).replace('.', ',') + '%</span>';
 }
 
@@ -25632,7 +25632,7 @@ function kvrRender(wh) {
 function kvrPts(cur, prev, bad) {
   if (prev == null) return '<span class="kvr-neu">—</span>';
   const d = (cur - prev) * 100;
-  const cls = Math.abs(d) < 0.05 ? 'kvr-neu' : ((d > 0) !== !!bad ? 'kvr-up' : 'kvr-down');
+  const cls = Math.abs(d) < 0.05 ? 'kvr-neu' : (d > 0 ? 'kvr-up' : 'kvr-down');
   return '<span class="' + cls + '">' + (d > 0 ? '▲ +' : d < 0 ? '▼ ' : '• ') + d.toFixed(1).replace('.', ',') + ' điểm %</span>';
 }
 // ── KPI hàng 2 (Pha 1, 2026-10-16): chỉ số dành cho Ban giám đốc ──
@@ -25768,14 +25768,14 @@ function bcdtStatus(msg, type) {
 function bcdtDelta(cur, prev, inv) {
   if (prev == null || !prev) return '';
   const p = (cur - prev) / Math.abs(prev);
-  const good = inv ? p < 0 : p > 0;
+  const good = p > 0;
   const c = Math.abs(p) < 0.0005 ? 'var(--text2)' : good ? 'var(--green)' : 'var(--red)';
   const k = Math.abs(p) < 0.0005 ? 'neu' : good ? 'up' : 'down'; // class bcdt-d-*: thẻ navy hiện thành nút màu (bảng vẫn dùng màu chữ inline)
   return `<span class="bcdt-d bcdt-d-${k}" style="color:${c};font-weight:700">${p > 0 ? '▲ +' : p < 0 ? '▼ ' : '• '}${(p * 100).toFixed(1).replace('.', ',')}%</span>`;
 }
 function bcdtPts(cur, prev, inv) {
   if (prev == null) return '';
-  const d = cur - prev, good = inv ? d < 0 : d > 0;
+  const d = cur - prev, good = d > 0;
   const k = Math.abs(d) < 0.05 ? 'neu' : good ? 'up' : 'down';
   return `<span class="bcdt-d bcdt-d-${k}" style="color:${Math.abs(d) < 0.05 ? 'var(--text2)' : good ? 'var(--green)' : 'var(--red)'};font-weight:700">${d > 0 ? '▲ +' : d < 0 ? '▼ ' : '• '}${d.toFixed(1).replace('.', ',')} điểm %</span>`;
 }
@@ -26807,7 +26807,7 @@ const ReportGrowth=(()=>{
  function change(c,p){if(c==null||p==null)return 'Chưa có dữ liệu so sánh';if(p===0)return c===0?'Không đổi':'Phát sinh mới · kỳ trước bằng 0';const v=(c-p)/Math.abs(p)*100;return(v>0?'▲ +':v<0?'▼ ':'• ')+v.toLocaleString('vi-VN',{maximumFractionDigits:1})+'%';}
  function delta(c,p){return c==null||p==null?'—':(c-p>0?'+':'')+num(c-p);}
  function differences(now,before){if(!before)return[];return [...new Set([...now.keys(),...before.keys()])].map(key=>{const a=now.get(key),b=before.get(key);return{key,name:a?.name||b?.name||key,now:a?.value||0,before:b?.value||0,delta:(a?.value||0)-(b?.value||0)};}).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));}
- function table(headers,rows){return '<div class="rg-table-wrap"><table class="rg-table"><thead><tr>'+headers.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map((v,i)=>'<td data-label="'+esc(headers[i])+'">'+v+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';}
+ function table(headers,rows){return '<div class="rg-table-wrap"><table class="rg-table"><thead><tr>'+headers.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map((v,i)=>'<td data-label="'+esc(headers[i])+'">'+(/^[▲▼]/.test(String(v))?'<span class="rg-'+(String(v).startsWith('▲')?'up':'down')+'" style="font-weight:700">'+v+'</span>':v)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';}
  function render(id){const m=models.get(id),host=document.getElementById(id);if(!m||!host)return;
   const d=m.before==null?null:m.now-m.before,cls=d==null||d===0?'neutral':d>0?'up':'down';
   const dims=Object.keys(m.dimensions),selected=choices.get(id)&&dims.includes(choices.get(id))?choices.get(id):dims[0];
