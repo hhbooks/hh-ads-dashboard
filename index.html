@@ -22469,7 +22469,7 @@ async function bcspRender() {
   const active = [...cur.values()].filter(p => p.sl > 0).length;
   const oldActive = pm ? [...pm.values()].filter(p => p.sl > 0).length : null;
   const card = (label, value, sub) => `<div class="nv-tile"><div class="kpi-label">${label}</div><div style="font-size:24px;font-weight:800;margin:8px 0">${value}</div><div style="font-size:12px;color:var(--text2)">${sub}</div></div>`;
-  wrap.innerHTML = `<div class="report-kpis">
+  wrap.innerHTML = `<div id="bcsp-growth"><div class="report-note">Đang tổng hợp tăng trưởng...</div></div><div class="report-kpis">
     ${card('TỔNG SỐ LƯỢNG BÁN', bcspN(S.sl), P ? reportGrowth(S.sl, P.sl) + ' so với tháng trước' : 'Theo SKU Salework')}
     ${card('SKU CÓ BÁN', bcspN(active), pm ? reportGrowth(active, oldActive) + ' so với tháng trước' : 'SKU có số lượng bán > 0')}
     ${card('SL BÌNH QUÂN / SKU CÓ BÁN', active ? (S.sl / active).toLocaleString('vi-VN', {maximumFractionDigits:1}) : '—', 'Tổng số lượng / số SKU có bán')}
@@ -22489,6 +22489,7 @@ async function bcspRender() {
   let catalog = {}, err = '';
   try { catalog = await giaLoadCatalogIfNeeded(); } catch(e) { err = e.message || String(e); }
   if (rid !== BCSP.renderSeq) return;
+  ReportGrowth.products('bcsp-growth',{months:BCSP.byMonth,key:BCSP.cur,now:cur,before:pm,catalog,field:'sl',label:'Số lượng bán'});
   BCSP.rank = [];
   cur.forEach((p, ma) => {
     if (p.sl <= 0 && p.dt <= 0) return;
@@ -25415,6 +25416,7 @@ function kvrSetStatus(wh, msg, type) {
 function kvrBuildHtml(wh) {
   const P = 'kvr-' + wh + '-';
   return `
+  <div id="${P}growth"></div>
   <div class="card">
     <div class="card-title"><span class="dot" style="background:var(--navy2)"></span> 📈 ${KVR_WH[wh].title}
       <span style="font-size:11px;font-weight:400;color:var(--text2);margin-left:8px">— ${KVR_WH[wh].sub} · đơn tạo trong tháng, Shopee + TikTok</span></div>
@@ -25603,6 +25605,7 @@ function kvrRender(wh) {
     <div class="kpi-card"><div class="kpi-label">Tỷ lệ thành công</div><div class="kpi-value">${kvrPct(rate)}</div>
       <div class="kpi-sub">${dPts}${cmpTxt}<br>Hủy + thất thu: ${fmtNum(canc)} đơn (${kvrPct(cur.n ? canc / cur.n : 0)})</div></div>`;
   document.getElementById(P + 'cmp1').textContent = '— so với ' + kvrMonthLabel(pm) + (isCur ? ' (ngày 1–' + now.d + ')' : '');
+  ReportGrowth.warehouses(wh);
   kvrRenderKpi2(wh);
   kvrRenderShop(wh);
   // Bảng trạng thái
@@ -25933,7 +25936,7 @@ async function bcdtRender() {
       <div class="bcdt-sub" style="font-size:13px">${sub}</div></div>`;
   const grid4 = '<div class="report-kpis">';
   const secLabel = t => `<div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.6px;margin:2px 0 8px">${t}</div>`;
-  let html = '';
+  let html = '<div id="bcdt-growth"><div class="report-note">Đang tổng hợp tăng trưởng...</div></div>';
 
   // Hàng 1 — KQKD
   html += secLabel('KẾT QUẢ KINH DOANH (tab KQKD)');
@@ -26055,6 +26058,7 @@ async function bcdtRender() {
   try { catalog = await giaLoadCatalogIfNeeded(); } catch (e) { catalog = {}; catErr = e.message || String(e); }
   if (rid !== BCDT.renderSeq) return;
   bcdtRenderGroups(catalog, catErr, curMap, S);
+  ReportGrowth.products('bcdt-growth',{months:BCDT.prod,key:BCDT.cur,now:curMap,before:prevKey?BCDT.prod[prevKey]||null:null,catalog,field:'dt',label:'Giá trị bán',extra:K?{label:'Doanh thu KQKD',value:bcspN(K.dt)+' đ',note:'Chỉ tiêu riêng sau điều chỉnh; không dùng để xếp hạng sản phẩm.'}:null});
 }
 
 // Group analysis keeps one source for current/previous periods and all totals.
@@ -26780,5 +26784,59 @@ function home2hReturn(){
 }
 
 </script>
+<!-- REPORT-GROWTH-START -->
+<style>
+.rg-panel{background:#fff;border:1px solid #dce4ef;border-radius:16px;padding:22px;margin:0 0 22px;color:#162b49;min-width:0;max-width:100%;box-sizing:border-box}
+.rg-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 12px}.rg-heading h2{font-size:22px;margin:0;color:#1b2a4e}.rg-heading h3{font-size:19px;margin:8px 0}.rg-heading>span{font-size:15px;color:#52647c}.rg-heading label{font-size:15px}.rg-heading select{padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;color:#17345d;font:inherit;background:#fff}
+.rg-note{font-size:14px;color:#64748b;line-height:1.65;margin:10px 0 16px;overflow-wrap:anywhere}.rg-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:12px;margin:16px 0 22px}.rg-kpi{background:linear-gradient(135deg,#1b2a4e,#2b4a8f);padding:18px;border-radius:11px;min-width:0;color:#fff}.rg-kpi>span,.rg-kpi small{display:block;color:#dbe4f3;font-size:15px;line-height:1.6}.rg-kpi strong{display:block;font-size:26px;line-height:1.4;margin:9px 0;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}.rg-kpi .rg-up{color:#86efac}.rg-kpi .rg-down{color:#fca5a5}.rg-up{color:#047857}.rg-down{color:#c62828}.rg-neutral{color:#cbd5e1}
+.rg-split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.rg-split>div{min-width:0}.rg-split h4{font-size:17px;margin:8px 0 12px}.rg-table-wrap{width:100%;max-height:460px;overflow:auto;border:1px solid #dce4ef;border-radius:10px}.rg-table{table-layout:fixed;width:100%;border-collapse:separate;border-spacing:0;font-size:17px;background:#fff}.rg-table th{position:sticky;top:0;z-index:1;background:#edf2f8;color:#243b60;font-size:15px;padding:14px 10px;text-align:center;white-space:normal;line-height:1.5}.rg-table td{padding:15px 10px;text-align:center;white-space:normal;overflow-wrap:anywhere;font-variant-numeric:tabular-nums;line-height:1.6;border-top:1px solid #e2e8f0}.rg-table :is(th,td)+:is(th,td){border-left:1px solid #e2e8f0}.rg-table :is(th,td):first-child{text-align:left}.rg-table tbody tr:nth-child(even){background:#f7f9fc}.rg-split .rg-table :is(th,td):first-child{width:32%}.rg-split .rg-table{font-size:16px}.rg-split .rg-table :is(th,td){padding:12px 8px}.rg-history{margin-top:18px}.rg-history summary{font-size:18px;font-weight:700;color:#1b2a4e;cursor:pointer;margin-bottom:14px}
+@media(max-width:1300px){.rg-split{grid-template-columns:1fr}}
+@media(max-width:720px){.rg-panel{padding:15px}.rg-kpi strong{font-size:24px}.rg-table-wrap{max-height:none;overflow:visible}.rg-table thead{display:none}.rg-table,.rg-table tbody,.rg-table tr{display:block;width:100%;box-sizing:border-box}.rg-table tr{padding:10px;border-bottom:2px solid #dce4ef}.rg-table td,.rg-split .rg-table td:first-child{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:12px;width:100%;box-sizing:border-box;text-align:left;padding:10px 3px;border:0!important;font-size:17px}.rg-table td::before{content:attr(data-label);font-size:15px;color:#52647c;font-weight:600}.rg-table td>*{min-width:0}}
+
+</style>
+<script>
+/* Read-only summaries. Missing periods stay null; attribution uses the union of both periods. */
+const ReportGrowth=(()=>{
+ const models=new Map(),choices=new Map();
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const num=n=>Number(n).toLocaleString('vi-VN',{maximumFractionDigits:0});
+ const previous=m=>{const [y,n]=m.split('-').map(Number);return(n===1?y-1:y)+'-'+String(n===1?12:n-1).padStart(2,'0');};
+ const month=m=>'T'+Number(m.slice(5))+'/'+m.slice(0,4);
+ function change(c,p){if(c==null||p==null)return 'Chưa có dữ liệu so sánh';if(p===0)return c===0?'Không đổi':'Phát sinh mới · kỳ trước bằng 0';const v=(c-p)/Math.abs(p)*100;return(v>0?'▲ +':v<0?'▼ ':'• ')+v.toLocaleString('vi-VN',{maximumFractionDigits:1})+'%';}
+ function delta(c,p){return c==null||p==null?'—':(c-p>0?'+':'')+num(c-p);}
+ function differences(now,before){if(!before)return[];return [...new Set([...now.keys(),...before.keys()])].map(key=>{const a=now.get(key),b=before.get(key);return{key,name:a?.name||b?.name||key,now:a?.value||0,before:b?.value||0,delta:(a?.value||0)-(b?.value||0)};}).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta));}
+ function table(headers,rows){return '<div class="rg-table-wrap"><table class="rg-table"><thead><tr>'+headers.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map((v,i)=>'<td data-label="'+esc(headers[i])+'">'+v+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';}
+ function render(id){const m=models.get(id),host=document.getElementById(id);if(!m||!host)return;
+  const d=m.before==null?null:m.now-m.before,cls=d==null||d===0?'neutral':d>0?'up':'down';
+  const dims=Object.keys(m.dimensions),selected=choices.get(id)&&dims.includes(choices.get(id))?choices.get(id):dims[0];
+  const metric=m.unit==='đ'?'đ':'SP',card=(label,value,sub)=>'<div class="rg-kpi"><span>'+esc(label)+'</span><strong>'+value+'</strong><small>'+sub+'</small></div>';
+  let html='<section class="rg-panel"><div class="rg-heading"><h2>Tổng quan tăng trưởng</h2><span>'+esc(m.period)+'</span></div><p class="rg-note">'+esc(m.note)+'</p><div class="rg-kpis">'+card(m.label,num(m.now)+' '+metric,'Kỳ đang xem')+card('Kỳ so sánh',m.before==null?'Chưa có dữ liệu':num(m.before)+' '+metric,esc(m.compare))+card('Chênh lệch',d==null?'—':delta(m.now,m.before)+' '+metric,'<b class="rg-'+cls+'">'+esc(change(m.now,m.before))+'</b>')+(m.extra?card(m.extra.label,m.extra.value,esc(m.extra.note)):'')+'</div>';
+  html+='<div class="rg-heading"><h3>Tăng ở đâu, giảm ở đâu?</h3><label>Phân tích theo <select data-rg-dimension>'+dims.map(k=>'<option'+(k===selected?' selected':'')+'>'+esc(k)+'</option>').join('')+'</select></label></div>';
+  const dim=m.dimensions[selected],rows=differences(dim?.now||new Map(),dim?.before),top=(positive)=>{const list=rows.filter(r=>positive?r.delta>0:r.delta<0).sort((a,b)=>positive?b.delta-a.delta:a.delta-b.delta).slice(0,5);return list.length?table([selected,'Kỳ trước','Kỳ này','Chênh lệch','Tăng/giảm'],list.map(r=>[esc(r.name),num(r.before),num(r.now),'<b class="rg-'+(positive?'up':'down')+'">'+delta(r.now,r.before)+'</b>',esc(change(r.now,r.before))])):'<p class="rg-note">'+(!dim?.before?'Chưa có dữ liệu so sánh.':positive?'Không có phần tăng trong kỳ.':'Không có phần giảm trong kỳ.')+'</p>';};
+  html+='<div class="rg-split"><div><h4 class="rg-up">▲ Đóng góp tăng nhiều nhất</h4>'+top(true)+'</div><div><h4 class="rg-down">▼ Đóng góp giảm nhiều nhất</h4>'+top(false)+'</div></div><p class="rg-note">Xếp theo chênh lệch tuyệt đối, không xếp theo %; tính cả sản phẩm/shop kỳ trước có bán nhưng kỳ này không còn bán. Hai bảng là Top 5, không phải toàn bộ biến động.</p>';
+  const history=m.history||{},keys=Object.keys(history).sort(),year=(m.key==='cum'?keys.at(-1):m.key)?.slice(0,4);
+  if(year){const hr=[],have=[];for(let i=1;i<=12;i++){const key=year+'-'+String(i).padStart(2,'0'),value=history[key]??null,pv=history[previous(key)]??null,old=history[(Number(year)-1)+key.slice(4)]??null;if(value!=null)have.push(value);hr.push([month(key),value==null?(m.availableMonths?.includes(key)?'Chưa tải tháng này':'Chưa có dữ liệu'):num(value),pv==null?'—':num(pv),delta(value,pv),esc(change(value,pv)),old==null?'—':num(old)]);}
+   html+='<details class="rg-history" open><summary>Theo dõi theo tháng · '+esc(year)+'</summary>'+table(['Tháng',m.label,'Tháng liền trước','Chênh lệch','So tháng trước','Cùng tháng năm trước'],hr)+'<p class="rg-note">Đã có '+have.length+'/12 tháng · Tổng các tháng có dữ liệu: <b>'+num(have.reduce((a,b)=>a+b,0))+' '+metric+'</b>. Tháng thiếu dữ liệu không được coi là 0. Bảng tháng dùng số đã ghi nhận; tháng đang chạy chưa đủ kỳ nên % chỉ để tham khảo. Với SG/HN, tháng chưa tải được ghi là chưa có dữ liệu.</p></details>';
+  }
+  host.innerHTML=html+'</section>';host.querySelector('[data-rg-dimension]').onchange=e=>{choices.set(id,e.target.value);render(id);};
+ }
+ function mount(id,m){models.set(id,m);render(id);}
+ function sum(map,field){let value=0;(map||new Map()).forEach(p=>value+=Number(p[field])||0);return value;}
+ function aggregate(map,field,key,catalog){if(!map)return null;const out=new Map();map.forEach((p,id)=>{const c=catalog[id]||{},name=key==='product'?(p.ten||id)+' · '+id:key==='nganh'?(c.nganhHang||'Chưa phân loại'):(c.ncc||'Chưa rõ NCC'),k=key==='product'?String(id):String(name);const old=out.get(k);out.set(k,{name,value:(old?.value||0)+(Number(p[field])||0)});});return out;}
+ function products(id,{months,key,now,before,catalog={},field,label,extra}){
+  const dimensions={};for(const [name,group]of [['Sản phẩm / SKU','product'],['Ngành hàng','nganh'],['Nhà cung cấp','ncc']])dimensions[name]={now:aggregate(now,field,group,catalog),before:aggregate(before,field,group,catalog)};
+  mount(id,{key,label,unit:field==='sl'?'SP':'đ',now:sum(now,field),before:before?sum(before,field):null,period:key==='cum'?'Lũy kế các tháng có dữ liệu':month(key),compare:key==='cum'?'Chọn một tháng để so sánh':month(previous(key)),note:'Nguồn '+(field==='sl'?'TK SP Salework · sản lượng SKU':'TK Sản phẩm · giá trị bán, không phải doanh thu thực nhận sau phí')+'. Dữ liệu nguồn chỉ có tổng tháng: chưa thể cắt cùng số ngày. Ngành/NCC chưa khớp catalog được giữ trong nhóm chưa phân loại; không thay bằng nguồn có tổng khác.',dimensions,history:Object.fromEntries(Object.entries(months).map(([k,map])=>[k,sum(map,field)])),extra});
+ }
+ function warehouses(wh){const st=KVR.st[wh];if(!st?.cur)return;const now=kvrNowVN(),running=st.month===now.y+'-'+String(now.m).padStart(2,'0'),raw=kvrAgg(st.cur,st.ch,0),cut=running?Math.min(now.d,raw.lastD||now.d):0,cur=kvrAgg(st.cur,st.ch,cut),prev=st.prev?kvrAgg(st.prev,st.ch,cut):null;
+  const missing=data=>!data||['S','T'].filter(c=>st.ch==='ALL'||st.ch===c).some(c=>!data[c]||data[c].missing),comparable=!missing(st.cur)&&!missing(st.prev),field=running?'v':'okV',dimensions={};
+  for(const [label,channel]of [['Shop',false],['Kênh',true]]){const group=a=>{const out=new Map();a?.shops.forEach((p,key)=>{const k=channel?p.c:key,name=channel?(p.c==='S'?'Shopee':'TikTok'):(p.name+' · '+(p.c==='S'?'Shopee':'TikTok')),old=out.get(k);out.set(k,{name,value:(old?.value||0)+(p[field]||0)});});return out;};dimensions[label]={now:group(cur),before:comparable?group(prev):null};}
+  const history={};Object.keys(KVR.data).filter(k=>k.endsWith('|'+wh)).forEach(k=>{const data=KVR.data[k];if(!missing(data))history[k.split('|')[0]]=kvrAgg(data,st.ch,0)[field];});
+  mount('kvr-'+wh+'-growth',{key:st.month,label:running?'Giá trị đặt hàng':'Giá trị đơn thành công',unit:'đ',now:cur[field],before:comparable?prev[field]:null,period:(wh==='SG'?'SG':'HN')+' · '+month(st.month),compare:month(previous(st.month))+(cut?' · ngày 1–'+cut:''),note:(cut?'So cùng ngày 1–'+cut+' theo ngày tạo đơn mới nhất đã ghi nhận. ':'So hai tháng đầy đủ. ')+(running?'Đơn chưa hoàn tất: dùng giá trị đặt hàng. ':'Dùng giá trị đơn thành công, không phải doanh thu thực nhận. ')+(comparable?'':'Thiếu kỳ hoặc kênh dữ liệu: không tính tăng/giảm.'),dimensions,history,availableMonths:Object.keys(KVR.files||{}),extra:{label:'Số đơn',value:num(cur.n),note:comparable?change(cur.n,prev.n):'Chưa có dữ liệu so sánh'}});
+ }
+ return {mount,products,warehouses,change,differences,previous};
+})();
+
+</script>
+<!-- REPORT-GROWTH-END -->
 </body>
 </html>
