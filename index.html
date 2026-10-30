@@ -4012,7 +4012,7 @@
 
   <!-- Trang Chiết Khấu Huy Hoàng (khối Nghiệp Vụ) — Claude 30/10/2026, Tân duyệt: tải file CTKM "Giảm giá
        theo %" (cột %Giảm giá = CK TM), tính CK cho từng Nhóm KH theo quy tắc sửa được (lưu Firestore
-       ckhh_rules/all), xuất file nhập khẩu .xls. Code: khối CKHH ở cuối file (tiền tố ckhh-). -->
+       ckhh_rules/all), xuất bảng đối chiếu .xlsx. Code: khối CKHH ở cuối file (tiền tố ckhh-). -->
   <div class="page" id="page-nghiep-vu-chiet-khau-hh">
     <div class="card ckhh-card">
       <div class="card-title"><span class="dot"></span> Chiết Khấu Huy Hoàng</div>
@@ -4032,9 +4032,7 @@
         <div id="ckhh-chips" class="ckhh-chips"></div>
         <div id="ckhh-group-head" class="ckhh-group-head"></div>
         <div class="ckhh-bar">
-          <button type="button" class="ckhh-primary" onclick="ckhhExportGroup()">📤 Xuất file nhập khẩu nhóm này (.xls)</button>
-          <button type="button" onclick="ckhhExportAll()">📦 Xuất tất cả nhóm (1 file .xls)</button>
-          <button type="button" onclick="ckhhExportCompare()">📊 Xuất bảng đối chiếu (.xlsx)</button>
+          <button type="button" class="ckhh-primary" onclick="ckhhExportCompare()">📊 Xuất bảng đối chiếu (.xlsx)</button>
         </div>
         <div class="ckhh-table-wrap">
           <table class="ckhh-data">
@@ -27072,8 +27070,7 @@ DashboardSharedRead.install();
 // Tải file nhập khẩu CTKM "Giảm giá theo %" (cột %Giảm giá = CK TM / CK10 = mức gốc) → tính chiết
 // khấu cho từng Nhóm KH theo bộ quy tắc (nguồn: file "KHÁCH HÀNG - NCC.xlsx", tab "Nhóm KH - Chiết
 // khấu" + "NCC Giá Bán"). Quy tắc sửa được ngay trên trang, lưu Firestore ckhh_rules/all (dùng chung).
-// Xuất: file nhập khẩu .xls đúng mẫu cho 1 nhóm; 1 file .xls gồm tất cả nhóm (mỗi nhóm 1 tab);
-// file đối chiếu .xlsx. Không dùng class/hàm chung của dashboard (tiền tố ckhh-/ckhh).
+// Xuất: chỉ file đối chiếu .xlsx (Tân chốt 30/10 14:11 — bỏ xuất file nhập khẩu từng nhóm / tất cả nhóm). Không dùng class/hàm chung của dashboard (tiền tố ckhh-/ckhh).
 // Luật tính 1 nhóm: (1) "luật theo tên sách" (từ khóa trong tên) chạy trước; (2) không khớp → các
 // "khoảng CK" xét lần lượt từ trên xuống, khoảng đầu tiên khớp được dùng; (3) không khoảng nào khớp
 // → giữ nguyên CK TM + cảnh báo.
@@ -27391,48 +27388,23 @@ DashboardSharedRead.install();
 
   // ── Xuất file ─────────────────────────────────────────────────────────────
   function ymd() { const d = new Date(); return d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0'); }
-  function tplSheet(lines) {
-    const aoa = [['DANH SÁCH HÀNG KHUYẾN MẠI', '', ''], ['', '', ''], ['Mã SKU (*)', 'Tên hàng hóa', '%Giảm giá (*)']].concat(lines);
-    const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [{ wch: 18 }, { wch: 70 }, { wch: 14 }]; return ws;
+  // Mã SKU giữ đúng kiểu như file gốc (số, định dạng ô "0") để Excel/WPS hiện đủ 13 chữ số, không ra 8.9351E+12
+  function skuFormat(ws, fromRow) {
+    const ref = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+    for (let r = fromRow; r <= ref.e.r; r++) { const c = ws[XLSX.utils.encode_cell({ r, c: 0 })]; if (c && c.t === 'n') c.z = '0'; }
+    return ws;
   }
-  function tplEmpty(h) { const ws = XLSX.utils.aoa_to_sheet([['DANH SÁCH HÀNG KHUYẾN MẠI', '', ''].slice(0, h.length), ['', '', ''].slice(0, h.length), h]); ws['!cols'] = [{ wch: 18 }, { wch: 70 }, { wch: 14 }]; return ws; }
-  const lines = (gi, M) => M.map((m) => [m.r.raw, m.r.name, m.res[gi].value]);
-  const safeName = (s) => String(s).replace(/[:\\/?*\[\]]/g, '-').slice(0, 31);
   function need() { if (!S.rows.length) { status('⚠ Chưa tải file CTKM', 'warn'); return false; } return true; }
-  function warnBeforeExport(idxs, M) {
-    const n = M.reduce((a, m) => a + idxs.filter((i) => m.res[i].warns.length).length, 0);
-    return !n || confirm('Còn ' + n + ' ô cần xác nhận (tô vàng). Vẫn xuất file?');
-  }
-  function exportGroup() {
-    if (!need()) return; const M = matrix(); const gi = S.groups.findIndex((g) => g.code === S.sel); if (gi < 0) return;
-    if (!warnBeforeExport([gi], M)) return;
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, tplSheet(lines(gi, M)), 'Giam gia theo %');
-    XLSX.utils.book_append_sheet(wb, tplEmpty(['Mã SKU (*)', 'Tên hàng hóa', 'Số tiền giảm (*)']), 'Giam gia theo số tiền');
-    XLSX.utils.book_append_sheet(wb, tplEmpty(['Mã SKU (*)', 'Tên hàng hóa']), 'Đồng giá');
-    XLSX.writeFile(wb, 'CTKM_' + S.groups[gi].code + '_' + ymd() + '.xls', { bookType: 'xls' });
-    status('✅ Đã xuất file nhập khẩu ' + S.groups[gi].code, 'ok');
-  }
   function matrixAoa(M) {
     const head = ['Mã SKU', 'Tên hàng hóa', 'CK TM (gốc)'].concat(S.groups.map((g) => g.code), ['Cần xác nhận']);
     const sub = ['', '', 'Trạng thái nhóm →'].concat(S.groups.map((g) => g.status), ['']);
     return [head, sub].concat(M.map((m) => [m.r.raw, m.r.name, m.r.base].concat(m.res.map((x) => x.value),
       [m.res.map((x, i) => x.warns.length ? S.groups[i].code + ': ' + x.warns.join('; ') : '').filter(Boolean).join(' | ')])));
   }
-  function exportAll() {
-    if (!need()) return; const M = matrix();
-    if (!warnBeforeExport(S.groups.map((_, i) => i), M)) return;
-    const wb = XLSX.utils.book_new();
-    S.groups.forEach((g, gi) => XLSX.utils.book_append_sheet(wb, tplSheet(lines(gi, M)), safeName(g.code)));
-    const ws = XLSX.utils.aoa_to_sheet(matrixAoa(M)); ws['!cols'] = [{ wch: 16 }, { wch: 55 }, { wch: 10 }].concat(S.groups.map(() => ({ wch: 10 })), [{ wch: 60 }]);
-    XLSX.utils.book_append_sheet(wb, ws, 'Tổng hợp');
-    XLSX.writeFile(wb, 'CTKM_TatCaNhom_' + ymd() + '.xls', { bookType: 'xls' });
-    status('✅ Đã xuất 1 file .xls gồm ' + S.groups.length + ' nhóm (mỗi nhóm 1 tab) + tab Tổng hợp', 'ok');
-  }
   function exportCompare() {
     if (!need()) return; const M = matrix();
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(matrixAoa(M)); ws['!cols'] = [{ wch: 16 }, { wch: 55 }, { wch: 10 }].concat(S.groups.map(() => ({ wch: 10 })), [{ wch: 60 }]);
+    const ws = skuFormat(XLSX.utils.aoa_to_sheet(matrixAoa(M)), 2); ws['!cols'] = [{ wch: 16 }, { wch: 55 }, { wch: 10 }].concat(S.groups.map(() => ({ wch: 10 })), [{ wch: 60 }]);
     ws['!freeze'] = { xSplit: 3, ySplit: 2 };
     XLSX.utils.book_append_sheet(wb, ws, 'Đối chiếu CKKM');
     const rules = [['Mã nhóm', 'Tên nhóm', 'Cách tính (dashboard)', 'Theo file gốc', 'Trạng thái', 'Ghi chú', 'Khách hàng']].concat(S.groups.map((g) => [g.code, g.name, groupText(g), g.src, g.status, g.note, g.kh]));
@@ -27450,11 +27422,11 @@ DashboardSharedRead.install();
   }
   function select(code) { S.sel = code; render(); }
 
-  const api = { init, handleFile, clearFile, select, edit, addGroup, saveRules, resetDefault, exportGroup, exportAll, exportCompare, calc, groupText, parseWorkbook, defaults: CKHH_DEFAULT_GROUPS, state: S,
+  const api = { init, handleFile, clearFile, select, edit, addGroup, saveRules, resetDefault, exportCompare, calc, groupText, parseWorkbook, defaults: CKHH_DEFAULT_GROUPS, state: S,
     edAdd, edRow, edMove, edCancel, edApply, edDelete };
   root.CKHH = api;
   Object.assign(root, { ckhhInit: init, ckhhHandleFile: handleFile, ckhhClearFile: clearFile, ckhhSelect: select, ckhhEdit: edit, ckhhAddGroup: addGroup, ckhhSaveRules: saveRules, ckhhResetDefault: resetDefault,
-    ckhhExportGroup: exportGroup, ckhhExportAll: exportAll, ckhhExportCompare: exportCompare, ckhhEdAdd: edAdd, ckhhEdRow: edRow, ckhhEdMove: edMove, ckhhEdCancel: edCancel, ckhhEdApply: edApply, ckhhEdDelete: edDelete });
+    ckhhExportCompare: exportCompare, ckhhEdAdd: edAdd, ckhhEdRow: edRow, ckhhEdMove: edMove, ckhhEdCancel: edCancel, ckhhEdApply: edApply, ckhhEdDelete: edDelete });
   if (typeof module !== 'undefined') module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>
