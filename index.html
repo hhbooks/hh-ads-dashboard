@@ -13378,7 +13378,7 @@ function acrRenderReports(ctx, keys, msg) {
 }
 function acrRenderChart(keys, msg) { acrRenderReports({ p: 'ac', st: _acR }, keys, msg); }
 // Top 10 SP ROAS dưới 15 (Tân chốt 2026-10-09): chỉ SP đã tốn ≥ AC_PROD_MIN_COST_FOR_FLAG (đủ dữ liệu đánh giá),
-// xếp theo chi phí giảm dần (chỗ đang lãng phí nhiều nhất lên đầu). 2 mức: ROAS < 10 đỏ = nên loại; 10–15 vàng = nên tối ưu.
+// Xếp theo chi phí giảm dần. Ngưỡng dưới 15 áp dụng cho mọi ngành (Tân chốt 30/10/2026).
 const ACR_ROAS_OPT = 15;
 const ACR_LABEL_MAX = 45;   // ≤ 45 ngày: ghi số tiền trên mọi cột (Tân yêu cầu 2026-10-10); dài hơn chỉ ghi ngày cao nhất
 function acrRenderTop5(items) {
@@ -13386,17 +13386,16 @@ function acrRenderTop5(items) {
   if (!el) return;
   const all = items || [], total = all.reduce((a, p) => a + (p.expense || 0), 0);
   const roasOf = p => p.expense > 0 ? (p.broad_gmv || 0) / p.expense : 0;
-  const kOf = p => roasKindItem(p.item_id, p.item_name);   // 2026-10-21: ngưỡng theo ngành
-  const cand = all.filter(p => (p.expense || 0) >= AC_PROD_MIN_COST_FOR_FLAG && roasOf(p) < roasTarget(kOf(p))).sort((a, b) => (b.expense || 0) - (a.expense || 0));
+  const kOf = p => roasKindItem(p.item_id, p.item_name);   // Chỉ dùng để hiển thị nhãn ngành.
+  const cand = all.filter(p => (p.expense || 0) >= AC_PROD_MIN_COST_FOR_FLAG && roasOf(p) < ACR_ROAS_OPT).sort((a, b) => (b.expense || 0) - (a.expense || 0));
   if (!all.length) { el.innerHTML = '<div class="th-empty">Chưa có dữ liệu</div>'; return; }
-  if (!cand.length) { el.innerHTML = `<div class="th-empty" style="color:var(--g7)">✓ Không có SP nào tốn ≥ ${fmtMoney(AC_PROD_MIN_COST_FOR_FLAG)} mà ROAS chưa đạt mục tiêu ngành (Sách 25 · VPP 22)</div>`; return; }
+  if (!cand.length) { el.innerHTML = `<div class="th-empty" style="color:var(--g7)">✓ Không có SP nào tốn ≥ ${fmtMoney(AC_PROD_MIN_COST_FOR_FLAG)} mà ROAS dưới 15</div>`; return; }
   const top = cand.slice(0, 10), max = top[0].expense || 1;
-  const nRed = cand.filter(p => roasOf(p) < roasRed(kOf(p))).length, nAmb = cand.length - nRed;
   const candSum = cand.reduce((a, p) => a + (p.expense || 0), 0);
   el.innerHTML = `<div style="display:flex;gap:14px;font-size:12px;margin:-6px 0 6px;color:var(--text2)">
-      <span><b style="color:#dc2626">● ${nRed}</b> dưới ngưỡng (Sách &lt; 20 · VPP &lt; 15) — nên loại</span><span><b style="color:#b45309">● ${nAmb}</b> chưa đạt mục tiêu (Sách 20–25 · VPP 15–22) — nên tối ưu</span></div>` +
+      <span><b style="color:#dc2626">● ${cand.length}</b> SP ROAS dưới 15</span></div>` +
     `<div class="acr-top10" style="grid-template-rows:repeat(${Math.ceil(top.length / 2)},auto)">` + top.map((p, i) => {
-      const roas = roasOf(p), red = roas < roasRed(kOf(p)), w = Math.max(2, (p.expense || 0) / max * 100);
+      const roas = roasOf(p), red = roas < ACR_ROAS_OPT, w = Math.max(2, (p.expense || 0) / max * 100);
       return `<div style="padding:7px 0;border-bottom:1px solid var(--gray3)">
         <div style="display:flex;justify-content:space-between;gap:10px;font-size:13px">
           <span title="${acrEsc(p.item_name)}" style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i + 1}. ${acrEsc(p.item_name)}</span>
@@ -13408,7 +13407,7 @@ function acrRenderTop5(items) {
         </div>
       </div>`;
     }).join('') + '</div>' +
-    `<div style="font-size:12.5px;color:var(--text2);margin-top:10px">${cand.length} SP chưa đạt ROAS mục tiêu ngành đang tốn <b style="color:var(--text)">${fmtMoney(candSum)}</b> — ${total > 0 ? (candSum / total * 100).toFixed(1) : 0}% chi phí GMS${cand.length > 10 ? ` (đang hiện 10 SP tốn nhất, xem đủ ở bảng SP bên dưới)` : ''}</div>`;
+    `<div style="font-size:12.5px;color:var(--text2);margin-top:10px">${cand.length} SP ROAS dưới 15 đang tốn <b style="color:var(--text)">${fmtMoney(candSum)}</b> — ${total > 0 ? (candSum / total * 100).toFixed(1) : 0}% chi phí GMS${cand.length > 10 ? ` (đang hiện 10 SP tốn nhất, xem đủ ở bảng SP bên dưới)` : ''}</div>`;
 }
 function acrReload() { if (_acR.range) acrLoad(); }
 function acrRender() {
