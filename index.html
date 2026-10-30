@@ -12832,7 +12832,7 @@ function adsShOverlapDrive(src, rec) {
 // ★ BỘ LỌC NGÀY + NGUỒN DUY NHẤT = SHEET cho 2 trang "Chiến Dịch Nhóm Sản Phẩm" + "Chiến Dịch Tự Động GMS"
 // Tân xác nhận 2026-10-09: bỏ "Đồng Bộ Từ Drive" + bỏ bộ lọc "Kỳ"; chọn khoảng ngày (lối tắt + lịch,
 // ngày chọn nền đỏ) → hỏi Sheet đúng khoảng đó (get_ads_rows cộng dồn trên server, không cộng trùng);
-// shop: "Tất cả shop" (cộng 6 shop) hoặc 1 shop. Mặc định khi mở trang: 7 ngày qua.
+// shop: "Tất cả shop" (cộng 6 shop) hoặc 1 shop. Mặc định khi mở trang: đầu tháng hiện tại đến hết hôm qua.
 // State RIÊNG (_gcR/_acR) — KHÔNG đụng _groupCampData/_acDriveData mà trang Tổng Hợp Hệ Thống còn dùng.
 // Prefix: adr / adrp- (không trùng id/hàm cũ). Bộ chọn ngày viết riêng, KHÔNG sửa ovpicker của Tổng Hợp.
 // ══════════════════════════════════════════════════════════════
@@ -12959,7 +12959,7 @@ function gcrLog(msg, type) {
 }
 function gcrInit() {
   if (!_gcR.picker) _gcR.picker = adrMakePicker('gc-range-host', () => _gcR.range, r => { _gcR.range = r; gcrLoad(); });
-  if (!_gcR.range) { _gcR.range = adrShortcutRange('last7'); gcrLoad(); return; }
+  if (!_gcR.range) { _gcR.range = adrShortcutRange('thismonth'); gcrLoad(); return; }
   gcrRender();
 }
 async function gcrLoad() {
@@ -13145,7 +13145,7 @@ function acrLog(msg, type) {
 }
 function acrInit() {
   if (!_acR.picker) _acR.picker = adrMakePicker('ac-range-host', () => _acR.range, r => { _acR.range = r; acrLoad(); });
-  if (!_acR.range) { _acR.range = adrShortcutRange('last7'); acrLoad(); return; }
+  if (!_acR.range) { _acR.range = adrShortcutRange('thismonth'); acrLoad(); return; }
   acrRender();
 }
 async function acrLoad() {
