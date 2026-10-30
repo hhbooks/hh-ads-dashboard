@@ -1234,6 +1234,9 @@
         <div class="nav-item" onclick="showPage('nghiep-vu-bao-cao-cham-cong',this)">
           <span class="icon">🕘</span> Báo Cáo Chấm Công
         </div>
+        <div class="nav-item" onclick="showPage('nghiep-vu-chiet-khau-hh',this)">
+          <span class="icon">💸</span> Chiết Khấu Huy Hoàng
+        </div>
       </div>
     </div>
 
@@ -4006,6 +4009,62 @@
       </div>
     </div>
   </div><!-- end page-nghiep-vu-bao-cao-cham-cong -->
+
+  <!-- Trang Chiết Khấu Huy Hoàng (khối Nghiệp Vụ) — Claude 30/10/2026, Tân duyệt: tải file CTKM "Giảm giá
+       theo %" (cột %Giảm giá = CK TM), tính CK cho từng Nhóm KH theo quy tắc sửa được (lưu Firestore
+       ckhh_rules/all), xuất file nhập khẩu .xls. Code: khối CKHH ở cuối file (tiền tố ckhh-). -->
+  <div class="page" id="page-nghiep-vu-chiet-khau-hh">
+    <div class="card ckhh-card">
+      <div class="card-title"><span class="dot"></span> Chiết Khấu Huy Hoàng</div>
+      <p class="ckhh-note">Tải file nhập khẩu CTKM (mẫu "NhapKhau_CTKM_GiamGiaHangHoa", tab "Giảm giá theo %"). Cột %Giảm giá trong file được coi là <b>CK tiền mặt (CK10)</b>, là mức gốc để tính chiết khấu cho từng nhóm khách hàng theo bảng Quy tắc nhóm bên dưới.</p>
+      <div class="ckhh-bar">
+        <input type="file" id="ckhh-input" accept=".xls,.xlsx" style="display:none" onchange="ckhhHandleFile(this)">
+        <button type="button" class="ckhh-primary" onclick="document.getElementById('ckhh-input').click()">📂 Chọn file CTKM</button>
+        <button type="button" onclick="ckhhClearFile()">🔄 Làm lại</button>
+        <span class="ckhh-file">File: <b id="ckhh-file">chưa chọn</b></span>
+      </div>
+      <div id="ckhh-msg" class="ckhh-msg"></div>
+      <div id="ckhh-empty" class="ckhh-empty">Chưa có dữ liệu. Chọn file CTKM để xem chiết khấu theo từng nhóm.</div>
+      <div id="ckhh-result" style="display:none">
+        <div id="ckhh-totals" class="ckhh-totals"></div>
+        <div id="ckhh-bad" class="ckhh-bad" style="display:none"></div>
+        <div class="ckhh-label">Chọn nhóm khách hàng <small>(nút xám là nhóm Bỏ / Tạm dừng / Đã chuyển nhóm · ⚠ là nhóm có ô cần xác nhận)</small></div>
+        <div id="ckhh-chips" class="ckhh-chips"></div>
+        <div id="ckhh-group-head" class="ckhh-group-head"></div>
+        <div class="ckhh-bar">
+          <button type="button" class="ckhh-primary" onclick="ckhhExportGroup()">📤 Xuất file nhập khẩu nhóm này (.xls)</button>
+          <button type="button" onclick="ckhhExportAll()">📦 Xuất tất cả nhóm (1 file .xls)</button>
+          <button type="button" onclick="ckhhExportCompare()">📊 Xuất bảng đối chiếu (.xlsx)</button>
+        </div>
+        <div class="ckhh-table-wrap">
+          <table class="ckhh-data">
+            <colgroup><col style="width:15%"><col style="width:35%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:20%"></colgroup>
+            <thead><tr><th>Mã SKU</th><th>Tên hàng hóa</th><th class="ckhh-num">CK TM</th><th class="ckhh-num">CK nhóm</th><th class="ckhh-num">Chênh lệch</th><th>Ghi chú</th></tr></thead>
+            <tbody id="ckhh-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card ckhh-card">
+      <div class="card-title"><span class="dot"></span> Quy Tắc Nhóm</div>
+      <p class="ckhh-note">Nguồn: file "KHÁCH HÀNG - NCC.xlsx" (tab "Nhóm KH - Chiết khấu" và "NCC Giá Bán"), không gồm nhóm HCM, nhóm VPP và nhóm Lịch Tết. Bấm Sửa để đổi luật. Thay đổi chỉ dùng chung cho cả phòng sau khi bấm <b>Lưu quy tắc lên hệ thống</b>.</p>
+      <div class="ckhh-bar">
+        <button type="button" class="ckhh-primary" onclick="ckhhSaveRules()">💾 Lưu quy tắc lên hệ thống</button>
+        <button type="button" onclick="ckhhAddGroup()">➕ Thêm nhóm</button>
+        <button type="button" onclick="ckhhResetDefault()">↺ Về bộ mặc định</button>
+      </div>
+      <div id="ckhh-rule-source" class="ckhh-rule-source"></div>
+      <div id="ckhh-editor" class="ckhh-editor" style="display:none"></div>
+      <div class="ckhh-table-wrap">
+        <table class="ckhh-data ckhh-rules">
+          <colgroup><col style="width:18%"><col style="width:37%"><col style="width:15%"><col style="width:20%"><col style="width:10%"></colgroup>
+          <thead><tr><th>Mã nhóm</th><th>Cách tính (từ CK TM)</th><th class="ckhh-num">Trạng thái</th><th>Khách hàng</th><th class="ckhh-num"></th></tr></thead>
+          <tbody id="ckhh-rules-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div><!-- end page-nghiep-vu-chiet-khau-hh -->
 
   <div class="page" id="page-ke-toan-chi-phi-san">
     <div class="card"><div class="card-title"><span class="dot"></span> Chi Phí Sàn · Báo cáo kế toán theo shop</div>
@@ -18663,6 +18722,7 @@ function showPage(name, el) {
   if (name === 'dosuat')    initDoSuatPage();
   if (name === 'ke-toan-tiktok-hh') tthhInit();
   if (name === 'ke-toan-chi-phi-san') cpsInit();
+  if (name === 'nghiep-vu-chiet-khau-hh' && typeof ckhhInit === 'function') ckhhInit();
   if (name === 'tonghop')  initTongHopPage();
   if (name === 'tonkho-tong-quan') tqInitPage();
   if (name === 'tonkho-bao-cao-san-luong') bcslInitPage();
@@ -26936,5 +26996,468 @@ DashboardSharedRead.install();
 
 </script>
 <!-- SHARED-READ-END -->
+<!-- CKHH-START: Chiết Khấu Huy Hoàng — nguồn ChietKhauHH.css / ChietKhauHH.js / ChietKhauHH.page.html -->
+<style>
+/* Chiết Khấu Huy Hoàng (ckhh) — theo QUY_UOC_THIET_KE_DASHBOARD.md (mẫu Chi Phí Sàn); chỉ selector riêng */
+#main:has(#page-nghiep-vu-chiet-khau-hh.active){min-width:0;flex:1 1 0;width:calc(100% - 230px)}
+#page-nghiep-vu-chiet-khau-hh{font-size:16px;width:100%;max-width:100%;min-width:0}
+#page-nghiep-vu-chiet-khau-hh .ckhh-card{margin-bottom:16px;min-width:0;max-width:100%}
+#page-nghiep-vu-chiet-khau-hh .card-title{font-size:21px}
+.ckhh-note{font-size:15px;line-height:1.65;color:#4a5b73;margin:0 0 14px}
+.ckhh-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0}
+#page-nghiep-vu-chiet-khau-hh button{font:inherit;font-size:15px;padding:10px 14px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#17345d;cursor:pointer;white-space:normal}
+#page-nghiep-vu-chiet-khau-hh button:hover{background:#eef3fb}
+#page-nghiep-vu-chiet-khau-hh button.ckhh-primary{background:linear-gradient(135deg,#1b2a4e,#2b4a8f);color:#fff;border-color:#2b4a8f;font-weight:700}
+#page-nghiep-vu-chiet-khau-hh button.ckhh-danger{color:#b42318;border-color:#f1b8b2}
+.ckhh-file{font-size:15px;color:#4a5b73;overflow-wrap:anywhere}
+.ckhh-msg{font-size:15px;min-height:22px;margin:4px 0}
+.ckhh-msg-ok{color:#166534}.ckhh-msg-warn{color:#9a6700}.ckhh-msg-err{color:#b42318}
+.ckhh-empty{padding:25px;font-size:17px;color:#5b6d85;border:1px dashed #cbd5e1;border-radius:10px;text-align:center}
+.ckhh-totals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:16px 0}
+.ckhh-total{border:1px solid #2b4a8f;border-radius:10px;padding:18px;background:linear-gradient(135deg,#1b2a4e,#2b4a8f);box-shadow:0 6px 24px rgba(27,42,78,.14);min-width:0;color:#fff}
+.ckhh-total span{font-size:15px;line-height:1.5;display:block;color:#dbe4f3}
+.ckhh-total strong{font-size:24px;line-height:1.5;display:block;color:#fff;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.ckhh-total em{font-style:normal;font-size:14px;color:#dbe4f3}
+.ckhh-bad{background:#fff7e6;border:1px solid #f5d38a;border-radius:10px;padding:12px 16px;font-size:15px;margin-bottom:12px;overflow-wrap:anywhere}
+.ckhh-label{font-size:15px;font-weight:700;color:#243b60;margin-top:8px}
+.ckhh-label small{font-weight:400;color:#5b6d85}
+.ckhh-chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 14px}
+#page-nghiep-vu-chiet-khau-hh .ckhh-chip{padding:8px 12px;min-width:64px;text-align:center}
+#page-nghiep-vu-chiet-khau-hh .ckhh-chip i{font-style:normal;color:#c27c00}
+#page-nghiep-vu-chiet-khau-hh .ckhh-chip-off{background:#f1f3f6;color:#6b7a90;border-style:dashed}
+#page-nghiep-vu-chiet-khau-hh .ckhh-chip[aria-pressed="true"]{background:#263f77;color:#fff;border-color:#263f77;border-style:solid;font-weight:700}
+#page-nghiep-vu-chiet-khau-hh .ckhh-chip[aria-pressed="true"] i{color:#ffd666}
+.ckhh-group-head{border:1px solid #d7e0ee;border-radius:10px;background:#f7f9fc;padding:14px 18px;margin-bottom:6px}
+.ckhh-gh-title{font-size:18px;font-weight:800;color:#1b2a4e;margin-bottom:6px}
+.ckhh-gh-line{font-size:15px;line-height:1.6;color:#243b60;overflow-wrap:anywhere}
+.ckhh-badge{display:inline-block;font-size:13px;font-weight:700;padding:2px 10px;border-radius:20px;background:#dcfce7;color:#166534;vertical-align:middle}
+.ckhh-badge-off{background:#e5e7eb;color:#4b5563}
+.ckhh-table-wrap{width:100%;min-width:0;border:1px solid #dde4ed;border-radius:10px;background:#fff;margin-top:8px}
+.ckhh-data{width:100%;table-layout:fixed;border-collapse:collapse;font-size:17px}
+.ckhh-data th{background:#edf2f8;color:#243b60;text-align:left;font-size:15px;font-weight:700;padding:16px 18px;white-space:normal;overflow-wrap:anywhere;vertical-align:middle;border-bottom:2px solid #d7e0ee}
+.ckhh-data td{padding:14px 18px;line-height:1.55;border-bottom:1px solid #e2e8f0;overflow-wrap:anywhere;white-space:normal;vertical-align:middle;color:#162b49}
+.ckhh-data tbody tr:nth-child(even){background:#f7f9fc}
+.ckhh-data th+th,.ckhh-data td+td{border-left:1px solid #e2e8f0}
+.ckhh-data .ckhh-num{text-align:center;font-variant-numeric:tabular-nums}
+.ckhh-data td.ckhh-strong{font-weight:800;color:#1b2a4e}
+.ckhh-data tbody tr.ckhh-warn,.ckhh-data tbody tr.ckhh-warn:nth-child(even){background:#fff2a8}
+.ckhh-data tbody tr.ckhh-off{color:#6b7a90;background:#f3f4f6}
+.ckhh-data td:last-child{font-size:15px}
+.ckhh-sub{display:block;margin-top:4px;color:#5b6d85;font-size:14px;font-weight:400}
+.ckhh-rule-source{font-size:15px;color:#166534;margin:4px 0 8px}
+.ckhh-rule-source.ckhh-dirty{color:#b42318;font-weight:700}
+.ckhh-editor{border:2px solid #2b4a8f;border-radius:12px;padding:18px;margin:12px 0;background:#fbfcfe}
+.ckhh-ed-title{font-size:18px;font-weight:800;color:#1b2a4e;margin-bottom:10px}
+.ckhh-ed-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:12px}
+.ckhh-ed-grid label{display:flex;flex-direction:column;gap:6px;font-size:15px;font-weight:600;color:#243b60;min-width:0}
+.ckhh-ed-grid .ckhh-ed-wide{grid-column:1/-1}
+.ckhh-editor input,.ckhh-editor select{font:inherit;font-size:15px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;width:100%;box-sizing:border-box;min-width:0;background:#fff}
+.ckhh-editor input:disabled{background:#f1f3f6;color:#9aa5b5}
+.ckhh-ed-sub{font-size:16px;font-weight:700;color:#243b60;margin:16px 0 6px}
+.ckhh-ed-sub small{font-weight:400;color:#5b6d85;font-size:14px}
+.ckhh-ed-table{width:100%;table-layout:fixed;border-collapse:collapse;margin-bottom:8px}
+.ckhh-ed-table th{font-size:14px;text-align:left;color:#243b60;background:#edf2f8;padding:8px}
+.ckhh-ed-table td{padding:6px}
+.ckhh-ed-table td:last-child,.ckhh-ed-table th:last-child{width:150px;white-space:nowrap}
+#page-nghiep-vu-chiet-khau-hh .ckhh-ed-table button{padding:6px 9px;margin-right:4px}
+.ckhh-ed-preview{margin:14px 0;padding:12px 14px;background:#eef3fb;border-radius:8px;font-size:15px;line-height:1.7}
+.ckhh-ed-actions{display:flex;gap:10px;flex-wrap:wrap}
+@media(max-width:1300px){.ckhh-totals{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:900px){.ckhh-data{font-size:15px}.ckhh-data th,.ckhh-data td{padding:10px 8px}}
+@media(max-width:720px){.ckhh-totals{grid-template-columns:1fr}.ckhh-data colgroup,.ckhh-data thead{display:none}.ckhh-data,.ckhh-data tbody,.ckhh-data tr{display:block;width:100%}.ckhh-data tr{padding:10px;border-bottom:2px solid #d7e0ee}.ckhh-data td{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:10px;border-left:0!important;text-align:left!important}.ckhh-data td::before{content:attr(data-l);font-weight:700;color:#243b60}.ckhh-ed-table thead{display:none}.ckhh-ed-table,.ckhh-ed-table tbody,.ckhh-ed-table tr,.ckhh-ed-table td{display:block;width:100%!important}}
+</style>
+<script>
+// ══════════════════════════════════════════════════════════════════════════════
+// NGHIỆP VỤ — CHIẾT KHẤU HUY HOÀNG (ckhh) — Claude 30/10/2026, Tân duyệt cùng ngày
+// Tải file nhập khẩu CTKM "Giảm giá theo %" (cột %Giảm giá = CK TM / CK10 = mức gốc) → tính chiết
+// khấu cho từng Nhóm KH theo bộ quy tắc (nguồn: file "KHÁCH HÀNG - NCC.xlsx", tab "Nhóm KH - Chiết
+// khấu" + "NCC Giá Bán"). Quy tắc sửa được ngay trên trang, lưu Firestore ckhh_rules/all (dùng chung).
+// Xuất: file nhập khẩu .xls đúng mẫu cho 1 nhóm; 1 file .xls gồm tất cả nhóm (mỗi nhóm 1 tab);
+// file đối chiếu .xlsx. Không dùng class/hàm chung của dashboard (tiền tố ckhh-/ckhh).
+// Luật tính 1 nhóm: (1) "luật theo tên sách" (từ khóa trong tên) chạy trước; (2) không khớp → các
+// "khoảng CK" xét lần lượt từ trên xuống, khoảng đầu tiên khớp được dùng; (3) không khoảng nào khớp
+// → giữ nguyên CK TM + cảnh báo.
+// ══════════════════════════════════════════════════════════════════════════════
+(function (root) {
+  const B = (cmp, v, op, val, warn) => ({ cmp, v: v ?? null, op, val: val ?? 0, warn: warn || '' });
+  const K = (kw, op, val, warn) => ({ kw, op, val: val ?? 0, warn: warn || '' });
+  const ALL_KEEP = [B('all', null, 'keep')];
+  const CUT5_OVER35 = [B('le', 35, 'keep'), B('all', null, 'add', -5)];
+  const LICH_WARN = [K('lịch', 'warn', 0, 'Lịch: có phải mã CK đặc thù không? (nhóm cố định trừ mã đặc thù)')];
+  const G = (code, name, status, kh, bands, kw, note, src) => ({ code, name, status, kh: kh || '', bands, kw: kw || [], note: note || '', src: src || '' });
+
+  const CKHH_DEFAULT_GROUPS = [
+    G('NhomKH1', 'CK1: HH -5% (≤35% giữ)', 'Đang dùng', 'Kidzon, Thái Hà, Liên Việt', CUT5_OVER35, [], '', 'Sách Huy Hoàng chiết khấu 35% giữ nguyên, CK >35% cắt 5%'),
+    G('NhomKH2', 'CK2: 40% sách HH', 'Đang dùng', 'Alpha, Omega', [B('all', null, 'set', 40)], LICH_WARN, '', 'Sách Huy Hoàng chiết khấu 40% (trừ những mã ck đặc thù, VD: Thế cục ...)'),
+    G('NhomKH3', 'CK3: 42% sách HH', 'Đang dùng', 'Phương Nam', [B('all', null, 'set', 42)], LICH_WARN, '', 'Sách Huy Hoàng chiết khấu 42% (trừ những mã ck đặc thù, VD: Thế cục ...)'),
+    G('NhomKH4', 'CK4: 43% sách HH', 'Đang dùng', 'Fahasa', [B('all', null, 'set', 43)], LICH_WARN, '', 'Sách Huy Hoàng chiết khấu 43% (trừ những mã ck đặc thù, VD: Thế cục ...)'),
+    G('NhomKH5', 'CK5: Khách Online', 'Đã chuyển nhóm', 'Vadata, MinhHa, Sách Trẻ Online, Anh Ba, An Lạc, Sao Mai', [B('le', 35, 'add', 5), B('all', null, 'keep')], [], 'Chuyển sang CK38 từ 05/05/2026', 'Sách Huy Hoàng: CK 35% tăng +5%; CK >35% giữ nguyên; sách Sale CK 70%'),
+    G('NhomKH6', 'CK6: Đại lý có HĐ', 'Đang dùng', 'Đông Tây, Việt Lý', CUT5_OVER35, [], '', 'Sách Huy Hoàng: CK 35% giữ nguyên; CK >35% cắt 5%; Sách Sale CK 65%'),
+    G('NhomKH7', 'CK7: HH 55% (2H)', 'Đang dùng', '2H', [B('all', null, 'set', 55)], [], '', 'Chiết khấu sách Huy Hoàng 55% + sách sale 80% (Khách hàng: 2H)'),
+    G('NhomKH8', 'CK8: HH +5%', 'Đang dùng', 'Bình Thủy, Sen Việt', [B('all', null, 'add', 5)], [], '', 'Sách Huy Hoàng chiết khấu +5%'),
+    G('NhomKH9', 'CK9: 35% +5; >35% giữ', 'Đang dùng', 'Milo, Sao Mai, Đại Mai', [B('le', 35, 'add', 5), B('all', null, 'keep')], [], '', 'Sách Huy Hoàng CK 35% tăng +5%; CK >35% giữ nguyên'),
+    G('NhomKH10', 'CK10: Tiền mặt full', 'Đang dùng', '', ALL_KEEP, [], '', 'Sách Huy Hoàng + Sách liên kết chiết khấu tiền mặt'),
+    G('NhomKH11', 'CK11: -5% full', 'Đang dùng', 'PHS Giáo Dục, Hà Tây, PHS Thái Nguyên, Duy Tân, PHS Nam Hà, PHS Ninh Bình, PHS Phú Thọ, Tại Sách, Tràng An, Newton, TBTH Cao Bằng, TBTH Ninh Bình, TBTH Thái Nguyên, Huy Hùng, Rubik Hải Phòng, Hadosa, Tân Việt, Mặt Trời Xanh, NS Giáo Dục, NXB ĐH Sư Phạm', [B('all', null, 'add', -5)], [], '', 'Sách Huy Hoàng + Sách liên kết chiết khấu cắt 5%'),
+    G('NhomKH12', 'CK12: -10% full', 'Đang dùng', 'BV 108, ADC, PHS Hà Tĩnh, PHS Hải Phòng', [B('all', null, 'add', -10)], [], '', 'Sách Huy Hoàng + Sách liên kết chiết khấu cắt 10%'),
+    G('NhomKH13', 'CK13: -15% full', 'Đang dùng', 'PHS Bắc Giang, PHS Thanh Hóa', [B('all', null, 'add', -15)], [], '', 'Sách Huy Hoàng + Sách liên kết chiết khấu cắt 15%'),
+    G('NhomKH14', 'CK14: ≥45 -10, còn lại -5', 'Bỏ', '', [B('ge', 45, 'add', -10), B('all', null, 'add', -5)], [], '', 'CK >=45% cắt 10%; CK <45% cắt 5%'),
+    G('NhomKH15', 'CK15: >35 -15; ≤35 -10', 'Bỏ', 'TBTH Nghệ An (chuyển nhóm 19)', [B('gt', 35, 'add', -15), B('all', null, 'add', -10)], [], '', 'CK >35% cắt 15%; CK =<35% cắt 10%'),
+    G('NhomKH16', 'CK16: >35 -5; ≤35 giữ', 'Bỏ', '', [B('gt', 35, 'add', -5), B('all', null, 'keep')], [], '', 'CK >35% cắt 5%; CK =<35% giữ nguyên'),
+    G('NhomKH17', 'CK17: ≥35 -10; <35 -5', 'Bỏ', 'VPP Hồng Hà', [B('ge', 35, 'add', -10), B('all', null, 'add', -5)], [], '', 'CK >=35% cắt 10%; CK <35% cắt 5%'),
+    G('NhomKH18', 'CK18: ≤40 -5; >40 -10', 'Tạm dừng', 'TBTH Đà Nẵng, PHS Nghệ An', [B('le', 40, 'add', -5), B('all', null, 'add', -10)], [], '', 'CK >40% cắt 10%; CK =<40% cắt 5%'),
+    G('NhomKH19', 'CK19: ≤30 -5; 32% -7; >30 -10', 'Đang dùng', 'TBTH Hòa Bình, TBTH Nghệ An', [B('le', 30, 'add', -5), B('eq', 32, 'add', -7), B('all', null, 'add', -10)], [], '', 'CK <=30% -5%, >30% -10%, sách CK 32% -7%'),
+    G('NhomKH20', 'CK20: ≤40 giữ; >40 -5', 'Đang dùng', 'Thời Đại, Sao Mai', [B('le', 40, 'keep'), B('all', null, 'add', -5)], [], '', 'CK <= 40% giữ nguyên, CK >40% -5%'),
+    G('NhomKH21', 'CK21: ≤35 -5; >35 -10', 'Đang dùng', 'Hapro', [B('le', 35, 'add', -5), B('all', null, 'add', -10)], [], '', 'CK <=35% cắt 5%; CK >35% cắt 10%'),
+    G('NhomKH22', 'CK22: ≤40 giữ; >40 -5', 'Bỏ', 'Minh Hà, Hương Thảo, Bình Book, Sao Mai', [B('le', 40, 'keep'), B('all', null, 'add', -5)], [], 'Chuyển sang CK38 từ 05/05/2026', 'Sách Huy Hoàng <=40% giữ nguyên; CK >40% cắt 5%'),
+    G('NhomKH31', 'CK31: NS Ngân Nga', 'Đang dùng', 'Ngân Nga', ALL_KEEP, [], 'Một số tựa +5% (chưa có danh sách)', 'Sách Huy Hoàng và sách Liên kết CK tiền mặt. Có 1 số tựa sách Huy Hoàng +5%'),
+    G('NhomKH32', 'CK32: HH +5%', 'Đang dùng', 'Quảng Lợi, Nam Anh, A. Đại, Minh Nguyệt', [B('all', null, 'add', 5)], [], '', 'Sách Huy Hoàng chiết khấu +5%'),
+    G('NhomKH33', 'CK33: Tiền Phong', 'Đang dùng', 'Tiền Phong', ALL_KEEP, [], 'Tạm bằng CK TM, chờ chị xem lại', 'Sách VH 35%; sách nhạc, thiếu nhi màu 30%; tô chữ, tô số, tô màu 35%; ngoại ngữ, đời sống, phong thủy, thiếu nhi đen trắng -10%'),
+    G('NhomKH36', 'CK36: Anh Cảnh HD', 'Bỏ', '', CUT5_OVER35, [], 'Chuyển sang CK37 từ 05/05/2026', 'Sách Huy Hoàng: 35% giữ nguyên; CK >35% cắt 5%'),
+    G('NhomKH37', 'CK37: TM → HĐ', 'Đang dùng', 'A.Cảnh HD, 31 Nguyễn Tri Phương, HS Kinh Môn, HS Tứ Kỳ, Tâm Thoa Thái Nguyên', CUT5_OVER35, [], 'Tựa nhiều nhà in cũng cắt 5 như thường (Tân chốt 30/10)', 'Sách HH CK 35% giữ nguyên; CK >35% cắt 5%'),
+    G('NhomKH38', 'CK38: Online có HĐ', 'Đang dùng', 'A. Chính, Bình Book, Tazano, Hương Thảo, Minh Hà, Trẻ Online, Vadata, Zenbook, Sài Gòn Book, C. Hà Đông Tây, A. Hải Đông Tây, A. Thiện KTS',
+      [B('le', 35, 'set', 40), B('eq', 40, 'keep'), B('eq', 45, 'add', -5, 'CK 45%: tab Nhóm KH ghi 40–45% giữ nguyên; đang theo tab NCC Giá Bán (cắt 5)'), B('gt', 40, 'add', -5)], [], '', 'Sách HH: CK 35 lên 40%, CK 40% giữ nguyên, >40% cắt 5 (tab NCC Giá Bán)'),
+    G('NhomKH43', 'CK43: Đại lý cấp 1', 'Đang dùng', 'Bình Thủy 2 (Tây Kết)', [B('le', 35, 'set', 40), B('all', null, 'keep')], [K('tô màu, tập tô, tập viết, cổ tích màu', 'set', 45)], '', 'Sách HH: CK 35 lên 40%, CK >= 40% giữ nguyên; tô màu, tập tô - tập viết, truyện cổ tích màu 45%'),
+  ];
+
+  const STATUSES = ['Đang dùng', 'Tạm dừng', 'Đã chuyển nhóm', 'Bỏ'];
+  const CMP = { all: 'Mọi mức', le: '≤', lt: '<', eq: '=', ge: '≥', gt: '>' };
+  const OPS = { keep: 'Giữ nguyên', add: 'Cộng / trừ', set: 'Đặt bằng' };
+  const KW_OPS = { warn: 'Chỉ cảnh báo', keep: 'Giữ nguyên', add: 'Cộng / trừ', set: 'Đặt bằng' };
+
+  const S = { groups: null, source: 'default', updatedAt: '', dirty: false, file: '', rows: [], bad: [], sel: '', edit: null, editIdx: -1, inited: false };
+
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const num = (v) => { if (v === null || v === undefined || v === '') return null; const n = Number(String(v).replace('%', '').replace(',', '.').trim()); return isFinite(n) ? n : null; };
+  const r2 = (n) => Math.round(n * 100) / 100;
+  const fmt = (n) => (n === null || n === undefined) ? '' : String(r2(n)).replace('.', ',');
+  const $ = (id) => document.getElementById(id);
+
+  function match(base, b) {
+    const v = Number(b.v);
+    switch (b.cmp) {
+      case 'all': return true;
+      case 'le': return base <= v;
+      case 'lt': return base < v;
+      case 'eq': return Math.abs(base - v) < 1e-9;
+      case 'ge': return base >= v;
+      case 'gt': return base > v;
+    }
+    return false;
+  }
+  function apply(op, val, base) { return op === 'set' ? Number(val) : op === 'add' ? base + Number(val) : base; }
+
+  // Tính CK của 1 sách trong 1 nhóm → {value, warns, how}
+  function calc(g, base, name) {
+    const warns = []; let value = null; let how = '';
+    const lname = String(name || '').toLowerCase();
+    for (const k of g.kw || []) {
+      const words = String(k.kw || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+      const hit = words.find((w) => lname.includes(w));
+      if (!hit) continue;
+      if (k.warn) warns.push(k.warn);
+      if (k.op !== 'warn' && value === null) { value = apply(k.op, k.val, base); how = 'Luật theo tên: "' + hit + '"'; }
+    }
+    if (value === null) {
+      const b = (g.bands || []).find((x) => match(base, x));
+      if (b) { value = apply(b.op, b.val, base); if (b.warn) warns.push(b.warn); }
+      else { value = base; warns.push('Không có luật cho mức CK ' + fmt(base) + '% — đang giữ nguyên CK TM'); }
+    }
+    value = r2(value);
+    if (value < 0 || value > 100) { warns.push('Kết quả ngoài 0–100%'); value = Math.min(100, Math.max(0, value)); }
+    return { value, warns, how };
+  }
+
+  function bandText(b) {
+    const cond = b.cmp === 'all' ? 'Còn lại' : CMP[b.cmp] + fmt(b.v) + '%';
+    const act = b.op === 'keep' ? 'giữ nguyên' : b.op === 'set' ? 'đặt ' + fmt(b.val) + '%' : (Number(b.val) >= 0 ? 'cộng ' + fmt(b.val) : 'cắt ' + fmt(-b.val));
+    return cond + ': ' + act;
+  }
+  function kwText(k) {
+    const act = k.op === 'warn' ? 'cảnh báo' : k.op === 'keep' ? 'giữ nguyên' : k.op === 'set' ? 'đặt ' + fmt(k.val) + '%' : (Number(k.val) >= 0 ? 'cộng ' + fmt(k.val) : 'cắt ' + fmt(-k.val));
+    return 'Tên có "' + k.kw + '": ' + act;
+  }
+  function groupText(g) {
+    const parts = (g.kw || []).map(kwText).concat((g.bands || []).map(bandText));
+    if ((g.bands || []).length === 1 && g.bands[0].cmp === 'all') parts[parts.length - 1] = parts[parts.length - 1].replace('Còn lại: ', 'Mọi mức: ');
+    return parts.join(' · ');
+  }
+
+  // ── Firestore ────────────────────────────────────────────────────────────
+  async function loadRules() {
+    S.groups = clone(CKHH_DEFAULT_GROUPS); S.source = 'default'; S.updatedAt = '';
+    try {
+      if (typeof db === 'undefined') throw Error('Chưa kết nối Firestore');
+      const snap = await db.collection('ckhh_rules').doc('all').get();
+      if (snap.exists && snap.data().groupsJson) {
+        const arr = JSON.parse(snap.data().groupsJson);
+        if (Array.isArray(arr) && arr.length) { S.groups = arr; S.source = 'cloud'; S.updatedAt = snap.data().updatedAt || ''; }
+      }
+    } catch (e) { S.source = 'default-error'; S.loadErr = e.message; }
+    S.dirty = false;
+  }
+  async function saveRules() {
+    if (!confirm('Lưu bộ quy tắc hiện tại lên hệ thống? Mọi người dùng dashboard sẽ thấy quy tắc mới.')) return;
+    try {
+      const now = new Date().toISOString();
+      await db.collection('ckhh_rules').doc('all').set({ groupsJson: JSON.stringify(S.groups), updatedAt: now, version: 1 });
+      S.source = 'cloud'; S.updatedAt = now; S.dirty = false; render();
+      status('✅ Đã lưu quy tắc lên hệ thống', 'ok');
+    } catch (e) { status('❌ Không lưu được: ' + e.message, 'err'); }
+  }
+  function resetDefault() {
+    if (!confirm('Đưa quy tắc về bộ mặc định (theo file KHÁCH HÀNG - NCC ngày 30/10/2026)? Chưa lưu lên hệ thống cho tới khi bấm "Lưu quy tắc".')) return;
+    S.groups = clone(CKHH_DEFAULT_GROUPS); S.dirty = true; S.edit = null; render();
+  }
+
+  // ── Đọc file CTKM ─────────────────────────────────────────────────────────
+  function parseWorkbook(wb) {
+    let hit = null;
+    const order = wb.SheetNames.slice().sort((a, b) => (/%/.test(b) ? 1 : 0) - (/%/.test(a) ? 1 : 0));
+    for (const sn of order) {
+      const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: null, raw: true });
+      for (let r = 0; r < Math.min(aoa.length, 20); r++) {
+        const row = (aoa[r] || []).map((x) => String(x ?? '').toLowerCase());
+        const iM = row.findIndex((x) => x.includes('mã sku') || x.includes('mã hàng'));
+        const iP = row.findIndex((x) => x.includes('giảm giá') && x.includes('%'));
+        if (iM > -1 && iP > -1) { hit = { sn, aoa, r, iM, iP, iN: row.findIndex((x) => x.includes('tên')) }; break; }
+      }
+      if (hit) break;
+    }
+    if (!hit) throw Error('Không tìm thấy tab có cột "Mã SKU" và "%Giảm giá" (mẫu NhapKhau_CTKM_GiamGiaHangHoa, tab "Giảm giá theo %").');
+    const rows = [], bad = [], seen = {};
+    for (let r = hit.r + 1; r < hit.aoa.length; r++) {
+      const row = hit.aoa[r] || [];
+      const raw = row[hit.iM];
+      if (raw === null || raw === undefined || String(raw).trim() === '') continue;
+      const ma = typeof raw === 'number' ? (Number.isInteger(raw) ? String(raw) : raw.toFixed(0)) : String(raw).trim();
+      const name = hit.iN > -1 ? String(row[hit.iN] ?? '').trim() : '';
+      const base = num(row[hit.iP]);
+      if (base === null) { bad.push({ line: r + 1, ma, name, reason: 'Thiếu / sai %Giảm giá' }); continue; }
+      if (seen[ma]) bad.push({ line: r + 1, ma, name, reason: 'Trùng mã với dòng ' + seen[ma] + ' (vẫn giữ cả hai)' });
+      seen[ma] = r + 1;
+      rows.push({ ma, raw, name, base });
+    }
+    if (!rows.length) throw Error('Tab "' + hit.sn + '" không có dòng hàng nào có %Giảm giá.');
+    return { rows, bad, sheet: hit.sn };
+  }
+  function handleFile(input) {
+    const f = input.files && input.files[0]; if (!f) return;
+    const rd = new FileReader();
+    rd.onload = (e) => {
+      try {
+        const res = parseWorkbook(XLSX.read(e.target.result, { type: 'array' }));
+        S.rows = res.rows; S.bad = res.bad; S.file = f.name + ' · tab "' + res.sheet + '"';
+        if (!S.sel || !S.groups.find((g) => g.code === S.sel)) S.sel = (S.groups.find((g) => g.status === 'Đang dùng') || S.groups[0] || {}).code || '';
+        render(); status('✅ Đã đọc ' + res.rows.length + ' mã' + (res.bad.length ? ' · ' + res.bad.length + ' dòng cần xem' : ''), res.bad.length ? 'warn' : 'ok');
+      } catch (err) { status('❌ ' + err.message, 'err'); }
+      input.value = '';
+    };
+    rd.readAsArrayBuffer(f);
+  }
+  function clearFile() { S.rows = []; S.bad = []; S.file = ''; render(); }
+
+  // ── Tính toàn bảng ────────────────────────────────────────────────────────
+  function matrix() {
+    return S.rows.map((r) => ({ r, res: S.groups.map((g) => calc(g, r.base, r.name)) }));
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  function status(msg, kind) { const el = $('ckhh-msg'); if (!el) return; el.textContent = msg; el.className = 'ckhh-msg ckhh-msg-' + (kind || 'ok'); }
+
+  function render() {
+    if (!$('page-nghiep-vu-chiet-khau-hh')) return;
+    const srcEl = $('ckhh-rule-source');
+    if (srcEl) {
+      let t = S.source === 'cloud' ? 'Quy tắc đang dùng: bản đã lưu trên hệ thống' + (S.updatedAt ? ' (cập nhật ' + new Date(S.updatedAt).toLocaleString('vi-VN') + ')' : '')
+        : S.source === 'default-error' ? 'Quy tắc đang dùng: bộ mặc định (không đọc được hệ thống: ' + (S.loadErr || '') + ')'
+        : 'Quy tắc đang dùng: bộ mặc định (chưa lưu lên hệ thống)';
+      if (S.dirty) t += ' · ⚠ Có thay đổi CHƯA LƯU';
+      srcEl.textContent = t; srcEl.classList.toggle('ckhh-dirty', !!S.dirty);
+    }
+    $('ckhh-file').textContent = S.file || 'chưa chọn';
+    const has = S.rows.length > 0;
+    $('ckhh-result').style.display = has ? '' : 'none';
+    $('ckhh-empty').style.display = has ? 'none' : '';
+    renderRules();
+    if (!has) return;
+    const M = matrix();
+    const active = S.groups.filter((g) => g.status === 'Đang dùng').length;
+    let warnCells = 0; M.forEach((m) => m.res.forEach((x) => { if (x.warns.length) warnCells++; }));
+    const bases = [...new Set(S.rows.map((r) => r.base))].sort((a, b) => a - b).map((b) => fmt(b) + '%').join(' · ');
+    $('ckhh-totals').innerHTML = [
+      ['Số mã trong file', S.rows.length + ' mã', S.bad.length ? S.bad.length + ' dòng cần xem' : 'Không có dòng lỗi'],
+      ['Nhóm khách hàng', S.groups.length + ' nhóm', active + ' nhóm đang dùng'],
+      ['Ô cần xác nhận', warnCells + ' ô', 'Tô vàng trong bảng'],
+      ['Mức CK TM trong file', bases || '—', 'Cột gốc %Giảm giá'],
+    ].map(([a, b, c]) => '<div class="ckhh-total"><span>' + esc(a) + '</span><strong>' + esc(b) + '</strong><em>' + esc(c) + '</em></div>').join('');
+    const badEl = $('ckhh-bad');
+    badEl.style.display = S.bad.length ? '' : 'none';
+    badEl.innerHTML = S.bad.length ? '<b>Dòng cần xem trong file:</b> ' + S.bad.map((b) => 'dòng ' + b.line + ' (' + esc(b.ma) + '): ' + esc(b.reason)).join(' · ') : '';
+    // chips
+    $('ckhh-chips').innerHTML = S.groups.map((g, i) => {
+      const w = M.some((m) => m.res[i].warns.length);
+      return '<button type="button" class="ckhh-chip' + (g.status !== 'Đang dùng' ? ' ckhh-chip-off' : '') + '" aria-pressed="' + (g.code === S.sel) + '" title="' + esc(g.name + ' — ' + g.status) + '" onclick="ckhhSelect(\'' + esc(g.code) + '\')">' + esc(g.code.replace('NhomKH', 'KH')) + (w ? ' <i>⚠</i>' : '') + '</button>';
+    }).join('');
+    const gi = Math.max(0, S.groups.findIndex((g) => g.code === S.sel)); const g = S.groups[gi];
+    if (!g) return;
+    S.sel = g.code;
+    $('ckhh-group-head').innerHTML = '<div class="ckhh-gh-title">' + esc(g.code) + ' — ' + esc(g.name) + ' <span class="ckhh-badge' + (g.status !== 'Đang dùng' ? ' ckhh-badge-off' : '') + '">' + esc(g.status) + '</span></div>'
+      + '<div class="ckhh-gh-line"><b>Cách tính:</b> ' + esc(groupText(g)) + '</div>'
+      + (g.kh ? '<div class="ckhh-gh-line"><b>Khách hàng:</b> ' + esc(g.kh) + '</div>' : '')
+      + (g.note ? '<div class="ckhh-gh-line"><b>Ghi chú:</b> ' + esc(g.note) + '</div>' : '');
+    $('ckhh-tbody').innerHTML = M.map((m) => {
+      const x = m.res[gi]; const d = r2(x.value - m.r.base);
+      const note = x.warns.concat(x.how ? [x.how] : []).join(' · ');
+      return '<tr' + (x.warns.length ? ' class="ckhh-warn"' : '') + '><td data-l="Mã SKU">' + esc(m.r.ma) + '</td><td data-l="Tên hàng hóa">' + esc(m.r.name) + '</td>'
+        + '<td class="ckhh-num" data-l="CK TM">' + fmt(m.r.base) + '%</td><td class="ckhh-num ckhh-strong" data-l="CK nhóm">' + fmt(x.value) + '%</td>'
+        + '<td class="ckhh-num" data-l="Chênh lệch">' + (d === 0 ? '0' : (d > 0 ? '+' : '') + fmt(d)) + '</td><td data-l="Ghi chú">' + esc(note) + '</td></tr>';
+    }).join('');
+  }
+
+  function renderRules() {
+    const tb = $('ckhh-rules-body'); if (!tb) return;
+    tb.innerHTML = S.groups.map((g, i) => '<tr' + (g.status !== 'Đang dùng' ? ' class="ckhh-off"' : '') + '><td data-l="Mã nhóm"><b>' + esc(g.code) + '</b><span class="ckhh-sub">' + esc(g.name) + '</span></td>'
+      + '<td data-l="Cách tính">' + esc(groupText(g)) + (g.src ? '<span class="ckhh-sub">Theo file: ' + esc(g.src) + '</span>' : '') + '</td>'
+      + '<td data-l="Trạng thái" class="ckhh-num">' + esc(g.status) + (g.note ? '<span class="ckhh-sub">' + esc(g.note) + '</span>' : '') + '</td>'
+      + '<td data-l="Khách hàng">' + esc(g.kh || '—') + '</td>'
+      + '<td class="ckhh-num"><button type="button" onclick="ckhhEdit(' + i + ')">✏️ Sửa</button></td></tr>').join('');
+    renderEditor();
+  }
+
+  // ── Trình sửa quy tắc ─────────────────────────────────────────────────────
+  const opt = (map, v) => Object.entries(map).map(([k, t]) => '<option value="' + k + '"' + (k === v ? ' selected' : '') + '>' + esc(t) + '</option>').join('');
+  function renderEditor() {
+    const box = $('ckhh-editor'); if (!box) return;
+    if (!S.edit) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    const e = S.edit; box.style.display = '';
+    box.innerHTML = '<div class="ckhh-ed-title">' + (S.editIdx < 0 ? '➕ Thêm nhóm mới' : '✏️ Sửa nhóm ' + esc(e.code)) + '</div>'
+      + '<div class="ckhh-ed-grid">'
+      + '<label>Mã nhóm<input id="ckhh-e-code" value="' + esc(e.code) + '" placeholder="VD: NhomKH46"></label>'
+      + '<label>Tên nhóm<input id="ckhh-e-name" value="' + esc(e.name) + '"></label>'
+      + '<label>Trạng thái<select id="ckhh-e-status">' + STATUSES.map((s) => '<option' + (s === e.status ? ' selected' : '') + '>' + esc(s) + '</option>').join('') + '</select></label>'
+      + '<label>Khách hàng<input id="ckhh-e-kh" value="' + esc(e.kh) + '"></label>'
+      + '<label class="ckhh-ed-wide">Ghi chú<input id="ckhh-e-note" value="' + esc(e.note) + '"></label>'
+      + '<label class="ckhh-ed-wide">Mô tả theo file gốc<input id="ckhh-e-src" value="' + esc(e.src) + '"></label>'
+      + '</div>'
+      + '<div class="ckhh-ed-sub">Luật theo tên sách <small>(chạy trước; tên chứa 1 trong các từ khóa, cách nhau dấu phẩy)</small></div>'
+      + '<table class="ckhh-ed-table"><thead><tr><th>Từ khóa trong tên</th><th>Cách tính</th><th>Giá trị (%)</th><th>Cảnh báo hiện ra</th><th></th></tr></thead><tbody>'
+      + e.kw.map((k, i) => '<tr><td><input data-k="kw" data-i="' + i + '" value="' + esc(k.kw) + '"></td><td><select data-k="op" data-i="' + i + '">' + opt(KW_OPS, k.op) + '</select></td><td><input type="number" step="0.5" data-k="val" data-i="' + i + '" value="' + esc(k.val) + '"></td><td><input data-k="warn" data-i="' + i + '" value="' + esc(k.warn) + '"></td><td><button type="button" onclick="ckhhEdRow(\'kw\',' + i + ')">✖</button></td></tr>').join('')
+      + '</tbody></table><button type="button" onclick="ckhhEdAdd(\'kw\')">+ Thêm luật theo tên</button>'
+      + '<div class="ckhh-ed-sub">Khoảng chiết khấu <small>(xét lần lượt từ trên xuống theo CK TM, dòng đầu tiên khớp được dùng)</small></div>'
+      + '<table class="ckhh-ed-table"><thead><tr><th>Điều kiện CK TM</th><th>Mức (%)</th><th>Cách tính</th><th>Giá trị (%)</th><th>Cảnh báo hiện ra</th><th></th></tr></thead><tbody>'
+      + e.bands.map((b, i) => '<tr><td><select data-b="cmp" data-i="' + i + '">' + opt(CMP, b.cmp) + '</select></td><td><input type="number" step="0.5" data-b="v" data-i="' + i + '" value="' + esc(b.v ?? '') + '"' + (b.cmp === 'all' ? ' disabled' : '') + '></td><td><select data-b="op" data-i="' + i + '">' + opt(OPS, b.op) + '</select></td><td><input type="number" step="0.5" data-b="val" data-i="' + i + '" value="' + esc(b.val) + '"' + (b.op === 'keep' ? ' disabled' : '') + '></td><td><input data-b="warn" data-i="' + i + '" value="' + esc(b.warn) + '"></td><td><button type="button" onclick="ckhhEdMove(' + i + ',-1)" title="Lên">▲</button><button type="button" onclick="ckhhEdMove(' + i + ',1)" title="Xuống">▼</button><button type="button" onclick="ckhhEdRow(\'b\',' + i + ')">✖</button></td></tr>').join('')
+      + '</tbody></table><button type="button" onclick="ckhhEdAdd(\'b\')">+ Thêm khoảng</button>'
+      + '<div class="ckhh-ed-preview" id="ckhh-ed-preview"></div>'
+      + '<div class="ckhh-ed-actions"><button type="button" class="ckhh-primary" onclick="ckhhEdApply()">✔ Áp dụng thay đổi</button><button type="button" onclick="ckhhEdCancel()">Hủy</button>'
+      + (S.editIdx >= 0 ? '<button type="button" class="ckhh-danger" onclick="ckhhEdDelete()">🗑 Xóa nhóm</button>' : '') + '</div>';
+    box.querySelectorAll('input,select').forEach((el) => el.addEventListener('input', edRead));
+    box.querySelectorAll('select').forEach((el) => el.addEventListener('change', () => { edRead(); renderEditor(); }));
+    edPreview();
+  }
+  function edRead() {
+    const e = S.edit; if (!e) return;
+    const v = (id) => ($(id) ? $(id).value : '');
+    e.code = v('ckhh-e-code').trim(); e.name = v('ckhh-e-name').trim(); e.status = v('ckhh-e-status'); e.kh = v('ckhh-e-kh').trim(); e.note = v('ckhh-e-note').trim(); e.src = v('ckhh-e-src').trim();
+    document.querySelectorAll('#ckhh-editor [data-k]').forEach((el) => { const k = e.kw[+el.dataset.i]; if (!k) return; const f = el.dataset.k; k[f] = f === 'val' ? (num(el.value) ?? 0) : el.value; });
+    document.querySelectorAll('#ckhh-editor [data-b]').forEach((el) => { const b = e.bands[+el.dataset.i]; if (!b) return; const f = el.dataset.b; b[f] = (f === 'v' || f === 'val') ? num(el.value) : el.value; if (f === 'val' && b.val === null) b.val = 0; });
+    edPreview();
+  }
+  function edPreview() {
+    const p = $('ckhh-ed-preview'); if (!p || !S.edit) return;
+    const samples = [30, 32, 35, 40, 45, 50];
+    p.innerHTML = '<b>Xem nhanh:</b> ' + esc(groupText(S.edit) || '(chưa có luật)') + '<br>' + samples.map((s) => 'CK TM ' + s + '% → <b>' + fmt(calc(S.edit, s, '').value) + '%</b>').join(' · ');
+  }
+  function edit(i) { S.editIdx = i; S.edit = clone(S.groups[i]); renderEditor(); $('ckhh-editor').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  function addGroup() { S.editIdx = -1; S.edit = G('', '', 'Đang dùng', '', [B('all', null, 'keep')], [], '', ''); renderEditor(); $('ckhh-editor').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  function edAdd(kind) { edRead(); if (kind === 'kw') S.edit.kw.push(K('', 'set', 0)); else S.edit.bands.push(B('all', null, 'keep')); renderEditor(); }
+  function edRow(kind, i) { edRead(); (kind === 'kw' ? S.edit.kw : S.edit.bands).splice(i, 1); renderEditor(); }
+  function edMove(i, d) { edRead(); const a = S.edit.bands, j = i + d; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; renderEditor(); }
+  function edCancel() { S.edit = null; renderEditor(); }
+  function edApply() {
+    edRead(); const e = S.edit;
+    if (!e.code) return alert('Chưa nhập Mã nhóm.');
+    if (S.groups.some((g, i) => g.code.toLowerCase() === e.code.toLowerCase() && i !== S.editIdx)) return alert('Mã nhóm "' + e.code + '" đã có.');
+    if (!e.bands.length && !e.kw.some((k) => k.op !== 'warn')) return alert('Nhóm cần ít nhất 1 khoảng chiết khấu.');
+    for (const b of e.bands) if (b.cmp !== 'all' && b.v === null) return alert('Có khoảng chưa nhập Mức (%).');
+    e.kw = e.kw.filter((k) => String(k.kw).trim());
+    if (S.editIdx < 0) S.groups.push(e); else S.groups[S.editIdx] = e;
+    S.edit = null; S.dirty = true; render(); status('Đã áp dụng — nhớ bấm "Lưu quy tắc lên hệ thống" để mọi người dùng chung', 'warn');
+  }
+  function edDelete() {
+    if (!confirm('Xóa nhóm ' + S.groups[S.editIdx].code + '? (Chưa lưu lên hệ thống cho tới khi bấm "Lưu quy tắc")')) return;
+    S.groups.splice(S.editIdx, 1); S.edit = null; S.dirty = true; render();
+  }
+
+  // ── Xuất file ─────────────────────────────────────────────────────────────
+  function ymd() { const d = new Date(); return d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0'); }
+  function tplSheet(lines) {
+    const aoa = [['DANH SÁCH HÀNG KHUYẾN MẠI', '', ''], ['', '', ''], ['Mã SKU (*)', 'Tên hàng hóa', '%Giảm giá (*)']].concat(lines);
+    const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [{ wch: 18 }, { wch: 70 }, { wch: 14 }]; return ws;
+  }
+  function tplEmpty(h) { const ws = XLSX.utils.aoa_to_sheet([['DANH SÁCH HÀNG KHUYẾN MẠI', '', ''].slice(0, h.length), ['', '', ''].slice(0, h.length), h]); ws['!cols'] = [{ wch: 18 }, { wch: 70 }, { wch: 14 }]; return ws; }
+  const lines = (gi, M) => M.map((m) => [m.r.raw, m.r.name, m.res[gi].value]);
+  const safeName = (s) => String(s).replace(/[:\\/?*\[\]]/g, '-').slice(0, 31);
+  function need() { if (!S.rows.length) { status('⚠ Chưa tải file CTKM', 'warn'); return false; } return true; }
+  function warnBeforeExport(idxs, M) {
+    const n = M.reduce((a, m) => a + idxs.filter((i) => m.res[i].warns.length).length, 0);
+    return !n || confirm('Còn ' + n + ' ô cần xác nhận (tô vàng). Vẫn xuất file?');
+  }
+  function exportGroup() {
+    if (!need()) return; const M = matrix(); const gi = S.groups.findIndex((g) => g.code === S.sel); if (gi < 0) return;
+    if (!warnBeforeExport([gi], M)) return;
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, tplSheet(lines(gi, M)), 'Giam gia theo %');
+    XLSX.utils.book_append_sheet(wb, tplEmpty(['Mã SKU (*)', 'Tên hàng hóa', 'Số tiền giảm (*)']), 'Giam gia theo số tiền');
+    XLSX.utils.book_append_sheet(wb, tplEmpty(['Mã SKU (*)', 'Tên hàng hóa']), 'Đồng giá');
+    XLSX.writeFile(wb, 'CTKM_' + S.groups[gi].code + '_' + ymd() + '.xls', { bookType: 'xls' });
+    status('✅ Đã xuất file nhập khẩu ' + S.groups[gi].code, 'ok');
+  }
+  function matrixAoa(M) {
+    const head = ['Mã SKU', 'Tên hàng hóa', 'CK TM (gốc)'].concat(S.groups.map((g) => g.code), ['Cần xác nhận']);
+    const sub = ['', '', 'Trạng thái nhóm →'].concat(S.groups.map((g) => g.status), ['']);
+    return [head, sub].concat(M.map((m) => [m.r.raw, m.r.name, m.r.base].concat(m.res.map((x) => x.value),
+      [m.res.map((x, i) => x.warns.length ? S.groups[i].code + ': ' + x.warns.join('; ') : '').filter(Boolean).join(' | ')])));
+  }
+  function exportAll() {
+    if (!need()) return; const M = matrix();
+    if (!warnBeforeExport(S.groups.map((_, i) => i), M)) return;
+    const wb = XLSX.utils.book_new();
+    S.groups.forEach((g, gi) => XLSX.utils.book_append_sheet(wb, tplSheet(lines(gi, M)), safeName(g.code)));
+    const ws = XLSX.utils.aoa_to_sheet(matrixAoa(M)); ws['!cols'] = [{ wch: 16 }, { wch: 55 }, { wch: 10 }].concat(S.groups.map(() => ({ wch: 10 })), [{ wch: 60 }]);
+    XLSX.utils.book_append_sheet(wb, ws, 'Tổng hợp');
+    XLSX.writeFile(wb, 'CTKM_TatCaNhom_' + ymd() + '.xls', { bookType: 'xls' });
+    status('✅ Đã xuất 1 file .xls gồm ' + S.groups.length + ' nhóm (mỗi nhóm 1 tab) + tab Tổng hợp', 'ok');
+  }
+  function exportCompare() {
+    if (!need()) return; const M = matrix();
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(matrixAoa(M)); ws['!cols'] = [{ wch: 16 }, { wch: 55 }, { wch: 10 }].concat(S.groups.map(() => ({ wch: 10 })), [{ wch: 60 }]);
+    ws['!freeze'] = { xSplit: 3, ySplit: 2 };
+    XLSX.utils.book_append_sheet(wb, ws, 'Đối chiếu CKKM');
+    const rules = [['Mã nhóm', 'Tên nhóm', 'Cách tính (dashboard)', 'Theo file gốc', 'Trạng thái', 'Ghi chú', 'Khách hàng']].concat(S.groups.map((g) => [g.code, g.name, groupText(g), g.src, g.status, g.note, g.kh]));
+    const ws2 = XLSX.utils.aoa_to_sheet(rules); ws2['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 60 }, { wch: 60 }, { wch: 16 }, { wch: 30 }, { wch: 50 }];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Quy tắc nhóm');
+    XLSX.writeFile(wb, 'CKKM_HuyHoang_DoiChieu_' + ymd() + '.xlsx');
+    status('✅ Đã xuất file đối chiếu', 'ok');
+  }
+
+  async function init() {
+    if (S.inited) { render(); return; }
+    S.inited = true; status('Đang tải quy tắc…', 'warn');
+    await loadRules(); render();
+    status(S.source === 'cloud' ? 'Sẵn sàng — đã tải quy tắc từ hệ thống' : 'Sẵn sàng — đang dùng bộ quy tắc mặc định', S.source === 'default-error' ? 'warn' : 'ok');
+  }
+  function select(code) { S.sel = code; render(); }
+
+  const api = { init, handleFile, clearFile, select, edit, addGroup, saveRules, resetDefault, exportGroup, exportAll, exportCompare, calc, groupText, parseWorkbook, defaults: CKHH_DEFAULT_GROUPS, state: S,
+    edAdd, edRow, edMove, edCancel, edApply, edDelete };
+  root.CKHH = api;
+  Object.assign(root, { ckhhInit: init, ckhhHandleFile: handleFile, ckhhClearFile: clearFile, ckhhSelect: select, ckhhEdit: edit, ckhhAddGroup: addGroup, ckhhSaveRules: saveRules, ckhhResetDefault: resetDefault,
+    ckhhExportGroup: exportGroup, ckhhExportAll: exportAll, ckhhExportCompare: exportCompare, ckhhEdAdd: edAdd, ckhhEdRow: edRow, ckhhEdMove: edMove, ckhhEdCancel: edCancel, ckhhEdApply: edApply, ckhhEdDelete: edDelete });
+  if (typeof module !== 'undefined') module.exports = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<!-- CKHH-END -->
 </body>
 </html>
