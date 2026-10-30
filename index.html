@@ -4009,7 +4009,7 @@
 
   <div class="page" id="page-ke-toan-chi-phi-san">
     <div class="card"><div class="card-title"><span class="dot"></span> Chi Phí Sàn · Báo cáo kế toán theo shop</div>
-    <p class="report-note">Đọc dữ liệu gốc trong thư mục Kế Toán Shopee 2H. Kế toán dùng tài khoản Google riêng có quyền truy cập thư mục để xem báo cáo. Dashboard chỉ đọc dữ liệu, không cần tài khoản của chủ shop hoặc khóa Shopee.</p>
+    <p class="report-note">Đọc dữ liệu gốc trong thư mục Kế Toán Shopee 2H. Dữ liệu được đọc qua kết nối dùng chung từ các nguồn đã giới hạn, không cần đăng nhập Google riêng. Dashboard chỉ đọc dữ liệu, không cần tài khoản của chủ shop hoặc khóa Shopee.</p>
     <div class="report-filters"><button class="sw-btn-sm" onclick="cpsConnect()">Kết nối Google Drive</button><select id="cps-period" onchange="cpsLoadPeriod()" aria-label="Kỳ kế toán"><option value="">Chọn kỳ kế toán</option></select><select id="cps-shop" onchange="cpsShopChanged()" aria-label="Shop"><option value="">Chọn shop</option></select><button class="sw-btn-sm" onclick="cpsRead()">Đọc báo cáo</button><button class="sw-btn-sm" onclick="cpsRefresh()">Làm mới danh sách kỳ</button><a href="https://drive.google.com/drive/folders/19JxC7Bv8CUk5-cp1LmKDczoZ5uBQvSR1" target="_blank" rel="noopener">Mở thư mục kế toán ↗</a></div><p id="cps-status" role="status" aria-live="polite" class="report-note">Bấm Kết nối Google Drive để đọc dữ liệu.</p></div>
     <div id="cps-output"></div>
   </div>
@@ -26903,5 +26903,38 @@ const TfmMatchedExport=(()=>{
 
 </script>
 <!-- TFM-MATCHED-EXPORT-END -->
+<!-- SHARED-READ-START -->
+<script>
+/* Endpoint is configured only after the owner-run read-only service is deployed and tested. */
+const DashboardSharedRead=(()=>{
+ const endpoint='https://script.google.com/macros/s/AKfycbyN1wA9bYf7QBMPhCSVL0y9mma8EPFzT4SKEFwFKPtxXhUDMhY4q0T8fhRYEwSGfnip/exec',nativeFetch=window.fetch.bind(window),marker='shared-read';
+ const ready=/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(endpoint);
+ async function read(url){
+  if(!ready)throw Error('Kết nối đọc dùng chung chưa được triển khai.');
+  const result=await nativeFetch(endpoint,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({url}),credentials:'omit',redirect:'follow',referrerPolicy:'no-referrer'});
+  if(!result.ok)throw Error('Dịch vụ đọc dữ liệu chưa phản hồi ('+result.status+').');
+  let data;try{data=await result.json();}catch{throw Error('Chủ dịch vụ cần triển khai quyền truy cập cho người có link.');}
+  if(!Number.isInteger(data.status)||typeof data.body!=='string')throw Error('Dịch vụ đọc dữ liệu trả sai định dạng.');
+  return new Response(data.body,{status:data.status,headers:{'Content-Type':data.contentType||'application/json'}});
+ }
+ function supported(url){try{const u=new URL(url,location.href);return u.protocol==='https:'&&((u.hostname==='sheets.googleapis.com'&&u.pathname.startsWith('/v4/spreadsheets/'))||(u.hostname==='www.googleapis.com'&&u.pathname.startsWith('/drive/v3/files')));}catch{return false;}}
+ function install(){if(!ready)return false;
+  window.fetch=(input,options={})=>{const url=typeof input==='string'?input:input instanceof URL?input.href:input.url,method=String(options.method||input?.method||'GET').toUpperCase();return method==='GET'&&supported(url)?read(url):nativeFetch(input,options);};
+  tqSyncCatalog=async function(){const b=document.getElementById('tq-sync-btn');if(b)b.disabled=true;_catalogDriveToken=marker;try{await tqDoCatalogSync();}finally{if(b)b.disabled=false;}};
+  blSyncBlacklist=async function(logFn){const b=document.getElementById('bl-sync-btn');if(b)b.disabled=true;_blDriveToken=marker;try{await blDoBlacklistSync(logFn);}finally{if(b)b.disabled=false;}};
+  giaSyncOrders=async function(){const tab=document.getElementById('gia-month-select')?.value;if(!tab){alert('Chọn tháng cần đồng bộ trước.');return;}const b=document.getElementById('gia-sync-orders-btn');if(b)b.disabled=true;_giaDriveToken=marker;try{await giaDoSyncOrders(tab);}finally{if(b)b.disabled=false;}};
+  syncFromDrive=async function(){const b=document.getElementById('btn-drive-sync');if(b)b.disabled=true;_driveToken=marker;try{await doSync();}finally{if(b)b.disabled=false;}};
+  kvrTokenOk=()=>true;kvrGetToken=async()=>{KVR.token=marker;return marker;};
+  cpsConnect=async function(){if(CPS.busy)return;CPS.token=marker;await cpsRefresh();};
+  cpsInit=function(){if(!CPS.report)cpsStatus('Bấm Kết nối dữ liệu chung, chọn kỳ và shop để đọc báo cáo. Không cần đăng nhập Google riêng.');};
+  const buttons=document.querySelectorAll('#page-ke-toan-chi-phi-san button');for(const b of buttons)if(b.textContent.trim()==='Kết nối Google Drive')b.textContent='Kết nối dữ liệu chung';
+  return true;
+ }
+ return{install,read,supported,ready};
+})();
+DashboardSharedRead.install();
+
+</script>
+<!-- SHARED-READ-END -->
 </body>
 </html>
