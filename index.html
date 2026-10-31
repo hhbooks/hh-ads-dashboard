@@ -26134,7 +26134,7 @@ function bcdtRenderRank() {
   shown.forEach((r, i) => {
     t += `<tr style="border-bottom:1px solid var(--gray3)">
       <td style="padding:7px 6px;text-align:center"><span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;${medal(i)}">${i + 1}</span></td>
-      <td style="padding:7px 10px;font-weight:600;max-width:380px" title="${bcspEsc(r.ten)}">${bcspEsc(r.ten.length > 70 ? r.ten.slice(0, 69) + '…' : r.ten)}<div style="font-size:10px;font-weight:400;color:var(--text2)">${bcspEsc(r.ma)}</div></td>
+      <td style="padding:7px 10px;font-weight:600;max-width:380px" title="${bcspEsc(r.ten)}">${RevenuePhotos.cell(r.ma, bcspEsc(r.ten)+'<div style="font-size:14px;font-weight:400;color:var(--text2)">'+bcspEsc(r.ma)+'</div>')}</td>
       <td style="padding:7px 10px;text-align:right">${bcspN(r.dt)}</td>
       <td style="padding:7px 10px;text-align:right">${reportGrowth(r.dt,r.prev)}</td>
       <td style="padding:7px 10px;text-align:right">${r.gv > 0 ? bcspN(r.gv) : '<span style="color:var(--red)">chưa có</span>'}</td>
@@ -26145,7 +26145,10 @@ function bcdtRenderRank() {
   t += '</tbody></table>';
   if (!shown.length) t = '<div style="padding:20px;text-align:center;color:var(--text2);font-size:12px">Không có sản phẩm nào khớp bộ lọc.</div>';
   if (rows.length > shown.length) t += `<div style="text-align:center;margin-top:10px"><button class="sw-btn-sm neutral" onclick="bcdtRankMore()">Xem thêm 30 sản phẩm</button></div>`;
-  el.innerHTML = t;
+  el.closest('.card')?.classList.add('nv-panel','bcdt-rank-panel');
+  el.innerHTML = RevenuePhotos.controls('bcdt-rank-table') + t;
+  const headers=Array.from(el.querySelectorAll('thead th'),h=>h.textContent.trim());
+  el.querySelectorAll('tbody tr').forEach(row=>Array.from(row.children).forEach((cell,i)=>cell.dataset.label=headers[i]||''));
 }
 
 </script>
@@ -26635,6 +26638,111 @@ const GCPhotos=(()=>{
 
 </script>
 <!-- ADS-PRODUCT-PHOTOS-END -->
+<!-- REVENUE-PHOTOS-START -->
+<style>
+/* Only the two approved revenue detail sections. */
+#bcdt-growth .rg-split>div,.bcdt-rank-panel{background:linear-gradient(135deg,#1b2a4e,#2b4a8f);color:#fff;border-radius:16px;padding:22px;box-sizing:border-box}
+#bcdt-growth .rg-split h4.rg-up{color:#86efac}#bcdt-growth .rg-split h4.rg-down{color:#fca5a5}
+#bcdt-growth .rg-split .rg-table-wrap{border-color:#536b91}
+#bcdt-growth .rg-split .rg-table{background:transparent;color:#fff;font-size:18px}
+#bcdt-growth .rg-split .rg-table th{background:#2c4073;color:#fff;font-size:15px}
+#bcdt-growth .rg-split .rg-table td{font-size:18px;font-weight:600;color:#fff}
+#bcdt-growth .rg-split .rg-table :is(th,td){padding:18px 16px;border-color:rgba(255,255,255,.15)}
+#bcdt-growth .rg-split .rg-table :is(th,td):first-child{width:32%}
+#bcdt-growth .rg-split .rg-table tbody tr:nth-child(even){background:rgba(255,255,255,.035)}
+#bcdt-growth .rg-split .rg-up{color:#86efac}#bcdt-growth .rg-split .rg-down{color:#fca5a5}
+#bcdt-rank-table{max-height:680px;overflow:auto!important}
+#bcdt-rank-table table{width:100%;table-layout:fixed;border-collapse:separate!important;border-spacing:0;font-variant-numeric:tabular-nums;color:white}
+#bcdt-rank-table :is(th,td){width:11%;padding:18px 12px!important;text-align:center!important;border-right:1px solid rgba(255,255,255,.15);border-bottom:1px solid rgba(255,255,255,.15);vertical-align:middle;line-height:1.5;overflow-wrap:break-word}
+#bcdt-rank-table :is(th,td):first-child{width:4%;padding:12px 4px!important}
+#bcdt-rank-table :is(th,td):nth-child(2){width:30%;text-align:left!important;max-width:none!important}
+#bcdt-rank-table th{position:sticky;top:0;z-index:2;font-size:15px!important;background:#2c4073!important;color:#fff!important}
+#bcdt-rank-table td{font-size:18px!important;font-weight:600}
+#bcdt-rank-table td:nth-child(2) .gc-product-copy>div{font-size:14px!important;color:#dbe4f3!important}
+#bcdt-rank-table tbody tr:nth-child(even){background:rgba(255,255,255,.035)}
+#bcdt-rank-table :is(th,td):last-child{border-right:0}
+:is(#bcdt-growth,#bcdt-rank-table) .gc-photo-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 0 18px}
+:is(#bcdt-growth,#bcdt-rank-table) .gc-photo-controls button{background:white;color:#17345d;border:1px solid #cbd5e1;border-radius:8px;padding:10px 14px;font-size:15px;cursor:pointer}
+:is(#bcdt-growth,#bcdt-rank-table) .gc-photo-controls button:disabled{opacity:.65;cursor:wait}
+:is(#bcdt-growth,#bcdt-rank-table) :is(.gc-photo-status,.revenue-photo-status){font-size:14px;color:#dbe4f3;flex:1 1 260px;line-height:1.5}
+:is(#bcdt-growth,#bcdt-rank-table) .gc-product-cell{display:flex;align-items:center;gap:12px;min-width:0}
+:is(#bcdt-growth,#bcdt-rank-table) .gc-product-copy{min-width:0;overflow-wrap:anywhere;flex:1;text-align:left}
+:is(#bcdt-growth,#bcdt-rank-table) :is(.revenue-photo-slot,.gc-product-photo){display:inline-flex;flex:0 0 60px;width:60px;height:60px;align-items:center;justify-content:center}
+:is(#bcdt-growth,#bcdt-rank-table) :is(.gc-photo-button,.gc-photo-empty){width:60px;height:60px;border-radius:7px;border:1px solid #dce4ef;background:#f1f5f9;color:#64748b;padding:0;display:flex;align-items:center;justify-content:center;font-size:11px}
+:is(#bcdt-growth,#bcdt-rank-table) .gc-photo-button{cursor:zoom-in}
+:is(#bcdt-growth,#bcdt-rank-table) img{width:100%;height:100%;object-fit:contain;display:block}
+@media(max-width:1200px){#bcdt-rank-table td,#bcdt-growth .rg-split .rg-table td{font-size:17px!important}#bcdt-rank-table :is(th,td),#bcdt-growth .rg-split .rg-table :is(th,td){padding:15px 8px!important}}
+@media(max-width:720px){
+ #bcdt-growth .rg-split>div,.bcdt-rank-panel{padding:14px}
+ #bcdt-growth .rg-split .rg-table td:first-child{width:100%}
+ #bcdt-growth .rg-split .rg-table td::before{color:#dbe4f3}
+ #bcdt-growth .rg-split .rg-table tr{border-color:#536b91}
+ #bcdt-rank-table{max-height:none;overflow:visible!important}
+ #bcdt-rank-table table,#bcdt-rank-table tbody,#bcdt-rank-table tr{display:block;width:100%}
+ #bcdt-rank-table thead{display:none}
+ #bcdt-rank-table tr{border-bottom:2px solid #536b91}
+ #bcdt-rank-table td,#bcdt-rank-table td:first-child,#bcdt-rank-table td:nth-child(2){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:12px;width:100%;box-sizing:border-box;text-align:left!important;border-right:0;padding:12px!important}
+ #bcdt-rank-table td::before{content:attr(data-label);color:#dbe4f3;font-size:14px;font-weight:400}
+ :is(#bcdt-growth,#bcdt-rank-table) .gc-product-cell{flex-direction:column;align-items:flex-start}
+}
+
+</style>
+<script>
+/* Revenue rows use a verified MAP SW item+shop identity, never a name match. */
+const RevenuePhotos=(()=>{
+ const sheet='1HyHUk8zI3ZnjaR8SZefTls6jKI0m08e8NQk0aST1Bz8';
+ const norm=s=>String(s||'').normalize('NFC').trim().toLocaleLowerCase('vi').replace(/\s+/g,' ');
+ const shops=new Map(Object.entries({'2h books':'1289235612','huy hoàng bookstore':'371873832','nhà sách 2hbooks':'1096078460','họa cụ 2h':'1330480487','2h books store':'1092895286','2h home living':'1624586997'}));
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ let mapping=new Map(),job=null,loaded=false,timer;
+ function indexRows(rows){
+  const out=new Map(),h=(rows[0]||[]).map(norm),item=h.indexOf('id sp shopee'),shop=h.indexOf('tên shop'),platform=h.indexOf('sàn');
+  if(item<0||shop<0||platform<0)throw Error('MAP SW thiếu cột Sàn, Tên shop hoặc ID SP Shopee.');
+  for(const row of rows.slice(1)){
+   if(norm(row[platform])!=='shopee')continue;
+   const itemId=String(row[item]??'').trim(),shopId=shops.get(norm(row[shop]));
+   if(!/^\d{1,20}$/.test(itemId))continue;
+   if(!out.has(itemId))out.set(itemId,new Set());
+   // Unknown or conflicting shops must block the item, rather than select another row.
+   out.get(itemId).add(shopId||'?');
+  }
+  return new Map([...out].map(([itemId,ids])=>[itemId,ids.size===1&&!ids.has('?')?{itemId,shopId:[...ids][0]}:null]));
+ }
+ async function load(force=false){
+  if(job)return job;if(loaded&&!force)return mapping;
+  job=(async()=>{const r=await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+sheet+'/values/'+encodeURIComponent("'MAP SW'!A1:E")+'?valueRenderOption=UNFORMATTED_VALUE');if(!r.ok)throw Error('Không đọc được MAP SW ('+r.status+').');mapping=indexRows((await r.json()).values||[]);loaded=true;return mapping;})().finally(()=>{job=null;});
+  return job;
+ }
+ function cell(itemId,text){return '<div class="gc-product-cell"><span class="revenue-photo-slot" data-revenue-item="'+esc(itemId)+'"><span class="gc-photo-empty" title="Đang đối chiếu shop và ID bài đăng">Ảnh</span></span><div class="gc-product-copy">'+text+'</div></div>';}
+ function controls(scope){return '<div class="gc-photo-controls"><button type="button" onclick="RevenuePhotos.sync(\''+esc(scope)+'\')">Lấy / cập nhật ảnh sản phẩm</button><span class="revenue-photo-status gc-photo-status" role="status">Ảnh đã lưu dùng chung sẽ tự hiển thị.</span></div>';}
+ function status(scope,text){const host=document.getElementById(scope);const el=host?.querySelector('.revenue-photo-status');if(el)el.textContent=text;}
+ async function hydrate(force=false){
+  const slots=[...document.querySelectorAll('[data-revenue-item]')];if(!slots.length)return;
+  try{await load(force);for(const el of slots){
+   const identity=mapping.get(el.dataset.revenueItem),key=identity?identity.shopId+'_'+identity.itemId:'';
+   if('revenueResolved' in el.dataset&&el.dataset.revenueResolved===key)continue;
+   el.dataset.revenueResolved=key;
+   el.innerHTML=identity?GCPhotos.html(identity):'<span class="gc-photo-empty" title="Chưa xác định duy nhất shop và ID bài đăng trong MAP SW">Chưa map</span>';
+  }await GCPhotos.prime();}
+  catch{document.querySelectorAll('.revenue-photo-status').forEach(el=>el.textContent='Chưa đọc được MAP SW. Bấm lấy / cập nhật ảnh để thử lại.');}
+ }
+ async function sync(scope){
+  const host=document.getElementById(scope);if(!host)return;
+  const button=host.querySelector('.gc-photo-controls button');if(button?.disabled)return;
+  if(button)button.disabled=true;status(scope,'Đang đối chiếu shop và ID sản phẩm…');
+  try{await hydrate(true);await GCPhotos.sync(scope);
+   const total=host.querySelectorAll('[data-revenue-item]').length,mapped=host.querySelectorAll('[data-gc-photo-key]').length,shown=host.querySelectorAll('[data-photo-url]').length;
+   status(scope,'Đã ghép đúng shop '+mapped+'/'+total+' sản phẩm; '+shown+' ảnh đang hiển thị.'+(total>mapped?' Các mã chưa xác định được shop giữ ô chờ.':'')+' '+(document.querySelector('.gc-photo-status')?.textContent||''));
+  }finally{if(button)button.disabled=false;document.querySelectorAll('.revenue-photo-status').forEach(el=>{const b=el.parentElement.querySelector('button');if(b&&!b.disabled)b.textContent='Lấy / cập nhật ảnh sản phẩm';});}
+ }
+ const observer=new MutationObserver(changes=>{if(changes.some(m=>[...m.addedNodes].some(n=>n.nodeType===1&&(n.matches?.('[data-revenue-item]')||n.querySelector?.('[data-revenue-item]'))))){clearTimeout(timer);timer=setTimeout(()=>hydrate(),80);}});
+ observer.observe(document.body,{childList:true,subtree:true});
+ return{cell,controls,hydrate,sync,indexRows};
+})();
+
+</script>
+<!-- REVENUE-PHOTOS-END -->
+
 <!-- ADS-DETAIL-LAYOUT-START -->
 <style>
 #main:has(:is(#page-overview,#page-ads-hourly,#page-group-camp,#page-auto-camp,#page-tonghop).active){min-width:0;flex:1 1 0}
@@ -26823,8 +26931,8 @@ const ReportGrowth=(()=>{
   const metric=m.unit==='đ'?'đ':'SP',card=(label,value,sub)=>'<div class="rg-kpi"><span>'+esc(label)+'</span><strong>'+value+'</strong><small>'+sub+'</small></div>';
   let html='<section class="rg-panel"><div class="rg-heading"><h2>Tổng quan tăng trưởng</h2><span>'+esc(m.period)+'</span></div><p class="rg-note">'+esc(m.note)+'</p>'+(id==='bcdt-growth'?'':'<div class="rg-kpis">'+card(m.label,num(m.now)+' '+metric,'Kỳ đang xem')+card('Kỳ so sánh',m.before==null?'Chưa có dữ liệu':num(m.before)+' '+metric,esc(m.compare))+card('Chênh lệch',d==null?'—':delta(m.now,m.before)+' '+metric,'<b class="rg-'+cls+'">'+esc(change(m.now,m.before))+'</b>')+(m.extra?card(m.extra.label,m.extra.value,esc(m.extra.note)):'')+'</div>');
   let impact='<div class="rg-heading"><h3>Tăng ở đâu, giảm ở đâu?</h3><label>Phân tích theo <select data-rg-dimension>'+dims.map(k=>'<option'+(k===selected?' selected':'')+'>'+esc(k)+'</option>').join('')+'</select></label></div>';
-  const dim=m.dimensions[selected],rows=differences(dim?.now||new Map(),dim?.before),top=(positive)=>{const list=rows.filter(r=>positive?r.delta>0:r.delta<0).sort((a,b)=>positive?b.delta-a.delta:a.delta-b.delta).slice(0,30);return list.length?table([selected,'Kỳ trước','Kỳ này','Chênh lệch','Tăng/giảm'],list.map(r=>[esc(r.name),num(r.before),num(r.now),'<b class="rg-'+(positive?'up':'down')+'">'+delta(r.now,r.before)+'</b>',esc(change(r.now,r.before))])):'<p class="rg-note">'+(!dim?.before?'Chưa có dữ liệu so sánh.':positive?'Không có phần tăng trong kỳ.':'Không có phần giảm trong kỳ.')+'</p>';};
-  impact+='<div class="rg-split"><div><h4 class="rg-up">▲ Đóng góp tăng nhiều nhất</h4>'+top(true)+'</div><div><h4 class="rg-down">▼ Đóng góp giảm nhiều nhất</h4>'+top(false)+'</div></div><p class="rg-note">Xếp theo chênh lệch tuyệt đối, không xếp theo %; tính cả sản phẩm/shop kỳ trước có bán nhưng kỳ này không còn bán. Mỗi bảng hiển thị tối đa 30 mục theo chiều tăng hoặc giảm, không phải toàn bộ biến động.</p>';
+  const dim=m.dimensions[selected],rows=differences(dim?.now||new Map(),dim?.before),top=(positive)=>{const list=rows.filter(r=>positive?r.delta>0:r.delta<0).sort((a,b)=>positive?b.delta-a.delta:a.delta-b.delta).slice(0,30);return list.length?table([selected,'Kỳ trước','Kỳ này','Chênh lệch','Tăng/giảm'],list.map(r=>[id==='bcdt-growth'&&selected==='Sản phẩm / SKU'?RevenuePhotos.cell(r.key,esc(r.name)):esc(r.name),num(r.before),num(r.now),'<b class="rg-'+(positive?'up':'down')+'">'+delta(r.now,r.before)+'</b>',esc(change(r.now,r.before))])):'<p class="rg-note">'+(!dim?.before?'Chưa có dữ liệu so sánh.':positive?'Không có phần tăng trong kỳ.':'Không có phần giảm trong kỳ.')+'</p>';};
+  impact+='<div class="rg-split"><div'+(id==='bcdt-growth'?' id="bcdt-impact-up"':'')+'><h4 class="rg-up">▲ Đóng góp tăng nhiều nhất</h4>'+(id==='bcdt-growth'&&selected==='Sản phẩm / SKU'?RevenuePhotos.controls('bcdt-impact-up'):'')+top(true)+'</div><div'+(id==='bcdt-growth'?' id="bcdt-impact-down"':'')+'><h4 class="rg-down">▼ Đóng góp giảm nhiều nhất</h4>'+(id==='bcdt-growth'&&selected==='Sản phẩm / SKU'?RevenuePhotos.controls('bcdt-impact-down'):'')+top(false)+'</div></div><p class="rg-note">Xếp theo chênh lệch tuyệt đối, không xếp theo %; tính cả sản phẩm/shop kỳ trước có bán nhưng kỳ này không còn bán. Mỗi bảng hiển thị tối đa 30 mục theo chiều tăng hoặc giảm, không phải toàn bộ biến động.</p>';
   const history=m.history||{},keys=Object.keys(history).sort(),selectedYear=Number((m.key==='cum'?keys.at(-1):m.key)?.slice(0,4))||2026;
   const years=[...new Set([2025,2026,selectedYear,...keys.map(k=>Number(k.slice(0,4)))])].sort();
   const tracking=m.unit==='đ'?'Theo dõi doanh thu':'Theo dõi sản lượng';
