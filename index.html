@@ -25968,7 +25968,7 @@ async function bcdtRender() {
     const val = (o, f) => !o ? null : f === 'khac' ? o.cp - o.gv - o.qc : o[f];
     const showKhac = Math.abs(val(K, 'khac')) >= 1000 || (KP && Math.abs(val(KP, 'khac')) >= 1000);
     const th = (t, al) => `<th style="padding:8px 10px;text-align:${al};font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);font-weight:700;border-bottom:2px solid var(--gray3)">${t}</th>`;
-    let t = `<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th('Khoản mục', 'left')}${th(isCum ? 'Lũy kế' : bcspMonthLabel(BCDT.cur), 'right')}${th('% tổng GT', 'right')}${KP ? th(pl, 'right') + th('Chênh lệch', 'right') : ''}</tr></thead><tbody>`;
+    let t = `<table class="bcdt-readable-table" style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th('Khoản mục', 'left')}${th(isCum ? 'Lũy kế' : bcspMonthLabel(BCDT.cur), 'right')}${th('% tổng GT', 'right')}${KP ? th(pl, 'right') + th('Chênh lệch', 'right') : ''}</tr></thead><tbody>`;
     rowsDef.forEach(([lb, f, lvl]) => {
       if (f === 'khac' && !showKhac) return;
       const v = val(K, f), pv2 = val(KP, f);
@@ -26071,6 +26071,11 @@ function bcdtRenderGroups(catalog, catErr, curMap, S) {
   bcdtUpdateGroups();
 }
 function bcdtGroupSelect(value) { BCDT.groupNcc = value; bcdtUpdateGroups(); }
+function bcdtReadableTable(headers, rows) {
+  return '<div class="bcdt-readable-wrap"><table class="bcdt-readable-table"><thead><tr>' +
+    headers.map(h => '<th>'+h+'</th>').join('') + '</tr></thead><tbody>' +
+    rows.map(row => '<tr>'+row.map(c => '<td>'+c+'</td>').join('')+'</tr>').join('') + '</tbody></table></div>';
+}
 function bcdtUpdateGroups() {
   const {catalog, source, sourceName, S, catErr} = BCDT.groupContext;
   const current = bcdtCollect(source, BCDT.cur), previous = reportPrevious(source, BCDT.cur);
@@ -26090,7 +26095,7 @@ function bcdtUpdateGroups() {
   const table = field => {
     const now=group(current,field), before=group(previous,field);
     const total=[...now.values()].reduce((s,r)=>s+r.dt,0);
-    return reportTable([field==='ncc'?'Nhà cung cấp':'Ngành hàng','Giá trị bán','Tỷ trọng','So tháng trước','Lãi gộp'], [...now].sort((a,b)=>b[1].dt-a[1].dt).map(([k,r])=>[bcspEsc(k),bcspN(r.dt),bcspPct(r.dt,total),reportGrowth(r.dt,previous ? before.get(k)?.dt || 0 : null),r.missing ? 'Tạm tính: '+bcspN(r.dt-r.gv)+'<br><small>Thiếu giá vốn</small>' : bcspN(r.dt-r.gv)]));
+    return bcdtReadableTable([field==='ncc'?'Nhà cung cấp':'Ngành hàng','Giá trị bán','Tỷ trọng','So tháng trước','Lãi gộp'], [...now].sort((a,b)=>b[1].dt-a[1].dt).map(([k,r])=>[bcspEsc(k),bcspN(r.dt),bcspPct(r.dt,total),reportGrowth(r.dt,previous ? before.get(k)?.dt || 0 : null),r.missing ? 'Tạm tính: '+bcspN(r.dt-r.gv)+'<br><small>Thiếu giá vốn</small>' : bcspN(r.dt-r.gv)]));
   };
   const total=[...current.values()].reduce((s,p)=>s+p.dt,0);
   document.getElementById('bcdt-grp').innerHTML = `<section class="card nv-panel bcdt-industry-section" style="margin-bottom:16px"><div class="card-title">GIÁ TRỊ BÁN THEO NGÀNH HÀNG</div><div class="report-note">Nguồn phân nhóm: <b>${sourceName}</b> · Tổng giá trị bán nguồn này: <b>${bcspN(total)}</b> · Tổng TK Sản phẩm: ${bcspN(S.dt)} · Chênh lệch: ${bcspN(total-S.dt)}. ${sourceName === 'TK SP Salework' ? 'Dùng mã SKU Salework để ghép catalog; không thay tổng của báo cáo doanh thu.' : ''} ${catErr ? 'Không tải được catalog: '+bcspEsc(catErr) : ''}</div>
@@ -27039,5 +27044,41 @@ const CKHHAccess=(()=>{
 
 </script>
 <!-- CKHH-END -->
+
+<!-- Revenue table readability: scoped to the three approved tables -->
+<style id="bcdt-readable-style">
+.bcdt-readable-table{color:#fff;width:100%;table-layout:fixed;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.bcdt-readable-table :is(th,td){width:20%;text-align:center!important;vertical-align:middle;padding:18px 16px!important;border-right:1px solid rgba(255,255,255,.13);border-bottom:1px solid rgba(255,255,255,.16);line-height:1.5;overflow-wrap:break-word}
+.bcdt-readable-table :is(th,td):first-child{text-align:left!important}
+.bcdt-readable-table :is(th,td):last-child{border-right:0}
+.bcdt-readable-table th{font-size:15px!important;font-weight:700;letter-spacing:.3px}
+.bcdt-readable-table td{font-size:18px!important;font-weight:600}
+.bcdt-readable-table small{font-size:14px;font-weight:400}
+.bcdt-readable-table tbody tr:nth-child(even){background:rgba(255,255,255,.035)}
+.bcdt-readable-wrap{width:100%}
+@media(max-width:1100px){.bcdt-readable-table :is(th,td){padding:15px 10px!important}.bcdt-readable-table td{font-size:17px!important}}
+@media(max-width:700px){
+ .bcdt-readable-table,.bcdt-readable-table tbody,.bcdt-readable-table tr,.bcdt-readable-table td{display:block;width:100%;box-sizing:border-box}
+ .bcdt-readable-table thead{display:none}
+ .bcdt-readable-table tr{border-bottom:1px solid rgba(255,255,255,.25)!important}
+ .bcdt-readable-table td{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;text-align:right!important;border-right:0;padding:12px!important;font-size:17px!important}
+ .bcdt-readable-table td:before{content:attr(data-label);text-align:left;font-size:14px;font-weight:400;color:#dbe4f3}
+ .bcdt-readable-table td:first-child{text-align:right!important}.bcdt-readable-table td small{grid-column:2}.bcdt-readable-table td br{display:none}
+}
+</style>
+<script>
+// Add accessible field labels to both initial and asynchronously refreshed tables.
+(function(){
+ const labelTables=()=>document.querySelectorAll('.bcdt-readable-table').forEach(table=>{
+   const labels=Array.from(table.querySelectorAll('thead th'),h=>h.textContent.trim());
+   table.querySelectorAll('tbody tr').forEach(row=>Array.from(row.children).forEach((cell,i)=>{
+     if(cell.getAttribute('data-label')!==labels[i])cell.setAttribute('data-label',labels[i]||'');
+   }));
+ });
+ new MutationObserver(labelTables).observe(document.body,{childList:true,subtree:true});
+ labelTables();
+})();
+</script>
+
 </body>
 </html>
