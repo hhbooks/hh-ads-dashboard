@@ -26526,7 +26526,7 @@ function cpsExport(){if(!CPS.report)return;const wb=XLSX.utils.book_new();for(co
 <script>
 /* Cover photos from Shopee; separate from advertising figures and SKU mapping. */
 const GCPhotos=(()=>{
- const CACHE='h2_ads_product_photos_v1',photos=new Map(),watchers=new Map(),pending=new Map(),publishing=new Set();
+ const CACHE='h2_ads_product_photos_v1',photos=new Map(),watchers=new Map(),pending=new Map(),publishing=new Set(),cloudReady=new Map();
  let busy=false,loaded=false,status='Ảnh dùng chung tự hiển thị. Mỗi lượt lấy / cập nhật tối đa 40 sản phẩm.';
  const allowed=new Set(['1289235612','371873832','1096078460','1330480487','1092895286','1624586997']);
  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -26583,11 +26583,12 @@ const GCPhotos=(()=>{
   await resolveCampaigns();
   paint();
   const keys=new Set([...document.querySelectorAll('[data-gc-photo-key]')].map(e=>e.dataset.gcPhotoKey));
-  for(const [key,stop] of watchers)if(!keys.has(key)){stop();watchers.delete(key);}
+  for(const [key,stop] of watchers)if(!keys.has(key)){stop();watchers.delete(key);cloudReady.get(key)?.resolve(false);cloudReady.delete(key);}
   if(typeof db==='undefined'){if(keys.size)cloudError();return;}
   for(const key of keys){
    if(watchers.has(key))continue;
    try{
+    let resolve;const promise=new Promise(r=>{resolve=r;});cloudReady.set(key,{promise,resolve});
     const stop=photoDoc(key).onSnapshot({includeMetadataChanges:true},snapshot=>{
      // Wait for the server before migrating a local-only photo. Cached absence is not authoritative.
      if(snapshot.metadata?.fromCache||snapshot.metadata?.hasPendingWrites)return;
@@ -26596,18 +26597,27 @@ const GCPhotos=(()=>{
      else if(!snapshot.exists&&local&&!publishing.has(key)){
       publish(local).then(()=>{if(!busy)update('Ảnh đã lưu dùng chung. Mọi người mở dashboard sẽ tự thấy ảnh.');}).catch(cloudError);
      }
-    },()=>{watchers.get(key)?.();watchers.delete(key);cloudError();});
+     cloudReady.get(key)?.resolve(true);
+    },()=>{watchers.get(key)?.();watchers.delete(key);cloudReady.get(key)?.resolve(false);cloudReady.delete(key);cloudError();});
     watchers.set(key,stop);
-   }catch{cloudError();}
+   }catch{cloudReady.get(key)?.resolve(false);cloudReady.delete(key);cloudError();}
   }
  }
  window.addEventListener('pagehide',()=>{for(const stop of watchers.values())stop();watchers.clear();});
  function visible(scope){const root=scope?document.getElementById(scope):document;return [...new Set([...(root?.querySelectorAll('[data-gc-photo-key]')||[])].map(e=>e.dataset.gcPhotoKey))].map(k=>{const [shopId,itemId]=k.split('_');return id({shopId,itemId});}).filter(Boolean);}
- function update(s){status=s;document.querySelectorAll('.gc-photo-status').forEach(el=>el.textContent=s);document.querySelectorAll('.gc-photo-controls button').forEach(b=>{b.disabled=busy;b.textContent=busy?'Đang lấy ảnh…':'Lấy / cập nhật ảnh Shopee';});}
+ function update(s){status=s;document.querySelectorAll('.gc-photo-status').forEach(el=>el.textContent=s);document.querySelectorAll('.gc-photo-controls button').forEach(b=>{b.disabled=busy;b.textContent=busy?'Đang lấy ảnh…':b.dataset.photoLabel||'Lấy / cập nhật ảnh Shopee';});}
  window.addEventListener('message',ev=>{const d=ev.data;if(ev.source!==window||ev.origin!==location.origin||d?.channel!=='h2-ad-photos'||d.kind!=='response')return;const req=pending.get(d.id);if(!req)return;pending.delete(d.id);clearTimeout(req.timer);req.resolve(d.result);});
  function request(item,timeout=50000){return new Promise(resolve=>{const token=crypto.randomUUID();const timer=setTimeout(()=>{pending.delete(token);resolve({ok:false,error:'Không nhận được phản hồi. Cập nhật tiện ích 2H bản 2.21.0, tải lại dashboard rồi thử lại.'});},timeout);pending.set(token,{resolve,timer});window.postMessage({channel:'h2-ad-photos',kind:item?'request':'ping',id:token,item},location.origin);});}
- async function sync(scope){
-  if(busy)return;busy=true;await prime();const all=visible(scope).sort((a,b)=>Number(photos.has(a.key))-Number(photos.has(b.key))),list=all.slice(0,40);if(!list.length){busy=false;update('Chưa có mã sản phẩm thật để lấy ảnh. Cần đối chiếu danh mục; mã chiến dịch không phải mã sản phẩm.');return;}
+ async function sync(scope,options={}){
+  if(busy)return;busy=true;await prime();
+  const visibleItems=visible(scope);
+  if(options.missingOnly&&visibleItems.length){
+   update('Đang kiểm tra ảnh đã lưu dùng chung…');
+   let timer;const ready=await Promise.race([Promise.all(visibleItems.map(it=>cloudReady.get(it.key)?.promise||Promise.resolve(false))).then(rs=>rs.every(Boolean)),new Promise(r=>{timer=setTimeout(()=>r(false),15000);})]);clearTimeout(timer);
+   if(!ready){busy=false;update('Chưa kiểm tra được kho ảnh dùng chung. Thử lại sau; chưa tải lại ảnh để tránh lấy trùng.');return;}
+  }
+  const all=visibleItems.filter(it=>!options.missingOnly||!photos.has(it.key)).sort((a,b)=>Number(photos.has(a.key))-Number(photos.has(b.key))),list=all.slice(0,40);
+  if(!list.length){busy=false;update(visibleItems.length?'Các sản phẩm trong phần này đã có ảnh. Đổi tháng không cần lấy lại; dùng “Cập nhật lại ảnh” khi muốn đổi ảnh bìa.':'Chưa có mã sản phẩm thật để lấy ảnh. Cần đối chiếu danh mục; mã chiến dịch không phải mã sản phẩm.');return;}
   let count=0,shared=0,shareFailed=0,failed=0,consecutive=0,last='';update(`Đang lấy ảnh 0/${list.length}. Shopee sẽ mở ở tab nền.`);
   const connection=await request(null,2500);if(!connection?.ok){busy=false;update(connection?.error||'Chưa kết nối tiện ích lấy ảnh.');return;}
   try{for(let n=0;n<list.length;n++){
@@ -26718,7 +26728,7 @@ const RevenuePhotos=(()=>{
   return job;
  }
  function cell(itemId,text){return '<div class="gc-product-cell"><span class="revenue-photo-slot" data-revenue-item="'+esc(itemId)+'"><span class="gc-photo-empty" title="Đang đối chiếu shop và ID bài đăng">Ảnh</span></span><div class="gc-product-copy">'+text+'</div></div>';}
- function controls(scope){return '<div class="gc-photo-controls"><button type="button" onclick="RevenuePhotos.sync(\''+esc(scope)+'\')">Lấy / cập nhật ảnh sản phẩm</button><span class="revenue-photo-status gc-photo-status" role="status">Ảnh đã lưu dùng chung sẽ tự hiển thị.</span></div>';}
+ function controls(scope){return '<div class="gc-photo-controls"><button type="button" data-photo-label="Lấy ảnh còn thiếu" onclick="RevenuePhotos.sync(\''+esc(scope)+'\',true)">Lấy ảnh còn thiếu</button><button type="button" data-photo-label="Cập nhật lại ảnh" onclick="RevenuePhotos.sync(\''+esc(scope)+'\',false)">Cập nhật lại ảnh</button><span class="revenue-photo-status gc-photo-status" role="status">Ảnh dùng chung cho mọi tháng; chỉ cần lấy thêm ảnh còn thiếu.</span></div>';}
  function status(scope,text){const host=document.getElementById(scope);const el=host?.querySelector('.revenue-photo-status');if(el)el.textContent=text;}
  async function hydrate(force=false){
   const slots=[...document.querySelectorAll('[data-revenue-item]')];if(!slots.length)return;
@@ -26730,14 +26740,15 @@ const RevenuePhotos=(()=>{
   }await GCPhotos.prime();}
   catch{document.querySelectorAll('.revenue-photo-status').forEach(el=>el.textContent='Chưa đọc được MAP SW. Bấm lấy / cập nhật ảnh để thử lại.');}
  }
- async function sync(scope){
+ async function sync(scope,missingOnly=true){
   const host=document.getElementById(scope);if(!host)return;
-  const button=host.querySelector('.gc-photo-controls button');if(button?.disabled)return;
-  if(button)button.disabled=true;status(scope,'Đang đối chiếu shop và ID sản phẩm…');
-  try{await hydrate(true);await GCPhotos.sync(scope);
+  const buttons=[...host.querySelectorAll('.gc-photo-controls button')];if(buttons.some(b=>b.disabled))return;
+  buttons.forEach(b=>b.disabled=true);status(scope,'Đang đối chiếu shop và ID sản phẩm…');
+  try{await hydrate(true);await GCPhotos.sync(scope,{missingOnly});
    const total=host.querySelectorAll('[data-revenue-item]').length,mapped=host.querySelectorAll('[data-gc-photo-key]').length,shown=host.querySelectorAll('[data-photo-url]').length;
-   status(scope,'Đã ghép đúng shop '+mapped+'/'+total+' sản phẩm; '+shown+' ảnh đang hiển thị.'+(total>mapped?' Các mã chưa xác định được shop giữ ô chờ.':'')+' '+(document.querySelector('.gc-photo-status')?.textContent||''));
-  }finally{if(button)button.disabled=false;document.querySelectorAll('.revenue-photo-status').forEach(el=>{const b=el.parentElement.querySelector('button');if(b&&!b.disabled)b.textContent='Lấy / cập nhật ảnh sản phẩm';});}
+   const result=host.querySelector('.gc-photo-status')?.textContent||'';
+   status(scope,'Đã ghép đúng shop '+mapped+'/'+total+' sản phẩm; '+shown+' ảnh đang hiển thị.'+(total>mapped?' Các mã chưa xác định được shop giữ ô chờ.':'')+' '+result);
+  }finally{buttons.forEach(b=>{b.disabled=false;b.textContent=b.dataset.photoLabel;});}
  }
  const observer=new MutationObserver(changes=>{if(changes.some(m=>[...m.addedNodes].some(n=>n.nodeType===1&&(n.matches?.('[data-revenue-item]')||n.querySelector?.('[data-revenue-item]'))))){clearTimeout(timer);timer=setTimeout(()=>hydrate(),80);}});
  observer.observe(document.body,{childList:true,subtree:true});
