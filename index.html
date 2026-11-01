@@ -26605,7 +26605,7 @@ const GCPhotos=(()=>{
  }
  window.addEventListener('pagehide',()=>{for(const stop of watchers.values())stop();watchers.clear();});
  function visible(scope){const root=scope?document.getElementById(scope):document;return [...new Set([...(root?.querySelectorAll('[data-gc-photo-key]')||[])].map(e=>e.dataset.gcPhotoKey))].map(k=>{const [shopId,itemId]=k.split('_');return id({shopId,itemId});}).filter(Boolean);}
- function update(s){status=s;document.querySelectorAll('.gc-photo-status').forEach(el=>el.textContent=s);document.querySelectorAll('.gc-photo-controls button').forEach(b=>{b.disabled=busy;b.textContent=busy?'Đang lấy ảnh…':b.dataset.photoLabel||'Lấy / cập nhật ảnh Shopee';});}
+ function update(s){status=s;document.querySelectorAll('.gc-photo-status').forEach(el=>el.textContent=s);document.querySelectorAll('.gc-photo-controls button:not([data-photo-stop])').forEach(b=>{b.disabled=busy;b.textContent=busy?'Đang lấy ảnh…':b.dataset.photoLabel||'Lấy / cập nhật ảnh Shopee';});}
  window.addEventListener('message',ev=>{const d=ev.data;if(ev.source!==window||ev.origin!==location.origin||d?.channel!=='h2-ad-photos'||d.kind!=='response')return;const req=pending.get(d.id);if(!req)return;pending.delete(d.id);clearTimeout(req.timer);req.resolve(d.result);});
  function request(item,timeout=50000){return new Promise(resolve=>{const token=crypto.randomUUID();const timer=setTimeout(()=>{pending.delete(token);resolve({ok:false,error:'Không nhận được phản hồi. Cập nhật tiện ích 2H bản 2.21.0, tải lại dashboard rồi thử lại.'});},timeout);pending.set(token,{resolve,timer});window.postMessage({channel:'h2-ad-photos',kind:item?'request':'ping',id:token,item},location.origin);});}
  async function sync(scope,options={}){
@@ -26627,6 +26627,45 @@ const GCPhotos=(()=>{
    update(`Đã lấy ${count} ảnh; đã lưu dùng chung ${shared}; ${failed} chưa lấy được · ${n+1}/${list.length}.${last?' Lỗi gần nhất: '+last:''}`);
   }}finally{busy=false;update(`Đã lấy ${count}/${list.length} ảnh; đã lưu dùng chung ${shared} ảnh.${shareFailed?' '+shareFailed+' ảnh chỉ lưu trên máy do chưa đồng bộ được. Bấm lấy / cập nhật ảnh để thử lại.':shared?' Mọi người mở dashboard sẽ tự thấy ảnh.':''}${failed?' '+failed+' sản phẩm cần kiểm tra. '+last:''}${all.length>40?' Mỗi lượt tối đa 40 SP; mở ít nhóm hơn để cập nhật nhóm tiếp theo.':''}`);}
  }
+ async function syncItems(items,options={}){
+  if(busy)throw Error('Đang có lượt lấy ảnh khác. Chờ lượt đó hoàn tất.');
+  busy=true;load();const unique=new Map();for(const item of items){const it=id(item);if(it)unique.set(it.key,it);}
+  const all=[...unique.values()],queue=[],s={total:all.length,checked:0,existing:0,missing:0,acquired:0,added:0,shared:0,failed:0,shareFailed:0,checkFailed:0,processed:0,phase:'scan',stopped:false,error:''};
+  const stopped=()=>!!options.shouldStop?.(),emit=()=>options.onProgress?.({...s});
+  try{
+   emit();
+   // Read the shared catalogue in bounded groups; no need to render thousands of rows.
+   for(let offset=0;offset<all.length&&!stopped();offset+=20){
+    await Promise.all(all.slice(offset,offset+20).map(async it=>{
+     try{
+      const snap=await photoDoc(it.key).get({source:'server'}),remote=snap.exists?valid(snap.data()):null;
+      if(remote&&remote.key===it.key)photos.set(it.key,remote);
+      const local=photos.get(it.key);
+      if(local){s.existing++;if(!remote){try{await publish(local);}catch{s.shareFailed++;}}}
+      if(options.missingOnly===false||!local){queue.push(it);if(!local)s.missing++;}
+     }catch{s.checkFailed++;}
+     s.checked++;emit();
+    }));save();paint();
+   }
+   if(stopped()){s.stopped=true;return {...s};}
+   if(!queue.length)return {...s};
+   const connection=await request(null,2500);if(!connection?.ok){s.error=connection?.error||'Chưa kết nối tiện ích lấy ảnh.';return {...s};}
+   s.phase='fetch';emit();let consecutive=0;
+   for(const it of queue){
+    if(stopped()){s.stopped=true;break;}
+    const r=await request(it),p=valid(r?.photo);s.processed++;
+    if(r?.ok&&p&&p.key===it.key){
+     consecutive=0;if(!photos.has(p.key))s.added++;photos.set(p.key,p);save();paint();s.acquired++;
+     try{await publish(p);s.shared++;}catch{s.shareFailed++;}
+    }else{s.failed++;consecutive++;s.error=r?.error||'Không đọc được ảnh đúng shop và ID.';}
+    emit();
+    if(consecutive>=3||/2\.21\.0|Không nhận được phản hồi/.test(s.error)){s.stopped=true;break;}
+    if(!consecutive)s.error='';
+   }
+   if(stopped())s.stopped=true;
+   return {...s};
+  }finally{busy=false;s.phase='done';emit();}
+ }
  function show(key){const p=photos.get(key);if(!p)return;let d=document.getElementById('gc-photo-dialog');if(d)d.remove();d=document.createElement('dialog');d.id='gc-photo-dialog';d.className='gc-photo-dialog';const b=document.createElement('button');b.textContent='Đóng';b.onclick=()=>d.close();const img=document.createElement('img');img.src=p.url;img.alt='Ảnh bìa sản phẩm trên Shopee';img.referrerPolicy='no-referrer';d.append(b,img);document.body.appendChild(d);d.showModal();}
  // Product tables are rebuilt by filtering, shop changes and hourly detail loading.
  let refreshTimer;
@@ -26643,7 +26682,7 @@ const GCPhotos=(()=>{
  },60);}
  const observer=new MutationObserver(changes=>{if(changes.some(m=>!m.target.closest?.('.gc-product-photo,.gc-photo-controls')&&roots.some(name=>document.getElementById(name)?.contains(m.target))))schedule();});
  observer.observe(document.body,{childList:true,subtree:true});schedule();
- return {html,cell,overviewCell,resolve,candidate,controls,prime,sync,show,identity:id,valid};
+ return {html,cell,overviewCell,resolve,candidate,controls,prime,sync,syncItems,show,identity:id,valid};
 })();
 
 </script>
@@ -26708,7 +26747,7 @@ const RevenuePhotos=(()=>{
  const norm=s=>String(s||'').normalize('NFC').trim().toLocaleLowerCase('vi').replace(/\s+/g,' ');
  const shops=new Map(Object.entries({'2h books':'1096078460','huy hoàng bookstore':'371873832','nhà sách 2hbooks':'1289235612','họa cụ 2h':'1330480487','2h books store':'1092895286','2h home living':'1624586997'}));
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- let mapping=new Map(),job=null,loaded=false,timer;
+ let mapping=new Map(),job=null,loaded=false,timer,active=null;
  function indexRows(rows){
   const out=new Map(),h=(rows[0]||[]).map(norm),item=h.indexOf('id sp shopee'),shop=h.indexOf('tên shop'),platform=h.indexOf('sàn');
   if(item<0||shop<0||platform<0)throw Error('MAP SW thiếu cột Sàn, Tên shop hoặc ID SP Shopee.');
@@ -26728,7 +26767,7 @@ const RevenuePhotos=(()=>{
   return job;
  }
  function cell(itemId,text){return '<div class="gc-product-cell"><span class="revenue-photo-slot" data-revenue-item="'+esc(itemId)+'"><span class="gc-photo-empty" title="Đang đối chiếu shop và ID bài đăng">Ảnh</span></span><div class="gc-product-copy">'+text+'</div></div>';}
- function controls(scope){return '<div class="gc-photo-controls"><button type="button" data-photo-label="Lấy ảnh còn thiếu" onclick="RevenuePhotos.sync(\''+esc(scope)+'\',true)">Lấy ảnh còn thiếu</button><button type="button" data-photo-label="Cập nhật lại ảnh" onclick="RevenuePhotos.sync(\''+esc(scope)+'\',false)">Cập nhật lại ảnh</button><span class="revenue-photo-status gc-photo-status" role="status">Ảnh dùng chung cho mọi tháng; chỉ cần lấy thêm ảnh còn thiếu.</span></div>';}
+ function controls(scope){const same=active?.scope===scope;return '<div class="gc-photo-controls"><button type="button" data-photo-label="Lấy ảnh còn thiếu" '+(active?'disabled ':'')+'onclick="RevenuePhotos.sync(\''+esc(scope)+'\',true)">Lấy ảnh còn thiếu</button><button type="button" data-photo-label="Cập nhật lại ảnh" '+(active?'disabled ':'')+'onclick="RevenuePhotos.sync(\''+esc(scope)+'\',false)">Cập nhật lại ảnh</button><button type="button" data-photo-stop '+(same?'':'hidden ')+'onclick="RevenuePhotos.stop()">Dừng</button><span class="revenue-photo-status gc-photo-status" role="status">'+esc(same?active.text:scope==='bcdt-rank-table'?'Lấy ảnh cho toàn bộ sản phẩm của tháng đang chọn, kể cả các dòng chưa mở.':'Ảnh dùng chung cho mọi tháng; chỉ cần lấy thêm ảnh còn thiếu.')+'</span></div>';}
  function status(scope,text){const host=document.getElementById(scope);const el=host?.querySelector('.revenue-photo-status');if(el)el.textContent=text;}
  async function hydrate(force=false){
   const slots=[...document.querySelectorAll('[data-revenue-item]')];if(!slots.length)return;
@@ -26742,17 +26781,25 @@ const RevenuePhotos=(()=>{
  }
  async function sync(scope,missingOnly=true){
   const host=document.getElementById(scope);if(!host)return;
-  const buttons=[...host.querySelectorAll('.gc-photo-controls button')];if(buttons.some(b=>b.disabled))return;
-  buttons.forEach(b=>b.disabled=true);status(scope,'Đang đối chiếu shop và ID sản phẩm…');
-  try{await hydrate(true);await GCPhotos.sync(scope,{missingOnly});
-   const total=host.querySelectorAll('[data-revenue-item]').length,mapped=host.querySelectorAll('[data-gc-photo-key]').length,shown=host.querySelectorAll('[data-photo-url]').length;
-   const result=host.querySelector('.gc-photo-status')?.textContent||'';
-   status(scope,'Đã ghép đúng shop '+mapped+'/'+total+' sản phẩm; '+shown+' ảnh đang hiển thị.'+(total>mapped?' Các mã chưa xác định được shop giữ ô chờ.':'')+' '+result);
-  }finally{buttons.forEach(b=>{b.disabled=false;b.textContent=b.dataset.photoLabel;});}
+  if(active)return;
+  // Snapshot the entire month before awaiting anything. Search, sort and 30-row display limits do not change this list.
+  const ids=[...new Set(scope==='bcdt-rank-table'&&typeof BCDT!=='undefined'?BCDT.rank.map(r=>String(r.ma)):[...host.querySelectorAll('[data-revenue-item]')].map(el=>el.dataset.revenueItem))];
+  const run=active={scope,stop:false,period:typeof BCDT!=='undefined'?BCDT.cur:'',text:'Đang đối chiếu toàn bộ '+ids.length+' sản phẩm…'};
+  const ui=()=>document.querySelectorAll('.revenue-photo-status').forEach(el=>{const controls=el.parentElement;controls.querySelectorAll('button:not([data-photo-stop])').forEach(b=>b.disabled=!!active);const b=controls.querySelector('[data-photo-stop]');if(b){b.hidden=!active||!document.getElementById(active.scope)?.contains(b);b.disabled=!!active?.stop;}});
+  const say=text=>{run.text=(run.period?'Kỳ '+run.period+' · ':'')+text;status(scope,run.text);};
+  ui();say(run.text);
+  try{
+   await load(true);const items=ids.map(key=>mapping.get(key)).filter(Boolean),unmapped=ids.length-items.length;
+   const progress=s=>say((s.phase==='scan'?'Đang kiểm tra '+s.checked+'/'+items.length+' mã đã map. ':'')+'Tổng '+ids.length+' sản phẩm · Có ảnh '+(s.existing+s.added)+' · Còn thiếu '+Math.max(0,s.missing-s.added)+' · Chưa map '+unmapped+' · Lỗi lấy ảnh '+s.failed+(s.checkFailed?' · Chưa kiểm tra được '+s.checkFailed:'')+(s.shareFailed?' · Chưa lưu dùng chung '+s.shareFailed:'')+(s.phase==='fetch'?' · Đã xử lý '+s.processed+'/'+(missingOnly?s.missing:items.length)+' ảnh.':'')+(s.error?' '+s.error:'')+(run.stop?' Đang dừng sau sản phẩm hiện tại.':''));
+   const result=await GCPhotos.syncItems(items,{missingOnly,shouldStop:()=>run.stop,onProgress:progress});
+   progress({...result,phase:'done'});say(run.text.replace(run.period?'Kỳ '+run.period+' · ':'','')+(run.stop||result.stopped?' Đã dừng; bấm lấy ảnh còn thiếu để tiếp tục.':result.checkFailed?' Chưa hoàn tất kiểm tra kho ảnh.':result.error&&result.processed===0?' Chưa lấy được ảnh; thử lại sau.':' Đã hoàn tất lượt này.'));
+  }catch(e){say('Chưa hoàn tất: '+(e.message||'Không đọc được nguồn ảnh.'));}
+  finally{active=null;ui();}
  }
+ function stop(){if(!active)return;active.stop=true;status(active.scope,active.text+' Đang dừng sau sản phẩm hiện tại.');document.querySelectorAll('[data-photo-stop]').forEach(b=>b.disabled=true);}
  const observer=new MutationObserver(changes=>{if(changes.some(m=>[...m.addedNodes].some(n=>n.nodeType===1&&(n.matches?.('[data-revenue-item]')||n.querySelector?.('[data-revenue-item]'))))){clearTimeout(timer);timer=setTimeout(()=>hydrate(),80);}});
  observer.observe(document.body,{childList:true,subtree:true});
- return{cell,controls,hydrate,sync,indexRows};
+ return{cell,controls,hydrate,sync,stop,indexRows};
 })();
 
 </script>
