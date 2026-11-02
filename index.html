@@ -25809,9 +25809,13 @@ async function bcdtLoad() {
       if (/Unable to parse range|400/.test(e.message)) throw new Error('Chưa có tab "' + BCDT_TAB_P + '" trong Sheet — chạy mục "Thống kê sản phẩm" của tiện ích "Tải File SW" trước.');
       throw e;
     }
+    const optionalTab = (tab, range) => bcdtReadTab(tab, range).catch(error => {
+      if (/Unable to parse range/.test(error.message)) return null;
+      throw error; // A service/network failure is not a missing tab. Keep the previous report intact.
+    });
     const [kv, sv] = await Promise.all([
-      bcdtReadTab(BCDT_TAB_KQ, 'A1:S').catch(() => null),
-      bcdtReadTab(BCDT_TAB_SW, 'A1:H').catch(() => null)
+      optionalTab(BCDT_TAB_KQ, 'A1:S'),
+      optionalTab(BCDT_TAB_SW, 'A1:H')
     ]);
     if (seq !== BCDT.seq) return;
 
@@ -25832,7 +25836,7 @@ async function bcdtLoad() {
 
     // KQKD (1 dòng/tháng — nếu trùng tháng lấy dòng cuối)
     let kq = null, kqNote = '';
-    if (!kv) kqNote = 'Chưa có tab "KQKD" — chạy mục "Kết quả kinh doanh" của tiện ích "Tải File SW" để có phần chi phí / lợi nhuận.';
+    if (!kv) kqNote = 'Sheet chưa có tab "KQKD". Chưa có dữ liệu chi phí / lợi nhuận để hiển thị.';
     else {
       const kh = bcdtHead(kv), kc = n => kh.indexOf(n), cKM = kc('Tháng');
       if (cKM < 0 || kc('Doanh thu') < 0 || kc('Lợi nhuận') < 0) kqNote = 'Tab "KQKD" không đúng cột (cần: Tháng, Doanh thu, Lợi nhuận…).';
@@ -26999,10 +27003,10 @@ const ReportGrowth=(()=>{
   const years=[...new Set([2025,2026,selectedYear,...keys.map(k=>Number(k.slice(0,4)))])].sort();
   const tracking=m.unit==='đ'?'Theo dõi doanh thu':'Theo dõi sản lượng';
   html+='<div class="rg-heading"><h3>'+tracking+'</h3></div><p class="rg-note" data-rg-history-status>'+esc(historyStatus.get(id)||'')+'</p><div class="rg-years">';
-  for(const year of years){const hr=[],have=[];for(let i=1;i<=12;i++){const key=year+'-'+String(i).padStart(2,'0'),value=history[key]??null,pv=history[previous(key)]??null;if(value!=null)have.push(value);hr.push(['T'+i,value==null?(m.availableMonths?.includes(key)?'Chưa tải tháng này':'Chưa có dữ liệu'):num(value),pv==null?'—':num(pv),delta(value,pv),esc(change(value,pv))]);}
+  for(const year of years){const hr=[],have=[];for(let i=1;i<=12;i++){const key=year+'-'+String(i).padStart(2,'0'),value=history[key]??null,pv=history[previous(key)]??null;if(value!=null)have.push(value);hr.push(value==null?['T'+i,m.availableMonths?.includes(key)?'Chưa đọc được':'','','','']:['T'+i,num(value),pv==null?'—':num(pv),delta(value,pv),esc(change(value,pv))]);}
    html+='<details class="rg-history" data-rg-year="'+year+'" open><summary>'+tracking+' · '+year+'</summary>'+table(['Tháng',m.label,'Tháng trước','Chênh lệch','Tăng/giảm'],hr)+'<p class="rg-note">Đã có '+have.length+'/12 tháng · Tổng năm '+year+' (các tháng có dữ liệu): <b>'+num(have.reduce((a,b)=>a+b,0))+' '+metric+'</b>.</p></details>';
   }
-  html+='</div><p class="rg-note">Chỉ tiêu đang theo dõi: '+esc(m.label)+'. Tháng thiếu dữ liệu không được coi là 0. Tháng đang chạy chưa đủ kỳ nên % chỉ để tham khảo. SG/HN: tháng có trong danh sách nhưng chưa đọc được ghi “Chưa tải tháng này”.</p>'+impact;
+  html+='</div><p class="rg-note">Chỉ tiêu đang theo dõi: '+esc(m.label)+'. Tháng chưa có dữ liệu để trống, không coi là 0. Tháng đang chạy chưa đủ kỳ nên % chỉ để tham khảo. SG/HN: tháng đã có nguồn nhưng chưa đọc thành công ghi “Chưa đọc được”.</p>'+impact;
   host.innerHTML=html+'</section>';host.querySelector('[data-rg-dimension]').onchange=e=>{choices.set(id,e.target.value);render(id);};
  }
  function mount(id,m){models.set(id,m);render(id);}
@@ -27029,11 +27033,9 @@ const ReportGrowth=(()=>{
    let done=0;const errors=[];
    historyMessage(wh,'Đang tải lịch sử '+wh+': 0/'+months.length+' tháng. Anh không cần chọn từng tháng.');
    for(const m of months){
-    try{await kvrLoadMonth(wh,m);}catch(error){
-     if(/fetch|network|timeout|429|50[23]/i.test(String(error?.message))){try{await new Promise(r=>setTimeout(r,1500));await kvrLoadMonth(wh,m);}catch{errors.push(m);}}
-     else errors.push(m);
-    }
-    done++;historyMessage(wh,'Đang tải lịch sử '+wh+': '+done+'/'+months.length+' tháng'+(errors.length?' · '+errors.length+' tháng chưa đọc được.':'.'));
+    try{await kvrLoadMonth(wh,m);}catch(error){errors.push(m);}
+    // Show every successfully read month immediately, while later months continue loading.
+    done++;warehouses(wh);historyMessage(wh,'Đang tải lịch sử '+wh+': '+done+'/'+months.length+' tháng'+(errors.length?' · '+errors.length+' tháng chưa đọc được.':'.'));
    }
    // Only redraw the growth panel; never change the selected report month or its detail data.
    warehouses(wh);
@@ -27092,17 +27094,31 @@ const TfmMatchedExport=(()=>{
 const DashboardSharedRead=(()=>{
  const endpoint='https://script.google.com/macros/s/AKfycbyN1wA9bYf7QBMPhCSVL0y9mma8EPFzT4SKEFwFKPtxXhUDMhY4q0T8fhRYEwSGfnip/exec',nativeFetch=window.fetch.bind(window),marker='shared-read';
  const ready=/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(endpoint);
- async function read(url){
+ const transient=status=>[429,500,502,503,504].includes(status);
+ async function retryRead(run){
+  for(let attempt=0;;attempt++){
+   try{const value=await run();if(value instanceof Response&&transient(value.status)&&attempt<3){await new Promise(r=>setTimeout(r,1000*2**attempt));continue;}return value;}
+   catch(error){if(!error.retryable||attempt>=3)throw error;await new Promise(r=>setTimeout(r,1000*2**attempt));}
+  }
+ }
+ async function readOnce(url){
   if(!ready)throw Error('Kết nối đọc dùng chung chưa được triển khai.');
-  const result=await nativeFetch(endpoint,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({url}),credentials:'omit',redirect:'follow',referrerPolicy:'no-referrer'});
-  if(!result.ok)throw Error('Dịch vụ đọc dữ liệu chưa phản hồi ('+result.status+').');
+  let result;try{result=await nativeFetch(endpoint,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({url}),credentials:'omit',redirect:'follow',referrerPolicy:'no-referrer'});}catch{const e=Error('Không kết nối được dịch vụ đọc Sheet.');e.retryable=true;throw e;}
+  if(!result.ok){const e=Error('Dịch vụ đọc dữ liệu chưa phản hồi ('+result.status+').');e.retryable=transient(result.status);throw e;}
   let data;try{data=await result.json();}catch{throw Error('Chủ dịch vụ cần triển khai quyền truy cập cho người có link.');}
   if(!Number.isInteger(data.status)||typeof data.body!=='string')throw Error('Dịch vụ đọc dữ liệu trả sai định dạng.');
   return new Response(data.body,{status:data.status,headers:{'Content-Type':data.contentType||'application/json'}});
  }
+ const inFlight=new Map();
+ async function read(url){
+  if(!inFlight.has(url))inFlight.set(url,retryRead(()=>readOnce(url)).finally(()=>inFlight.delete(url)));
+  return (await inFlight.get(url)).clone();
+ }
  function supported(url){try{const u=new URL(url,location.href);return u.protocol==='https:'&&((u.hostname==='sheets.googleapis.com'&&u.pathname.startsWith('/v4/spreadsheets/'))||(u.hostname==='www.googleapis.com'&&u.pathname.startsWith('/drive/v3/files')));}catch{return false;}}
  function install(){if(!ready)return false;
   window.fetch=(input,options={})=>{const url=typeof input==='string'?input:input instanceof URL?input.href:input.url,method=String(options.method||input?.method||'GET').toUpperCase();return method==='GET'&&supported(url)?read(url):nativeFetch(input,options);};
+  const originalSheetCall=adsSheetCall;
+  adsSheetCall=payload=>['sw_main_id','sw_info','sw_kv_list'].includes(payload?.action)?retryRead(async()=>{try{return await originalSheetCall(payload);}catch(e){e.retryable=/HTTP (429|500|502|503|504)\b|lỗi mạng\/CORS|service.*unavailable/i.test(e.message);throw e;}}):originalSheetCall(payload);
   tqSyncCatalog=async function(){const b=document.getElementById('tq-sync-btn');if(b)b.disabled=true;_catalogDriveToken=marker;try{await tqDoCatalogSync();}finally{if(b)b.disabled=false;}};
   blSyncBlacklist=async function(logFn){const b=document.getElementById('bl-sync-btn');if(b)b.disabled=true;_blDriveToken=marker;try{await blDoBlacklistSync(logFn);}finally{if(b)b.disabled=false;}};
   giaSyncOrders=async function(){const tab=document.getElementById('gia-month-select')?.value;if(!tab){alert('Chọn tháng cần đồng bộ trước.');return;}const b=document.getElementById('gia-sync-orders-btn');if(b)b.disabled=true;_giaDriveToken=marker;try{await giaDoSyncOrders(tab);}finally{if(b)b.disabled=false;}};
