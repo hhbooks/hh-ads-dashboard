@@ -27277,6 +27277,8 @@ const CKHHAccess=(()=>{
 .ads-growth .ag-table-wrap{max-height:490px;overflow:auto;border:1px solid #536b91;border-radius:9px}.ads-growth table{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;color:#fff;font-size:17px;font-variant-numeric:tabular-nums}
 .ads-growth th,.ads-growth td{padding:18px 12px;text-align:center;vertical-align:middle;line-height:1.5;overflow-wrap:anywhere;border-right:1px solid #536b91;border-bottom:1px solid #536b91}.ads-growth th{position:sticky;top:0;z-index:1;background:#2c4073;color:#fff;font-size:15px;font-weight:700}.ads-growth :is(th,td):first-child{text-align:left;width:26%}.ads-growth :is(th,td):last-child{border-right:0}.ads-growth tbody tr:nth-child(even){background:rgba(255,255,255,.035)}.ads-growth tbody tr:hover{background:#3b5592!important}.ads-growth tbody tr:hover td{background:transparent!important}
 .ads-growth td{color:#fff;font-weight:600}
+.ads-growth .ag-shop-link{background:transparent;color:#fff;border:0;padding:0;text-align:left;font-size:17px;font-weight:700;text-decoration:underline;text-underline-offset:4px}
+.ads-growth .ag-shop-link:hover{color:#bfdbfe}.ads-growth .ag-scope{font-size:16px;color:#17345d;margin:10px 0}.ads-growth .ag-scope button{margin-left:10px}
 .ads-growth .ag-years :is(th,td):first-child{width:10%;text-align:center}.ads-growth .ag-years :is(th,td){padding:15px 8px}.ads-growth .ag-up{color:#86efac}.ads-growth .ag-down{color:#fca5a5}
 @media(max-width:1100px){.ads-growth .ag-panel{padding:16px}.ads-growth :is(th,td){padding:15px 8px}}
 @media(max-width:720px){.ads-growth .ag-table-wrap{overflow:visible;max-height:none}.ads-growth table,.ads-growth tbody,.ads-growth tr{display:block;width:100%;box-sizing:border-box}.ads-growth thead{display:none}.ads-growth td,.ads-growth .ag-years td:first-child,.ads-growth td:first-child{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:12px;width:100%;box-sizing:border-box;text-align:left;padding:12px 8px;border-right:0;font-size:17px}.ads-growth td:before{content:attr(data-label);font-size:14px;color:#dbe4f3}.ads-growth tr{border-bottom:2px solid #6b7f9e}}
@@ -27307,7 +27309,7 @@ const AdsGrowth=(()=>{
   if(!before)return[];
   const currentShops=new Set(now.filter(x=>x.level==='shop').map(x=>x.shop)),priorShops=new Set(before.filter(x=>x.level==='shop').map(x=>x.shop));
   const eligible=new Set([...currentShops].filter(s=>priorShops.has(s))),a=aggregate(now.filter(x=>eligible.has(x.shop)),level),b=aggregate(before.filter(x=>eligible.has(x.shop)),level);
-  return[...new Set([...a.keys(),...b.keys()])].map(k=>{const n=a.get(k),p=b.get(k);return{key:k,name:n?.name||p.name,now:n?.rev||0,before:p?.rev||0,cost:n?.cost||0,prevCost:p?.cost||0,delta:(n?.rev||0)-(p?.rev||0)};});
+  return[...new Set([...a.keys(),...b.keys()])].map(k=>{const n=a.get(k),p=b.get(k);return{key:k,shop:n?.shop||p.shop,name:n?.name||p.name,now:n?.rev||0,before:p?.rev||0,cost:n?.cost||0,prevCost:p?.cost||0,delta:(n?.rev||0)-(p?.rev||0)};});
  }
  function csvRecords(shops){
   const rows=[];for(const [shop,s]of Object.entries(shops||{})){
@@ -27384,35 +27386,48 @@ const AdsGrowth=(()=>{
  function render(page){
   const s=states.get(page),host=ensure(page);if(!host||!s)return;if(!s.model){host.innerHTML='<div class="ag-panel"><h3>Theo dõi doanh thu quảng cáo</h3><p>'+esc(s.error||'Đang đọc lịch sử quảng cáo đã lưu…')+'</p></div>';return;}
   const m=s.model,h=m.history,yearKeys=Object.keys(h).map(k=>Number(k.slice(0,4))),years=[...new Set([2025,new Date().getFullYear(),...yearKeys])].sort(),dims=[['shop','Shop'],...(m.kind==='sheet'&&m.type==='Nhóm'?[['type','Loại quảng cáo'],['campaign','Chiến dịch / nhóm'],['product','Sản phẩm']]:m.kind==='sheet'?[['product','Sản phẩm GMS']]:m.kind==='hour'?[['hour','Khung giờ']]:[['campaign','Quảng cáo / chiến dịch']])];
-  if(!dims.some(d=>d[0]===s.dimension))s.dimension=dims[0][0];
+  if(!dims.some(d=>d[0]===s.dimension))s.dimension=defaultDimension(page,m);
   let html='<div class="ag-heading"><h3>Theo dõi doanh thu quảng cáo</h3><button onclick="AdsGrowth.reload(\''+page+'\')">Làm mới lịch sử</button></div><p class="ag-note">'+esc(m.source)+'. Doanh thu được ghi nhận cho quảng cáo, không phải doanh thu thực nhận hay lợi nhuận. Chỉ đọc nguồn đã lưu; tháng chưa có để trống.</p><div class="ag-years">';
   for(const year of years){const rows=[];let sum=0;for(let month=1;month<=12;month++){const k=year+'-'+String(month).padStart(2,'0'),v=h[k],prev=h[monthBefore(k)];if(v)sum+=v.rev;const delta=v&&prev?v.rev-prev.rev:null;rows.push(['T'+month,v?num(v.rev):'',v&&prev?num(prev.rev):'',delta==null?'':'<b class="'+color(delta)+'">'+signed(delta)+'</b>',v?'<b class="'+(prev?color(v.rev-prev.rev):'')+'">'+esc(pct(v.rev,prev?.rev))+'</b>':'']);}
    html+='<div class="ag-panel"><h4>Theo dõi doanh thu quảng cáo · '+year+'</h4>'+table(['Tháng','Doanh thu QC','Tháng trước','Chênh lệch','Tăng/giảm'],rows,'year-'+year)+'<p class="ag-note">Tổng các tháng đã có dữ liệu: <b>'+num(sum)+' đ</b>. Tháng đang chạy/ngày chưa tải có thể chưa đủ kỳ.</p></div>';
   }
-  const totals=total(m.now);html+='</div><div class="ag-heading"><h3>Tăng ở đâu, giảm ở đâu?</h3><label>Phân tích theo <select onchange="AdsGrowth.choose(\''+page+'\',this.value)">'+dims.map(([k,v])=>'<option value="'+k+'" '+(s.dimension===k?'selected':'')+'>'+v+'</option>').join('')+'</select></label></div><p class="ag-note">Kỳ này '+esc(rangeText(m.range))+(m.beforeRange?' · So với '+esc(rangeText(m.beforeRange)):' · Chọn một khoảng ngày để xem tăng/giảm')+'. Doanh thu QC: <b>'+num(totals.rev)+' đ</b> · Chi phí: <b>'+num(totals.cost)+' đ</b> · ROAS: <b>'+roas(totals.rev,totals.cost)+'</b>.</p>';
+  const scopeName=m.shop==='all'?'Tất cả shop':m.all.find(r=>r.shop===String(m.shop))?.shopName||m.shop;
+  const totals=total(m.now);html+='</div><div class="ag-heading"><h3>Tăng ở đâu, giảm ở đâu?</h3><label>Phân tích theo <select onchange="AdsGrowth.choose(\''+page+'\',this.value)">'+dims.map(([k,v])=>'<option value="'+k+'" '+(s.dimension===k?'selected':'')+'>'+v+'</option>').join('')+'</select></label></div><p class="ag-scope">Phạm vi: <b>'+esc(scopeName)+'</b>'+(s.drillShop?' <button onclick="AdsGrowth.back(\''+page+'\')">← Tất cả shop</button>':'')+'</p><p class="ag-note">Kỳ này '+esc(rangeText(m.range))+(m.beforeRange?' · So với '+esc(rangeText(m.beforeRange)):' · Chọn một khoảng ngày để xem tăng/giảm')+'. Doanh thu QC: <b>'+num(totals.rev)+' đ</b> · Chi phí: <b>'+num(totals.cost)+' đ</b> · ROAS: <b>'+roas(totals.rev,totals.cost)+'</b>.</p>';
+  if(s.dimension==='shop')html+='<p class="ag-note">Bấm tên shop trong bảng để xem ngay quảng cáo/chiến dịch tăng, giảm bên trong shop đó.</p>';
   for(const note of m.notes)html+='<p class="ag-note ag-warning">'+esc(note)+'</p>';
   const rows=differences(m.now,m.before,s.dimension);for(const up of [true,false]){const list=rows.filter(r=>up?r.delta>0:r.delta<0).sort((a,b)=>up?b.delta-a.delta:a.delta-b.delta).slice(0,30);
-   html+='<div class="ag-panel"><h4 class="'+(up?'ag-up':'ag-down')+'">'+(up?'▲ Đóng góp tăng nhiều nhất':'▼ Đóng góp giảm nhiều nhất')+'</h4>'+(list.length?table([dims.find(d=>d[0]===s.dimension)[1],'Kỳ trước','Kỳ này','Chênh lệch','Tăng/giảm','Chi phí kỳ này','ROAS kỳ này'],list.map(r=>[esc(r.name),num(r.before),num(r.now),'<b class="'+color(r.delta)+'">'+signed(r.delta)+'</b>','<b class="'+color(r.delta)+'">'+esc(pct(r.now,r.before))+'</b>',num(r.cost),roas(r.now,r.cost)]),up?'up':'down'):'<p class="ag-note">'+(!m.before?'Chưa có kỳ so sánh.':up?'Không có phần tăng đủ dữ liệu so sánh.':'Không có phần giảm đủ dữ liệu so sánh.')+'</p>')+'</div>';
+   html+='<div class="ag-panel"><h4 class="'+(up?'ag-up':'ag-down')+'">'+(up?'▲ Đóng góp tăng nhiều nhất':'▼ Đóng góp giảm nhiều nhất')+'</h4>'+(list.length?table([dims.find(d=>d[0]===s.dimension)[1],'Kỳ trước','Kỳ này','Chênh lệch','Tăng/giảm','Chi phí kỳ này','ROAS kỳ này'],list.map(r=>[s.dimension==='shop'?'<button class="ag-shop-link" onclick="AdsGrowth.openShop(\''+page+'\','+esc(JSON.stringify(r.shop))+')">'+esc(r.name)+' →</button>':esc(r.name),num(r.before),num(r.now),'<b class="'+color(r.delta)+'">'+signed(r.delta)+'</b>','<b class="'+color(r.delta)+'">'+esc(pct(r.now,r.before))+'</b>',num(r.cost),roas(r.now,r.cost)]),up?'up':'down'):'<p class="ag-note">'+(!m.before?'Chưa có kỳ so sánh.':up?'Không có phần tăng đủ dữ liệu so sánh.':'Không có phần giảm đủ dữ liệu so sánh.')+'</p>')+'</div>';
   }
   html+='<p class="ag-note">Mỗi bảng tối đa 30 mục, xếp theo chênh lệch doanh thu tuyệt đối. Chỉ cộng một cấp dữ liệu trong từng bảng; ROAS = tổng doanh thu / tổng chi phí.</p>';
   const scroll=new Map([...host.querySelectorAll('[data-ag-scroll]')].map(el=>[el.dataset.agScroll,el.scrollTop]));host.innerHTML=html;host.querySelectorAll('[data-ag-scroll]').forEach(el=>{el.scrollTop=scroll.get(el.dataset.agScroll)||0;});
  }
  async function refresh(page){
   const host=ensure(page);if(!host)return;const c=context(page);if(!c){host.innerHTML='';return;}
-  const old=states.get(page)||{},seq=(old.seq||0)+1,s={...old,seq,error:''};states.set(page,s);if(!s.model)render(page);
+  const old=states.get(page)||{};if(page==='tonghop'&&old.drillShop)c.shop=old.drillShop;
+  const contextKey=key(c.kind,c.type||'',c.shop,c.range?.from||'',c.range?.to||'',JSON.stringify(c.dates||null)),changed=old.contextKey!==contextKey;
+  const seq=(old.seq||0)+1,s={...old,seq,contextKey,error:'',model:changed?null:old.model,dimension:old.shop!==c.shop?defaultDimension(page,c):old.dimension,shop:c.shop};states.set(page,s);if(!s.model)render(page);
   try{const m=await model(c);if(states.get(page)?.seq!==seq)return;s.model=m;render(page);}catch(e){if(states.get(page)?.seq!==seq)return;s.error='Chưa đọc được lịch sử: '+e.message;if(s.model){render(page);host.insertAdjacentHTML('afterbegin','<p class="ag-note ag-warning">'+esc(s.error)+' · Đang giữ dữ liệu lần đọc trước.</p>');}else render(page);}
  }
+ function defaultDimension(page,c){return page==='group-camp'?'campaign':c.kind==='hour'?'hour':c.shop!=='all'?(c.kind==='sheet'?'product':'campaign'):'shop';}
+ function openShop(page,shop){const s=states.get(page);if(!s)return;s.dimension=page==='auto-camp'?'product':page==='ads-hourly'?'hour':'campaign';
+  if(page==='group-camp'&&typeof gcrSelectShop==='function')gcrSelectShop(shop);
+  else if(page==='auto-camp'&&typeof acrSelectShop==='function')acrSelectShop(shop);
+  else{if(page==='tonghop')s.drillShop=shop;refresh(page);}
+ }
+ function back(page){const s=states.get(page);if(s){s.drillShop=null;s.dimension='shop';refresh(page);}}
  function choose(page,value){const s=states.get(page);if(s){s.dimension=value;render(page);}}
  function reload(page){cache.clear();refresh(page);}
  function schedule(page){clearTimeout(timers.get(page));timers.set(page,setTimeout(()=>refresh(page),100));}
  for(const [name,page]of [['renderOverviewAll','overview'],['_thRenderContent','tonghop'],['gcrRender','group-camp'],['acrRender','auto-camp'],['adshRenderAll','ads-hourly']]){const original=window[name];if(typeof original==='function')window[name]=function(...args){const result=original.apply(this,args);schedule(page);return result;};}
+ for(const [name,page]of [['gcrSelectShop','group-camp'],['acrSelectShop','auto-camp']]){const original=window[name];if(typeof original==='function')window[name]=function(...args){const s=states.get(page);if(s)s.dimension=page==='group-camp'?'campaign':args[0]==='all'?'shop':'product';const result=original.apply(this,args);schedule(page);return result;};}
  for(const name of ['gcrReload','acrReload']){const original=window[name];if(typeof original==='function')window[name]=function(...args){cache.clear();return original.apply(this,args);};}
  const originalShow=window.showPage;if(typeof originalShow==='function')window.showPage=function(page,...args){const result=originalShow.call(this,page,...args);if(spec[page])schedule(page);return result;};
- return{refresh,reload,choose,previousRange,aggregate,differences,csvRecords,sheetRecords,hourlyRecords,history,total};
+ return{refresh,reload,choose,openShop,back,previousRange,aggregate,differences,csvRecords,sheetRecords,hourlyRecords,history,total};
 })();
 
 </script>
 <!-- ADS-GROWTH-END -->
+
 
 
 
