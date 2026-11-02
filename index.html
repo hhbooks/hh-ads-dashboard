@@ -16872,6 +16872,7 @@ async function giaDoSyncOrders(tab) {
     const header = rows[0].map(norm);
     const idx = {
       maDon:        header.findIndex(h => h.includes('mã đơn')),
+      trangThai:    header.findIndex(h => h.includes('trạng thái đơn')),
       ngay:         header.findIndex(h => h.includes('ngày đặt')),
       tenSp:        header.findIndex(h => h.includes('tên sản phẩm')),
       tenKho:       header.findIndex(h => h.includes('tên kho')),
@@ -16910,6 +16911,7 @@ async function giaDoSyncOrders(tab) {
       if (!maDon) continue; // dòng trống cuối bảng
       parsed.push({
         maDon: String(maDon).trim(),
+        trangThai: idx.trangThai !== -1 ? String(r[idx.trangThai] || '').trim() : '',
         ngay: idx.ngay !== -1 ? (r[idx.ngay] || '') : '',
         tenSp: idx.tenSp !== -1 ? (r[idx.tenSp] || '') : '',
         tenKho: idx.tenKho !== -1 ? (r[idx.tenKho] || '') : '',
@@ -17074,6 +17076,7 @@ async function giaRefreshOrdersStatus() {
       }
     } catch (e) { /* chỉ ảnh hưởng hiển thị trạng thái, không log lỗi gây nhiễu */ }
   }
+  if (selEl && selEl.value !== tab) return;
   if (el) {
     el.textContent = entry
       ? `🕐 Tab "${entry.tab}" — ${entry.rows.length} dòng — lần đồng bộ cuối: ${new Date(entry.updatedAt).toLocaleString('vi-VN')}`
@@ -17096,6 +17099,7 @@ async function giaRefreshOrdersStatus() {
           </div>
           <div class="kpi-card green"><div class="kpi-icon">✅</div><div class="kpi-label">Có SKU trực tiếp</div><div class="kpi-value">${entry.rows.length - missingSku}</div></div>
         </div>
+        ${DailyOrderValue.render(entry.rows,tab)}
         <div id="gia-sync-missing-list" style="display:none;margin-top:10px;border:1px solid var(--gray3);border-radius:8px;overflow:auto;max-height:320px">
           <table style="font-size:12px;width:100%">
             <thead><tr><th>#</th><th style="text-align:left">Tên Sản Phẩm</th><th>Mã Đơn</th><th>Shop</th><th>Ngày</th></tr></thead>
@@ -27432,6 +27436,58 @@ const AdsGrowth=(()=>{
 
 
 
+
+<!-- DAILY-ORDER-VALUE-START -->
+<style>
+.daily-order-value{margin-top:20px;padding:22px;border-radius:14px;background:linear-gradient(135deg,#1b2a4e,#2b4a8f);color:#fff}
+.daily-order-value h3{font-size:20px;color:#fff;margin:0 0 10px}
+.daily-order-value p{color:#dbe4f3;font-size:15px;line-height:1.6;margin:8px 0 16px}
+.daily-order-value .dov-table{max-height:540px;overflow:auto;border:1px solid #ffffff30;border-radius:10px}
+.daily-order-value table{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0}
+.daily-order-value th,.daily-order-value td{width:25%;padding:18px 22px;text-align:center;vertical-align:middle;border-right:1px solid #ffffff20;border-bottom:1px solid #ffffff20;color:#fff;overflow-wrap:anywhere}
+.daily-order-value th{position:sticky;top:0;z-index:1;background:#304878;color:#fff;font-size:15px}
+.daily-order-value td{font-size:17px;font-weight:600;background:transparent}
+.daily-order-value th:first-child,.daily-order-value td:first-child{text-align:left}
+.daily-order-value tbody tr:nth-child(even){background:#ffffff08}
+.daily-order-value tbody tr:hover,.daily-order-value tbody tr:hover td{background:#3b5592!important;color:#fff!important}
+.daily-order-value td strong{font-size:21px;color:#fff}
+.daily-order-value tfoot td{background:#ffffff12;font-weight:700}
+@media(max-width:650px){.daily-order-value{padding:16px}.daily-order-value thead{display:none}.daily-order-value table,.daily-order-value tbody,.daily-order-value tfoot,.daily-order-value tr,.daily-order-value td{display:block;width:100%;box-sizing:border-box}.daily-order-value td{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px;text-align:right!important;font-size:16px}.daily-order-value td:before{content:attr(data-label);text-align:left;color:#dbe4f3;font-weight:400}.daily-order-value td strong{font-size:19px}.daily-order-value tr{border-bottom:2px solid #ffffff30}}
+
+</style>
+<script>
+// Read-only summary of the already synchronized order lines.
+const DailyOrderValue=(()=>{
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const text=s=>String(s??'').normalize('NFC').trim().replace(/\s+/g,' ');
+ const norm=s=>text(s).toLocaleLowerCase('vi-VN');
+ const money=n=>n.toLocaleString('vi-VN',{maximumFractionDigits:0})+' đ';
+ const count=n=>n.toLocaleString('vi-VN');
+ const key=(shop,id)=>JSON.stringify([norm(shop),id]);
+ function summarize(rows){
+  const shopsByOrder=new Map(),orders=new Map(),cancelled=new Set();let skipped=0;
+  for(const r of rows||[]){const id=text(r.maDon),shop=text(r.shop);if(!id||!shop)continue;const shops=shopsByOrder.get(id)||new Map();shops.set(norm(shop),shop);shopsByOrder.set(id,shops);}
+  const shopFor=r=>{const shops=shopsByOrder.get(text(r.maDon));return text(r.shop)||(shops?.size===1?[...shops.values()][0]:'Chưa xác định shop');};
+  for(const r of rows||[]){const status=norm(r.trangThai||r.status).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d');if(/^(da huy|huy|cancelled|canceled)$/.test(status))cancelled.add(key(shopFor(r),text(r.maDon)));}
+  for(const r of rows||[]){const id=text(r.maDon);if(!id){skipped++;continue;}const shop=shopFor(r),k=key(shop,id);if(cancelled.has(k))continue;
+   const order=orders.get(k)||{shop,gross:0,voucher:0};
+   order.gross+=(Number(r.giaUuDai)||0)*(Number(r.soLuong)||0);
+   // Shopee repeats the order-level shop voucher on each product line.
+   order.voucher=Math.max(order.voucher,Number(r.maGiamGiaShop)||0);orders.set(k,order);
+  }
+  const groups=new Map();for(const order of orders.values()){const k=norm(order.shop),g=groups.get(k)||{shop:order.shop,orders:0,value:0};g.orders++;g.value+=order.gross-order.voucher;groups.set(k,g);}
+  const shops=[...groups.values()].sort((a,b)=>b.value-a.value||a.shop.localeCompare(b.shop,'vi'));
+  const total=shops.reduce((a,s)=>({orders:a.orders+s.orders,value:a.value+s.value}),{orders:0,value:0});
+  return{shops:shops.map(s=>({...s,average:s.value/s.orders})),total:{...total,average:total.orders?total.value/total.orders:null},skipped,cancelled:cancelled.size};
+ }
+ function render(rows,month){const result=summarize(rows),row=s=>'<tr><td data-label="Shop">'+esc(s.shop)+'</td><td data-label="Tổng số đơn">'+count(s.orders)+'</td><td data-label="Tổng giá trị đơn">'+money(s.value)+'</td><td data-label="Trung bình / đơn"><strong>'+money(s.average)+'</strong></td></tr>';
+  return '<section class="daily-order-value"><h3>Giá trị trung bình đơn theo shop</h3><p>'+esc(month)+' · Giá trị hàng sau mã giảm giá shop, chưa trừ phí sàn. Cộng đủ các dòng sản phẩm; mỗi mã đơn chỉ tính một lần.</p>'+(result.shops.length?'<div class="dov-table"><table><thead><tr><th>Shop</th><th>Tổng số đơn</th><th>Tổng giá trị đơn</th><th>Trung bình / đơn</th></tr></thead><tbody>'+result.shops.map(row).join('')+'</tbody><tfoot>'+row({shop:'Tất cả shop',...result.total})+'</tfoot></table></div>':'<p>Chưa có đơn hợp lệ trong tháng đã đồng bộ.</p>')+(result.skipped?'<p>Không tính '+count(result.skipped)+' dòng thiếu mã đơn.</p>':'')+'</section>';
+ }
+ return{summarize,render};
+})();
+
+</script>
+<!-- DAILY-ORDER-VALUE-END -->
 
 </body>
 </html>
