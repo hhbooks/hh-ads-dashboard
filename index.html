@@ -26906,7 +26906,7 @@ const AdsDetailLayout=(()=>{
   state.nav?.querySelectorAll('button').forEach((button,i)=>button.setAttribute('aria-pressed',String(i===state.selected)));
  }
  function enhance(table){
-  if(table.closest('.adr-picker,.calendar')||!table.tHead||!table.tBodies.length)return;
+  if(table.closest('.adr-picker,.calendar,.ads-growth')||!table.tHead||!table.tBodies.length)return;
   const headers=[...table.tHead.rows].find(r=>r.cells.length>=3&&[...r.cells].every(c=>c.colSpan===1));if(!headers)return;
   const labels=[...headers.cells].map(c=>clean(c.textContent));
   let state=states.get(table);
@@ -27118,7 +27118,7 @@ const DashboardSharedRead=(()=>{
  function install(){if(!ready)return false;
   window.fetch=(input,options={})=>{const url=typeof input==='string'?input:input instanceof URL?input.href:input.url,method=String(options.method||input?.method||'GET').toUpperCase();return method==='GET'&&supported(url)?read(url):nativeFetch(input,options);};
   const originalSheetCall=adsSheetCall;
-  adsSheetCall=payload=>['sw_main_id','sw_info','sw_kv_list'].includes(payload?.action)?retryRead(async()=>{try{return await originalSheetCall(payload);}catch(e){e.retryable=/HTTP (429|500|502|503|504)\b|lỗi mạng\/CORS|service.*unavailable/i.test(e.message);throw e;}}):originalSheetCall(payload);
+  adsSheetCall=payload=>['sw_main_id','sw_info','sw_kv_list','get_ads_rows'].includes(payload?.action)?retryRead(async()=>{try{return await originalSheetCall(payload);}catch(e){e.retryable=/HTTP (429|500|502|503|504)\b|lỗi mạng\/CORS|service.*unavailable/i.test(e.message);throw e;}}):originalSheetCall(payload);
   tqSyncCatalog=async function(){const b=document.getElementById('tq-sync-btn');if(b)b.disabled=true;_catalogDriveToken=marker;try{await tqDoCatalogSync();}finally{if(b)b.disabled=false;}};
   blSyncBlacklist=async function(logFn){const b=document.getElementById('bl-sync-btn');if(b)b.disabled=true;_blDriveToken=marker;try{await blDoBlacklistSync(logFn);}finally{if(b)b.disabled=false;}};
   giaSyncOrders=async function(){const tab=document.getElementById('gia-month-select')?.value;if(!tab){alert('Chọn tháng cần đồng bộ trước.');return;}const b=document.getElementById('gia-sync-orders-btn');if(b)b.disabled=true;_giaDriveToken=marker;try{await giaDoSyncOrders(tab);}finally{if(b)b.disabled=false;}};
@@ -27265,6 +27265,158 @@ const CKHHAccess=(()=>{
  labelTables();
 })();
 </script>
+
+<!-- ADS-GROWTH-START -->
+<style>
+.ads-growth{min-width:0;max-width:100%;margin:18px 0 24px;color:#162b49}
+.ads-growth .ag-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:12px 0}.ads-growth h3{font-size:21px;margin:0}.ads-growth h4{font-size:18px;margin:0 0 16px}
+.ads-growth button,.ads-growth select{padding:10px 13px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#17345d;font-size:15px;cursor:pointer}.ads-growth label{font-size:15px}
+.ads-growth .ag-years{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,660px),1fr));gap:18px}
+.ads-growth .ag-panel{background:linear-gradient(135deg,#1b2a4e,#2b4a8f);border-radius:16px;padding:22px;margin-bottom:20px;color:#fff;min-width:0;box-sizing:border-box}
+.ads-growth .ag-note{font-size:14px;line-height:1.65;color:#52647c;margin:10px 0 16px}.ads-growth .ag-panel .ag-note{color:#dbe4f3}.ads-growth .ag-warning{color:#a95513}
+.ads-growth .ag-table-wrap{max-height:490px;overflow:auto;border:1px solid #536b91;border-radius:9px}.ads-growth table{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;color:#fff;font-size:17px;font-variant-numeric:tabular-nums}
+.ads-growth th,.ads-growth td{padding:18px 12px;text-align:center;vertical-align:middle;line-height:1.5;overflow-wrap:anywhere;border-right:1px solid #536b91;border-bottom:1px solid #536b91}.ads-growth th{position:sticky;top:0;z-index:1;background:#2c4073;color:#fff;font-size:15px;font-weight:700}.ads-growth :is(th,td):first-child{text-align:left;width:26%}.ads-growth :is(th,td):last-child{border-right:0}.ads-growth tbody tr:nth-child(even){background:rgba(255,255,255,.035)}.ads-growth tbody tr:hover{background:#3b5592!important}.ads-growth tbody tr:hover td{background:transparent!important}
+.ads-growth td{color:#fff;font-weight:600}
+.ads-growth .ag-years :is(th,td):first-child{width:10%;text-align:center}.ads-growth .ag-years :is(th,td){padding:15px 8px}.ads-growth .ag-up{color:#86efac}.ads-growth .ag-down{color:#fca5a5}
+@media(max-width:1100px){.ads-growth .ag-panel{padding:16px}.ads-growth :is(th,td){padding:15px 8px}}
+@media(max-width:720px){.ads-growth .ag-table-wrap{overflow:visible;max-height:none}.ads-growth table,.ads-growth tbody,.ads-growth tr{display:block;width:100%;box-sizing:border-box}.ads-growth thead{display:none}.ads-growth td,.ads-growth .ag-years td:first-child,.ads-growth td:first-child{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:12px;width:100%;box-sizing:border-box;text-align:left;padding:12px 8px;border-right:0;font-size:17px}.ads-growth td:before{content:attr(data-label);font-size:14px;color:#dbe4f3}.ads-growth tr{border-bottom:2px solid #6b7f9e}}
+
+</style>
+<script>
+/* Read-only advertising history. Totals, campaign rows and product rows are separate levels. */
+const AdsGrowth=(()=>{
+ const states=new Map(),cache=new Map(),timers=new Map();
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const num=n=>Number(n).toLocaleString('vi-VN',{maximumFractionDigits:0});
+ const key=(...parts)=>JSON.stringify(parts.map(String));
+ const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+ const iso=s=>/^\d{4}-\d{2}-\d{2}$/.test(String(s))?String(s):null;
+ const labelDate=s=>{const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s||'');return m?m[3]+'-'+m[2]+'-'+m[1]:null;};
+ const addDays=(s,n)=>{const [y,m,d]=s.split('-').map(Number);return ymd(new Date(y,m-1,d+n));};
+ const monthBefore=m=>{const [y,n]=m.split('-').map(Number);return (n===1?y-1:y)+'-'+String(n===1?12:n-1).padStart(2,'0');};
+ function previousRange(r){
+  if(!r?.from||!r?.to)return null;
+  const [y,m,d]=r.from.split('-').map(Number),[ey,em,ed]=r.to.split('-').map(Number);
+  if(y===ey&&m===em){const last=new Date(y,m-1,0).getDate(),full=d===1&&ed===new Date(y,m,0).getDate();return{from:ymd(new Date(y,m-2,Math.min(d,last))),to:ymd(new Date(y,m-2,full?last:Math.min(ed,last)))};}
+  const count=Math.round((new Date(r.to+'T00:00:00')-new Date(r.from+'T00:00:00'))/86400000)+1;return{from:addDays(r.from,-count),to:addDays(r.from,-1)};
+ }
+ const rangeText=r=>r?r.from.split('-').reverse().join('/')+' – '+r.to.split('-').reverse().join('/'):'Tất cả ngày đã lưu';
+ const point=(date,shop,shopName,level,id,name,rev,cost)=>({date,shop:String(shop),shopName,level,id:String(id),name,rev:Number(rev)||0,cost:Number(cost)||0});
+ function aggregate(rows,level){const out=new Map();for(const r of rows.filter(x=>x.level===level)){const k=level==='shop'?r.shop:key(r.shop,r.id),a=out.get(k)||{key:k,name:level==='shop'?r.shopName:r.shopName+' · '+r.name,shop:r.shop,rev:0,cost:0};a.rev+=r.rev;a.cost+=r.cost;out.set(k,a);}return out;}
+ function differences(now,before,level){
+  if(!before)return[];
+  const currentShops=new Set(now.filter(x=>x.level==='shop').map(x=>x.shop)),priorShops=new Set(before.filter(x=>x.level==='shop').map(x=>x.shop));
+  const eligible=new Set([...currentShops].filter(s=>priorShops.has(s))),a=aggregate(now.filter(x=>eligible.has(x.shop)),level),b=aggregate(before.filter(x=>eligible.has(x.shop)),level);
+  return[...new Set([...a.keys(),...b.keys()])].map(k=>{const n=a.get(k),p=b.get(k);return{key:k,name:n?.name||p.name,now:n?.rev||0,before:p?.rev||0,cost:n?.cost||0,prevCost:p?.cost||0,delta:(n?.rev||0)-(p?.rev||0)};});
+ }
+ function csvRecords(shops){
+  const rows=[];for(const [shop,s]of Object.entries(shops||{})){
+   if(!s?.loaded)continue;const shopName=typeof SHOPS!=='undefined'?(SHOPS[shop]?.name||shop):shop;
+   const totals=s.dailyTotals||{},hasTotals=Object.keys(totals).length>0;
+   for(const [label,t]of Object.entries(totals)){const date=labelDate(label);if(date&&t)rows.push(point(date,shop,shopName,'shop',shop,shopName,t.doanh_so,t.chi_phi));}
+   for(const p of s.products||[])for(const [label,t]of Object.entries(p.dailyData||{})){
+    const date=labelDate(label);if(!date||!t)continue;
+    rows.push(point(date,shop,shopName,'campaign',p.ma_sp||p.ten,p.ten||p.ma_sp,t['Doanh thu'],t['Chi phí(đ)']));
+    if(!hasTotals)rows.push(point(date,shop,shopName,'shop',shop,shopName,t['Doanh thu'],t['Chi phí(đ)']));
+   }
+  }return rows;
+ }
+ function resolveShop(sh){const found=typeof adsShResolveShop==='function'?adsShResolveShop(sh.username,sh.shopName):null;return found?{id:found.shopKey||String(found.shopApiId),name:found.displayName}:null;}
+ function sheetRecords(response,type,daily=false){
+  const rows=[];for(const sh of response.shops||[]){const shop=resolveShop(sh);if(!shop)continue;
+   if(daily){for(const d of sh.daily||[])if(iso(d.d))rows.push(point(d.d,shop.id,shop.name,'shop',shop.id,shop.name,d.rev,d.cost));continue;}
+   const date=response.from,items=type==='GMS'?sh.items||[]:sh.groups||[];
+   if(!(sh.days||[]).some(d=>d>=response.from&&d<=response.to))continue;
+   rows.push(point(date,shop.id,shop.name,'shop',shop.id,shop.name,items.reduce((n,r)=>n+Number(type==='GMS'?r.broad_gmv:r.revenue||0),0),items.reduce((n,r)=>n+Number(type==='GMS'?r.expense:r.cost||0),0)));
+   for(const p of items){
+    if(type==='GMS')rows.push(point(date,shop.id,shop.name,'product',p.item_id,p.item_name,p.broad_gmv,p.expense));
+    else{
+     rows.push(point(date,shop.id,shop.name,'campaign',p.name,p.name,p.revenue,p.cost));
+     rows.push(point(date,shop.id,shop.name,'type',p.adType||'Chưa xác định',p.adType||'Chưa xác định loại',p.revenue,p.cost));
+     // Product details are a separate level; never added to group totals.
+     for(const item of p.products||[])rows.push(point(date,shop.id,shop.name,'product',item.itemId||item.name,item.name,item.revenue,item.cost));
+    }
+   }
+  }return rows;
+ }
+ function hourlyRecords(docs,shop,shopName){const out=[];for(const d of docs){if(!iso(d.date))continue;for(const r of d.rows||[]){out.push(point(d.date,shop,shopName,'shop',shop,shopName,r.gmv,r.expense));out.push(point(d.date,shop,shopName,'hour',String(r.hour),'Khung giờ '+String(r.hour),r.gmv,r.expense));}}return out;}
+ const filter=(rows,shop,r)=>rows.filter(x=>(shop==='all'||x.shop===String(shop))&&(!r||x.date>=r.from&&x.date<=r.to));
+ function history(rows,shop){const out={};for(const r of filter(rows,shop,null).filter(r=>r.level==='shop')){const m=r.date.slice(0,7),a=out[m]||(out[m]={rev:0,cost:0,days:new Set()});a.rev+=r.rev;a.cost+=r.cost;a.days.add(key(r.shop,r.date));}return out;}
+ const total=rows=>rows.filter(r=>r.level==='shop').reduce((a,r)=>({rev:a.rev+r.rev,cost:a.cost+r.cost}),{rev:0,cost:0});
+ function cached(k,run){const old=cache.get(k);if(old&&Date.now()-old.at<600000)return old.promise;let timer;const promise=Promise.race([run(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Nguồn quảng cáo chưa phản hồi. Bấm Làm mới lịch sử để thử lại.')),120000);})]).catch(e=>{cache.delete(k);throw e;}).finally(()=>clearTimeout(timer));cache.set(k,{promise,at:Date.now()});return promise;}
+ function readSheet(type,r,dailyFrom=r.from){return cached(key('sheet',type,r.from,r.to,dailyFrom),()=>adsSheetCall({action:'get_ads_rows',reportType:type,from:r.from,to:r.to,dailyFrom}));}
+ const spec={overview:{anchor:'#ov-content',prepend:true},tonghop:{anchor:'#page-tonghop>div:first-child'},'group-camp':{anchor:'#gc-filter-bar'},'auto-camp':{anchor:'#ac-filter-bar'},'ads-hourly':{anchor:'#adsh-view-status',card:true}};
+ function ensure(page){const config=spec[page],root=document.getElementById('page-'+page);if(!root||!root.classList.contains('active'))return null;let host=document.getElementById('ads-growth-'+page);if(host)return host;let anchor=document.querySelector(config.anchor);if(!anchor)return null;if(config.card)anchor=anchor.closest('.card');host=document.createElement('section');host.id='ads-growth-'+page;host.className='ads-growth';if(config.prepend)anchor.prepend(host);else anchor.after(host);return host;}
+ function context(page){
+  if(page==='group-camp'||page==='auto-camp'){const s=page==='group-camp'?_gcR:_acR;return{kind:'sheet',type:page==='group-camp'?'Nhóm':'GMS',shop:s.shop,range:s.range?.key==='all'?null:s.range,source:'Sheet Theo Dõi ADS 2H · '+(page==='group-camp'?'Nhóm sản phẩm':'GMS')};}
+  if(page==='ads-hourly')return{kind:'hour',shop:String(ADSH.shopId||''),range:ADSH.rangeStart&&ADSH.rangeEnd?{from:ADSH.rangeStart,to:ADSH.rangeEnd}:null,source:'Dữ liệu theo giờ đã lưu · cộng số thực tế từng ngày'};
+  if(page==='overview'){if(typeof ovShopSelected!=='undefined'&&(!ovShopSelected||!ovDateSelected))return null;const dates=typeof getOvLabels==='function'?getOvLabels().map(labelDate).filter(Boolean).sort():[],picker=typeof OVPICKER!=='undefined'&&OVPICKER.startDate&&OVPICKER.endDate?{from:OVPICKER.startDate,to:OVPICKER.endDate}:null;return{kind:'csv',shop:G.current,range:picker||(dates.length?{from:dates[0],to:dates.at(-1)}:null),dates:!picker&&typeof ovFilterDaysApplied!=='undefined'&&ovFilterDaysApplied?dates:null,source:'Tổng theo ngày của shop · dữ liệu đã lưu cho Tổng quan'};}
+  return{kind:'csv',shop:'all',range:_thFilterFrom&&_thFilterTo?{from:_thFilterFrom,to:_thFilterTo}:null,source:'Tổng theo ngày từng shop · không cộng chồng báo cáo Nhóm và GMS'};
+ }
+ async function model(c){
+  const beforeRange=previousRange(c.range);let all,now,before,notes=[];
+  if(c.kind==='sheet'){
+   // The existing ADS sources start in 2026; include 2025 for the year comparison and older locally stored history when present.
+   const known=Object.values(typeof G==='undefined'?{}:G.shops).flatMap(s=>(s.dateBlocks||[]).map(d=>labelDate(d.label)).filter(Boolean)).sort(),from=known[0]&&known[0]<'2025-01-01'?known[0]:'2025-01-01',to=typeof adsShYesterday==='function'?adsShYesterday():addDays(ymd(new Date()),-1);
+   // Ask for daily totals over the history, but aggregate product details for only the last day.
+   // Current/comparison product detail requests remain restricted to their exact periods.
+   const [hr,current,prior]=await Promise.all([readSheet(c.type,{from:to,to},from),c.range?readSheet(c.type,c.range):Promise.resolve(null),beforeRange?readSheet(c.type,beforeRange):Promise.resolve(null)]);all=sheetRecords(hr,c.type,true);
+   if(c.type==='GMS')notes.push('Nguồn GMS có tổng shop và sản phẩm, chưa có ID chiến dịch riêng để phân tích nhiều chiến dịch GMS.');
+   else notes.push('Nhóm được đối chiếu theo tên trong Sheet; nhóm đổi tên có thể hiện thành mục riêng.');
+   now=filter(current?sheetRecords(current,c.type):all,c.shop,null);
+   before=prior?filter(sheetRecords(prior,c.type),c.shop,null):null;
+   const selected=(current?.shops||[]).filter(sh=>{const s=resolveShop(sh);return s&&(c.shop==='all'||s.id===c.shop);});
+   if(c.range){const expected=Math.round((new Date(c.range.to+'T00:00:00')-new Date(c.range.from+'T00:00:00'))/86400000)+1;const partial=selected.filter(sh=>new Set((sh.days||[]).filter(d=>d>=c.range.from&&d<=c.range.to)).size<expected);if(partial.length)notes.push('⚠ Một số shop thiếu ngày trong kỳ. So sánh số đã ghi nhận, chưa phải kết quả đủ kỳ.');}
+  }else{
+   if(c.kind==='hour'){if(!c.shop)throw Error('Chọn shop để xem lịch sử theo giờ.');const shopName=typeof SAPI_SHOPS!=='undefined'?(SAPI_SHOPS.find(s=>String(s.id)===c.shop)?.name||c.shop):c.shop;const docs=await cached(key('hour',c.shop),async()=>{const snap=await db.collection('shopee_ads_hourly').doc(c.shop).collection('days').get(),ds=[];snap.forEach(d=>ds.push(d.data()));return ds;});all=hourlyRecords(docs,c.shop,shopName);notes.push('Nguồn theo giờ không có ID chiến dịch/sản phẩm: phân tích đến khung giờ, không gán doanh thu sang chiến dịch khác.');}
+   else{all=csvRecords(G.shops);notes.push('Chi tiết quảng cáo/chiến dịch lấy từ các dòng đã lưu; có thể chưa phân bổ hết tổng doanh thu của shop.');}
+   now=filter(all,c.shop,c.range);if(c.dates)now=now.filter(r=>c.dates.includes(r.date));before=beforeRange?filter(all,c.shop,beforeRange):null;
+   if(c.dates&&c.range&&c.dates.length!==Math.round((new Date(c.range.to+'T00:00:00')-new Date(c.range.from+'T00:00:00'))/86400000)+1){before=null;notes.push('Các ngày chọn không liên tục: không tự ghép một kỳ trước không tương ứng.');}
+  }
+  const currentShops=new Set(now.filter(r=>r.level==='shop').map(r=>r.shop)),priorShops=new Set((before||[]).filter(r=>r.level==='shop').map(r=>r.shop));
+  if(before&&[...new Set([...currentShops,...priorShops])].some(k=>!currentShops.has(k)||!priorShops.has(k)))notes.push('Shop thiếu hẳn dữ liệu một trong hai kỳ không được coi là giảm về 0; chưa xếp tăng/giảm cho shop đó.');
+  return{...c,beforeRange,all,now,before,notes,history:history(all,c.shop)};
+ }
+ const pct=(n,p)=>p==null?'—':p===0?(n===0?'Không đổi':'Phát sinh mới'):(n-p>0?'▲ +':n-p<0?'▼ ':'• ')+((n-p)/Math.abs(p)*100).toLocaleString('vi-VN',{maximumFractionDigits:1})+'%';
+ const signed=n=>(n>0?'+':'')+num(n),color=n=>n>0?'ag-up':n<0?'ag-down':'';
+ const roas=(rev,cost)=>cost>0?(rev/cost).toLocaleString('vi-VN',{maximumFractionDigits:2}):'—';
+ function table(headers,rows,id){return '<div class="ag-table-wrap" data-ag-scroll="'+id+'"><table><thead><tr>'+headers.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map((cell,i)=>'<td data-label="'+esc(headers[i])+'">'+cell+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';}
+ function render(page){
+  const s=states.get(page),host=ensure(page);if(!host||!s)return;if(!s.model){host.innerHTML='<div class="ag-panel"><h3>Theo dõi doanh thu quảng cáo</h3><p>'+esc(s.error||'Đang đọc lịch sử quảng cáo đã lưu…')+'</p></div>';return;}
+  const m=s.model,h=m.history,yearKeys=Object.keys(h).map(k=>Number(k.slice(0,4))),years=[...new Set([2025,new Date().getFullYear(),...yearKeys])].sort(),dims=[['shop','Shop'],...(m.kind==='sheet'&&m.type==='Nhóm'?[['type','Loại quảng cáo'],['campaign','Chiến dịch / nhóm'],['product','Sản phẩm']]:m.kind==='sheet'?[['product','Sản phẩm GMS']]:m.kind==='hour'?[['hour','Khung giờ']]:[['campaign','Quảng cáo / chiến dịch']])];
+  if(!dims.some(d=>d[0]===s.dimension))s.dimension=dims[0][0];
+  let html='<div class="ag-heading"><h3>Theo dõi doanh thu quảng cáo</h3><button onclick="AdsGrowth.reload(\''+page+'\')">Làm mới lịch sử</button></div><p class="ag-note">'+esc(m.source)+'. Doanh thu được ghi nhận cho quảng cáo, không phải doanh thu thực nhận hay lợi nhuận. Chỉ đọc nguồn đã lưu; tháng chưa có để trống.</p><div class="ag-years">';
+  for(const year of years){const rows=[];let sum=0;for(let month=1;month<=12;month++){const k=year+'-'+String(month).padStart(2,'0'),v=h[k],prev=h[monthBefore(k)];if(v)sum+=v.rev;const delta=v&&prev?v.rev-prev.rev:null;rows.push(['T'+month,v?num(v.rev):'',v&&prev?num(prev.rev):'',delta==null?'':'<b class="'+color(delta)+'">'+signed(delta)+'</b>',v?'<b class="'+(prev?color(v.rev-prev.rev):'')+'">'+esc(pct(v.rev,prev?.rev))+'</b>':'']);}
+   html+='<div class="ag-panel"><h4>Theo dõi doanh thu quảng cáo · '+year+'</h4>'+table(['Tháng','Doanh thu QC','Tháng trước','Chênh lệch','Tăng/giảm'],rows,'year-'+year)+'<p class="ag-note">Tổng các tháng đã có dữ liệu: <b>'+num(sum)+' đ</b>. Tháng đang chạy/ngày chưa tải có thể chưa đủ kỳ.</p></div>';
+  }
+  const totals=total(m.now);html+='</div><div class="ag-heading"><h3>Tăng ở đâu, giảm ở đâu?</h3><label>Phân tích theo <select onchange="AdsGrowth.choose(\''+page+'\',this.value)">'+dims.map(([k,v])=>'<option value="'+k+'" '+(s.dimension===k?'selected':'')+'>'+v+'</option>').join('')+'</select></label></div><p class="ag-note">Kỳ này '+esc(rangeText(m.range))+(m.beforeRange?' · So với '+esc(rangeText(m.beforeRange)):' · Chọn một khoảng ngày để xem tăng/giảm')+'. Doanh thu QC: <b>'+num(totals.rev)+' đ</b> · Chi phí: <b>'+num(totals.cost)+' đ</b> · ROAS: <b>'+roas(totals.rev,totals.cost)+'</b>.</p>';
+  for(const note of m.notes)html+='<p class="ag-note ag-warning">'+esc(note)+'</p>';
+  const rows=differences(m.now,m.before,s.dimension);for(const up of [true,false]){const list=rows.filter(r=>up?r.delta>0:r.delta<0).sort((a,b)=>up?b.delta-a.delta:a.delta-b.delta).slice(0,30);
+   html+='<div class="ag-panel"><h4 class="'+(up?'ag-up':'ag-down')+'">'+(up?'▲ Đóng góp tăng nhiều nhất':'▼ Đóng góp giảm nhiều nhất')+'</h4>'+(list.length?table([dims.find(d=>d[0]===s.dimension)[1],'Kỳ trước','Kỳ này','Chênh lệch','Tăng/giảm','Chi phí kỳ này','ROAS kỳ này'],list.map(r=>[esc(r.name),num(r.before),num(r.now),'<b class="'+color(r.delta)+'">'+signed(r.delta)+'</b>','<b class="'+color(r.delta)+'">'+esc(pct(r.now,r.before))+'</b>',num(r.cost),roas(r.now,r.cost)]),up?'up':'down'):'<p class="ag-note">'+(!m.before?'Chưa có kỳ so sánh.':up?'Không có phần tăng đủ dữ liệu so sánh.':'Không có phần giảm đủ dữ liệu so sánh.')+'</p>')+'</div>';
+  }
+  html+='<p class="ag-note">Mỗi bảng tối đa 30 mục, xếp theo chênh lệch doanh thu tuyệt đối. Chỉ cộng một cấp dữ liệu trong từng bảng; ROAS = tổng doanh thu / tổng chi phí.</p>';
+  const scroll=new Map([...host.querySelectorAll('[data-ag-scroll]')].map(el=>[el.dataset.agScroll,el.scrollTop]));host.innerHTML=html;host.querySelectorAll('[data-ag-scroll]').forEach(el=>{el.scrollTop=scroll.get(el.dataset.agScroll)||0;});
+ }
+ async function refresh(page){
+  const host=ensure(page);if(!host)return;const c=context(page);if(!c){host.innerHTML='';return;}
+  const old=states.get(page)||{},seq=(old.seq||0)+1,s={...old,seq,error:''};states.set(page,s);if(!s.model)render(page);
+  try{const m=await model(c);if(states.get(page)?.seq!==seq)return;s.model=m;render(page);}catch(e){if(states.get(page)?.seq!==seq)return;s.error='Chưa đọc được lịch sử: '+e.message;if(s.model){render(page);host.insertAdjacentHTML('afterbegin','<p class="ag-note ag-warning">'+esc(s.error)+' · Đang giữ dữ liệu lần đọc trước.</p>');}else render(page);}
+ }
+ function choose(page,value){const s=states.get(page);if(s){s.dimension=value;render(page);}}
+ function reload(page){cache.clear();refresh(page);}
+ function schedule(page){clearTimeout(timers.get(page));timers.set(page,setTimeout(()=>refresh(page),100));}
+ for(const [name,page]of [['renderOverviewAll','overview'],['_thRenderContent','tonghop'],['gcrRender','group-camp'],['acrRender','auto-camp'],['adshRenderAll','ads-hourly']]){const original=window[name];if(typeof original==='function')window[name]=function(...args){const result=original.apply(this,args);schedule(page);return result;};}
+ for(const name of ['gcrReload','acrReload']){const original=window[name];if(typeof original==='function')window[name]=function(...args){cache.clear();return original.apply(this,args);};}
+ const originalShow=window.showPage;if(typeof originalShow==='function')window.showPage=function(page,...args){const result=originalShow.call(this,page,...args);if(spec[page])schedule(page);return result;};
+ return{refresh,reload,choose,previousRange,aggregate,differences,csvRecords,sheetRecords,hourlyRecords,history,total};
+})();
+
+</script>
+<!-- ADS-GROWTH-END -->
+
+
+
+
 
 </body>
 </html>
