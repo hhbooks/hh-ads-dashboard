@@ -27281,6 +27281,10 @@ const CKHHAccess=(()=>{
 .ads-growth .ag-table-wrap{max-height:490px;overflow:auto;border:1px solid #536b91;border-radius:9px}.ads-growth table{width:100%;table-layout:fixed;border-collapse:separate;border-spacing:0;color:#fff;font-size:17px;font-variant-numeric:tabular-nums}
 .ads-growth th,.ads-growth td{padding:18px 12px;text-align:center;vertical-align:middle;line-height:1.5;overflow-wrap:anywhere;border-right:1px solid #536b91;border-bottom:1px solid #536b91}.ads-growth th{position:sticky;top:0;z-index:1;background:#2c4073;color:#fff;font-size:15px;font-weight:700}.ads-growth :is(th,td):first-child{text-align:left;width:26%}.ads-growth :is(th,td):last-child{border-right:0}.ads-growth tbody tr:nth-child(even){background:rgba(255,255,255,.035)}.ads-growth tbody tr:hover{background:#3b5592!important}.ads-growth tbody tr:hover td{background:transparent!important}
 .ads-growth td{color:#fff;font-weight:600}
+/* The dashboard's global tbody td uses nowrap. Explicitly reset it here so
+   long campaign/product names stay inside their own cell on every ADS page. */
+.ads-growth :is(th,td){white-space:normal;word-break:normal;overflow-wrap:anywhere;overflow:hidden;text-overflow:clip}
+@media(min-width:721px){.ads-growth [data-ag-scroll="up"] :is(th,td):first-child,.ads-growth [data-ag-scroll="down"] :is(th,td):first-child{width:32%}}
 .ads-growth .ag-shop-link{background:transparent;color:#fff;border:0;padding:0;text-align:left;font-size:17px;font-weight:700;text-decoration:underline;text-underline-offset:4px}
 .ads-growth .ag-shop-link:hover{color:#bfdbfe}.ads-growth .ag-scope{font-size:16px;color:#17345d;margin:10px 0}.ads-growth .ag-scope button{margin-left:10px}
 .ads-growth .ag-years :is(th,td):first-child{width:10%;text-align:center}.ads-growth .ag-years :is(th,td){padding:15px 8px}.ads-growth .ag-up{color:#86efac}.ads-growth .ag-down{color:#fca5a5}
@@ -27431,6 +27435,8 @@ const AdsGrowth=(()=>{
 
 </script>
 <!-- ADS-GROWTH-END -->
+
+
 
 
 
