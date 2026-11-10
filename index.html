@@ -3724,6 +3724,46 @@
     </div>
     </div><!-- end tdht wrapper -->
 
+    <!-- ── TỔNG HỢP ORDER / TRẢ NCC (ORDER LIÊN KẾT) — v1.0.0 10/11/2026 ── -->
+    <div style="margin-top:24px;border-top:2px solid var(--gray3);padding-top:20px">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title"><span class="dot"></span> Tổng Hợp Order / Trả NCC (Sách Liên Kết)</div>
+      <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
+        Chọn cùng lúc các file xuất từ phần mềm kho: <b>Doanh thu theo mặt hàng</b> (mỗi kỳ 1 file, chọn được nhiều kỳ),
+        <b>Sổ chi tiết mua hàng</b> và <b>Tổng hợp nhập xuất tồn kho</b>. Hệ thống tự nhận loại file, tổng hợp nhập – bán – tồn từng mã,
+        đề xuất số lượng order thêm, ngày nhập gần nhất và các mã bán chậm / không bán nên trả lại nhà cung cấp. Chọn thêm file lần sau sẽ cộng vào các file đã chọn.
+      </p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <input type="file" id="olk-file-input" accept=".xlsx,.xls" multiple style="display:none" onchange="olkHandleFiles(this)">
+        <button class="sw-upload-btn" onclick="document.getElementById('olk-file-input').click()">📂 Chọn File (chọn nhiều)</button>
+        <button class="sw-upload-btn" id="olk-export-btn" style="background:var(--green);color:#fff;display:none" onclick="olkExport()">📤 Xuất Excel</button>
+        <button id="olk-reset-btn" onclick="olkReset()" style="padding:8px 16px;border:1px solid var(--red);color:var(--red);background:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:none">🔄 Reset</button>
+      </div>
+      <div id="olk-files" style="margin-top:10px;font-size:12px;color:var(--text2);line-height:1.7">Chưa chọn file</div>
+      <div id="olk-warn" style="display:none;margin-top:8px;background:#fff8e1;border:1px solid #f39c12;border-radius:8px;padding:8px 12px;font-size:12px;color:#7d5b00;line-height:1.6"></div>
+    </div>
+
+    <div class="card" id="olk-param-card" style="display:none;margin-bottom:16px">
+      <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;font-size:12px;color:var(--text2)">
+        <label>Số tháng dự trữ khi order<br><input id="olk-p-months" type="number" min="0" step="0.5" value="2" oninput="olkRender()" style="width:90px;padding:6px 8px;border:1px solid var(--gray3);border-radius:6px;font-size:13px;background:#FFF2CC;color:#0000FF;font-weight:700"></label>
+        <label>Ngưỡng bán chậm (số tháng tồn đủ bán)<br><input id="olk-p-slow" type="number" min="0" step="1" value="6" oninput="olkRender()" style="width:90px;padding:6px 8px;border:1px solid var(--gray3);border-radius:6px;font-size:13px;background:#FFF2CC;color:#0000FF;font-weight:700"></label>
+        <label>Số tháng hàng giữ lại khi trả bớt<br><input id="olk-p-keep" type="number" min="0" step="1" value="3" oninput="olkRender()" style="width:90px;padding:6px 8px;border:1px solid var(--gray3);border-radius:6px;font-size:13px;background:#FFF2CC;color:#0000FF;font-weight:700"></label>
+        <span style="flex:1;min-width:220px;line-height:1.5">Đổi tham số → bảng và file Excel xuất ra tính lại theo số mới.</span>
+      </div>
+      <div id="olk-kpi" style="display:flex;gap:12px;flex-wrap:wrap"></div>
+    </div>
+
+    <div class="card" id="olk-preview-card" style="display:none">
+      <div id="olk-filters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"></div>
+      <div style="overflow:auto;max-height:560px;border:1px solid var(--gray3);border-radius:8px">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:1100px">
+          <thead id="olk-thead"></thead>
+          <tbody id="olk-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    </div><!-- end olk wrapper -->
+
     <!-- ── BÁO CÁO BÁN HÀNG THEO KHÁCH HÀNG ── -->
     <div style="margin-top:24px;border-top:2px solid var(--gray3);padding-top:20px">
     <div class="card" style="margin-bottom:16px">
@@ -27494,6 +27534,497 @@ const DailyOrderValue=(()=>{
 
 </script>
 <!-- DAILY-ORDER-VALUE-END -->
+
+<!-- ORDER-LIEN-KET-START -->
+<script>
+/* ═══ TỔNG HỢP ORDER / TRẢ NCC (ORDER LIÊN KẾT) — v1.0.0 (10/11/2026) ═══
+   Đọc 3 loại file xuất từ phần mềm kho: Doanh thu theo mặt hàng (mỗi kỳ 1 file), Sổ chi tiết mua hàng,
+   Tổng hợp nhập xuất tồn kho. Tự nhận loại file theo tiêu đề trong file.
+   Xuất Excel bằng ExcelJS — giữ đúng bố cục file mẫu Order_Lien_Ket_Alpha_tong_hop_10_11_2026.xlsx
+   (Ghi chú · Tổng hợp · Order thêm · Trả NCC · Mã nội bộ), có công thức + ô tham số. */
+const OLK = (() => {
+  const DAY = 86400000;
+  const norm = s => String(s == null ? '' : s).normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
+  const code = v => (v == null ? '' : String(v).trim());
+  const isBar = k => /^\d{8,14}$/.test(k);
+  const isCode = k => /^[A-Z0-9]{5,20}$/.test(k);
+  const num = v => (typeof v === 'number' && isFinite(v)) ? v : null;
+  /* Làm tròn giống Python round() (làm tròn số chẵn khi đúng .5) */
+  const pyRound = x => { const f = Math.floor(x), d = x - f; if (Math.abs(d - 0.5) < 1e-9) return f % 2 === 0 ? f : f + 1; return Math.round(x); };
+  const ceil9 = x => Math.ceil(+x.toFixed(9));
+  const p2 = n => (n < 10 ? '0' : '') + n;
+  /* Ngày lưu dạng UTC (00:00) để Excel không lệch múi giờ */
+  const ymd = d => ({ y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate() });
+  const fDM = d => { const x = ymd(d); return p2(x.d) + '/' + p2(x.m); };
+  const fDMY = d => fDM(d) + '/' + ymd(d).y;
+  const fDMy = d => fDM(d) + '/' + String(ymd(d).y).slice(2);
+  const fMy = d => p2(ymd(d).m) + '/' + String(ymd(d).y).slice(2);
+  const serialToDate = s => { const t = Math.round((s - 25569) * DAY); const d = new Date(t); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())); };
+  const parseDMY = s => { const m = /(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s); return m ? new Date(Date.UTC(+m[3], +m[2] - 1, +m[1])) : null; };
+  const ORG = /qu[oố]c h[oộ]i|h[oọ]c vi[eệ]n|tv h[uư]ng|th[uư] vi[eệ]n|(^|\s)tv\s/i;
+
+  /* ---------- Nhận loại file + đọc ---------- */
+  function parse(aoa, fileName) {
+    const top = aoa.slice(0, 12).map(r => (r || []).map(c => String(c == null ? '' : c)).join(' ')).join(' | ').normalize('NFC').toUpperCase();
+    let type = null;
+    if (top.includes('DOANH THU THEO MẶT HÀNG')) type = 'sales';
+    else if (top.includes('SỔ CHI TIẾT MUA HÀNG')) type = 'buy';
+    else if (top.includes('TỔNG HỢP NHẬP XUẤT TỒN')) type = 'nxt';
+    if (!type) return { ok: false, fileName, error: 'Không nhận dạng được (cần file Doanh thu theo mặt hàng / Sổ chi tiết mua hàng / Tổng hợp nhập xuất tồn kho)' };
+    let from = null, to = null;
+    for (const r of aoa.slice(0, 12)) {
+      const t = (r || []).map(c => String(c == null ? '' : c)).join(' ');
+      const m = /Từ ngày:\s*(\d{1,2}\/\d{1,2}\/\d{4}).*Đến ngày:\s*(\d{1,2}\/\d{1,2}\/\d{4})/i.exec(t.normalize('NFC'));
+      if (m) { from = parseDMY(m[1]); to = parseDMY(m[2]); break; }
+    }
+    const hi = aoa.findIndex(r => (r || []).some(c => norm(c).startsWith('mã sku')));
+    if (hi < 0) return { ok: false, fileName, error: 'Không thấy dòng tiêu đề có cột "Mã SKU"' };
+    const H = (aoa[hi] || []).map(norm);
+    const at = (pred) => H.findIndex(pred);
+    const eq = s => h => h === s, sw = s => h => h.startsWith(s);
+    let cols;
+    if (type === 'sales') cols = { sku: at(sw('mã sku')), name: at(eq('tên hàng hóa')), unit: at(eq('đơn vị tính')), ncc: at(eq('nhà cung cấp')), sl: at(sw('số lượng bán')), dg: at(sw('đơn giá tb')), tien: at(sw('tiền hàng')), dt: at(sw('doanh thu')), grp: at(eq('nhóm hàng hóa')), brand: at(eq('thương hiệu')) };
+    else if (type === 'buy') cols = { date: at(eq('ngày')), ct: at(eq('số chứng từ')), dg: at(eq('diễn giải')), ncc: at(eq('tên nhà cung cấp')), sku: at(sw('mã sku')), name: at(eq('tên hàng hóa')), sl: at(sw('số lượng')), gt: at(sw('giá trị')) };
+    else cols = { name: at(eq('tên hàng hóa')), unit: at(eq('đơn vị tính')), sku: at(sw('mã sku')), grp: at(eq('nhóm hàng hóa')), brand: at(eq('thương hiệu')), t0: at(sw('tồn đầu kỳ')), nh: at(sw('nhập trong kỳ')), xu: at(sw('xuất trong kỳ')), tc: at(sw('tồn cuối kỳ')) };
+    const need = { sales: ['sku', 'name', 'sl', 'dt'], buy: ['date', 'sku', 'sl'], nxt: ['sku', 't0', 'nh', 'xu', 'tc'] }[type];
+    const miss = need.filter(k => cols[k] < 0);
+    if (miss.length) return { ok: false, fileName, type, error: 'Thiếu cột: ' + miss.join(', ') };
+    const rows = aoa.slice(hi + 1).filter(r => r && r.some(c => c !== null && c !== ''));
+    return { ok: true, fileName, type, from, to, store: code((aoa[0] || [])[0]), cols, rows };
+  }
+
+  /* ---------- Gộp dữ liệu (đúng thứ tự xử lý của bản Python: doanh thu theo kỳ → sổ mua → NXT) ---------- */
+  function build(files) {
+    const sales = files.filter(f => f.type === 'sales').sort((a, b) => (a.from || 0) - (b.from || 0));
+    const buys = files.filter(f => f.type === 'buy');
+    const nxts = files.filter(f => f.type === 'nxt').sort((a, b) => (b.to || 0) - (a.to || 0));
+    const nxt = nxts[0] || null;
+    const nP = sales.length;
+    const S = new Map(), INTERNAL = new Map(), brands = new Set();
+    const getS = k => { if (!S.has(k)) S.set(k, { name: '', grp: '', ncc: '', unit: 'Cuốn', price: null, q: Array(nP).fill(0), dt: Array(nP).fill(0), ton0: null, nhap: null, xuat: null, ton: null, v0: 0, vn: 0, vx: 0, vt: 0, inNXT: false, buys: [], rets: [] }); return S.get(k); };
+    const getI = (k, name) => { if (!INTERNAL.has(k)) INTERNAL.set(k, { name, q: Array(nP).fill(0), dt: Array(nP).fill(0), nxt: null }); return INTERNAL.get(k); };
+    const v = (r, i) => (i >= 0 ? r[i] : null);
+    sales.forEach((f, i) => {
+      const c = f.cols;
+      for (const r of f.rows) {
+        const k = code(v(r, c.sku)); if (!isCode(k)) continue;
+        const sl = num(v(r, c.sl)), dt = num(v(r, c.dt));
+        if (!isBar(k)) { const d = getI(k, v(r, c.name)); d.q[i] += sl || 0; d.dt[i] += dt || 0; continue; }
+        const s = getS(k); s.name = v(r, c.name); s.grp = v(r, c.grp) || s.grp; s.unit = v(r, c.unit) || s.unit;
+        if (v(r, c.ncc)) s.ncc = v(r, c.ncc);
+        if (v(r, c.brand)) brands.add(String(v(r, c.brand)).trim());
+        s.q[i] += sl || 0; s.dt[i] += dt || 0;
+        const dg = num(v(r, c.dg)); if (dg && sl && sl > 0) s.price = dg;
+      }
+    });
+    let buyLines = 0, buyMin = null, buyMax = null; const retSlips = new Map();
+    for (const f of buys) {
+      const c = f.cols;
+      for (const r of f.rows) {
+        const k = code(v(r, c.sku)); if (!isCode(k)) continue;
+        const sl = num(v(r, c.sl)), ser = num(v(r, c.date)); if (sl == null || ser == null) continue;
+        const date = serialToDate(ser);
+        if (sl > 0) { buyLines++; if (!buyMin || date < buyMin) buyMin = date; if (!buyMax || date > buyMax) buyMax = date; }
+        else { const ct = code(v(r, c.ct)); if (!retSlips.has(ct)) retSlips.set(ct, date); }
+        if (!isBar(k)) { getI(k, v(r, c.name)); continue; }
+        const s = getS(k); s.name = s.name || v(r, c.name); s.ncc = s.ncc || v(r, c.ncc) || '';
+        const rec = { ser, date, ct: code(v(r, c.ct)), dg: code(v(r, c.dg)), sl, gt: num(v(r, c.gt)) || 0 };
+        (sl > 0 ? s.buys : s.rets).push(rec);
+      }
+    }
+    if (nxt) {
+      const c = nxt.cols;
+      for (const r of nxt.rows) {
+        const k = code(v(r, c.sku)); if (!isCode(k)) continue;
+        const vals = [c.t0, c.t0 + 1, c.nh, c.nh + 1, c.xu, c.xu + 1, c.tc, c.tc + 1].map(i => num(v(r, i)));
+        if (!isBar(k)) { const d = getI(k, v(r, c.name)); d.nxt = vals; continue; }
+        const s = getS(k); s.name = s.name || v(r, c.name); s.grp = s.grp || v(r, c.grp) || ''; s.unit = v(r, c.unit) || s.unit; s.inNXT = true;
+        if (v(r, c.brand)) brands.add(String(v(r, c.brand)).trim());
+        [s.ton0, s.v0, s.nhap, s.vn, s.xuat, s.vx, s.ton, s.vt] = vals;
+      }
+    }
+    for (const [k, s] of S) {
+      if (s.price == null) { const m = /(\d{2,4})\s*[kK](?![\p{L}\p{N}_])/u.exec(s.name || ''); s.price = m ? +m[1] * 1000 : null; }
+      s.cost = null;
+      for (const [a, b] of [['ton', 'vt'], ['nhap', 'vn'], ['xuat', 'vx'], ['ton0', 'v0']]) { if (s[a] && s[a] > 0 && s[b]) { s.cost = pyRound(s[b] / s[a]); break; } }
+      if (s.cost == null) { const lb = s.buys[s.buys.length - 1]; s.cost = lb ? pyRound(lb.gt / lb.sl) : (s.price ? pyRound(s.price * 0.6) : null); }
+      s.org = /\/TV\d/.test(s.name || '') || s.buys.some(b => ORG.test(b.dg));
+      s.last = s.buys.reduce((m, b) => (!m || b.ser > m.ser ? b : m), null);
+    }
+    const ids = [...S.keys()];
+    const keys = ids.map((k, i) => [k, i]).sort((A, B) => {
+      const a = S.get(A[0]), b = S.get(B[0]);
+      return (a.org - b.org) || (sum(b.q) - sum(a.q)) || ((b.ton || 0) - (a.ton || 0)) || (A[1] - B[1]);
+    }).map(x => x[0]);
+    /* Kỳ bán */
+    const periods = sales.map(f => {
+      const days = f.from && f.to ? Math.round((f.to - f.from) / DAY) + 1 : 90;
+      return { from: f.from, to: f.to, months: Math.max(1, Math.round(days / 30.4375)), file: f.fileName };
+    });
+    const isQ = p => p.from && p.to && ymd(p.from).d === 1 && [1, 4, 7, 10].includes(ymd(p.from).m) && ymd(p.to).y === ymd(p.from).y &&
+      ymd(new Date(p.to.getTime() + DAY)).d === 1 && ymd(new Date(p.to.getTime() + DAY)).m === (ymd(p.from).m + 3 - 1) % 12 + 1;
+    const allQ = periods.length && periods.every(isQ), years = new Set(periods.map(p => p.from && ymd(p.from).y));
+    periods.forEach(p => {
+      p.isQ = isQ(p);
+      p.label = p.isQ ? 'Q' + ((ymd(p.from).m - 1) / 3 + 1) + (years.size > 1 ? '/' + String(ymd(p.from).y).slice(2) : '') : (p.from && p.to ? fDM(p.from) + '–' + fDM(p.to) : 'Kỳ ' + (periods.indexOf(p) + 1));
+    });
+    const P = periods.reduce((a, p) => a + p.months, 0);
+    const sFrom = periods.length ? periods[0].from : null, sTo = periods.length ? periods[periods.length - 1].to : null;
+    const brand = brands.size === 1 ? [...brands][0] : '';
+    return {
+      store: (files[0] && files[0].store) || '', brand, periods, allQ, years, P, sFrom, sTo,
+      mLast: periods.length ? periods[periods.length - 1].months : 3,
+      last2: periods.slice(-2), last2Months: periods.slice(-2).reduce((a, p) => a + p.months, 0),
+      nxt: nxt ? { from: nxt.from, to: nxt.to, file: nxt.fileName } : null, extraNxt: nxts.slice(1).map(f => f.fileName),
+      buy: buys.length ? { from: buys.map(f => f.from).filter(Boolean).sort((a, b) => a - b)[0] || null, to: buys.map(f => f.to).filter(Boolean).sort((a, b) => b - a)[0] || null, lines: buyLines, min: buyMin, max: buyMax, retSlips } : null,
+      S, keys, INTERNAL
+    };
+  }
+  const sum = a => a.reduce((x, y) => x + (y || 0), 0);
+
+  /* ---------- Tính đề xuất theo tham số (giống công thức trong file Excel) ---------- */
+  function calc(M, prm) {
+    const last = M.periods.length - 1;
+    return M.keys.map(k => {
+      const s = M.S.get(k), N = sum(s.q), J = s.ton;
+      const qLast = last >= 0 ? s.q[last] : 0;
+      const T = Math.max(0, N / M.P, qLast / M.mLast);
+      const recent = sum(s.q.slice(-2));
+      const U = T > 0 ? (J || 0) / T : '';
+      const V = (!s.org && recent > 0) ? Math.max(0, ceil9(T * prm.months) - (J || 0)) : 0;
+      let W = 0; const j = J || 0;
+      if (j > 0) W = N <= 0 ? j : (j / T > prm.slow ? Math.max(0, j - ceil9(T * prm.keep)) : 0);
+      const status = J == null ? 'Không có trong báo cáo NXT' : V > 0 ? 'Cần order' : W > 0 ? (N <= 0 ? 'Không bán – trả hết' : 'Bán chậm – trả bớt') :
+        j > 0 ? 'Đủ hàng' : (s.org ? 'Hết – order khi có đơn' : 'Hết – không bán ' + M.last2Months + ' tháng');
+      return { k, s, N, J, T, U, V, W, status, Y: V * (s.cost || 0), Z: W * (s.cost || 0) };
+    });
+  }
+
+  /* ---------- Nhãn động ---------- */
+  function labels(M) {
+    const per = M.periods, q = per.map(p => p.label);
+    const yr = M.sTo ? ymd(M.sTo).y : '';
+    const salesRange = M.sFrom && M.sTo ? (ymd(M.sFrom).y === ymd(M.sTo).y ? fDM(M.sFrom) + '–' + fDMY(M.sTo) : fDMY(M.sFrom) + '–' + fDMY(M.sTo)) : '';
+    const periodTxt = M.allQ && M.years.size === 1 ? (q.length > 1 ? q[0] + '–' + q[q.length - 1] : q[0]) + '/' + yr : salesRange;
+    const n = M.nxt || {};
+    const by = M.buy;
+    const buyYear = by && by.to ? ymd(by.to).y : (n.to ? ymd(n.to).y : '');
+    const noBuy = by && by.from && by.to ? (ymd(by.from).y === ymd(by.to).y ? 'Không nhập ' + p2(ymd(by.from).m) + '–' + p2(ymd(by.to).m) + '/' + ymd(by.to).y : 'Không nhập ' + fMy(by.from) + '–' + fMy(by.to)) : 'Không có sổ mua hàng';
+    return {
+      q, periodTxt, salesRange,
+      ton0: 'Tồn đầu ' + (n.from ? fDMy(n.from) : ''), nhap: 'Nhập ' + (n.from ? fMy(n.from) + '–' + fMy(n.to) : ''), xuat: 'Xuất ' + (n.from ? fMy(n.from) + '–' + fMy(n.to) : ''),
+      ton: 'Tồn cuối ' + (n.to ? fDMy(n.to) : ''), tong: 'Tổng bán ' + M.P + 'T', dthu: 'Doanh thu ' + M.P + 'T', tra: 'Đã trả NCC ' + buyYear, noBuy,
+      lastLbl: q[q.length - 1] || '', recentTxt: q.slice(-2).join(' hoặc ')
+    };
+  }
+
+  /* ---------- Xuất Excel (ExcelJS) ---------- */
+  function buildXlsx(ExcelJS, M, prm) {
+    const L = labels(M), R = calc(M, prm), byK = new Map(R.map(r => [r.k, r]));
+    const wb = new ExcelJS.Workbook(); wb.creator = '2H Dashboard'; wb.calcProperties.fullCalcOnLoad = true;
+    const F = (o = {}) => Object.assign({ name: 'Arial', size: 10 }, o);
+    const fill = c => ({ type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + c } });
+    const HDR = fill('1B2A4E'), YEL = fill('FFF2CC'), GRY = fill('F2F2F2');
+    const thin = { style: 'thin', color: { argb: 'FFD9D9D9' } }, BOX = { left: thin, right: thin, top: thin, bottom: thin };
+    const NUM = '#,##0;-#,##0;"-"', DEC = '#,##0.0;-#,##0.0;"-"';
+    const colL = i => { let s = ''; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
+    const PER = M.P, ML = M.mLast;
+    const ws = wb.addWorksheet('Tổng hợp');
+
+    /* ---- Tổng hợp ---- */
+    const title = 'TỔNG HỢP NHẬP – BÁN – TỒN – ĐỀ XUẤT ORDER / TRẢ NCC · ' + (M.brand ? 'SÁCH ' + M.brand.toUpperCase() : 'SÁCH') + (M.store ? ' (' + M.store + ')' : '');
+    ws.getCell('A1').value = title; ws.getCell('A1').font = F({ bold: true, size: 13 });
+    const params = [['Số tháng dự trữ khi order', prm.months, 'Đề xuất order = Bán TB/tháng × số tháng này − tồn cuối'],
+      ['Ngưỡng bán chậm (số tháng tồn đủ bán)', prm.slow, 'Tồn đủ bán lâu hơn số tháng này → đề xuất trả bớt'],
+      ['Số tháng hàng giữ lại khi trả bớt', prm.keep, 'Trả bớt = tồn − Bán TB/tháng × số tháng này'],
+      ['Số tháng của kỳ bán (' + L.periodTxt + ')', PER, 'Dữ liệu bán ' + L.salesRange + ' = ' + PER + ' tháng']];
+    params.forEach(([a, v, c], i) => {
+      const r = 2 + i; ws.getCell(r, 1).value = a; ws.getCell(r, 1).font = F();
+      const c1 = ws.getCell(r, 4); c1.value = v; c1.font = F({ bold: true, color: { argb: 'FF0000FF' } }); c1.fill = YEL; c1.border = BOX; c1.alignment = { horizontal: 'center' };
+      ws.getCell(r, 5).value = c; ws.getCell(r, 5).font = F({ italic: true, color: { argb: 'FF7F7F7F' } });
+      ws.mergeCells(r, 1, r, 3);
+    });
+    const PM = { months: '$D$2', slow: '$D$3', keep: '$D$4', period: '$D$5' };
+    ws.getCell('A6').value = 'Ô vàng chữ xanh là tham số, sửa được — các cột Đề xuất/Tình trạng tự tính lại. Tồn cuối tính đến ' + (M.nxt && M.nxt.to ? fDMY(M.nxt.to) : '') + '; số bán chỉ đến ' + (M.sTo ? fDMY(M.sTo) : '') + '.';
+    ws.getCell('A6').font = F({ italic: true, color: { argb: 'FFC00000' } });
+    const qH = L.q.map(x => 'Bán ' + x);
+    const H = ['Mã SKU', 'Tên hàng hóa', 'Nhóm hàng', 'Loại', 'Giá bìa', 'Giá vốn BQ', L.ton0, L.nhap, L.xuat, L.ton, ...qH, L.tong, L.dthu,
+      'Ngày nhập gần nhất', 'Chứng từ – đơn nhập', 'SL nhập lần cuối', L.tra, 'Bán TB/tháng', 'Tồn hiện tại đủ bán cho ? tháng', 'Đề xuất order', 'Đề xuất trả NCC', 'Tình trạng', 'Giá trị order (giá vốn)', 'Giá trị trả (giá vốn)'];
+    const HR = 8, C = {}; H.forEach((h, i) => { C[h] = i + 1; });
+    const col = h => colL(C[h]);
+    H.forEach((h, i) => { const c = ws.getCell(HR, i + 1); c.value = h; c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = HDR; c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; c.border = BOX; });
+    ws.getRow(HR).height = 42;
+    const first = HR + 1, ROW = {};
+    let r = first;
+    for (const k of M.keys) {
+      const s = M.S.get(k), x = byK.get(k); ROW[k] = r;
+      const set = (h, val) => { if (val === null || val === undefined || val === '') return; ws.getCell(r, C[h]).value = val; };
+      set('Mã SKU', k); set('Tên hàng hóa', s.name); set('Nhóm hàng', s.grp); set('Loại', s.org ? 'Đơn tổ chức' : 'Bán lẻ');
+      set('Giá bìa', s.price); set('Giá vốn BQ', s.cost);
+      set(L.ton0, s.ton0); set(L.nhap, s.nhap); set(L.xuat, s.xuat); set(L.ton, s.ton);
+      qH.forEach((h, i) => ws.getCell(r, C[h]).value = s.q[i]);
+      ws.getCell(r, C[L.dthu]).value = pyRound(sum(s.dt));
+      set('Ngày nhập gần nhất', s.last ? s.last.date : L.noBuy);
+      set('Chứng từ – đơn nhập', s.last ? s.last.ct + ' – ' + s.last.dg : '');
+      set('SL nhập lần cuối', s.last ? s.last.sl : null);
+      set(L.tra, s.rets.map(t => (-t.sl) + ' cuốn ' + fDM(t.date)).join('; '));
+      const RR = r, J = col(L.ton) + RR, N = col(L.tong) + RR, Mq = col(qH[qH.length - 1]) + RR, T = col('Bán TB/tháng') + RR, Dd = col('Loại') + RR;
+      const recentExpr = qH.slice(-2).map(h => col(h) + RR).join('+');
+      const V = col('Đề xuất order') + RR, W = col('Đề xuất trả NCC') + RR, Fc = col('Giá vốn BQ') + RR;
+      const fset = (h, f, result) => { ws.getCell(r, C[h]).value = { formula: f, result }; };
+      fset(L.tong, 'SUM(' + col(qH[0]) + RR + ':' + col(qH[qH.length - 1]) + RR + ')', x.N);
+      fset('Bán TB/tháng', 'MAX(0,' + N + '/' + PM.period + ',' + Mq + '/' + ML + ')', x.T);
+      fset('Tồn hiện tại đủ bán cho ? tháng', 'IF(' + T + '>0,' + J + '/' + T + ',"")', x.U);
+      fset('Đề xuất order', 'IF(AND(' + Dd + '="Bán lẻ",' + recentExpr + '>0),MAX(0,ROUNDUP(' + T + '*' + PM.months + ',0)-' + J + '),0)', x.V);
+      fset('Đề xuất trả NCC', 'IF(' + J + '<=0,0,IF(' + N + '<=0,' + J + ',IF(' + J + '/' + T + '>' + PM.slow + ',MAX(0,' + J + '-ROUNDUP(' + T + '*' + PM.keep + ',0)),0)))', x.W);
+      fset('Tình trạng', 'IF(' + J + '="","Không có trong báo cáo NXT",IF(' + V + '>0,"Cần order",IF(' + W + '>0,IF(' + N + '<=0,"Không bán – trả hết","Bán chậm – trả bớt"),' +
+        'IF(' + J + '>0,"Đủ hàng",IF(' + Dd + '="Đơn tổ chức","Hết – order khi có đơn","Hết – không bán ' + M.last2Months + ' tháng")))))', x.status);
+      fset('Giá trị order (giá vốn)', V + '*' + Fc, x.Y);
+      fset('Giá trị trả (giá vốn)', W + '*' + Fc, x.Z);
+      for (let i = 1; i <= H.length; i++) { const c = ws.getCell(r, i); c.border = BOX; c.font = F({ bold: H[i - 1] === 'Đề xuất order' || H[i - 1] === 'Đề xuất trả NCC' }); }
+      r++;
+    }
+    const last = r - 1, TR = r;
+    ws.getCell(TR, 1).value = 'TỔNG'; ws.getCell(TR, 1).font = F({ bold: true });
+    const totH = [L.ton0, L.nhap, L.xuat, L.ton, ...qH, L.tong, L.dthu, 'Đề xuất order', 'Đề xuất trả NCC', 'Giá trị order (giá vốn)', 'Giá trị trả (giá vốn)'];
+    const totVal = h => {
+      if (h === L.ton0) return sum(R.map(x => x.s.ton0)); if (h === L.nhap) return sum(R.map(x => x.s.nhap)); if (h === L.xuat) return sum(R.map(x => x.s.xuat)); if (h === L.ton) return sum(R.map(x => x.s.ton));
+      const qi = qH.indexOf(h); if (qi >= 0) return sum(R.map(x => x.s.q[qi])); if (h === L.tong) return sum(R.map(x => x.N)); if (h === L.dthu) return sum(R.map(x => pyRound(sum(x.s.dt))));
+      return sum(R.map(x => ({ 'Đề xuất order': x.V, 'Đề xuất trả NCC': x.W, 'Giá trị order (giá vốn)': x.Y, 'Giá trị trả (giá vốn)': x.Z })[h]));
+    };
+    for (const h of totH) { const c = ws.getCell(TR, C[h]); c.value = { formula: 'SUM(' + col(h) + first + ':' + col(h) + last + ')', result: totVal(h) }; c.font = F({ bold: true }); c.fill = GRY; c.border = BOX; }
+    const TXT = ['Mã SKU', 'Tên hàng hóa', 'Nhóm hàng', 'Loại', 'Chứng từ – đơn nhập', L.tra, 'Tình trạng'];
+    const FMT = { 'Giá bìa': NUM, 'Giá vốn BQ': NUM, [L.dthu]: NUM, 'Giá trị order (giá vốn)': NUM, 'Giá trị trả (giá vốn)': NUM, 'Bán TB/tháng': DEC, 'Tồn hiện tại đủ bán cho ? tháng': DEC, 'Ngày nhập gần nhất': 'dd/mm/yyyy' };
+    for (const h of H) {
+      const fmt = FMT[h] || (TXT.includes(h) ? null : NUM);
+      for (let rr = first; rr <= TR; rr++) {
+        const c = ws.getCell(rr, C[h]);
+        if (fmt) c.numFmt = fmt;
+        if (!['Tên hàng hóa', 'Chứng từ – đơn nhập', L.tra].includes(h)) c.alignment = { horizontal: h === 'Nhóm hàng' ? 'left' : 'center' };
+      }
+    }
+    const WID = { 'Mã SKU': 15, 'Tên hàng hóa': 46, 'Nhóm hàng': 18, 'Loại': 12, 'Chứng từ – đơn nhập': 30, [L.tra]: 16, 'Tình trạng': 24, 'Tồn hiện tại đủ bán cho ? tháng': 12, 'Ngày nhập gần nhất': 14, 'Giá trị order (giá vốn)': 13, 'Giá trị trả (giá vốn)': 13, [L.dthu]: 12 };
+    H.forEach((h, i) => { ws.getColumn(i + 1).width = WID[h] || 10; });
+    ws.views = [{ state: 'frozen', xSplit: 2, ySplit: HR, topLeftCell: 'C' + (HR + 1) }];
+    ws.autoFilter = 'A' + HR + ':' + colL(H.length) + last;
+    const st = col('Tình trạng');
+    [['Cần order', 'E2EFDA'], ['Không bán – trả hết', 'FCE4D6'], ['Bán chậm – trả bớt', 'FFF2CC']].forEach(([t, c], i) => {
+      ws.addConditionalFormatting({ ref: 'A' + first + ':' + colL(H.length) + last, rules: [{ type: 'expression', priority: i + 1, formulae: ['$' + st + first + '="' + t + '"'], style: { fill: { type: 'pattern', pattern: 'solid', bgColor: { argb: 'FF' + c } } } }] });
+    });
+    const note = (h, t) => { ws.getCell(HR, C[h]).note = { texts: [{ text: t }] }; };
+    note('Bán TB/tháng', '= MAX(' + L.tong + ' ÷ ' + PER + ', Bán ' + L.lastLbl + ' ÷ ' + ML + '): lấy tốc độ cao hơn giữa trung bình ' + PER + ' tháng và ' + (M.periods.length && M.periods[M.periods.length - 1].isQ ? 'quý' : 'kỳ') + ' gần nhất, để không bỏ sót đầu sách đang bán lên.');
+    note('Đề xuất order', 'Chỉ tính cho sách Bán lẻ có bán ở ' + L.recentTxt + '. = Bán TB/tháng × số tháng dự trữ (làm tròn lên) − tồn cuối.');
+    note('Đề xuất trả NCC', 'Tồn > 0 và không bán trong ' + PER + ' tháng → trả hết. Tồn đủ bán lâu hơn ngưỡng bán chậm → trả phần vượt, giữ lại số tháng hàng theo tham số.');
+    const notInNxt = R.filter(x => !x.s.inNXT).length;
+    note('Giá vốn BQ', 'Giá trị ÷ số lượng trong báo cáo Nhập xuất tồn (ưu tiên tồn cuối, rồi nhập, xuất, tồn đầu).' + (notInNxt ? ' ' + notInNxt + ' mã không có trong NXT lấy giá phiếu nhập gần nhất.' : ''));
+    note('Loại', '"Đơn tổ chức": tên có /TV25, /TV26… (sách thư viện) hoặc phiếu nhập cho Quốc hội, Học viện, thư viện (TV …). Không đề xuất order bán lẻ cho nhóm này.');
+
+    /* ---- Order thêm / Trả NCC ---- */
+    const TS = "'Tổng hợp'!";
+    const side = (name, list, cols, ttl, sub) => {
+      const w = wb.addWorksheet(name);
+      w.getCell('A1').value = ttl; w.getCell('A1').font = F({ bold: true, size: 13 });
+      w.getCell('A2').value = sub; w.getCell('A2').font = F({ italic: true, color: { argb: 'FF7F7F7F' } });
+      cols.forEach(([h, , wd], i) => { const c = w.getCell(4, i + 1); c.value = h; c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = HDR; c.border = BOX; c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }; w.getColumn(i + 1).width = wd; });
+      w.getRow(4).height = 32;
+      let rr = 5;
+      for (const x of list) {
+        cols.forEach(([h, src], i) => {
+          const c = w.getCell(rr, i + 1);
+          if (typeof src === 'function') { const v = src(x); if (v != null) c.value = v; }
+          else { let res = src[1](x); if (res instanceof Date) res = (res.getTime() - Date.UTC(1899, 11, 30)) / 86400000; c.value = { formula: TS + col(src[0]) + ROW[x.k], result: res == null ? 0 : res }; }
+          c.border = BOX; c.font = F({ bold: h.startsWith('SL đề xuất') || h.startsWith('SL order') });
+          if (!['Tên hàng hóa', 'Ghi chú', 'Chứng từ – đơn nhập'].includes(h)) c.alignment = { horizontal: 'center' };
+          c.numFmt = { 'Bán TB/tháng': DEC, 'Tồn hiện tại đủ bán cho ? tháng': DEC, 'Ngày nhập gần nhất': 'dd/mm/yyyy' }[h] || NUM;
+        });
+        rr++;
+      }
+      w.getCell(rr, 1).value = 'TỔNG'; w.getCell(rr, 1).font = F({ bold: true });
+      cols.forEach(([h, src], i) => {
+        if (h.startsWith('SL') || h.startsWith('Giá trị') || h === 'Tồn cuối') {
+          const tot = typeof src === 'function' ? 0 : sum(list.map(x => { const v = src[1](x); return typeof v === 'number' ? v : 0; }));
+          const c = w.getCell(rr, i + 1); c.value = { formula: 'SUM(' + colL(i + 1) + '5:' + colL(i + 1) + (rr - 1) + ')', result: tot };
+          c.font = F({ bold: true }); c.fill = GRY; c.border = BOX; c.numFmt = NUM; c.alignment = { horizontal: 'center' };
+        }
+      });
+      w.views = [{ state: 'frozen', xSplit: 2, ySplit: 4, topLeftCell: 'C5' }];
+      return w;
+    };
+    const ref = (h, fn) => [h, fn];
+    const ret = x => x.s, dateOrTxt = x => (x.s.last ? x.s.last.date : L.noBuy);
+    const ok = R.filter(x => x.V > 0).map((x, i) => [x, i]).sort((a, b) => (b[0].V - a[0].V) || (a[1] - b[1])).map(a => a[0]);
+    const rk = R.filter(x => x.W > 0).map((x, i) => [x, i]).sort((a, b) => ((a[0].N > 0) - (b[0].N > 0)) || (b[0].W - a[0].W) || (a[1] - b[1])).map(a => a[0]);
+    const qCols = L.q.map((lb, i) => ['Bán ' + lb, ref('Bán ' + lb, x => x.s.q[i]), 8]);
+    side('Order thêm', ok, [['Mã SKU', ref('Mã SKU', x => x.k), 15], ['Tên hàng hóa', ref('Tên hàng hóa', x => x.s.name), 46], ['Giá bìa', ref('Giá bìa', x => x.s.price), 10], ['Tồn cuối', ref(L.ton, x => x.s.ton), 9],
+      ...qCols, ['Bán TB/tháng', ref('Bán TB/tháng', x => x.T), 10], ['Ngày nhập gần nhất', ref('Ngày nhập gần nhất', dateOrTxt), 14],
+      ['SL order đề xuất', ref('Đề xuất order', x => x.V), 11], ['Giá trị (giá vốn)', ref('Giá trị order (giá vốn)', x => x.Y), 13], ['SL chốt order', () => null, 11]],
+      'ĐỀ XUẤT ORDER THÊM — ' + ok.length + ' đầu sách', 'Danh sách lọc theo tham số mặc định (dự trữ ' + prm.months + ' tháng). Số lượng lấy từ sheet Tổng hợp — đổi tham số thì số tự đổi; cột "SL chốt order" để anh điền.');
+    const reason = x => x.N <= 0 ? 'Không bán trong ' + PER + ' tháng' : 'Bán ' + x.N + ' cuốn/' + PER + ' tháng, tồn đủ bán ~' + pyRound((x.J || 0) / x.T) + ' tháng';
+    side('Trả NCC', rk, [['Mã SKU', ref('Mã SKU', x => x.k), 15], ['Tên hàng hóa', ref('Tên hàng hóa', x => x.s.name), 46], ['Loại', ref('Loại', x => (x.s.org ? 'Đơn tổ chức' : 'Bán lẻ')), 12], ['Giá bìa', ref('Giá bìa', x => x.s.price), 10], ['Tồn cuối', ref(L.ton, x => x.s.ton), 9],
+      ...qCols, ['Tồn hiện tại đủ bán cho ? tháng', ref('Tồn hiện tại đủ bán cho ? tháng', x => x.U), 11], ['Ngày nhập gần nhất', ref('Ngày nhập gần nhất', dateOrTxt), 14],
+      [L.tra, ref(L.tra, x => (x.s.rets.length ? x.s.rets.map(t => (-t.sl) + ' cuốn ' + fDM(t.date)).join('; ') : 0)), 14], ['SL đề xuất trả', ref('Đề xuất trả NCC', x => x.W), 11], ['Giá trị (giá vốn)', ref('Giá trị trả (giá vốn)', x => x.Z), 13], ['Ghi chú', reason, 34]],
+      'ĐỀ XUẤT TRẢ LẠI NHÀ CUNG CẤP — ' + rk.length + ' đầu sách', 'Không bán trong ' + PER + ' tháng → trả hết; tồn đủ bán > ' + prm.slow + ' tháng → trả bớt, giữ ' + prm.keep + ' tháng hàng. Cần xác nhận điều kiện đổi trả với ' + (M.brand || 'NCC') + ' trước khi gửi.');
+
+    /* ---- Mã nội bộ ---- */
+    const wi = wb.addWorksheet('Mã nội bộ (không tính)');
+    wi.getCell('A1').value = 'Các mã nội bộ của đơn sách thư viện — không phải mã vạch, đã loại khỏi phần đề xuất'; wi.getCell('A1').font = F({ bold: true });
+    ['Mã', 'Tên', ...qH, L.dthu, 'Nhập kỳ NXT', 'Xuất kỳ NXT', 'Tồn cuối NXT'].forEach((h, i) => { const c = wi.getCell(3, i + 1); c.value = h; c.font = F({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = HDR; });
+    let ri = 4;
+    for (const [k, d] of M.INTERNAL) {
+      const n = d.nxt || Array(8).fill(null);
+      [k, d.name, ...d.q, pyRound(sum(d.dt)), n[2], n[4], n[6]].forEach((v, i) => { const c = wi.getCell(ri, i + 1); if (v != null) c.value = v; c.font = F(); c.numFmt = NUM; });
+      ri++;
+    }
+    wi.getColumn(1).width = 14; wi.getColumn(2).width = 52;
+
+    /* ---- Ghi chú ---- */
+    const by = M.buy, nx = M.nxt || {};
+    const roman = ['I', 'II', 'III', 'IV'];
+    const salesDesc = M.allQ && M.years.size === 1 ? 'Quý ' + M.periods.map(p => roman[(ymd(p.from).m - 1) / 3]).join(', ') + '/' + ymd(M.sTo).y : M.periods.length + ' kỳ (' + L.q.join(', ') + ')';
+    const notes = ['NGUỒN DỮ LIỆU (các file đã chọn trên dashboard, phần mềm kho ' + (M.store || '') + '):',
+      '• Doanh thu theo mặt hàng ' + salesDesc + ' → số bán ' + (L.q.length > 1 ? L.q[0] + '–' + L.lastLbl : L.lastLbl) + ' (' + L.salesRange + '), doanh thu.'];
+    if (by) {
+      const slips = [...by.retSlips.values()];
+      notes.push('• Sổ chi tiết mua hàng ' + (by.from && by.to ? (ymd(by.from).y === ymd(by.to).y ? fDM(by.from) + '–' + fDMY(by.to) : fDMY(by.from) + '–' + fDMY(by.to)) : '') + ' → ngày nhập gần nhất, chứng từ, phiếu trả NCC. Sổ này chỉ có ' + by.lines + ' dòng nhập' +
+        (by.min ? ' (' + fDM(by.min) + '–' + fDMY(by.max) + ')' : '') + (slips.length ? ' + ' + slips.length + ' phiếu trả ' + slips.map(fDMY).join(', ') : '') + '.');
+    } else notes.push('• Không có Sổ chi tiết mua hàng → cột ngày nhập gần nhất để trống.');
+    notes.push('• Tổng hợp nhập xuất tồn ' + (nx.from ? fDMY(nx.from) + '–' + fDMY(nx.to) : '') + ' → tồn đầu, nhập, xuất, tồn cuối, giá vốn.', '', 'LƯU Ý QUAN TRỌNG:');
+    if (by && by.from) {
+      const before = nx.from && nx.from < by.from ? ' (trong khoảng ' + p2(ymd(nx.from).m) + '–' + p2(ymd(new Date(by.from - DAY)).m) + '/' + ymd(new Date(by.from - DAY)).y + ')' : '';
+      notes.push('• "Ngày nhập gần nhất" chỉ có cho các mã có phiếu nhập trong ' + (ymd(by.from).y === ymd(by.to).y ? ymd(by.to).y : fDMY(by.from) + '–' + fDMY(by.to)) + '. Mã ghi "' + L.noBuy + '" là nhập trước ' + fDMY(by.from) + before +
+        ' hoặc nhập qua chứng từ khác (chuyển kho) — sổ mua hàng không thể hiện.' + (before ? ' Cần xuất thêm Sổ chi tiết mua hàng từ ' + fDMY(nx.from) + ' nếu muốn ngày chính xác.' : ''));
+    }
+    if (M.sTo && nx.to && nx.to > M.sTo) {
+      const a = new Date(M.sTo.getTime() + DAY), mA = ymd(a).m, mB = ymd(nx.to).m;
+      const th = mA === mB ? 'tháng ' + mA : 'tháng ' + mA + '–' + mB;
+      notes.push('• Số bán chỉ đến ' + fDMY(M.sTo) + ', còn tồn tính đến ' + fDMY(nx.to) + ' → ' + th + ' đã bán bớt nhưng chưa có trong tốc độ bán. Nên xuất thêm doanh thu ' + th + ' nếu cần sát hơn.');
+    }
+    notes.push('• Số bán gồm cả bán cho đơn tổ chức xuất theo mã vạch (Quốc hội, Học viện, thư viện…). Các sách đó được đánh dấu "Đơn tổ chức" và không đề xuất order bán lẻ.');
+    if (notInNxt) notes.push('• ' + notInNxt + ' mã có phiếu nhập ' + (by && by.to ? ymd(by.to).y : '') + ' nhưng không có trong báo cáo Nhập xuất tồn (báo cáo NXT có thể lọc theo thương hiệu): tồn để trống, tình trạng "Không có trong báo cáo NXT".');
+    notes.push('• Số âm ở cột bán là hàng khách trả lại.');
+    for (const x of R) {
+      const s = x.s; if (!s.rets.length || !s.buys.length) continue;
+      const rt = s.rets[0], b = s.buys.find(b => b.ser > rt.ser); if (!b) continue;
+      const short = String(s.name || '').replace(/\s*\d{2,4}\s*[kK](?![\p{L}\p{N}_]).*$/u, '').trim();
+      notes.push('• ' + short + ': đã trả ' + (M.brand || 'NCC') + ' ' + (-rt.sl) + ' cuốn ngày ' + fDM(rt.date) + ' nhưng lại nhập ' + b.sl + ' cuốn ngày ' + fDM(b.date) + ' (phiếu "' + b.dg + '"), ' + PER + ' tháng chỉ bán ' + x.N + ' cuốn, tồn ' + (x.J || 0) + '.');
+    }
+    notes.push('', 'QUY TẮC TÍNH (tham số ở đầu sheet Tổng hợp, sửa được):',
+      '• Bán TB/tháng = MAX(' + L.tong + ' ÷ ' + PER + ', Bán ' + L.lastLbl + ' ÷ ' + ML + ').',
+      '• Đề xuất order (chỉ sách Bán lẻ, có bán ở ' + L.recentTxt + ') = làm tròn lên(Bán TB/tháng × số tháng dự trữ) − tồn cuối, không âm.',
+      '• Đề xuất trả NCC: tồn > 0 và không bán trong ' + PER + ' tháng → trả hết; tồn đủ bán lâu hơn ngưỡng bán chậm → trả phần vượt, giữ lại số tháng hàng theo tham số.',
+      '• Giá trị order/trả tính theo giá vốn bình quân trong báo cáo NXT (≈ giá bìa trừ chiết khấu nhập).');
+    const gGhi = wb.addWorksheet('Ghi chú');
+    const isUp = t => t !== '' && /\p{Lu}/u.test(t) && !/\p{Ll}/u.test(t);
+    notes.forEach((t, i) => { const c = gGhi.getCell(i + 1, 1); if (t !== '') c.value = t; c.font = F({ bold: isUp(t) }); });
+    gGhi.getColumn(1).width = 150;
+    wb.views = [{ activeTab: 0, firstSheet: 0, visibility: 'visible' }];
+    const fn = 'Order_Lien_Ket_' + (M.brand ? M.brand.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/[^A-Za-z0-9]+/g, '_') + '_' : '') + 'tong_hop_' + (() => { const d = new Date(); return p2(d.getDate()) + '_' + p2(d.getMonth() + 1) + '_' + d.getFullYear(); })() + '.xlsx';
+    return { wb, fileName: fn, R, ok, rk };
+  }
+  return { parse, build, calc, labels, buildXlsx, pyRound, fDMY };
+})();
+
+/* ---------- Giao diện (Nghiệp vụ → Xử lý File Excel) ---------- */
+const OLKS = { files: [], model: null, filter: 'all', warn: [] };
+function olkEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function olkFmt(n, d) { if (n === '' || n == null || !isFinite(n)) return '–'; return Number(n).toLocaleString('vi-VN', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }); }
+function olkParams() {
+  const g = (id, def) => { const v = parseFloat(document.getElementById(id) && document.getElementById(id).value); return isFinite(v) && v >= 0 ? v : def; };
+  return { months: g('olk-p-months', 2), slow: g('olk-p-slow', 6), keep: g('olk-p-keep', 3) };
+}
+async function olkHandleFiles(input) {
+  const list = Array.from(input.files || []); input.value = '';
+  if (!list.length) return;
+  const warn = [];
+  for (const f of list) {
+    try {
+      const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+      const aoa = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: null });
+      const p = OLK.parse(aoa, f.name);
+      if (!p.ok) { warn.push('⚠ ' + f.name + ': ' + p.error); continue; }
+      const same = x => x.fileName === p.fileName || (x.type === p.type && p.type !== 'buy' && x.from && p.from && +x.from === +p.from && +x.to === +p.to);
+      const i = OLKS.files.findIndex(same);
+      if (i >= 0) { OLKS.files[i] = p; warn.push('↻ ' + f.name + ': thay file cùng loại, cùng kỳ đã chọn trước.'); } else OLKS.files.push(p);
+    } catch (e) { warn.push('⚠ ' + f.name + ': không đọc được (' + e.message + ')'); }
+  }
+  OLKS.warn = warn;
+  olkRecompute();
+}
+function olkRecompute() {
+  const fs = OLKS.files, has = t => fs.some(f => f.type === t);
+  const TN = { sales: 'Doanh thu theo mặt hàng', buy: 'Sổ chi tiết mua hàng', nxt: 'Tổng hợp nhập xuất tồn' };
+  document.getElementById('olk-files').innerHTML = fs.length ? fs.slice().sort((a, b) => a.type.localeCompare(b.type) || (a.from || 0) - (b.from || 0)).map(f =>
+    '<div>✓ <b>' + TN[f.type] + '</b>' + (f.from ? ' · ' + OLK.fDMY(f.from) + '–' + OLK.fDMY(f.to) : '') + ' · <span style="color:var(--text2)">' + olkEsc(f.fileName) + '</span></div>').join('') : 'Chưa chọn file';
+  const w = OLKS.warn.slice();
+  if (fs.length && !has('sales')) w.push('Cần ít nhất 1 file <b>Doanh thu theo mặt hàng</b>.');
+  if (fs.length && !has('nxt')) w.push('Cần 1 file <b>Tổng hợp nhập xuất tồn kho</b>.');
+  if (fs.length && !has('buy')) w.push('Chưa có <b>Sổ chi tiết mua hàng</b> → cột Ngày nhập gần nhất sẽ trống (vẫn tính được đề xuất).');
+  if (fs.filter(f => f.type === 'nxt').length > 1) w.push('Có nhiều file Nhập xuất tồn — dùng file có ngày kết thúc mới nhất.');
+  const wEl = document.getElementById('olk-warn'); wEl.style.display = w.length ? '' : 'none'; wEl.innerHTML = w.join('<br>');
+  document.getElementById('olk-reset-btn').style.display = fs.length ? '' : 'none';
+  const ready = has('sales') && has('nxt');
+  OLKS.model = ready ? OLK.build(fs) : null;
+  ['olk-param-card', 'olk-preview-card'].forEach(id => { document.getElementById(id).style.display = ready ? '' : 'none'; });
+  document.getElementById('olk-export-btn').style.display = ready ? '' : 'none';
+  if (ready) olkRender();
+}
+function olkSetFilter(f) { OLKS.filter = f; olkRender(); }
+function olkRender() {
+  const M = OLKS.model; if (!M) return;
+  const prm = olkParams(), R = OLK.calc(M, prm), L = OLK.labels(M);
+  const sumf = (a, f) => a.reduce((x, r) => x + (f(r) || 0), 0);
+  const ord = R.filter(r => r.V > 0), ret = R.filter(r => r.W > 0);
+  const kpi = (lb, v, sub, color) => '<div style="flex:1;min-width:170px;border:1px solid var(--gray3);border-top:3px solid ' + color + ';border-radius:8px;padding:10px 14px;background:#fff"><div style="font-size:12px;color:var(--text2)">' + lb + '</div><div style="font-size:22px;font-weight:700;color:var(--text)">' + v + '</div><div style="font-size:11px;color:var(--text2)">' + sub + '</div></div>';
+  document.getElementById('olk-kpi').innerHTML =
+    kpi('Số mã sách', olkFmt(R.length), (M.brand ? 'Thương hiệu ' + olkEsc(M.brand) + ' · ' : '') + 'Kỳ bán ' + olkEsc(L.salesRange) + ' (' + M.P + ' tháng)', 'var(--navy)') +
+    kpi('Tồn cuối ' + (M.nxt && M.nxt.to ? OLK.fDMY(M.nxt.to) : ''), olkFmt(sumf(R, r => r.s.ton)) + ' cuốn', olkFmt(sumf(R, r => r.s.vt)) + ' đ giá vốn', '#64748b') +
+    kpi('Cần order thêm', olkFmt(sumf(ord, r => r.V)) + ' cuốn', ord.length + ' đầu sách · ' + olkFmt(sumf(ord, r => r.Y)) + ' đ', '#27ae60') +
+    kpi('Đề xuất trả NCC', olkFmt(sumf(ret, r => r.W)) + ' cuốn', ret.length + ' đầu sách · ' + olkFmt(sumf(ret, r => r.Z)) + ' đ', '#c0392b');
+  const F = OLKS.filter;
+  const rows = R.filter(r => F === 'all' || (F === 'order' && r.V > 0) || (F === 'tra' && r.W > 0) || (F === 'org' && r.s.org));
+  const btn = (id, lb, n) => '<button onclick="olkSetFilter(\'' + id + '\')" style="padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid ' + (F === id ? 'var(--navy2)' : 'var(--gray3)') + ';background:' + (F === id ? 'var(--navy2)' : '#fff') + ';color:' + (F === id ? '#fff' : 'var(--text)') + ';font-weight:600">' + lb + ' (' + n + ')</button>';
+  document.getElementById('olk-filters').innerHTML = btn('all', 'Tất cả', R.length) + btn('order', 'Cần order', ord.length) + btn('tra', 'Trả NCC', ret.length) + btn('org', 'Đơn tổ chức', R.filter(r => r.s.org).length);
+  const th = s => '<th style="padding:7px 8px;background:var(--navy);color:#fff;font-size:11.5px;text-align:center;position:sticky;top:0;white-space:normal">' + s + '</th>';
+  document.getElementById('olk-thead').innerHTML = '<tr>' + ['Mã SKU', 'Tên hàng hóa', 'Loại', 'Giá bìa', L.ton, ...L.q.map(q => 'Bán ' + q), L.tong, 'Bán TB/tháng', 'Tồn hiện tại đủ bán cho ? tháng', 'Ngày nhập gần nhất', 'Đề xuất order', 'Đề xuất trả NCC', 'Tình trạng'].map(th).join('') + '</tr>';
+  const COLOR = { 'Cần order': '#E2EFDA', 'Không bán – trả hết': '#FCE4D6', 'Bán chậm – trả bớt': '#FFF2CC' };
+  const td = (v, al, b) => '<td style="padding:6px 8px;border-bottom:1px solid var(--gray3);text-align:' + (al || 'center') + (b ? ';font-weight:700' : '') + '">' + v + '</td>';
+  document.getElementById('olk-tbody').innerHTML = rows.map(r => {
+    const s = r.s, d = s.last ? OLK.fDMY(s.last.date) : '<span style="color:var(--text2)">' + olkEsc(L.noBuy) + '</span>';
+    return '<tr style="background:' + (COLOR[r.status] || '#fff') + '">' + td(olkEsc(r.k)) + td(olkEsc(s.name), 'left') + td(s.org ? 'Đơn tổ chức' : 'Bán lẻ') + td(olkFmt(s.price)) + td(s.ton == null ? '–' : olkFmt(s.ton)) +
+      s.q.map(q => td(olkFmt(q))).join('') + td(olkFmt(r.N)) + td(olkFmt(r.T, 1)) + td(r.U === '' ? '–' : olkFmt(r.U, 1)) + td(d) + td(r.V ? olkFmt(r.V) : '–', 'center', 1) + td(r.W ? olkFmt(r.W) : '–', 'center', 1) + td(olkEsc(r.status)) + '</tr>';
+  }).join('') || '<tr><td colspan="20" style="padding:14px;text-align:center;color:var(--text2)">Không có mã nào</td></tr>';
+}
+/* Tự tải ExcelJS (không phụ thuộc script chính) — cùng bộ CDN với phần Hoa hồng TikTok */
+let olkExcelJsPromise_ = null;
+function olkLoadExcelJS_() {
+  if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+  if (olkExcelJsPromise_) return olkExcelJsPromise_;
+  const urls = ['https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js', 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js', 'https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js'];
+  olkExcelJsPromise_ = urls.reduce((p, u) => p.catch(() => new Promise((res, rej) => {
+    const sc = document.createElement('script'); sc.src = u; sc.async = true;
+    sc.onload = () => window.ExcelJS ? res(window.ExcelJS) : rej(new Error('no ExcelJS'));
+    sc.onerror = () => { sc.remove(); rej(new Error('load fail ' + u)); };
+    document.head.appendChild(sc);
+  })), Promise.reject(new Error('start'))).catch(e => { olkExcelJsPromise_ = null; throw new Error('Không tải được thư viện Excel (kiểm tra mạng): ' + e.message); });
+  return olkExcelJsPromise_;
+}
+async function olkExport() {
+  const M = OLKS.model; if (!M) return;
+  const b = document.getElementById('olk-export-btn'), t = b.textContent; b.disabled = true; b.textContent = '⏳ Đang tạo file...';
+  try {
+    const ExcelJS = await olkLoadExcelJS_();
+    const out = OLK.buildXlsx(ExcelJS, M, olkParams());
+    const buf = await out.wb.xlsx.writeBuffer();
+    const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    const a = document.createElement('a'); a.href = url; a.download = out.fileName; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch (e) { alert('Không xuất được Excel: ' + e.message); }
+  finally { b.disabled = false; b.textContent = t; }
+}
+function olkReset() { OLKS.files = []; OLKS.model = null; OLKS.warn = []; OLKS.filter = 'all'; olkRecompute(); }
+
+</script>
+<!-- ORDER-LIEN-KET-END -->
 
 </body>
 </html>
