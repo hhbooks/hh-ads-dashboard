@@ -15752,7 +15752,7 @@ function shopeeExportFile() {
     [idx.khoDuTru, idx.gioiHanMua].forEach(c => { if (c >= 0) delete ws[XLSX.utils.encode_cell({ r: r.rowIdx, c })]; });
     updatedKho++;
   });
-  const outName = SHOPEE_FS.fileName.replace(/\.xlsx$/i, '') + '_DA_CAP_NHAT.xlsx';
+  const outName = 'Đã cập nhật KM Shopee - ' + SHOPEE_FS.fileName.replace(/\.xlsx$/i, '') + '.xlsx';   /* Tân chốt 10/11/2026: tên bắt đầu bằng "Đã cập nhật KM Shopee" để phân biệt với file tải từ Shopee */
   XLSX.writeFile(SHOPEE_FS.wb, outName);
   shopeeLog(`📤 Đã xuất "${outName}" — cập nhật ${updatedGia} dòng "Giá khuyến mãi", để trống "Kho dự trữ/Giới hạn mua" ${updatedKho} dòng, ${SHOPEE_FS.rows.length - updatedGia} dòng giữ nguyên giá (thiếu dữ liệu/không khớp mã).`, 'ok');
 }
