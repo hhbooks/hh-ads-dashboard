@@ -3421,7 +3421,7 @@
     <div class="card">
       <div class="card-title"><span class="dot"></span> Xử Lý File Eligible Product List (Đăng Ký Khung Giờ / Flash Sale)</div>
       <p style="font-size:12px;color:var(--text2);margin:0 0 14px;line-height:1.6">
-        Upload <b>file Eligible Product List</b> (tải từ Shopee xuống) và <b>file Map Salework</b> (DS_SanPham_MAP_Salework...xlsx). Hệ thống map theo <b>Mã phân loại hàng</b> ↔ <b>Mã Salework liên kết</b> (kể cả combo), tra giá bán trong <b>Danh Mục SKU</b> (đồng bộ từ Google Sheet "Trung Tâm Dữ Liệu") để điền cột <b>Giá khuyến mãi</b>. Cột <b>Kho hàng dự trữ cho khuyến mãi</b> và <b>Giới hạn mua hàng</b> để <b>trống</b> trong file xuất (bảng chỉ hiện số Kho ÷ 2 để tham khảo). Bảng hiển thị đầy đủ để bạn xem trước — chỉ xuất file khi bạn quyết định.
+        Upload <b>file Eligible Product List</b> (tải từ Shopee xuống) và <b>file Map Salework</b> (DS_SanPham_MAP_Salework...xlsx). Hệ thống map theo <b>Mã phân loại hàng</b> ↔ <b>Mã Salework liên kết</b> (kể cả combo), tra giá bán trong <b>Danh Mục SKU</b> (đồng bộ từ Google Sheet "Trung Tâm Dữ Liệu") để điền cột <b>Giá khuyến mãi</b>. Cột <b>Kho hàng dự trữ cho khuyến mãi</b> = Kho hàng ÷ 2 (làm tròn xuống), cột <b>Giới hạn mua hàng</b> = bằng Kho hàng dự trữ (Shopee bắt buộc điền 2 cột này). Bảng hiển thị đầy đủ để bạn xem trước — chỉ xuất file khi bạn quyết định.
       </p>
       <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:12px;padding-bottom:12px;border-bottom:1px dashed var(--gray3)">
         <button class="sw-upload-btn" style="background:white;color:var(--navy);border:1px solid var(--navy)" onclick="_catalogLogTarget='shopee-sync-log';tqSyncCatalog()" id="shopee-sync-btn">🔄 Đồng Bộ SKU Tổng</button>
@@ -15731,7 +15731,7 @@ function shopeeRenderReportTable() {
 }
 
 // ── 4. Xuất file Eligible Product List đã cập nhật: mutate trực tiếp các ô K (Giá khuyến mãi — CHỈ
-//     khi khớp giá, kể cả dòng "warn"). N (Kho hàng dự trữ) + O (Giới hạn mua hàng) để TRỐNG (Tân chốt 10/11/2026).
+//     khi khớp giá, kể cả dòng "warn"), N (Kho hàng dự trữ), O (Giới hạn mua hàng — MỌI dòng có Kho hàng).
 //     Giữ nguyên workbook gốc (kể cả 2 dòng hướng dẫn của Shopee) để upload ngược lại đúng cấu trúc.
 function shopeeExportFile() {
   if (!SHOPEE_FS.ws || !SHOPEE_FS.rows.length) { shopeeLog('⚠ Chưa có dữ liệu đối chiếu để xuất file', 'warn'); return; }
@@ -15747,14 +15747,22 @@ function shopeeExportFile() {
       ws[cellAddr] = cell;
       updatedGia++;
     }
-    // Cột N (Kho hàng dự trữ) + cột O (Giới hạn mua hàng): từ 10/11/2026 Tân chốt ĐỂ TRỐNG trong file xuất
-    // (bảng xem trước vẫn hiện số tính tham khảo). Xoá ô nếu file gốc có sẵn giá trị.
-    [idx.khoDuTru, idx.gioiHanMua].forEach(c => { if (c >= 0) delete ws[XLSX.utils.encode_cell({ r: r.rowIdx, c })]; });
+    // Cột N — Kho hàng dự trữ cho khuyến mãi: ghi cho mọi dòng có Kho hàng (độc lập với khớp giá).
+    // (10/11/2026 đã thử để trống N/O → Shopee từ chối cả 1.389 dòng "Vui lòng điền vào tất cả các cột bắt buộc" → phải điền.)
+    const cellN = XLSX.utils.encode_cell({ r: r.rowIdx, c: idx.khoDuTru });
+    const cN = ws[cellN] || {};
+    cN.t = 'n'; cN.v = Number(r.khoDuTru); delete cN.w; delete cN.f;
+    ws[cellN] = cN;
+    // Cột O — Giới hạn mua hàng: bằng đúng cột N.
+    const cellO = XLSX.utils.encode_cell({ r: r.rowIdx, c: idx.gioiHanMua });
+    const cO = ws[cellO] || {};
+    cO.t = 'n'; cO.v = Number(r.gioiHanMua); delete cO.w; delete cO.f;
+    ws[cellO] = cO;
     updatedKho++;
   });
   const outName = 'Đã cập nhật KM Shopee - ' + SHOPEE_FS.fileName.replace(/\.xlsx$/i, '') + '.xlsx';   /* Tân chốt 10/11/2026: tên bắt đầu bằng "Đã cập nhật KM Shopee" để phân biệt với file tải từ Shopee */
   XLSX.writeFile(SHOPEE_FS.wb, outName);
-  shopeeLog(`📤 Đã xuất "${outName}" — cập nhật ${updatedGia} dòng "Giá khuyến mãi", để trống "Kho dự trữ/Giới hạn mua" ${updatedKho} dòng, ${SHOPEE_FS.rows.length - updatedGia} dòng giữ nguyên giá (thiếu dữ liệu/không khớp mã).`, 'ok');
+  shopeeLog(`📤 Đã xuất "${outName}" — cập nhật ${updatedGia} dòng "Giá khuyến mãi", ${updatedKho} dòng "Kho dự trữ/Giới hạn mua", ${SHOPEE_FS.rows.length - updatedGia} dòng giữ nguyên giá (thiếu dữ liệu/không khớp mã).`, 'ok');
 }
 
 function shopeeResetAll() {
