@@ -26593,7 +26593,7 @@ const GCPhotos=(()=>{
   const raw=String(p?.shopId||shop||''),shopId=allowed.has(raw)?raw:(typeof SAPI_SHOP_MAP_INV!=='undefined'?String(SAPI_SHOP_MAP_INV[raw]||''):'');
   if(!allowed.has(shopId))return text;
   const camp=String(p?.ma_sp??'');
-  return `<div class="gc-product-cell"><span class="gc-product-photo" data-gc-campaign-title="${esc(p.photoCampaignTitle||p.ten||'')}" data-gc-shop="${shopId}"${/^\d{1,20}$/.test(camp)?` data-gc-campaign-id="${camp}"`:''}><span class="gc-photo-empty" title="Đang đối chiếu mã sản phẩm thật từ danh mục">Ảnh</span></span><div class="gc-product-copy">${text}</div></div>`;
+  return `<div class="gc-product-cell"><span class="gc-product-photo" data-gc-campaign-title="${esc(p.photoCampaignTitle||p.ten||'')}" data-gc-shop="${shopId}"${/^[1-9]\d{0,19}$/.test(camp)?` data-gc-campaign-id="${camp}"`:''}><span class="gc-photo-empty" title="Đang đối chiếu mã sản phẩm thật từ danh mục">Ảnh</span></span><div class="gc-product-copy">${text}</div></div>`;
  }
  const nameKey=s=>String(s||'').normalize('NFC').trim().toLocaleLowerCase('vi').replace(/\s+/g,' ');
  let catalogPromise;
@@ -26610,20 +26610,28 @@ const GCPhotos=(()=>{
  async function campaignItems(shop,ids){
   campLoad();const raw=String(shop??''),shopId=allowed.has(raw)?raw:(typeof SAPI_SHOP_MAP_INV!=='undefined'?String(SAPI_SHOP_MAP_INV[raw]||''):''),out=new Map();
   if(!allowed.has(shopId))return out;
-  const want=[...new Set((ids||[]).map(String).filter(x=>/^\d{1,20}$/.test(x)))];
+  const want=[...new Set((ids||[]).map(String).filter(x=>/^[1-9]\d{0,19}$/.test(x)))]; // mã 0 = dòng Shop Level, Shopee báo lỗi cả lượt
   const miss=want.filter(c=>{const v=campMap.get(shopId+'_'+c);return !v||(!v.items.length&&Date.now()-v.t>86400000);}).sort();
   if(miss.length&&Date.now()>=campFailUntil&&typeof sapiCall==='function'&&typeof sapiGetToken==='function'){
    const pk=shopId+':'+miss.join(',');
    if(!campPending.has(pk))campPending.set(pk,(async()=>{
     try{
      const token=await sapiGetToken(Number(shopId));if(!token)throw Error('Shop chưa kết nối API quảng cáo.');
-     for(let i=0;i<miss.length;i+=100){
-      const batch=miss.slice(i,i+100),d=await sapiCall('get_campaign_items',{shop_id:Number(shopId),access_token:token,campaign_id_list:batch});
-      if(d?.error)throw Error(String(d.error));
-      const got=new Map((d?.response?.campaign_list||[]).map(c=>[String(c.campaign_id),(c.item_id_list||[]).map(String).filter(x=>/^\d{1,20}$/.test(x))]));
+     // Shopee báo lỗi cả lượt nếu có 1 mã hỏng -> chia đôi lượt để tách mã hỏng ra (mã hỏng ghi rỗng, hỏi lại sau 1 ngày).
+     let ok=0;
+     const ask=async batch=>{
+      const d=await sapiCall('get_campaign_items',{shop_id:Number(shopId),access_token:token,campaign_id_list:batch});
+      if(d?.error){
+       if(batch.length>1){const h=Math.ceil(batch.length/2);await ask(batch.slice(0,h));await ask(batch.slice(h));return;}
+       if(/unknown action/i.test(String(d.error)))throw Error(String(d.error));
+       campMap.set(shopId+'_'+batch[0],{items:[],t:Date.now()});return;
+      }
+      ok++;const got=new Map((d?.response?.campaign_list||[]).map(c=>[String(c.campaign_id),(c.item_id_list||[]).map(String).filter(x=>/^\d{1,20}$/.test(x))]));
       for(const c of batch)campMap.set(shopId+'_'+c,{items:got.get(c)||[],t:Date.now()});
-     }
+     };
+     for(let i=0;i<miss.length;i+=100)await ask(miss.slice(i,i+100));
      campSave();
+     if(!ok)throw Error('Shopee chưa trả mã sản phẩm cho các chiến dịch này.');
     }catch(e){campFailUntil=Date.now()+600000;console.warn('[Ảnh QC] Chưa lấy được mã sản phẩm theo chiến dịch, tạm dò theo tên:',e?.message||e);}
    })().finally(()=>campPending.delete(pk)));
    await campPending.get(pk);
